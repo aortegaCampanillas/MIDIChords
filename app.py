@@ -5,10 +5,11 @@ import math
 from pathlib import Path
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 import mido
 import numpy as np
@@ -37,7 +38,16 @@ UI_TEXTS = {
         "app_title": "Analizador de Acordes MIDI",
         "panel_chord": "Acorde",
         "panel_settings": "Configuración",
-        "label_active_notes": "Notas activas",
+        "label_mode": "Modo:",
+        "mode_detection": "Detección de Acordes",
+        "mode_generation": "Generación de Acordes",
+        "label_active_notes": "Notas",
+        "label_intervals": "Intervalos",
+        "label_generated_chord": "Acorde generado",
+        "label_root_note": "Tónica",
+        "label_variant": "Variante",
+        "label_inversion": "Inversión",
+        "inversion_root": "Fundamental",
         "button_open_settings": "Abrir configuración",
         "status_no_notes": "Sin notas",
         "status_no_input": "Sin entrada",
@@ -55,7 +65,12 @@ UI_TEXTS = {
         "settings_language": "Idioma",
         "settings_midi_input": "Entrada MIDI",
         "settings_audio_output": "Salida de audio",
+        "settings_sound": "Sonido",
         "settings_show_key_labels": "Mostrar notas en teclas blancas",
+        "sound_acoustic": "Piano acústico",
+        "sound_warm": "Piano cálido",
+        "sound_bright": "Piano brillante",
+        "sound_soft": "Piano suave",
         "button_cancel": "Cancelar",
         "button_save": "Guardar",
     },
@@ -63,7 +78,16 @@ UI_TEXTS = {
         "app_title": "MIDI Chords Analyzer",
         "panel_chord": "Chord",
         "panel_settings": "Settings",
-        "label_active_notes": "Active notes",
+        "label_mode": "Mode:",
+        "mode_detection": "Chord Detection",
+        "mode_generation": "Chord Generation",
+        "label_active_notes": "Notes",
+        "label_intervals": "Intervals",
+        "label_generated_chord": "Generated chord",
+        "label_root_note": "Tonic",
+        "label_variant": "Variant",
+        "label_inversion": "Inversion",
+        "inversion_root": "Root position",
         "button_open_settings": "Open settings",
         "status_no_notes": "No notes",
         "status_no_input": "No input",
@@ -81,7 +105,12 @@ UI_TEXTS = {
         "settings_language": "Language",
         "settings_midi_input": "MIDI input",
         "settings_audio_output": "Audio output",
+        "settings_sound": "Sound",
         "settings_show_key_labels": "Show note names on white keys",
+        "sound_acoustic": "Acoustic piano",
+        "sound_warm": "Warm piano",
+        "sound_bright": "Bright piano",
+        "sound_soft": "Soft piano",
         "button_cancel": "Cancel",
         "button_save": "Save",
     },
@@ -109,6 +138,115 @@ class Voice:
     release_samples: int = 0
 
 
+class RoundedChoiceButton(tk.Canvas):
+    def __init__(
+        self,
+        master: tk.Misc,
+        text: str,
+        command: Callable[[], None],
+        width: int = 70,
+        height: int = 30,
+        radius: int = 12,
+    ) -> None:
+        try:
+            parent_bg = str(master.cget("background"))
+        except tk.TclError:
+            parent_bg = "#f0f0f0"
+        super().__init__(
+            master,
+            width=width,
+            height=height,
+            highlightthickness=0,
+            bd=0,
+            bg=parent_bg,
+            cursor="hand2",
+        )
+        self._text = text
+        self._command = command
+        self._selected = False
+        self._radius = radius
+        self._shape_id: Optional[int] = None
+        self._label_id: Optional[int] = None
+        self._hover = False
+
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<Configure>", lambda _e: self._redraw())
+        self._redraw()
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+        if self._label_id is not None:
+            self.itemconfigure(self._label_id, text=self._text)
+
+    def set_selected(self, selected: bool) -> None:
+        if self._selected == selected:
+            return
+        self._selected = selected
+        self._redraw()
+
+    def _on_click(self, _event: tk.Event) -> None:
+        self._command()
+
+    def _on_enter(self, _event: tk.Event) -> None:
+        self._hover = True
+        self._redraw()
+
+    def _on_leave(self, _event: tk.Event) -> None:
+        self._hover = False
+        self._redraw()
+
+    def _rounded_points(self, x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
+        return [
+            x1 + r, y1,
+            x2 - r, y1,
+            x2, y1,
+            x2, y1 + r,
+            x2, y2 - r,
+            x2, y2,
+            x2 - r, y2,
+            x1 + r, y2,
+            x1, y2,
+            x1, y2 - r,
+            x1, y1 + r,
+            x1, y1,
+        ]
+
+    def _redraw(self) -> None:
+        self.delete("all")
+        w = max(4, int(self.winfo_width()))
+        h = max(4, int(self.winfo_height()))
+        r = max(4, min(self._radius, int(min(w, h) / 2) - 1))
+
+        if self._selected:
+            fill = "#136780"
+            outline = "#11b5c6"
+            text_color = "#f4f7f9"
+        else:
+            fill = "#0b465a" if not self._hover else "#0d536a"
+            outline = "#0caab9"
+            text_color = "#c8d1d8"
+
+        points = self._rounded_points(1, 1, w - 1, h - 1, r)
+        self._shape_id = self.create_polygon(
+            points,
+            smooth=True,
+            splinesteps=20,
+            fill=fill,
+            outline=outline,
+            width=2.0,
+        )
+        self._label_id = self.create_text(
+            14,
+            h / 2,
+            text=self._text,
+            fill=text_color,
+            font=("Helvetica", 12, "bold"),
+            anchor="w",
+        )
+
+
 CHORD_PATTERNS = [
     ChordPattern("", (0, 4, 7)),
     ChordPattern("m", (0, 3, 7)),
@@ -132,9 +270,15 @@ class PianoAudioEngine:
         self.sample_rate = sample_rate
         self.channels = 2
         self.master_gain = 0.14
+        self.preset = "acoustic"
         self.stream: Optional[sd.OutputStream] = None
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
+
+    def set_preset(self, preset: str) -> None:
+        if preset not in {"acoustic", "warm", "bright", "soft"}:
+            preset = "acoustic"
+        self.preset = preset
 
     @staticmethod
     def midi_note_to_freq(note: int) -> float:
@@ -222,9 +366,49 @@ class PianoAudioEngine:
                 age = (start_age + n) / self.sample_rate
                 attack = 1.0 - np.exp(-age / 0.0035)
 
+                if self.preset == "warm":
+                    partial_count = 6
+                    harmonic_shape_base = 1.15
+                    harmonic_shape_vel = 0.85
+                    decay_base = 0.24
+                    decay_step = 0.10
+                    sustain_base = 0.65
+                    sustain_freq = 3200.0
+                    release_rate = 5.2
+                    local_gain = 0.95
+                elif self.preset == "bright":
+                    partial_count = 9
+                    harmonic_shape_base = 0.78
+                    harmonic_shape_vel = 0.95
+                    decay_base = 0.36
+                    decay_step = 0.14
+                    sustain_base = 0.9
+                    sustain_freq = 2200.0
+                    release_rate = 7.2
+                    local_gain = 1.05
+                elif self.preset == "soft":
+                    partial_count = 5
+                    harmonic_shape_base = 1.35
+                    harmonic_shape_vel = 0.70
+                    decay_base = 0.20
+                    decay_step = 0.08
+                    sustain_base = 0.58
+                    sustain_freq = 3600.0
+                    release_rate = 4.6
+                    local_gain = 0.88
+                else:
+                    partial_count = 7
+                    harmonic_shape_base = 0.95
+                    harmonic_shape_vel = 1.10
+                    decay_base = 0.30
+                    decay_step = 0.12
+                    sustain_base = 0.78
+                    sustain_freq = 2900.0
+                    release_rate = 6.5
+                    local_gain = 1.0
+
                 # Inharmonicidad de cuerdas reales (mayor en agudos).
                 b_coeff = 0.000015 + (voice.freq / 4200.0) ** 2 * 0.00022
-                partial_count = 7
                 spectrum = np.zeros(frames, dtype=np.float64)
                 nyquist_guard = self.sample_rate * 0.45
 
@@ -240,27 +424,27 @@ class PianoAudioEngine:
                         phases = (2.0 * math.pi * harmonic_freq * age) + (k * 0.17)
 
                         # Brillo dependiente de velocidad y decaimiento por parcial.
-                        harmonic_shape = 0.95 + (1.10 * (1.0 - voice.brightness))
+                        harmonic_shape = harmonic_shape_base + (harmonic_shape_vel * (1.0 - voice.brightness))
                         harmonic_amp = 1.0 / (k ** harmonic_shape)
-                        decay_rate = 0.30 + 0.12 * k + 0.015 * max(0.0, voice.freq - 220.0) / 220.0
+                        decay_rate = decay_base + decay_step * k + 0.015 * max(0.0, voice.freq - 220.0) / 220.0
                         partial_env = np.exp(-decay_rate * age)
                         string_tone += harmonic_amp * np.sin(phases) * partial_env
 
                     spectrum += string_tone
 
                 hold_floor = 0.10 + 0.08 * (1.0 - voice.brightness)
-                sustain_decay = np.exp(-(0.78 + voice.freq / 2900.0) * age)
+                sustain_decay = np.exp(-(sustain_base + voice.freq / sustain_freq) * age)
                 hold_env = attack * (hold_floor + (1.0 - hold_floor) * sustain_decay)
 
                 if voice.released:
                     release_age = (voice.release_samples + n) / self.sample_rate
-                    release_env = np.exp(-6.5 * release_age)
+                    release_env = np.exp(-release_rate * release_age)
                     env = hold_env * release_env
                 else:
                     env = hold_env
 
                 tone = spectrum / max(1, len(voice.detune_ratios))
-                signal += (tone * env * voice.velocity_gain).astype(np.float32)
+                signal += (tone * env * voice.velocity_gain * local_gain).astype(np.float32)
 
                 voice.age_samples += frames
                 if voice.released:
@@ -289,6 +473,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             "language": "es",
             "midi_input": "",
             "audio_output": "",
+            "sound_preset": "acoustic",
             "show_keyboard_note_labels": False,
         }
         self.load_config()
@@ -299,15 +484,20 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._load_app_logo()
 
         self.active_notes: set[int] = set()
+        self.generated_preview_notes: set[int] = set()
         self.midi_held_notes: set[int] = set()
         self.mouse_held_notes: set[int] = set()
         self.sustain_latched_notes: set[int] = set()
         self.note_velocity: dict[int, int] = {}
         self.pedal_active = False
         self.mouse_current_note: Optional[int] = None
+        self.generated_playing_notes: set[int] = set()
+        self.generated_play_after_id: Optional[str] = None
+        self.generation_play_button_pressed = False
         self.white_key_regions: list[tuple[int, float, float, float, float]] = []
         self.black_key_regions: list[tuple[int, float, float, float, float]] = []
         self.message_queue: queue.Queue = queue.Queue()
+        self.blocked_note_until: dict[int, float] = {}
 
         self.input_port: Optional[mido.ports.BaseInput] = None
 
@@ -315,9 +505,21 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.audio_output_names: list[str] = []
         self.audio_output_map: dict[str, int] = {}
         self.audio_engine = PianoAudioEngine()
+        self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
+        self.generation_tab_active = False
+        self.mode_var = tk.StringVar()
+        self.generation_root_pc = 0
+        self.generation_pattern_suffix = ""
+        self.generation_inversion = 0
+        self.generation_root_buttons: dict[int, RoundedChoiceButton] = {}
+        self.generation_variant_buttons: dict[str, RoundedChoiceButton] = {}
+        self.generation_inversion_buttons: dict[int, RoundedChoiceButton] = {}
+        self.detect_hold_notes: set[int] = set()
+        self.detect_hold_active = False
 
         self._build_ui()
         self.apply_ui_language()
+        self._on_mode_combo_changed(None)
         self.refresh_devices()
         self.connect_ports()
         self.after(20, self._process_midi_queue)
@@ -329,6 +531,30 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _build_ui(self) -> None:
         container = ttk.Frame(self, padding=10)
         container.pack(fill=tk.BOTH, expand=True)
+
+        mode_bar = ttk.Frame(container)
+        mode_bar.pack(fill=tk.X, pady=(0, 8))
+        mode_bar.columnconfigure(0, weight=1)
+        mode_bar.columnconfigure(1, weight=1)
+        mode_bar.columnconfigure(2, weight=1)
+
+        mode_center = ttk.Frame(mode_bar)
+        mode_center.grid(row=0, column=1)
+
+        self.mode_label = ttk.Label(mode_center, text="", font=("Helvetica", 11, "bold"))
+        self.mode_label.pack(side=tk.LEFT, padx=(0, 8))
+
+        self.mode_combo = ttk.Combobox(
+            mode_center,
+            textvariable=self.mode_var,
+            state="readonly",
+            width=34,
+        )
+        self.mode_combo.pack(side=tk.LEFT)
+        self.mode_combo.bind("<<ComboboxSelected>>", self._on_mode_combo_changed)
+
+        self.config_icon_btn = ttk.Button(mode_bar, text="⚙", width=3, command=self.open_settings_dialog)
+        self.config_icon_btn.grid(row=0, column=2, sticky="e")
 
         top_area = ttk.Frame(container)
         top_area.pack(fill=tk.BOTH, expand=True)
@@ -346,34 +572,123 @@ class MidiChordAnalyzerApp(tk.Tk):
         side_panel.pack(fill=tk.BOTH, expand=True)
         side_panel.columnconfigure(0, weight=1)
         side_panel.rowconfigure(0, weight=1)
-        side_panel.rowconfigure(1, weight=1)
 
         self.chord_panel = ttk.LabelFrame(side_panel, text="", padding=(12, 10))
-        self.chord_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
+        self.chord_panel.grid(row=0, column=0, sticky="nsew")
 
-        self.settings_panel = ttk.LabelFrame(side_panel, text="", padding=(12, 10))
-        self.settings_panel.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
+        self.tab_detection_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
+        self.tab_generation_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
+        self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.chord_title_label = ttk.Label(self.chord_panel, text="", font=("Helvetica", 18, "bold"))
+        self.chord_title_label = ttk.Label(self.tab_detection_frame, text="", font=("Helvetica", 18, "bold"))
         self.chord_title_label.pack(anchor="w", pady=(4, 8))
 
         self.chord_var = tk.StringVar(value="-")
-        self.chord_label = ttk.Label(self.chord_panel, textvariable=self.chord_var, font=("Helvetica", 36, "bold"))
+        self.chord_label = ttk.Label(self.tab_detection_frame, textvariable=self.chord_var, font=("Helvetica", 36, "bold"))
         self.chord_label.pack(anchor="w", pady=(0, 18))
 
-        self.notes_caption_label = ttk.Label(self.chord_panel, text="", font=("Helvetica", 12, "bold"))
+        self.notes_caption_label = ttk.Label(self.tab_detection_frame, text="", font=("Helvetica", 12, "bold"))
         self.notes_caption_label.pack(anchor="w")
 
         self.notes_var = tk.StringVar(value="-")
-        self.notes_label = ttk.Label(self.chord_panel, textvariable=self.notes_var, wraplength=420, font=("Menlo", 12))
+        self.notes_label = ttk.Label(self.tab_detection_frame, textvariable=self.notes_var, wraplength=420, font=("Menlo", 12))
         self.notes_label.pack(anchor="w", pady=(6, 12))
+        self.intervals_caption_label = ttk.Label(self.tab_detection_frame, text="", font=("Helvetica", 12, "bold"))
+        self.intervals_caption_label.pack(anchor="w")
+        self.intervals_var = tk.StringVar(value="-")
+        self.intervals_label = ttk.Label(self.tab_detection_frame, textvariable=self.intervals_var, wraplength=420, font=("Menlo", 12))
+        self.intervals_label.pack(anchor="w", pady=(6, 10))
+
+        self.generated_title_label = ttk.Label(self.tab_generation_frame, text="", font=("Helvetica", 16, "bold"))
+        self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 10))
+
+        self.generation_root_label = ttk.Label(self.tab_generation_frame, text="")
+        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 2))
+        self.generation_root_buttons_frame = ttk.Frame(self.tab_generation_frame)
+        self.generation_root_buttons_frame.grid(row=2, column=0, sticky="ew", pady=(0, 4))
+        for col in range(6):
+            self.generation_root_buttons_frame.columnconfigure(col, weight=1)
+        for pc in range(12):
+            btn = RoundedChoiceButton(
+                self.generation_root_buttons_frame,
+                text=self.note_name(pc, with_octave=False),
+                command=lambda p=pc: self._on_generation_root_clicked(p),
+                width=78,
+                height=34,
+                radius=16,
+            )
+            btn.grid(row=pc // 6, column=pc % 6, sticky="ew", padx=2, pady=2)
+            self.generation_root_buttons[pc] = btn
+
+        self.generation_variant_label = ttk.Label(self.tab_generation_frame, text="")
+        self.generation_variant_label.grid(row=3, column=0, sticky="w", pady=(0, 2))
+        self.generation_variant_buttons_frame = ttk.Frame(self.tab_generation_frame)
+        self.generation_variant_buttons_frame.grid(row=4, column=0, sticky="ew", pady=(0, 4))
+        for col in range(4):
+            self.generation_variant_buttons_frame.columnconfigure(col, weight=1)
+        for idx, pattern in enumerate(CHORD_PATTERNS):
+            suffix = pattern.suffix
+            label = suffix if suffix else "maj"
+            btn = RoundedChoiceButton(
+                self.generation_variant_buttons_frame,
+                text=label,
+                command=lambda s=suffix: self._on_generation_variant_clicked(s),
+                width=92,
+                height=34,
+                radius=16,
+            )
+            btn.grid(row=idx // 4, column=idx % 4, sticky="ew", padx=2, pady=2)
+            self.generation_variant_buttons[suffix] = btn
+
+        self.generation_inversion_label = ttk.Label(self.tab_generation_frame, text="")
+        self.generation_inversion_label.grid(row=5, column=0, sticky="w", pady=(0, 2))
+        self.generation_inversion_buttons_frame = ttk.Frame(self.tab_generation_frame)
+        self.generation_inversion_buttons_frame.grid(row=6, column=0, sticky="ew", pady=(0, 4))
+
+        self.generated_chord_var = tk.StringVar(value="-")
+        self.generated_chord_row = ttk.Frame(self.tab_generation_frame)
+        self.generated_chord_row.grid(row=7, column=0, sticky="w", pady=(6, 4))
+
+        self.generation_play_btn = ttk.Button(
+            self.generated_chord_row,
+            text="▶",
+            width=3,
+        )
+        self.generation_play_btn.pack(side=tk.LEFT)
+        self.generation_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
+        self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
+
+        self.generated_chord_label = ttk.Label(
+            self.generated_chord_row,
+            textvariable=self.generated_chord_var,
+            font=("Helvetica", 30, "bold"),
+        )
+        self.generated_chord_label.pack(side=tk.LEFT, padx=(8, 0))
+
+        self.generated_notes_caption_label = ttk.Label(self.tab_generation_frame, text="", font=("Helvetica", 12, "bold"))
+        self.generated_notes_caption_label.grid(row=8, column=0, sticky="w", pady=(4, 2))
+        self.generated_notes_var = tk.StringVar(value="-")
+        self.generated_notes_label = ttk.Label(
+            self.tab_generation_frame,
+            textvariable=self.generated_notes_var,
+            wraplength=420,
+            font=("Menlo", 12),
+        )
+        self.generated_notes_label.grid(row=9, column=0, sticky="w", pady=(0, 4))
+        self.generated_intervals_caption_label = ttk.Label(self.tab_generation_frame, text="", font=("Helvetica", 12, "bold"))
+        self.generated_intervals_caption_label.grid(row=10, column=0, sticky="w", pady=(2, 2))
+        self.generated_intervals_var = tk.StringVar(value="-")
+        self.generated_intervals_label = ttk.Label(
+            self.tab_generation_frame,
+            textvariable=self.generated_intervals_var,
+            wraplength=420,
+            font=("Menlo", 12),
+        )
+        self.generated_intervals_label.grid(row=11, column=0, sticky="w", pady=(0, 2))
+
+        self.tab_generation_frame.columnconfigure(0, weight=1)
 
         self.status_var = tk.StringVar(value="")
-        status_label = ttk.Label(self.settings_panel, textvariable=self.status_var, wraplength=420)
-        status_label.pack(anchor="w", pady=(8, 14))
-
-        self.config_btn = ttk.Button(self.settings_panel, text="", command=self.open_settings_dialog)
-        self.config_btn.pack(anchor="w")
 
         separator = ttk.Separator(container, orient=tk.HORIZONTAL)
         separator.pack(fill=tk.X, pady=(10, 10))
@@ -399,13 +714,243 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
-        self.chord_panel.configure(text=self.tr("panel_chord"))
-        self.settings_panel.configure(text=self.tr("panel_settings"))
-        self.chord_title_label.configure(text=self.tr("panel_chord"))
+        self.chord_panel.configure(text="")
+        self.mode_label.configure(text=self.tr("label_mode"))
+        self.chord_title_label.configure(text="")
         self.notes_caption_label.configure(text=self.tr("label_active_notes"))
-        self.config_btn.configure(text=self.tr("button_open_settings"))
+        self.intervals_caption_label.configure(text=self.tr("label_intervals"))
+        self.generated_title_label.configure(text="")
+        self.generation_root_label.configure(text=self.tr("label_root_note"))
+        self.generation_variant_label.configure(text=self.tr("label_variant"))
+        self.generation_inversion_label.configure(text=self.tr("label_inversion"))
+        self.generated_notes_caption_label.configure(text=self.tr("label_active_notes"))
+        self.generated_intervals_caption_label.configure(text=self.tr("label_intervals"))
+        self.config_icon_btn.configure(text="⚙")
+        self.mode_combo["values"] = [self.tr("mode_detection"), self.tr("mode_generation")]
+        self.mode_var.set(self.tr("mode_generation") if self.generation_tab_active else self.tr("mode_detection"))
+        self._refresh_generation_controls()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
+
+    def _refresh_generation_controls(self) -> None:
+        for pc, btn in self.generation_root_buttons.items():
+            btn.set_text(self.note_name(pc, with_octave=False))
+        if self.generation_pattern_suffix not in self.generation_variant_buttons:
+            self.generation_pattern_suffix = ""
+        self._rebuild_generation_inversion_buttons()
+        self._refresh_generation_button_states()
+        self._update_generation_preview()
+
+    def _refresh_generation_button_states(self) -> None:
+        for pc, btn in self.generation_root_buttons.items():
+            btn.set_selected(pc == self.generation_root_pc)
+        for suffix, btn in self.generation_variant_buttons.items():
+            btn.set_selected(suffix == self.generation_pattern_suffix)
+        for inversion, btn in self.generation_inversion_buttons.items():
+            btn.set_selected(inversion == self.generation_inversion)
+
+    def _on_generation_root_clicked(self, pc: int) -> None:
+        self.generation_root_pc = pc
+        self._refresh_generation_button_states()
+        self._update_generation_preview()
+
+    def _on_generation_variant_clicked(self, suffix: str) -> None:
+        self.generation_pattern_suffix = suffix
+        self._rebuild_generation_inversion_buttons()
+        self._refresh_generation_button_states()
+        self._update_generation_preview()
+
+    def _inversion_label(self, inversion: int) -> str:
+        if inversion == 0:
+            return self.tr("inversion_root")
+        language = self.config_data.get("language", "es")
+        if language == "es":
+            return f"{inversion}ª inversión"
+        ord_map = {1: "1st", 2: "2nd", 3: "3rd"}
+        ord_txt = ord_map.get(inversion, f"{inversion}th")
+        return f"{ord_txt} inversion"
+
+    def _rebuild_generation_inversion_buttons(self) -> None:
+        for widget in self.generation_inversion_buttons_frame.winfo_children():
+            widget.destroy()
+        self.generation_inversion_buttons.clear()
+
+        pattern = self._resolve_generation_pattern()
+        inversion_count = max(1, len(pattern.intervals))
+        if self.generation_inversion >= inversion_count:
+            self.generation_inversion = 0
+
+        columns = min(4, inversion_count)
+        for col in range(columns):
+            self.generation_inversion_buttons_frame.columnconfigure(col, weight=1)
+
+        for inversion in range(inversion_count):
+            btn = RoundedChoiceButton(
+                self.generation_inversion_buttons_frame,
+                text=self._inversion_label(inversion),
+                command=lambda inv=inversion: self._on_generation_inversion_clicked(inv),
+                width=130,
+                height=32,
+                radius=14,
+            )
+            btn.grid(row=inversion // columns, column=inversion % columns, sticky="ew", padx=2, pady=2)
+            self.generation_inversion_buttons[inversion] = btn
+
+    def _on_generation_inversion_clicked(self, inversion: int) -> None:
+        self.generation_inversion = inversion
+        self._refresh_generation_button_states()
+        self._update_generation_preview()
+
+    def _on_mode_combo_changed(self, _event: tk.Event) -> None:
+        selected = self.mode_var.get()
+        self.generation_tab_active = selected == self.tr("mode_generation")
+        if self.generation_tab_active:
+            detected_notes = self._current_detection_notes()
+            self._clear_live_input_state()
+            if detected_notes:
+                self._load_generation_from_detected_notes(detected_notes)
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
+        else:
+            self.tab_generation_frame.pack_forget()
+            self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
+        self.update_music_views()
+
+    def _resolve_generation_pattern(self) -> ChordPattern:
+        for pattern in CHORD_PATTERNS:
+            if pattern.suffix == self.generation_pattern_suffix:
+                return pattern
+        return CHORD_PATTERNS[0]
+
+    def _update_generation_preview(self) -> None:
+        was_playing = self.generation_play_button_pressed or bool(self.generated_playing_notes)
+        if was_playing:
+            self._stop_generated_playback()
+
+        pattern = self._resolve_generation_pattern()
+        self.generation_pattern_suffix = pattern.suffix
+
+        root_midi = 60 + self.generation_root_pc
+        intervals = list(pattern.intervals)
+        if not intervals:
+            self.generated_preview_notes = set()
+            self.generated_chord_var.set("-")
+            self.generated_notes_var.set("-")
+            if self.generation_tab_active:
+                self.update_music_views()
+            return
+
+        max_inversion = len(intervals) - 1
+        inversion = min(max(0, self.generation_inversion), max_inversion)
+        if inversion != self.generation_inversion:
+            self.generation_inversion = inversion
+            self._refresh_generation_button_states()
+
+        voiced_intervals = [(interval + (12 if idx < inversion else 0)) for idx, interval in enumerate(intervals)]
+        voiced_intervals.sort()
+        voiced_notes = [root_midi + interval for interval in voiced_intervals]
+        self.generated_preview_notes = set(voiced_notes)
+
+        shown_suffix = pattern.suffix if pattern.suffix else ""
+        chord_name = f"{self.note_name(self.generation_root_pc, with_octave=False)}{shown_suffix}"
+        if inversion > 0 and voiced_notes:
+            bass_pc = voiced_notes[0] % 12
+            chord_name = f"{chord_name}/{self.note_name(bass_pc, with_octave=False)}"
+        self.generated_chord_var.set(chord_name)
+        if self.generated_preview_notes:
+            ordered = sorted(self.generated_preview_notes)
+            self.generated_notes_var.set(" - ".join(self.note_name(note) for note in ordered))
+        else:
+            self.generated_notes_var.set("-")
+
+        if was_playing and self.generation_play_button_pressed:
+            self._play_generated_chord()
+
+        if self.generation_tab_active:
+            self.update_music_views()
+
+    def _clear_live_input_state(self) -> None:
+        for note in list(self.active_notes):
+            self.audio_engine.note_off(note)
+        self.active_notes.clear()
+        self.midi_held_notes.clear()
+        self.mouse_held_notes.clear()
+        self.sustain_latched_notes.clear()
+        self.note_velocity.clear()
+        self.mouse_current_note = None
+
+    def _clear_detection_hold(self) -> None:
+        self.detect_hold_active = False
+        self.detect_hold_notes.clear()
+
+    def _current_detection_notes(self) -> set[int]:
+        if self.active_notes:
+            return set(self.active_notes)
+        if self.detect_hold_active:
+            return set(self.detect_hold_notes)
+        return set()
+
+    def _load_generation_from_detected_notes(self, notes: set[int]) -> None:
+        if not notes:
+            return
+        root, pattern, bass_pc = self._analyze_chord_notes(notes)
+        if root is None:
+            root = min(notes) % 12
+        if pattern is None:
+            pattern = CHORD_PATTERNS[0]
+        self.generation_root_pc = root
+        self.generation_pattern_suffix = pattern.suffix
+        inversion = 0
+        if bass_pc is not None:
+            for idx, interval in enumerate(pattern.intervals):
+                if (root + interval) % 12 == bass_pc:
+                    inversion = idx
+                    break
+        self.generation_inversion = inversion
+        self._rebuild_generation_inversion_buttons()
+        self._refresh_generation_button_states()
+        self._update_generation_preview()
+
+    def _stop_generated_playback(self) -> None:
+        if self.generated_play_after_id is not None:
+            try:
+                self.after_cancel(self.generated_play_after_id)
+            except Exception:
+                pass
+            self.generated_play_after_id = None
+        for note in list(self.generated_playing_notes):
+            self.audio_engine.note_off(note)
+        self.generated_playing_notes.clear()
+
+    def _play_generated_chord(self) -> None:
+        if not self.generated_preview_notes:
+            return
+        self._stop_generated_playback()
+        for note in sorted(self.generated_preview_notes):
+            self.audio_engine.note_on(note, 108)
+            self.generated_playing_notes.add(note)
+
+    def _on_generation_play_press(self, _event: tk.Event) -> str:
+        self.generation_play_button_pressed = True
+        self.generation_play_btn.state(["pressed"])
+        self._play_generated_chord()
+        return "break"
+
+    def _on_global_mouse_release(self, _event: tk.Event) -> None:
+        if self.generation_play_button_pressed:
+            self.generation_play_button_pressed = False
+            self.generation_play_btn.state(["!pressed"])
+            self._stop_generated_playback()
+
+    def _show_forbidden_note_feedback(self, note: int) -> None:
+        self.blocked_note_until[note] = time.monotonic() + 0.35
+        self.redraw_keyboard()
+        self.after(380, self.redraw_keyboard)
+
+    @staticmethod
+    def _draw_forbidden_icon(canvas: tk.Canvas, cx: float, cy: float, radius: float) -> None:
+        canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, outline="#d32f2f", width=2)
+        canvas.create_line(cx - radius * 0.65, cy + radius * 0.65, cx + radius * 0.65, cy - radius * 0.65, fill="#d32f2f", width=2)
 
     def load_config(self) -> None:
         if not CONFIG_PATH.exists():
@@ -503,6 +1048,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def connect_ports(self) -> None:
         self.disconnect_ports()
+        self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
 
         input_name = self.config_data.get("midi_input", "")
         audio_name = self.config_data.get("audio_output", "")
@@ -562,6 +1108,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.update_music_views()
 
     def _note_on_from_source(self, note: int, velocity: int, source: str) -> None:
+        if not self.generation_tab_active and self.detect_hold_active:
+            self._clear_detection_hold()
         velocity = int(max(1, min(127, velocity)))
         self.note_velocity[note] = velocity
         self.sustain_latched_notes.discard(note)
@@ -595,6 +1143,9 @@ class MidiChordAnalyzerApp(tk.Tk):
         note = self._note_at_position(float(event.x), float(event.y))
         if note is None:
             return
+        if self.generation_tab_active:
+            self._show_forbidden_note_feedback(note)
+            return
         if self.pedal_active and note in self.active_notes:
             # Toggle con pedal: clic en nota activa la deselecciona.
             self.mouse_held_notes.discard(note)
@@ -613,6 +1164,10 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def _on_keyboard_drag(self, event: tk.Event) -> None:
         note = self._note_at_position(float(event.x), float(event.y))
+        if self.generation_tab_active:
+            if note is not None:
+                self._show_forbidden_note_feedback(note)
+            return
         if note == self.mouse_current_note:
             return
         if self.mouse_current_note is not None:
@@ -630,12 +1185,20 @@ class MidiChordAnalyzerApp(tk.Tk):
             self._refresh_sounding_notes()
 
     def _on_shift_press(self, _event: tk.Event) -> None:
+        if not self.generation_tab_active and self.detect_hold_active:
+            self._clear_detection_hold()
+            self.update_music_views()
         self.pedal_active = True
 
     def _on_shift_release(self, _event: tk.Event) -> None:
+        prev_active = set(self.active_notes)
         self.pedal_active = False
         self.sustain_latched_notes.clear()
         self._refresh_sounding_notes()
+        if not self.generation_tab_active and prev_active and not self.active_notes:
+            self.detect_hold_notes = prev_active
+            self.detect_hold_active = True
+            self.update_music_views()
 
     def _process_midi_queue(self) -> None:
         changed = False
@@ -644,6 +1207,11 @@ class MidiChordAnalyzerApp(tk.Tk):
                 message = self.message_queue.get_nowait()
             except queue.Empty:
                 break
+
+            if self.generation_tab_active:
+                if message.type == "note_on" and message.velocity > 0:
+                    self._show_forbidden_note_feedback(message.note)
+                continue
 
             if message.type == "note_on" and message.velocity > 0:
                 self._note_on_from_source(message.note, velocity=int(message.velocity), source="midi")
@@ -667,20 +1235,23 @@ class MidiChordAnalyzerApp(tk.Tk):
         return f"{name}{octave}"
 
     @staticmethod
+    def format_intervals(notes: set[int]) -> str:
+        if not notes:
+            return "-"
+        ordered = sorted(notes)
+        base = ordered[0]
+        return " - ".join(f"+{note - base}" for note in ordered)
+
+    @staticmethod
     def _diatonic_index(midi_note: int) -> int:
         octave = midi_note // 12 - 1
         letter_index = PC_TO_DIATONIC_LETTER[midi_note % 12]
         return octave * 7 + letter_index
 
-    def detect_chord(self) -> str:
-        if not self.active_notes:
-            return "-"
-
-        pcs = {note % 12 for note in self.active_notes}
-        if len(pcs) == 1:
-            note = next(iter(pcs))
-            return self.note_name(note, with_octave=False)
-
+    def _analyze_chord_notes(self, notes: set[int]) -> tuple[Optional[int], Optional[ChordPattern], Optional[int]]:
+        if not notes:
+            return None, None, None
+        pcs = {note % 12 for note in notes}
         best_score = -999
         best_complexity = -999
         best_root: Optional[int] = None
@@ -707,28 +1278,56 @@ class MidiChordAnalyzerApp(tk.Tk):
                     best_root = root
                     best_pattern = pattern
 
+        bass_pc = min(notes) % 12 if notes else None
+        return best_root, best_pattern, bass_pc
+
+    def detect_chord(self, notes: Optional[set[int]] = None) -> str:
+        chord_notes = set(notes if notes is not None else self._current_detection_notes())
+        if not chord_notes:
+            return "-"
+
+        pcs = {note % 12 for note in chord_notes}
+        if len(pcs) == 1:
+            note = next(iter(pcs))
+            return self.note_name(note, with_octave=False)
+
+        best_root, best_pattern, bass_pc = self._analyze_chord_notes(chord_notes)
+
         if best_root is None or best_pattern is None:
-            ordered = sorted(self.active_notes)
+            ordered = sorted(chord_notes)
             return " + ".join(self.note_name(n, with_octave=False) for n in ordered)
 
         root = best_root
         pattern = best_pattern
         chord = f"{self.note_name(root, with_octave=False)}{pattern.suffix}"
 
-        bass_pc = min(self.active_notes) % 12
-        if bass_pc != root:
+        if bass_pc is not None and bass_pc != root:
             chord = f"{chord}/{self.note_name(bass_pc, with_octave=False)}"
 
         return chord
 
     def update_music_views(self) -> None:
-        if self.active_notes:
-            ordered = sorted(self.active_notes)
-            self.notes_var.set(" - ".join(self.note_name(note) for note in ordered))
+        active_set = self._current_detection_notes()
+        generated_set = set(self.generated_preview_notes)
+
+        if active_set:
+            active_ordered = sorted(active_set)
+            self.notes_var.set(" - ".join(self.note_name(note) for note in active_ordered))
         else:
             self.notes_var.set("-")
+        self.intervals_var.set(self.format_intervals(active_set))
 
-        self.chord_var.set(self.detect_chord())
+        if generated_set:
+            generated_ordered = sorted(generated_set)
+            self.generated_notes_var.set(" - ".join(self.note_name(note) for note in generated_ordered))
+        else:
+            self.generated_notes_var.set("-")
+        self.generated_intervals_var.set(self.format_intervals(generated_set))
+
+        if self.generation_tab_active:
+            self.chord_var.set(self.generated_chord_var.get())
+        else:
+            self.chord_var.set(self.detect_chord(active_set))
         self.redraw_keyboard()
         self.redraw_staff()
 
@@ -737,6 +1336,12 @@ class MidiChordAnalyzerApp(tk.Tk):
         canvas.delete("all")
         self.white_key_regions = []
         self.black_key_regions = []
+        if self.generation_tab_active:
+            display_active_notes = set(self.generated_preview_notes)
+        else:
+            display_active_notes = self._current_detection_notes()
+        now = time.monotonic()
+        self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
 
         w = max(100, canvas.winfo_width())
         h = max(120, canvas.winfo_height())
@@ -767,7 +1372,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             x1 = i * white_w
             x2 = (i + 1) * white_w
 
-            if note in self.active_notes:
+            if note in display_active_notes:
                 top_fill = "#4da3ea"
                 base_fill = "#4da3ea"
             else:
@@ -778,7 +1383,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             canvas.create_rectangle(x1 + 1, key_top + 1, x2 - 1, key_top + (key_bottom - key_top) * 0.42, fill=top_fill, outline="")
             canvas.create_line(x1 + 1, key_bottom - 2, x2 - 1, key_bottom - 2, fill="#c8c8c8")
             if self.config_data.get("show_keyboard_note_labels", False):
-                label_color = "#0b2540" if note in self.active_notes else "#5f5f5f"
+                label_color = "#0b2540" if note in display_active_notes else "#5f5f5f"
                 canvas.create_text(
                     (x1 + x2) / 2,
                     key_bottom - 16,
@@ -786,6 +1391,8 @@ class MidiChordAnalyzerApp(tk.Tk):
                     fill=label_color,
                     font=("Helvetica", 8, "bold"),
                 )
+            if note in self.blocked_note_until:
+                self._draw_forbidden_icon(canvas, (x1 + x2) / 2, key_bottom - 22, 8)
             self.white_key_regions.append((note, x1, key_top, x2, key_bottom))
 
         black_w = white_w * 0.64
@@ -804,7 +1411,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             x1 = center_x - black_w / 2
             x2 = center_x + black_w / 2
 
-            if note in self.active_notes:
+            if note in display_active_notes:
                 top = "#0078d7"
                 mid = "#0078d7"
                 low = "#0078d7"
@@ -817,6 +1424,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             canvas.create_rectangle(x1 + 1, key_top + 1, x2 - 1, key_top + black_h * 0.45, fill=top, outline="")
             canvas.create_rectangle(x1 + 1, key_top + black_h * 0.75, x2 - 1, key_top + black_h - 1, fill=low, outline="")
             canvas.create_line(x1 + 1, key_top + black_h - 3, x2 - 1, key_top + black_h - 3, fill="#2a2a2a")
+            if note in self.blocked_note_until:
+                self._draw_forbidden_icon(canvas, (x1 + x2) / 2, key_top + black_h * 0.5, 7)
             self.black_key_regions.append((note, x1, key_top, x2, key_top + black_h))
 
         # Franja inferior para dar profundidad y etiquetas de octava.
@@ -833,14 +1442,16 @@ class MidiChordAnalyzerApp(tk.Tk):
     def redraw_staff(self) -> None:
         canvas = self.staff_canvas
         canvas.delete("all")
+        display_notes = self.generated_preview_notes if self.generation_tab_active else self._current_detection_notes()
 
         w = max(300, canvas.winfo_width())
         h = max(260, canvas.winfo_height())
 
         margin_x = 72
         right_x = w - 20
-        line_space = min(19, max(12, h // 24))
-        treble_top = max(24, int(h * 0.08))
+        line_space = min(22, max(11, h // 24))
+        vertical_shift = int(2 * line_space)
+        treble_top = max(68, int(h * 0.23)) + vertical_shift
         bass_top = treble_top + int(line_space * 7.4)
 
         for i in range(5):
@@ -892,7 +1503,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         canvas.create_text(108, treble_top + line_space * 1.65, text="𝄞", font=("Times New Roman", 64), fill="#ffffff")
         canvas.create_text(108, bass_top + line_space * 1.65, text="𝄢", font=("Times New Roman", 58), fill="#ffffff")
 
-        if not self.active_notes:
+        if not display_notes:
             canvas.create_text(
                 w / 2,
                 min(h - 48, bass_top + 5.6 * line_space),
@@ -901,24 +1512,82 @@ class MidiChordAnalyzerApp(tk.Tk):
                 font=("Helvetica", 13, "italic"),
             )
         else:
-            ordered = sorted(self.active_notes)
+            ordered = sorted(display_notes)
             chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
+            placed_treble_cols: dict[int, list[float]] = {}
+            placed_bass_cols: dict[int, list[float]] = {}
 
             # Todas las notas se dibujan en el mismo tiempo (misma x) y en
             # posiciones diatonicas exactas (linea/espacio real del pentagrama).
             treble_bottom_line_diatonic = 4 * 7 + 2  # E4
+            treble_top_line_diatonic = treble_bottom_line_diatonic + 8  # F5
             bass_bottom_line_diatonic = 2 * 7 + 4    # G2
+            bass_top_line_diatonic = bass_bottom_line_diatonic + 8      # A3
             staff_step = line_space / 2.0
             for note in ordered:
-                x = chord_x
                 if note >= 60:
-                    diatonic_steps = self._diatonic_index(note) - treble_bottom_line_diatonic
+                    placed_cols = placed_treble_cols
+                    diatonic_idx = self._diatonic_index(note)
+                    diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
                     y = treble_top + 4 * line_space - diatonic_steps * staff_step
+                    low_bound = treble_bottom_line_diatonic
+                    high_bound = treble_top_line_diatonic
+                    staff_base_y = treble_top + 4 * line_space
                 else:
-                    diatonic_steps = self._diatonic_index(note) - bass_bottom_line_diatonic
+                    placed_cols = placed_bass_cols
+                    diatonic_idx = self._diatonic_index(note)
+                    diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
+                    low_bound = bass_bottom_line_diatonic
+                    high_bound = bass_top_line_diatonic
+                    staff_base_y = bass_top + 4 * line_space
 
-                canvas.create_oval(x - 9, y - 6, x + 9, y + 6, fill="#000000", outline="#ffffff", width=2)
+                note_rx = max(8.0, line_space * 0.72)
+                note_ry = line_space / 2.0
+                # Apila por columnas: solo desplaza a la derecha si en la columna
+                # actual hay solape. Asi una nota posterior puede volver a x base.
+                overlap_threshold = max(1.0, (note_ry * 2.0) - 1.0)
+                col = 0
+                while any(abs(y - prev_y) < overlap_threshold for prev_y in placed_cols.get(col, [])):
+                    col += 1
+                x = chord_x + (col * note_rx * 1.8)
+                placed_cols.setdefault(col, []).append(y)
+
+                # Lineas adicionales para notas fuera del pentagrama.
+                ledger_half = int(max(20, note_rx + 11))
+                ledger_lines_y: list[float] = []
+                if diatonic_idx > high_bound:
+                    top_even = diatonic_idx if (diatonic_idx % 2 == 0) else (diatonic_idx - 1)
+                    for ledger_idx in range(high_bound + 2, top_even + 1, 2):
+                        ledger_y = staff_base_y - (ledger_idx - low_bound) * staff_step
+                        ledger_lines_y.append(ledger_y)
+                elif diatonic_idx < low_bound:
+                    bottom_even = diatonic_idx if (diatonic_idx % 2 == 0) else (diatonic_idx + 1)
+                    for ledger_idx in range(low_bound - 2, bottom_even - 1, -2):
+                        ledger_y = staff_base_y - (ledger_idx - low_bound) * staff_step
+                        ledger_lines_y.append(ledger_y)
+
+                # Sostenidos: misma altura que la nota natural + simbolo #.
+                if (note % 12) not in WHITE_PCS:
+                    sharp_x = (chord_x - 34) if col > 0 else (x - 34)
+                    canvas.create_text(
+                        sharp_x,
+                        y,
+                        text="#",
+                        fill="#ffffff",
+                        font=("Helvetica", 18, "bold"),
+                    )
+                canvas.create_oval(
+                    x - note_rx,
+                    y - note_ry,
+                    x + note_rx,
+                    y + note_ry,
+                    fill="#000000",
+                    outline="#ffffff",
+                    width=2,
+                )
+                for ledger_y in ledger_lines_y:
+                    canvas.create_line(x - ledger_half, ledger_y, x + ledger_half, ledger_y, fill="#bfbfbf", width=1)
 
         canvas.create_text(
             w / 2,
@@ -941,8 +1610,20 @@ class MidiChordAnalyzerApp(tk.Tk):
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=4)
-        lang_var = tk.StringVar(value=self.config_data.get("language", "es"))
-        lang_combo = ttk.Combobox(frame, textvariable=lang_var, state="readonly", values=["es", "en"], width=18)
+        language_options = [("es", "Español"), ("en", "English")]
+        lang_id_to_label = {lang_id: label for lang_id, label in language_options}
+        lang_label_to_id = {label: lang_id for lang_id, label in language_options}
+        current_lang = str(self.config_data.get("language", "es"))
+        if current_lang not in lang_id_to_label:
+            current_lang = "es"
+        lang_var = tk.StringVar(value=lang_id_to_label[current_lang])
+        lang_combo = ttk.Combobox(
+            frame,
+            textvariable=lang_var,
+            state="readonly",
+            values=[label for _, label in language_options],
+            width=18,
+        )
         lang_combo.grid(row=0, column=1, sticky="ew", pady=4)
 
         ttk.Label(frame, text=self.tr("settings_midi_input")).grid(row=1, column=0, sticky="w", pady=4)
@@ -957,18 +1638,57 @@ class MidiChordAnalyzerApp(tk.Tk):
         out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values, width=48)
         out_combo.grid(row=2, column=1, sticky="ew", pady=4)
 
+        sound_options = [
+            ("acoustic", self.tr("sound_acoustic")),
+            ("warm", self.tr("sound_warm")),
+            ("bright", self.tr("sound_bright")),
+            ("soft", self.tr("sound_soft")),
+        ]
+        sound_id_to_label = {sid: label for sid, label in sound_options}
+        sound_label_to_id = {label: sid for sid, label in sound_options}
+        current_sound = str(self.config_data.get("sound_preset", "acoustic"))
+        if current_sound not in sound_id_to_label:
+            current_sound = "acoustic"
+
+        ttk.Label(frame, text=self.tr("settings_sound")).grid(row=3, column=0, sticky="w", pady=4)
+        sound_var = tk.StringVar(value=sound_id_to_label[current_sound])
+        sound_combo = ttk.Combobox(
+            frame,
+            textvariable=sound_var,
+            state="readonly",
+            values=[label for _, label in sound_options],
+            width=48,
+        )
+        sound_combo.grid(row=3, column=1, sticky="ew", pady=4)
+
+        def refresh_device_lists() -> None:
+            prev_in = in_var.get()
+            prev_out = out_var.get()
+            self.refresh_devices()
+            in_combo["values"] = [""] + self.input_names
+            out_combo["values"] = [""] + self.audio_output_names
+            if prev_in in in_combo["values"]:
+                in_var.set(prev_in)
+            if prev_out in out_combo["values"]:
+                out_var.set(prev_out)
+
+        # Refresca dispositivos justo antes de abrir cada lista desplegable.
+        in_combo.configure(postcommand=refresh_device_lists)
+        out_combo.configure(postcommand=refresh_device_lists)
+
         show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", False)))
         show_labels_chk = ttk.Checkbutton(
             frame,
             text=self.tr("settings_show_key_labels"),
             variable=show_labels_var,
         )
-        show_labels_chk.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 4))
+        show_labels_chk.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         def do_save() -> None:
-            self.config_data["language"] = lang_var.get() if lang_var.get() in ("es", "en") else "es"
+            self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
             self.config_data["midi_input"] = in_var.get().strip()
             self.config_data["audio_output"] = out_var.get().strip()
+            self.config_data["sound_preset"] = sound_label_to_id.get(sound_var.get(), "acoustic")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
             self.apply_ui_language()
             self.save_config()
@@ -977,7 +1697,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             dialog.destroy()
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=4, column=0, columnspan=2, sticky="e")
+        buttons.grid(row=5, column=0, columnspan=2, sticky="e")
 
         ttk.Button(buttons, text=self.tr("button_cancel"), command=dialog.destroy).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)
@@ -985,6 +1705,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         frame.columnconfigure(1, weight=1)
 
     def on_close(self) -> None:
+        self._stop_generated_playback()
         self.disconnect_ports()
         self.destroy()
 

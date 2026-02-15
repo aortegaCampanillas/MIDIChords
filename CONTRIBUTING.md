@@ -1,25 +1,25 @@
 # Contributing
 
-Gracias por contribuir.
+Thanks for contributing.
 
-## Flujo recomendado
+## Recommended Workflow
 
-1. Crea una rama desde `main`.
-2. Realiza cambios pequeños y autocontenidos.
-3. Verifica que `app.py` compila:
+1. Create a branch from `main`.
+2. Keep changes small and self-contained.
+3. Verify that `app.py` compiles:
 
 ```bash
 python3 -m py_compile app.py
 ```
 
-4. Abre un Pull Request con descripción clara:
+4. Open a Pull Request with a clear description:
 
-- Qué problema resuelve.
-- Qué archivos cambia.
-- Cómo probarlo manualmente.
+- What problem it solves.
+- Which files it changes.
+- How to test it manually.
 
-## Estilo
+## Style
 
-- Python claro y legible.
-- Evitar dependencias innecesarias.
-- Mantener compatibilidad con macOS.
+- Clear and readable Python.
+- Avoid unnecessary dependencies.
+- Keep macOS compatibility.

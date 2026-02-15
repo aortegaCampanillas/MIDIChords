@@ -1,0 +1,179 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable (PyInstaller)
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets;assets" app.py
+
+      - name: Package artifact
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/MIDIChords.exe -DestinationPath MIDIChords-windows-x64.zip -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIDIChords-windows-x64
+          path: MIDIChords-windows-x64.zip
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MIDIChords-windows-x64.zip
+
+  build-macos:
+    name: Build macOS Package
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app (PyInstaller)
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name MIDIChords --add-data "assets:assets" app.py
+
+      - name: Package artifact
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/MIDIChords.app MIDIChords-macos.zip
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIDIChords-macos
+          path: MIDIChords-macos.zip
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MIDIChords-macos.zip
+
+  build-debian:
+    name: Build Debian Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libjack-jackd2-dev dpkg-dev fakeroot
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compute version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binary (PyInstaller)
+        run: |
+          pyinstaller --noconfirm --clean --onefile --name MIDIChords --add-data "assets:assets" app.py
+
+      - name: Build .deb package
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          PKGROOT="package-root"
+          mkdir -p "$PKGROOT/DEBIAN"
+          mkdir -p "$PKGROOT/opt/midichords"
+          mkdir -p "$PKGROOT/usr/share/applications"
+          mkdir -p "$PKGROOT/usr/share/icons/hicolor/256x256/apps"
+
+          install -m 755 dist/MIDIChords "$PKGROOT/opt/midichords/MIDIChords"
+          install -m 644 assets/app_logo.png "$PKGROOT/usr/share/icons/hicolor/256x256/apps/midichords.png"
+
+          cat > "$PKGROOT/DEBIAN/control" <<CONTROL
+          Package: midichords
+          Version: ${VERSION}
+          Section: sound
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Antonio Ortega González
+          Depends: libasound2, libjack-jackd2-0 | libjack0
+          Description: MIDI Chords Analyzer desktop application
+           Real-time MIDI chord analyzer with staff and piano visualization.
+          CONTROL
+
+          cat > "$PKGROOT/usr/share/applications/midichords.desktop" <<DESKTOP
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=MIDI Chords Analyzer
+          Comment=Real-time MIDI chord analyzer
+          Exec=/opt/midichords/MIDIChords
+          Icon=midichords
+          Terminal=false
+          Categories=Audio;Music;
+          DESKTOP
+
+          dpkg-deb --build "$PKGROOT" "MIDIChords-debian-amd64.deb"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIDIChords-debian-amd64
+          path: MIDIChords-debian-amd64.deb
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MIDIChords-debian-amd64.deb

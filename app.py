@@ -32,6 +32,60 @@ NOTE_NAMES = {
     "en": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
     "es": ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"],
 }
+UI_TEXTS = {
+    "es": {
+        "app_title": "Analizador de Acordes MIDI",
+        "panel_chord": "Acorde",
+        "panel_settings": "Configuración",
+        "label_active_notes": "Notas activas",
+        "button_open_settings": "Abrir configuración",
+        "status_no_notes": "Sin notas",
+        "status_no_input": "Sin entrada",
+        "status_unavailable": "No disponible",
+        "status_default_output": "Salida por defecto",
+        "status_input": "Entrada MIDI",
+        "status_output": "Salida audio",
+        "status_audio_error": "Error audio",
+        "error_list_inputs": "Error listando entradas MIDI",
+        "error_list_outputs": "Error listando salidas de audio",
+        "error_open_input": "No se pudo abrir entrada MIDI",
+        "staff_no_active_notes": "Sin notas activas",
+        "staff_shift_hint": "Mantén Shift para mantener las teclas pulsadas",
+        "settings_title": "Configuración",
+        "settings_language": "Idioma",
+        "settings_midi_input": "Entrada MIDI",
+        "settings_audio_output": "Salida de audio",
+        "settings_show_key_labels": "Mostrar notas en teclas blancas",
+        "button_cancel": "Cancelar",
+        "button_save": "Guardar",
+    },
+    "en": {
+        "app_title": "MIDI Chords Analyzer",
+        "panel_chord": "Chord",
+        "panel_settings": "Settings",
+        "label_active_notes": "Active notes",
+        "button_open_settings": "Open settings",
+        "status_no_notes": "No notes",
+        "status_no_input": "No input",
+        "status_unavailable": "Unavailable",
+        "status_default_output": "Default output",
+        "status_input": "MIDI input",
+        "status_output": "Audio output",
+        "status_audio_error": "Audio error",
+        "error_list_inputs": "Error listing MIDI inputs",
+        "error_list_outputs": "Error listing audio outputs",
+        "error_open_input": "Could not open MIDI input",
+        "staff_no_active_notes": "No active notes",
+        "staff_shift_hint": "Hold Shift to sustain pressed keys",
+        "settings_title": "Settings",
+        "settings_language": "Language",
+        "settings_midi_input": "MIDI input",
+        "settings_audio_output": "Audio output",
+        "settings_show_key_labels": "Show note names on white keys",
+        "button_cancel": "Cancel",
+        "button_save": "Save",
+    },
+}
 WHITE_PCS = {0, 2, 4, 5, 7, 9, 11}
 # Indice diatonico por clase de pitch (C..B), manteniendo sostenidos en la misma linea/espacio base.
 PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]
@@ -228,7 +282,6 @@ class PianoAudioEngine:
 class MidiChordAnalyzerApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("MIDI Chords Analyzer")
         self.geometry("1300x800")
         self.minsize(980, 620)
 
@@ -264,9 +317,14 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.audio_engine = PianoAudioEngine()
 
         self._build_ui()
+        self.apply_ui_language()
         self.refresh_devices()
         self.connect_ports()
         self.after(20, self._process_midi_queue)
+
+    def tr(self, key: str) -> str:
+        language = self.config_data.get("language", "es")
+        return UI_TEXTS.get(language, UI_TEXTS["en"]).get(key, key)
 
     def _build_ui(self) -> None:
         container = ttk.Frame(self, padding=10)
@@ -290,32 +348,32 @@ class MidiChordAnalyzerApp(tk.Tk):
         side_panel.rowconfigure(0, weight=1)
         side_panel.rowconfigure(1, weight=1)
 
-        chord_panel = ttk.LabelFrame(side_panel, text="Acorde", padding=(12, 10))
-        chord_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
+        self.chord_panel = ttk.LabelFrame(side_panel, text="", padding=(12, 10))
+        self.chord_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
 
-        settings_panel = ttk.LabelFrame(side_panel, text="Configuración", padding=(12, 10))
-        settings_panel.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
+        self.settings_panel = ttk.LabelFrame(side_panel, text="", padding=(12, 10))
+        self.settings_panel.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
 
-        title = ttk.Label(chord_panel, text="Acorde", font=("Helvetica", 18, "bold"))
-        title.pack(anchor="w", pady=(4, 8))
+        self.chord_title_label = ttk.Label(self.chord_panel, text="", font=("Helvetica", 18, "bold"))
+        self.chord_title_label.pack(anchor="w", pady=(4, 8))
 
         self.chord_var = tk.StringVar(value="-")
-        self.chord_label = ttk.Label(chord_panel, textvariable=self.chord_var, font=("Helvetica", 36, "bold"))
+        self.chord_label = ttk.Label(self.chord_panel, textvariable=self.chord_var, font=("Helvetica", 36, "bold"))
         self.chord_label.pack(anchor="w", pady=(0, 18))
 
-        notes_caption = ttk.Label(chord_panel, text="Notas activas", font=("Helvetica", 12, "bold"))
-        notes_caption.pack(anchor="w")
+        self.notes_caption_label = ttk.Label(self.chord_panel, text="", font=("Helvetica", 12, "bold"))
+        self.notes_caption_label.pack(anchor="w")
 
         self.notes_var = tk.StringVar(value="-")
-        self.notes_label = ttk.Label(chord_panel, textvariable=self.notes_var, wraplength=420, font=("Menlo", 12))
+        self.notes_label = ttk.Label(self.chord_panel, textvariable=self.notes_var, wraplength=420, font=("Menlo", 12))
         self.notes_label.pack(anchor="w", pady=(6, 12))
 
-        self.status_var = tk.StringVar(value="Sin notas")
-        status_label = ttk.Label(settings_panel, textvariable=self.status_var, wraplength=420)
+        self.status_var = tk.StringVar(value="")
+        status_label = ttk.Label(self.settings_panel, textvariable=self.status_var, wraplength=420)
         status_label.pack(anchor="w", pady=(8, 14))
 
-        config_btn = ttk.Button(settings_panel, text="Abrir configuración", command=self.open_settings_dialog)
-        config_btn.pack(anchor="w")
+        self.config_btn = ttk.Button(self.settings_panel, text="", command=self.open_settings_dialog)
+        self.config_btn.pack(anchor="w")
 
         separator = ttk.Separator(container, orient=tk.HORIZONTAL)
         separator.pack(fill=tk.X, pady=(10, 10))
@@ -338,6 +396,16 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.bind_all("<KeyPress-Shift_R>", self._on_shift_press)
         self.bind_all("<KeyRelease-Shift_L>", self._on_shift_release)
         self.bind_all("<KeyRelease-Shift_R>", self._on_shift_release)
+
+    def apply_ui_language(self) -> None:
+        self.title(self.tr("app_title"))
+        self.chord_panel.configure(text=self.tr("panel_chord"))
+        self.settings_panel.configure(text=self.tr("panel_settings"))
+        self.chord_title_label.configure(text=self.tr("panel_chord"))
+        self.notes_caption_label.configure(text=self.tr("label_active_notes"))
+        self.config_btn.configure(text=self.tr("button_open_settings"))
+        if not self.active_notes:
+            self.status_var.set(self.tr("status_no_notes"))
 
     def load_config(self) -> None:
         if not CONFIG_PATH.exists():
@@ -415,7 +483,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         try:
             self.input_names = mido.get_input_names()
         except Exception as exc:
-            self.status_var.set(f"Error listando entradas MIDI: {exc}")
+            self.status_var.set(f"{self.tr('error_list_inputs')}: {exc}")
             self.input_names = []
 
         self.audio_output_map = {}
@@ -429,7 +497,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 self.audio_output_map[name] = idx
                 self.audio_output_names.append(name)
         except Exception as exc:
-            self.status_var.set(f"Error listando salidas de audio: {exc}")
+            self.status_var.set(f"{self.tr('error_list_outputs')}: {exc}")
             self.audio_output_names = []
             self.audio_output_map = {}
 
@@ -444,7 +512,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             try:
                 self.input_port = mido.open_input(input_name, callback=self._on_midi_message)
             except Exception as exc:
-                self.status_var.set(f"No se pudo abrir entrada MIDI: {exc}")
+                self.status_var.set(f"{self.tr('error_open_input')}: {exc}")
                 self.input_port = None
 
         audio_device_index = self.audio_output_map.get(audio_name)
@@ -453,17 +521,17 @@ class MidiChordAnalyzerApp(tk.Tk):
         except Exception as exc:
             audio_error = str(exc)
 
-        in_state = input_name if self.input_port else "Sin entrada"
+        in_state = input_name if self.input_port else self.tr("status_no_input")
         if self.audio_engine.stream is None:
-            out_state = "No disponible"
+            out_state = self.tr("status_unavailable")
         elif audio_name and audio_name in self.audio_output_map:
             out_state = audio_name
         else:
-            out_state = "Salida por defecto"
+            out_state = self.tr("status_default_output")
 
-        status = f"Entrada MIDI: {in_state}\nSalida audio: {out_state}"
+        status = f"{self.tr('status_input')}: {in_state}\n{self.tr('status_output')}: {out_state}"
         if audio_error:
-            status += f"\nError audio: {audio_error}"
+            status += f"\n{self.tr('status_audio_error')}: {audio_error}"
         self.status_var.set(status)
 
     def disconnect_ports(self) -> None:
@@ -827,37 +895,44 @@ class MidiChordAnalyzerApp(tk.Tk):
         if not self.active_notes:
             canvas.create_text(
                 w / 2,
-                min(h - 30, bass_top + 5.6 * line_space),
-                text="Sin notas activas",
+                min(h - 48, bass_top + 5.6 * line_space),
+                text=self.tr("staff_no_active_notes"),
                 fill="#cfcfcf",
                 font=("Helvetica", 13, "italic"),
             )
-            return
+        else:
+            ordered = sorted(self.active_notes)
+            chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
 
-        ordered = sorted(self.active_notes)
-        chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
+            # Todas las notas se dibujan en el mismo tiempo (misma x) y en
+            # posiciones diatonicas exactas (linea/espacio real del pentagrama).
+            treble_bottom_line_diatonic = 4 * 7 + 2  # E4
+            bass_bottom_line_diatonic = 2 * 7 + 4    # G2
+            staff_step = line_space / 2.0
+            for note in ordered:
+                x = chord_x
+                if note >= 60:
+                    diatonic_steps = self._diatonic_index(note) - treble_bottom_line_diatonic
+                    y = treble_top + 4 * line_space - diatonic_steps * staff_step
+                else:
+                    diatonic_steps = self._diatonic_index(note) - bass_bottom_line_diatonic
+                    y = bass_top + 4 * line_space - diatonic_steps * staff_step
 
-        # Todas las notas se dibujan en el mismo tiempo (misma x) y en
-        # posiciones diatonicas exactas (linea/espacio real del pentagrama).
-        treble_bottom_line_diatonic = 4 * 7 + 2  # E4
-        bass_bottom_line_diatonic = 2 * 7 + 4    # G2
-        staff_step = line_space / 2.0
-        for note in ordered:
-            x = chord_x
-            if note >= 60:
-                diatonic_steps = self._diatonic_index(note) - treble_bottom_line_diatonic
-                y = treble_top + 4 * line_space - diatonic_steps * staff_step
-            else:
-                diatonic_steps = self._diatonic_index(note) - bass_bottom_line_diatonic
-                y = bass_top + 4 * line_space - diatonic_steps * staff_step
+                canvas.create_oval(x - 9, y - 6, x + 9, y + 6, fill="#000000", outline="#ffffff", width=2)
 
-            canvas.create_oval(x - 9, y - 6, x + 9, y + 6, fill="#000000", outline="#ffffff", width=2)
+        canvas.create_text(
+            w / 2,
+            h - 14,
+            text=self.tr("staff_shift_hint"),
+            fill="#a8a8a8",
+            font=("Helvetica", 10, "italic"),
+        )
 
     def open_settings_dialog(self) -> None:
         self.refresh_devices()
 
         dialog = tk.Toplevel(self)
-        dialog.title("Configuración")
+        dialog.title(self.tr("settings_title"))
         dialog.transient(self)
         dialog.grab_set()
         dialog.resizable(False, False)
@@ -865,18 +940,18 @@ class MidiChordAnalyzerApp(tk.Tk):
         frame = ttk.Frame(dialog, padding=14)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text="Idioma").grid(row=0, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=4)
         lang_var = tk.StringVar(value=self.config_data.get("language", "es"))
         lang_combo = ttk.Combobox(frame, textvariable=lang_var, state="readonly", values=["es", "en"], width=18)
         lang_combo.grid(row=0, column=1, sticky="ew", pady=4)
 
-        ttk.Label(frame, text="Entrada MIDI").grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_midi_input")).grid(row=1, column=0, sticky="w", pady=4)
         in_values = [""] + self.input_names
         in_var = tk.StringVar(value=self.config_data.get("midi_input", ""))
         in_combo = ttk.Combobox(frame, textvariable=in_var, state="readonly", values=in_values, width=48)
         in_combo.grid(row=1, column=1, sticky="ew", pady=4)
 
-        ttk.Label(frame, text="Salida de audio").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_audio_output")).grid(row=2, column=0, sticky="w", pady=4)
         out_values = [""] + self.audio_output_names
         out_var = tk.StringVar(value=self.config_data.get("audio_output", ""))
         out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values, width=48)
@@ -885,21 +960,17 @@ class MidiChordAnalyzerApp(tk.Tk):
         show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", False)))
         show_labels_chk = ttk.Checkbutton(
             frame,
-            text="Mostrar notas en teclas blancas",
+            text=self.tr("settings_show_key_labels"),
             variable=show_labels_var,
         )
         show_labels_chk.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 4))
-
-        def do_refresh() -> None:
-            self.refresh_devices()
-            in_combo["values"] = [""] + self.input_names
-            out_combo["values"] = [""] + self.audio_output_names
 
         def do_save() -> None:
             self.config_data["language"] = lang_var.get() if lang_var.get() in ("es", "en") else "es"
             self.config_data["midi_input"] = in_var.get().strip()
             self.config_data["audio_output"] = out_var.get().strip()
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
+            self.apply_ui_language()
             self.save_config()
             self.connect_ports()
             self.update_music_views()
@@ -908,9 +979,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         buttons = ttk.Frame(frame)
         buttons.grid(row=4, column=0, columnspan=2, sticky="e")
 
-        ttk.Button(buttons, text="Actualizar", command=do_refresh).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(buttons, text="Cancelar", command=dialog.destroy).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(buttons, text="Guardar", command=do_save).pack(side=tk.LEFT)
+        ttk.Button(buttons, text=self.tr("button_cancel"), command=dialog.destroy).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)
 
         frame.columnconfigure(1, weight=1)
 

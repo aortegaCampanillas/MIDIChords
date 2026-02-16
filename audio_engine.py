@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
+import subprocess
 import threading
 from dataclasses import dataclass
 from typing import Optional
@@ -21,6 +23,15 @@ class Voice:
     release_samples: int = 0
 
 
+@dataclass
+class ClickVoice:
+    accent: bool
+    sample: Optional[np.ndarray] = None
+    sample_pos: int = 0
+    sample_gain: float = 1.0
+    age_samples: int = 0
+
+
 class PianoAudioEngine:
     def __init__(self, sample_rate: int = 48000) -> None:
         self.sample_rate = sample_rate
@@ -30,6 +41,8 @@ class PianoAudioEngine:
         self.stream: Optional[sd.OutputStream] = None
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
+        self.click_voices: list[ClickVoice] = []
+        self.metronome_sample: Optional[np.ndarray] = self._load_default_metronome_sample()
 
     def set_preset(self, preset: str) -> None:
         if preset not in {"acoustic", "warm", "bright", "soft"}:
@@ -56,6 +69,7 @@ class PianoAudioEngine:
     def stop(self) -> None:
         with self.lock:
             self.voices.clear()
+            self.click_voices.clear()
 
         if self.stream is not None:
             try:
@@ -106,11 +120,68 @@ class PianoAudioEngine:
                 voice.released = True
                 voice.release_samples = 0
 
+    def metronome_click(self, accent: bool = False) -> None:
+        with self.lock:
+            if self.metronome_sample is not None and len(self.metronome_sample) > 0:
+                gain = 1.0 if accent else 0.82
+                self.click_voices.append(
+                    ClickVoice(
+                        accent=accent,
+                        sample=self.metronome_sample,
+                        sample_pos=0,
+                        sample_gain=gain,
+                        age_samples=0,
+                    )
+                )
+            else:
+                self.click_voices.append(ClickVoice(accent=accent, age_samples=0))
+
+    def _load_default_metronome_sample(self) -> Optional[np.ndarray]:
+        base = Path(__file__).resolve().parent
+        candidates = [
+            base / "assets" / "methronome.mp3",
+            base / "assets" / "metronome.mp3",
+        ]
+        sample_path = next((p for p in candidates if p.exists()), None)
+        if sample_path is None:
+            return None
+        try:
+            out = subprocess.check_output(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-i",
+                    str(sample_path),
+                    "-f",
+                    "f32le",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    str(self.sample_rate),
+                    "-",
+                ]
+            )
+        except Exception:
+            return None
+        if not out:
+            return None
+        data = np.frombuffer(out, dtype=np.float32).copy()
+        if data.size == 0:
+            return None
+        peak = float(np.max(np.abs(data)))
+        if peak > 0.0001:
+            data = data / peak
+        max_len = int(self.sample_rate * 0.22)
+        if data.size > max_len:
+            data = data[:max_len]
+        return data
+
     def _audio_callback(self, outdata: np.ndarray, frames: int, _time, _status) -> None:
         signal = np.zeros(frames, dtype=np.float32)
 
         with self.lock:
-            if not self.voices:
+            if not self.voices and not self.click_voices:
                 outdata.fill(0)
                 return
 
@@ -212,6 +283,41 @@ class PianoAudioEngine:
 
             for note in to_remove:
                 self.voices.pop(note, None)
+
+            remaining_clicks: list[ClickVoice] = []
+            for click in self.click_voices:
+                if click.sample is not None:
+                    start = click.sample_pos
+                    end = min(start + frames, len(click.sample))
+                    chunk = click.sample[start:end]
+                    if chunk.size > 0:
+                        signal[: chunk.size] += (chunk * click.sample_gain).astype(np.float32)
+                    click.sample_pos = end
+                    if click.sample_pos < len(click.sample):
+                        remaining_clicks.append(click)
+                else:
+                    start_age = click.age_samples
+                    age = (start_age + n) / self.sample_rate
+                    if click.accent:
+                        freq = 2200.0
+                        decay = 82.0
+                        gain = 0.30
+                    else:
+                        freq = 1500.0
+                        decay = 95.0
+                        gain = 0.22
+
+                    # Fallback: click sintetico corto si no se pudo cargar el mp3.
+                    burst = np.exp(-decay * age) * (
+                        np.sin(2.0 * math.pi * freq * age) +
+                        0.35 * np.sin(2.0 * math.pi * (freq * 2.3) * age)
+                    )
+                    signal += (gain * burst).astype(np.float32)
+
+                    click.age_samples += frames
+                    if (click.age_samples / self.sample_rate) < 0.06:
+                        remaining_clicks.append(click)
+            self.click_voices = remaining_clicks
 
         signal = np.clip(signal * self.master_gain, -0.98, 0.98)
         outdata[:, 0] = signal

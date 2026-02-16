@@ -17,6 +17,12 @@ class ChordPattern:
     intervals: tuple[int, ...]
 
 
+@dataclass(frozen=True)
+class ScalePattern:
+    name: str
+    intervals: tuple[int, ...]
+
+
 CHORD_PATTERNS = [
     ChordPattern("", (0, 4, 7)),
     ChordPattern("m", (0, 3, 7)),
@@ -32,6 +38,26 @@ CHORD_PATTERNS = [
     ChordPattern("mMaj7", (0, 3, 7, 11)),
     ChordPattern("dim7", (0, 3, 6, 9)),
     ChordPattern("m7b5", (0, 3, 6, 10)),
+]
+
+SCALE_PATTERNS = [
+    ScalePattern("Major (Ionian)", (0, 2, 4, 5, 7, 9, 11, 12)),
+    ScalePattern("Natural Minor (Aeolian)", (0, 2, 3, 5, 7, 8, 10, 12)),
+    ScalePattern("Harmonic Minor", (0, 2, 3, 5, 7, 8, 11, 12)),
+    ScalePattern("Melodic Minor", (0, 2, 3, 5, 7, 9, 11, 12)),
+    ScalePattern("Dorian", (0, 2, 3, 5, 7, 9, 10, 12)),
+    ScalePattern("Phrygian", (0, 1, 3, 5, 7, 8, 10, 12)),
+    ScalePattern("Lydian", (0, 2, 4, 6, 7, 9, 11, 12)),
+    ScalePattern("Mixolydian", (0, 2, 4, 5, 7, 9, 10, 12)),
+    ScalePattern("Locrian", (0, 1, 3, 5, 6, 8, 10, 12)),
+    ScalePattern("Major Pentatonic", (0, 2, 4, 7, 9, 12)),
+    ScalePattern("Minor Pentatonic", (0, 3, 5, 7, 10, 12)),
+    ScalePattern("Blues", (0, 3, 5, 6, 7, 10, 12)),
+    ScalePattern("Whole Tone", (0, 2, 4, 6, 8, 10, 12)),
+    ScalePattern("Chromatic", (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)),
+    ScalePattern("Hungarian Minor", (0, 2, 3, 6, 7, 8, 11, 12)),
+    ScalePattern("Double Harmonic", (0, 1, 4, 5, 7, 8, 11, 12)),
+    ScalePattern("Major Bebop", (0, 2, 4, 5, 7, 8, 9, 11, 12)),
 ]
 
 

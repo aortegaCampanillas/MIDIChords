@@ -213,6 +213,9 @@ class GrayRoundedButton(tk.Canvas):
         width: int = 120,
         height: int = 72,
         radius: int = 26,
+        font_size: int = 22,
+        text_color: str = "#f2f2f2",
+        selected_text_color: str = "#ffffff",
     ) -> None:
         try:
             parent_bg = str(master.cget("background"))
@@ -230,6 +233,9 @@ class GrayRoundedButton(tk.Canvas):
         self._text = text
         self._command = command
         self._radius = radius
+        self._font_size = font_size
+        self._text_color = text_color
+        self._selected_text_color = selected_text_color
         self._hover = False
         self._selected = False
 
@@ -283,12 +289,12 @@ class GrayRoundedButton(tk.Canvas):
         if self._selected:
             outline = "#f39c12"
             fill = "#3b3f49"
-            text_color = "#ffffff"
+            text_color = self._selected_text_color
             border_w = 2.2
         else:
             outline = "#3b3f49"
             fill = "#3b3f49" if not self._hover else "#464b57"
-            text_color = "#f2f2f2"
+            text_color = self._text_color
             border_w = 1.2
 
         points = self._rounded_points(1, 1, w - 1, h - 1, r)
@@ -305,6 +311,6 @@ class GrayRoundedButton(tk.Canvas):
             h / 2,
             text=self._text,
             fill=text_color,
-            font=("Helvetica", 22),
+            font=("Helvetica", self._font_size),
             anchor="center",
         )

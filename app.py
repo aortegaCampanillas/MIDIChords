@@ -43,7 +43,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             "sound_preset": "acoustic",
             "show_keyboard_note_labels": False,
             "metronome_enabled": False,
-            "metronome_bpm": 80,
+            "metronome_bpm": 120,
             "mode": "detection",
         }
         self.load_config()
@@ -94,11 +94,18 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_loop_index = 0
         self.scale_loop_direction = 1
         self.scale_current_note: Optional[int] = None
+        self.staff_hover_note: Optional[int] = None
+        self.staff_pressed_scale_notes: set[int] = set()
+        self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
         self.scale_tonic_overlay: Optional[tk.Frame] = None
         self.scale_type_overlay: Optional[tk.Frame] = None
         self.generation_selection_overlay: Optional[tk.Frame] = None
+        self.settings_overlay: Optional[tk.Frame] = None
+        self.mode_selector_overlay: Optional[tk.Frame] = None
+        self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False
+        self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
 
         self._build_ui()
         self.apply_ui_language()
@@ -128,20 +135,56 @@ class MidiChordAnalyzerApp(tk.Tk):
         mode_center = ttk.Frame(mode_bar)
         mode_center.grid(row=0, column=1)
 
-        self.mode_label = ttk.Label(mode_center, text="", font=("Helvetica", 11, "bold"))
-        self.mode_label.pack(side=tk.LEFT, padx=(0, 8))
-
-        self.mode_combo = ttk.Combobox(
+        self.mode_trigger_var = tk.StringVar(value="")
+        self.mode_picker_trigger = tk.Frame(
             mode_center,
-            textvariable=self.mode_var,
-            state="readonly",
-            width=34,
+            bg="#25272f",
+            highlightthickness=1,
+            highlightbackground="#3a3d47",
+            bd=0,
+            cursor="hand2",
         )
-        self.mode_combo.pack(side=tk.LEFT)
-        self.mode_combo.bind("<<ComboboxSelected>>", self._on_mode_combo_changed)
+        self.mode_picker_trigger.pack(side=tk.LEFT)
+        self.mode_picker_label = tk.Label(
+            self.mode_picker_trigger,
+            textvariable=self.mode_trigger_var,
+            bg="#25272f",
+            fg="#d6d9df",
+            font=("Helvetica", 16),
+            padx=16,
+            pady=10,
+            cursor="hand2",
+        )
+        self.mode_picker_label.pack(side=tk.LEFT)
+        self.mode_picker_arrow = tk.Label(
+            self.mode_picker_trigger,
+            text="⌄",
+            bg="#25272f",
+            fg="#8d93a3",
+            font=("Helvetica", 18, "bold"),
+            padx=10,
+            pady=7,
+            cursor="hand2",
+        )
+        self.mode_picker_arrow.pack(side=tk.LEFT)
+        self.mode_picker_trigger.bind("<Button-1>", self._toggle_mode_selector)
+        self.mode_picker_label.bind("<Button-1>", self._toggle_mode_selector)
+        self.mode_picker_arrow.bind("<Button-1>", self._toggle_mode_selector)
+        self.mode_picker_trigger.bind("<Enter>", lambda _e: self.mode_picker_trigger.configure(highlightbackground="#4a4f5f"))
+        self.mode_picker_trigger.bind("<Leave>", lambda _e: self.mode_picker_trigger.configure(highlightbackground="#3a3d47"))
 
-        self.config_icon_btn = ttk.Button(mode_bar, text="⚙", width=3, command=self.open_settings_dialog)
+        self.config_icon_btn = tk.Label(
+            mode_bar,
+            text="⚙",
+            fg="#f39c12",
+            bg=self.cget("background"),
+            font=("Helvetica", 20, "bold"),
+            cursor="hand2",
+        )
         self.config_icon_btn.grid(row=0, column=2, sticky="e")
+        self.config_icon_btn.bind("<Button-1>", lambda _e: self.open_settings_dialog())
+        self.config_icon_btn.bind("<Enter>", lambda _e: self.config_icon_btn.configure(fg="#ffad2a"))
+        self.config_icon_btn.bind("<Leave>", lambda _e: self.config_icon_btn.configure(fg="#f39c12"))
 
         top_area = ttk.Frame(container)
         top_area.pack(fill=tk.BOTH, expand=True)
@@ -327,6 +370,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
 
         self.staff_canvas.bind("<Configure>", lambda _event: self.redraw_staff())
+        self.staff_canvas.bind("<Motion>", self._on_staff_motion)
+        self.staff_canvas.bind("<Leave>", self._on_staff_leave)
+        self.staff_canvas.bind("<ButtonPress-1>", self._on_staff_press)
+        self.staff_canvas.bind("<ButtonRelease-1>", self._on_staff_release)
         self.keyboard_canvas.bind("<Configure>", lambda _event: self.redraw_keyboard())
         self.keyboard_canvas.bind("<ButtonPress-1>", self._on_keyboard_press)
         self.keyboard_canvas.bind("<B1-Motion>", self._on_keyboard_drag)
@@ -336,12 +383,17 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.bind_all("<KeyRelease-Shift_L>", self._on_shift_release)
         self.bind_all("<KeyRelease-Shift_R>", self._on_shift_release)
         self.bind_all("<Escape>", self._on_escape_pressed, add="+")
+        self.bind_all("<Return>", self._on_return_pressed, add="+")
+        self.bind_all("<space>", self._on_space_pressed, add="+")
         self.bind_all("<ButtonPress-1>", self._on_global_click_press, add="+")
+        self.bind_all("<MouseWheel>", self._on_any_mousewheel, add="+")
+        self.bind_all("<Shift-MouseWheel>", self._on_any_mousewheel, add="+")
+        self.bind_all("<Button-4>", self._on_any_mousewheel, add="+")
+        self.bind_all("<Button-5>", self._on_any_mousewheel, add="+")
 
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
         self.chord_panel.configure(text="")
-        self.mode_label.configure(text=self.tr("label_mode"))
         self.chord_title_label.configure(text="")
         self.notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.intervals_caption_label.configure(text=self.tr("label_intervals"))
@@ -354,13 +406,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
         self.config_icon_btn.configure(text="⚙")
-        self.mode_combo["values"] = [self.tr("mode_detection"), self.tr("mode_generation"), self.tr("mode_scales")]
-        if self.current_mode == "generation":
-            self.mode_var.set(self.tr("mode_generation"))
-        elif self.current_mode == "scales":
-            self.mode_var.set(self.tr("mode_scales"))
-        else:
-            self.mode_var.set(self.tr("mode_detection"))
+        self.mode_var.set(self._mode_label(self.current_mode))
+        self.mode_trigger_var.set(self._mode_label(self.current_mode))
         self._refresh_generation_controls()
         self._refresh_scale_preview()
         if not self.active_notes:
@@ -378,6 +425,51 @@ class MidiChordAnalyzerApp(tk.Tk):
         variant_label = self.generation_pattern_suffix if self.generation_pattern_suffix else "maj"
         self.generation_variant_btn.set_text(variant_label)
         self.generation_inversion_btn.set_text(self._inversion_label(self.generation_inversion))
+
+    @staticmethod
+    def _pointer_inside_widget(widget: tk.Widget) -> bool:
+        try:
+            pointer_x, pointer_y = widget.winfo_pointerxy()
+            x0 = widget.winfo_rootx()
+            y0 = widget.winfo_rooty()
+            x1 = x0 + widget.winfo_width()
+            y1 = y0 + widget.winfo_height()
+            return x0 <= pointer_x <= x1 and y0 <= pointer_y <= y1
+        except tk.TclError:
+            return False
+
+    def _register_scroll_target(self, wrapper: tk.Widget, canvas: tk.Canvas) -> None:
+        self._scroll_targets = [(w, c) for (w, c) in self._scroll_targets if w != wrapper]
+        self._scroll_targets.append((wrapper, canvas))
+
+    def _unregister_scroll_target(self, wrapper: tk.Widget) -> None:
+        self._scroll_targets = [(w, c) for (w, c) in self._scroll_targets if w != wrapper]
+
+    @staticmethod
+    def _scroll_canvas_from_event(canvas: tk.Canvas, event: tk.Event) -> str:
+        delta = float(getattr(event, "delta", 0))
+        if delta:
+            # macOS trackpad sends small deltas, Windows typically uses +/-120.
+            if abs(delta) >= 120:
+                units = int(-delta / 120)
+            else:
+                units = int(-delta)
+                if units == 0:
+                    units = -1 if delta > 0 else 1
+            canvas.yview_scroll(units, "units")
+        elif getattr(event, "num", 0) == 4:
+            canvas.yview_scroll(-1, "units")
+        elif getattr(event, "num", 0) == 5:
+            canvas.yview_scroll(1, "units")
+        return "break"
+
+    def _on_any_mousewheel(self, event: tk.Event) -> Optional[str]:
+        for wrapper, canvas in reversed(self._scroll_targets):
+            if not wrapper.winfo_exists() or not canvas.winfo_exists():
+                continue
+            if self._pointer_inside_widget(wrapper):
+                return self._scroll_canvas_from_event(canvas, event)
+        return None
 
     def _max_generation_inversion(self) -> int:
         pattern = self._resolve_generation_pattern()
@@ -418,6 +510,53 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.generation_selection_overlay.destroy()
             self.generation_selection_overlay = None
 
+    def _build_scrollable_area(
+        self,
+        parent: tk.Widget,
+        bg: str = "#2b2d38",
+        padx: int = 8,
+        pady: tuple[int, int] = (2, 10),
+    ) -> tk.Frame:
+        wrapper = tk.Frame(parent, bg=bg)
+        wrapper.pack(fill=tk.BOTH, expand=True, padx=padx, pady=pady)
+
+        canvas = tk.Canvas(
+            wrapper,
+            bg=bg,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
+        )
+        scrollbar = ttk.Scrollbar(wrapper, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        content = tk.Frame(canvas, bg=bg)
+        window_id = canvas.create_window((0, 0), window=content, anchor="nw")
+
+        def on_content_configure(_event: tk.Event) -> None:
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def on_canvas_configure(event: tk.Event) -> None:
+            canvas.itemconfigure(window_id, width=event.width)
+
+        def on_mousewheel(event: tk.Event) -> str:
+            return self._scroll_canvas_from_event(canvas, event)
+
+        self._register_scroll_target(wrapper, canvas)
+        wrapper.bind("<Destroy>", lambda e: self._unregister_scroll_target(wrapper), add="+")
+
+        content.bind("<Configure>", on_content_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        for widget in (wrapper, canvas, content):
+            widget.bind("<MouseWheel>", on_mousewheel)
+            widget.bind("<Button-4>", on_mousewheel)
+            widget.bind("<Button-5>", on_mousewheel)
+
+        return content
+
     def _open_generation_selection_overlay(self, kind: str) -> None:
         if self.generation_selection_overlay is not None:
             self._close_generation_selection_overlay()
@@ -442,8 +581,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             title = self.tr("label_inversion")
         tk.Label(header, text=title, bg="#2b2d38", fg="#f0f0f0", font=("Helvetica", 13, "bold")).pack(side=tk.LEFT)
 
-        buttons_frame = tk.Frame(overlay, bg="#2b2d38")
-        buttons_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 10))
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
 
         if kind == "root":
             columns = 3
@@ -473,6 +611,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 width=160 if kind != "root" else 122,
                 height=74 if kind == "root" else 64,
                 radius=28 if kind == "root" else 24,
+                font_size=16 if kind == "inversion" else 22,
             )
             btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
             btn.set_selected(bool(selected))
@@ -543,8 +682,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             font=("Helvetica", 13, "bold"),
         ).pack(side=tk.LEFT)
 
-        buttons_frame = tk.Frame(overlay, bg="#2b2d38")
-        buttons_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(2, 10))
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
         for col in range(3):
             buttons_frame.columnconfigure(col, weight=1)
         for pc in range(12):
@@ -611,8 +749,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         entry = ttk.Entry(body, textvariable=search_var, width=34)
         entry.pack(fill=tk.X, pady=(4, 8))
 
-        buttons_frame = tk.Frame(body, bg="#2b2d38")
-        buttons_frame.pack(fill=tk.BOTH, expand=True)
+        buttons_frame = self._build_scrollable_area(body, bg="#2b2d38", padx=0, pady=(0, 0))
         for col in range(2):
             buttons_frame.columnconfigure(col, weight=1)
 
@@ -622,7 +759,9 @@ class MidiChordAnalyzerApp(tk.Tk):
 
             term = search_var.get().strip().lower()
             filtered = [p for p in SCALE_PATTERNS if term in self.scale_name(p.name).lower()]
+            primary_modes = {"Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian"}
             for idx, pattern in enumerate(filtered):
+                is_primary = pattern.name in primary_modes
                 btn = GrayRoundedButton(
                     buttons_frame,
                     text=self.scale_name(pattern.name),
@@ -630,6 +769,9 @@ class MidiChordAnalyzerApp(tk.Tk):
                     width=208,
                     height=64,
                     radius=24,
+                    font_size=16,
+                    text_color="#19d27f" if is_primary else "#f2f2f2",
+                    selected_text_color="#19d27f" if is_primary else "#ffffff",
                 )
                 btn.grid(row=idx // 2, column=idx % 2, sticky="ew", padx=6, pady=6)
                 btn.set_selected(pattern.name == self.scale_pattern_name)
@@ -665,9 +807,23 @@ class MidiChordAnalyzerApp(tk.Tk):
         return False
 
     def _on_escape_pressed(self, _event: tk.Event) -> None:
+        self._close_mode_selector_overlay()
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
+        self._close_settings_overlay()
+
+    def _on_return_pressed(self, _event: tk.Event) -> Optional[str]:
+        if self.settings_overlay is not None and callable(self._settings_save_callback):
+            self._settings_save_callback()
+            return "break"
+        return None
+
+    def _on_space_pressed(self, _event: tk.Event) -> Optional[str]:
+        if self.scale_tab_active:
+            self._toggle_scale_play()
+            return "break"
+        return None
 
     def _on_global_click_press(self, event: tk.Event) -> None:
         widget = event.widget
@@ -678,22 +834,120 @@ class MidiChordAnalyzerApp(tk.Tk):
             if widget != self.scale_type_btn:
                 self._close_scale_type_overlay()
         if self.generation_selection_overlay is not None and not self._is_widget_inside(self.generation_selection_overlay, widget):
-            if widget not in {self.generation_root_btn, self.generation_variant_btn, self.generation_inversion_btn}:
+            if widget not in {
+                self.generation_root_btn,
+                self.generation_variant_btn,
+                self.generation_inversion_btn,
+            }:
                 self._close_generation_selection_overlay()
+        if self.settings_overlay is not None and not self._is_widget_inside(self.settings_overlay, widget):
+            if widget != self.config_icon_btn:
+                self._close_settings_overlay()
+        if self.mode_selector_overlay is not None and not self._is_widget_inside(self.mode_selector_overlay, widget):
+            if not self._is_widget_inside(self.mode_picker_trigger, widget):
+                self._close_mode_selector_overlay()
+
+    def _mode_label(self, mode_key: str) -> str:
+        if mode_key == "generation":
+            return self.tr("mode_generation")
+        if mode_key == "scales":
+            return self.tr("mode_scales")
+        return self.tr("mode_detection")
+
+    def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
+        if self.mode_selector_overlay is not None:
+            self._close_mode_selector_overlay()
+        else:
+            self._open_mode_selector_overlay()
+        return "break"
+
+    def _open_mode_selector_overlay(self) -> None:
+        if self.mode_selector_overlay is not None:
+            self._close_mode_selector_overlay()
+
+        overlay = tk.Frame(
+            self,
+            bg="#2b2d38",
+            highlightthickness=1,
+            highlightbackground="#4a4f5f",
+            bd=0,
+        )
+        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.38)
+        self.mode_selector_overlay = overlay
+
+        cards_frame = tk.Frame(overlay, bg="#2b2d38")
+        cards_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        cards_frame.columnconfigure(0, weight=1)
+        cards_frame.columnconfigure(1, weight=1)
+        cards_frame.rowconfigure(0, weight=1)
+        cards_frame.rowconfigure(1, weight=1)
+
+        options = [
+            ("detection", self._mode_label("detection"), "◎", "#ffa320"),
+            ("generation", self._mode_label("generation"), "♬", "#39c8ff"),
+            ("scales", self._mode_label("scales"), "♪", "#e4eb3f"),
+        ]
+
+        for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
+            card = tk.Frame(
+                cards_frame,
+                bg="#3b3f49",
+                highlightthickness=2 if self.current_mode == mode_key else 1,
+                highlightbackground="#f39c12" if self.current_mode == mode_key else "#3b3f49",
+                bd=0,
+                cursor="hand2",
+            )
+            card.grid(row=idx // 2, column=idx % 2, sticky="nsew", padx=10, pady=10)
+            icon = tk.Label(card, text=icon_txt, bg="#3b3f49", fg=icon_color, font=("Helvetica", 34, "bold"), cursor="hand2")
+            icon.pack(pady=(16, 4))
+            label = tk.Label(card, text=mode_text, bg="#3b3f49", fg="#e2e4ea", font=("Helvetica", 18), cursor="hand2")
+            label.pack(pady=(0, 14))
+
+            def on_enter(_e: tk.Event, c=card) -> None:
+                c.configure(bg="#434854")
+                for child in c.winfo_children():
+                    child.configure(bg="#434854")
+
+            def on_leave(_e: tk.Event, c=card, is_current=(self.current_mode == mode_key)) -> None:
+                base = "#3b3f49"
+                c.configure(bg=base)
+                for child in c.winfo_children():
+                    child.configure(bg=base)
+                c.configure(highlightbackground="#f39c12" if is_current else "#3b3f49")
+
+            card.bind("<Enter>", on_enter)
+            card.bind("<Leave>", on_leave)
+            card.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
+            icon.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
+            label.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
+
+    def _close_mode_selector_overlay(self) -> None:
+        if self.mode_selector_overlay is not None:
+            self.mode_selector_overlay.destroy()
+            self.mode_selector_overlay = None
+
+    def _apply_mode(self, mode_key: str) -> None:
+        self.mode_var.set(self._mode_label(mode_key))
+        self._close_mode_selector_overlay()
+        self._on_mode_combo_changed(None)
 
     def _on_mode_combo_changed(self, _event: tk.Event) -> None:
+        self._close_mode_selector_overlay()
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
+        self._close_settings_overlay()
+        self._stop_staff_scale_note_playback()
         selected = self.mode_var.get()
-        if selected == self.tr("mode_generation"):
+        if selected == self._mode_label("generation"):
             self.current_mode = "generation"
-        elif selected == self.tr("mode_scales"):
+        elif selected == self._mode_label("scales"):
             self.current_mode = "scales"
         else:
             self.current_mode = "detection"
         self.config_data["mode"] = self.current_mode
         self.save_config()
+        self.mode_trigger_var.set(self._mode_label(self.current_mode))
 
         self.generation_tab_active = self.current_mode == "generation"
         self.scale_tab_active = self.current_mode == "scales"
@@ -845,6 +1099,76 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.redraw_keyboard()
             self.redraw_staff()
 
+    def _stop_staff_scale_note_playback(self) -> None:
+        if not self.staff_pressed_scale_notes and self.staff_hover_note is None:
+            return
+        for note in list(self.staff_pressed_scale_notes):
+            self.audio_engine.note_off(note)
+        self.staff_pressed_scale_notes.clear()
+        self.staff_hover_note = None
+        self.staff_scale_note_regions.clear()
+        self.redraw_keyboard()
+        self.redraw_staff()
+
+    def _staff_scale_note_at_position(self, x: float, y: float) -> Optional[int]:
+        if not self.scale_tab_active:
+            return None
+        best_note: Optional[int] = None
+        best_dist = 10_000.0
+        for note, cx, cy, rx, ry, label_y, label_half_w in self.staff_scale_note_regions:
+            nx = (x - cx) / max(1.0, rx + 4.0)
+            ny = (y - cy) / max(1.0, ry + 3.0)
+            in_head = (nx * nx + ny * ny) <= 1.0
+            in_label = (abs(x - cx) <= label_half_w) and (abs(y - label_y) <= 10.0)
+            if not in_head and not in_label:
+                continue
+            dist = abs(x - cx) + abs(y - cy)
+            if dist < best_dist:
+                best_dist = dist
+                best_note = note
+        return best_note
+
+    def _on_staff_motion(self, event: tk.Event) -> None:
+        if not self.scale_tab_active:
+            return
+        note = self._staff_scale_note_at_position(float(event.x), float(event.y))
+        if note != self.staff_hover_note:
+            self.staff_hover_note = note
+            self.redraw_staff()
+        self.staff_canvas.configure(cursor="hand2" if note is not None else "")
+
+    def _on_staff_leave(self, _event: tk.Event) -> None:
+        if not self.scale_tab_active:
+            return
+        if self.staff_hover_note is not None:
+            self.staff_hover_note = None
+            self.redraw_staff()
+        self.staff_canvas.configure(cursor="")
+
+    def _on_staff_press(self, event: tk.Event) -> None:
+        if not self.scale_tab_active:
+            return
+        note = self._staff_scale_note_at_position(float(event.x), float(event.y))
+        if note is None:
+            return
+        self.staff_hover_note = note
+        if note not in self.staff_pressed_scale_notes:
+            self.staff_pressed_scale_notes.add(note)
+            self.audio_engine.note_on(note, 106)
+        self.redraw_staff()
+        self.redraw_keyboard()
+
+    def _on_staff_release(self, event: tk.Event) -> None:
+        if not self.scale_tab_active:
+            return
+        if self.staff_pressed_scale_notes:
+            for note in list(self.staff_pressed_scale_notes):
+                self.audio_engine.note_off(note)
+            self.staff_pressed_scale_notes.clear()
+        self.staff_hover_note = self._staff_scale_note_at_position(float(event.x), float(event.y))
+        self.redraw_staff()
+        self.redraw_keyboard()
+
     def _play_generated_chord(self) -> None:
         if not self.generated_preview_notes:
             return
@@ -864,7 +1188,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._play_next_scale_step()
 
     def _scale_step_ms(self) -> int:
-        bpm = int(self.config_data.get("metronome_bpm", 80))
+        bpm = int(self.config_data.get("metronome_bpm", 120))
         bpm = max(30, min(240, bpm))
         return int(60000 / bpm)
 
@@ -882,7 +1206,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         note = notes[idx]
 
         if self.scale_current_note is not None:
-            self.audio_engine.note_off(self.scale_current_note)
+            if self.scale_current_note not in self.staff_pressed_scale_notes:
+                self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
         self.audio_engine.note_on(note, 104)
         self.scale_playing_notes.add(note)
@@ -897,13 +1222,13 @@ class MidiChordAnalyzerApp(tk.Tk):
             if self.scale_loop_direction > 0:
                 if idx >= len(notes) - 1:
                     self.scale_loop_direction = -1
-                    self.scale_loop_index = len(notes) - 2
+                    self.scale_loop_index = idx
                 else:
                     self.scale_loop_index = idx + 1
             else:
                 if idx <= 0:
                     self.scale_loop_direction = 1
-                    self.scale_loop_index = 1
+                    self.scale_loop_index = idx
                 else:
                     self.scale_loop_index = idx - 1
         self.scale_loop_after_id = self.after(step_ms, self._play_next_scale_step)
@@ -1130,8 +1455,6 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.generation_tab_active:
             self._show_forbidden_note_feedback(note)
             return
-        if self.scale_tab_active:
-            return
         if self.pedal_active and note in self.active_notes:
             # Toggle con pedal: clic en nota activa la deselecciona.
             self.mouse_held_notes.discard(note)
@@ -1153,8 +1476,6 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.generation_tab_active:
             if note is not None:
                 self._show_forbidden_note_feedback(note)
-            return
-        if self.scale_tab_active:
             return
         if note == self.mouse_current_note:
             return
@@ -1199,8 +1520,6 @@ class MidiChordAnalyzerApp(tk.Tk):
             if self.generation_tab_active:
                 if message.type == "note_on" and message.velocity > 0:
                     self._show_forbidden_note_feedback(message.note)
-                continue
-            if self.scale_tab_active:
                 continue
 
             if message.type == "note_on" and message.velocity > 0:
@@ -1298,11 +1617,15 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.generation_tab_active:
             display_active_notes = set(self.generated_preview_notes)
         elif self.scale_tab_active:
-            display_active_notes = {self.scale_current_note} if (self.scale_loop_active and self.scale_current_note is not None) else set()
+            display_active_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
+            if self.scale_loop_active and self.scale_current_note is not None:
+                display_active_notes.add(self.scale_current_note)
         else:
             display_active_notes = self._current_detection_notes()
         if self.scale_tab_active:
-            name_overlay_notes = {self.scale_current_note} if (self.scale_loop_active and self.scale_current_note is not None) else set()
+            name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
+            if self.scale_loop_active and self.scale_current_note is not None:
+                name_overlay_notes.add(self.scale_current_note)
         elif self.generation_tab_active:
             name_overlay_notes = set(self.generated_preview_notes)
         else:
@@ -1454,6 +1777,7 @@ class MidiChordAnalyzerApp(tk.Tk):
     def redraw_staff(self) -> None:
         canvas = self.staff_canvas
         canvas.delete("all")
+        self.staff_scale_note_regions = []
         if self.scale_tab_active:
             display_notes_list = list(self.scale_preview_notes)
             display_notes = set(display_notes_list)
@@ -1553,6 +1877,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                     diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
                     y = treble_top + 4 * line_space - diatonic_steps * staff_step
+                    label_y_base = treble_top - 16
                     low_bound = treble_bottom_line_diatonic
                     high_bound = treble_top_line_diatonic
                     staff_base_y = treble_top + 4 * line_space
@@ -1561,6 +1886,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                     diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
+                    label_y_base = bass_top - 14
                     low_bound = bass_bottom_line_diatonic
                     high_bound = bass_top_line_diatonic
                     staff_base_y = bass_top + 4 * line_space
@@ -1603,9 +1929,22 @@ class MidiChordAnalyzerApp(tk.Tk):
                         fill="#ffffff",
                         font=("Helvetica", 18, "bold"),
                     )
-                if self.scale_tab_active and self.scale_loop_active and self.scale_current_note == note:
-                    note_fill = "#2fb8ff"
-                    note_outline = "#ffffff"
+                if self.scale_tab_active:
+                    is_hovered = self.staff_hover_note == note
+                    is_pressed = note in self.staff_pressed_scale_notes
+                    is_current = self.scale_loop_active and self.scale_current_note == note
+                    if is_hovered:
+                        note_fill = "#49c6ff"
+                        note_outline = "#ffffff"
+                    elif is_pressed:
+                        note_fill = "#2faeff"
+                        note_outline = "#ffffff"
+                    elif is_current:
+                        note_fill = "#2fb8ff"
+                        note_outline = "#ffffff"
+                    else:
+                        note_fill = "#000000"
+                        note_outline = "#ffffff"
                 else:
                     note_fill = "#000000"
                     note_outline = "#ffffff"
@@ -1620,25 +1959,51 @@ class MidiChordAnalyzerApp(tk.Tk):
                 )
                 for ledger_y in ledger_lines_y:
                     canvas.create_line(x - ledger_half, ledger_y, x + ledger_half, ledger_y, fill="#bfbfbf", width=1)
+                if self.scale_tab_active:
+                    label_text = self.note_name(note, with_octave=False)
+                    label_y = label_y_base
+                    is_label_hl = (self.staff_hover_note == note) or (note in self.staff_pressed_scale_notes)
+                    label_fill = "#7ed1ff" if is_label_hl else "#d4d8df"
+                    canvas.create_text(
+                        x,
+                        label_y,
+                        text=label_text,
+                        fill=label_fill,
+                        font=("Helvetica", 11, "bold" if is_label_hl else "normal"),
+                    )
+                    label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
+                    self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w))
 
-        canvas.create_text(
-            w / 2,
-            h - 14,
-            text=self.tr("staff_shift_hint"),
-            fill="#a8a8a8",
-            font=("Helvetica", 10, "italic"),
-        )
+        if not self.generation_tab_active and not self.scale_tab_active:
+            canvas.create_text(
+                w / 2,
+                h - 14,
+                text=self.tr("staff_shift_hint"),
+                fill="#a8a8a8",
+                font=("Helvetica", 10, "italic"),
+            )
 
     def open_settings_dialog(self) -> None:
+        if self.settings_overlay is not None:
+            self._close_settings_overlay()
+            return
+
         self.refresh_devices()
+        self._close_scale_tonic_overlay()
+        self._close_scale_type_overlay()
+        self._close_generation_selection_overlay()
 
-        dialog = tk.Toplevel(self)
-        dialog.title(self.tr("settings_title"))
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.resizable(False, False)
+        overlay = tk.Frame(
+            self.chord_panel,
+            bg="#2b2d38",
+            highlightthickness=1,
+            highlightbackground="#4a4f5f",
+            bd=0,
+        )
+        overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
+        self.settings_overlay = overlay
 
-        frame = ttk.Frame(dialog, padding=14)
+        frame = ttk.Frame(overlay, padding=14)
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=4)
@@ -1725,11 +2090,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         metronome_chk.grid(row=5, column=0, columnspan=2, sticky="w", pady=(2, 4))
 
         ttk.Label(frame, text=self.tr("settings_metronome_bpm")).grid(row=6, column=0, sticky="w", pady=4)
-        bpm_var = tk.StringVar(value=str(int(self.config_data.get("metronome_bpm", 80))))
+        bpm_var = tk.StringVar(value=str(int(self.config_data.get("metronome_bpm", 120))))
         bpm_spin = ttk.Spinbox(frame, from_=30, to=240, increment=1, textvariable=bpm_var, width=8)
         bpm_spin.grid(row=6, column=1, sticky="w", pady=4)
 
-        def do_save() -> None:
+        def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
             self.config_data["midi_input"] = in_var.get().strip()
             self.config_data["audio_output"] = out_var.get().strip()
@@ -1739,25 +2104,43 @@ class MidiChordAnalyzerApp(tk.Tk):
             try:
                 bpm_value = int(float(bpm_var.get()))
             except (TypeError, ValueError):
-                bpm_value = 80
+                bpm_value = 120
             self.config_data["metronome_bpm"] = max(30, min(240, bpm_value))
             self.apply_ui_language()
             self.save_config()
             self.connect_ports()
             self.update_music_views()
-            dialog.destroy()
+            self._close_settings_overlay()
+            return "break"
+
+        def close_dialog(_event: Optional[tk.Event] = None) -> str:
+            self._close_settings_overlay()
+            return "break"
 
         buttons = ttk.Frame(frame)
         buttons.grid(row=7, column=0, columnspan=2, sticky="e")
 
-        ttk.Button(buttons, text=self.tr("button_cancel"), command=dialog.destroy).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)
 
         frame.columnconfigure(1, weight=1)
+        overlay.bind("<Escape>", close_dialog)
+        overlay.bind("<Return>", do_save)
+        frame.bind("<Escape>", close_dialog)
+        frame.bind("<Return>", do_save)
+        self._settings_save_callback = do_save
+        overlay.focus_set()
+
+    def _close_settings_overlay(self) -> None:
+        if self.settings_overlay is not None:
+            self.settings_overlay.destroy()
+            self.settings_overlay = None
+        self._settings_save_callback = None
 
     def on_close(self) -> None:
         self._stop_generated_playback()
         self._stop_scale_playback()
+        self._stop_staff_scale_note_playback()
         self.disconnect_ports()
         self.destroy()
 

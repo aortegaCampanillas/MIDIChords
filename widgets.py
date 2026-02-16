@@ -140,6 +140,7 @@ class GreenRoundedButton(tk.Canvas):
         self._command = command
         self._radius = radius
         self._hover = False
+        self._selected = False
 
         self.bind("<Button-1>", self._on_click)
         self.bind("<Enter>", self._on_enter)
@@ -149,6 +150,12 @@ class GreenRoundedButton(tk.Canvas):
 
     def set_text(self, text: str) -> None:
         self._text = text
+        self._redraw()
+
+    def set_selected(self, selected: bool) -> None:
+        if self._selected == selected:
+            return
+        self._selected = selected
         self._redraw()
 
     def _on_click(self, _event: tk.Event) -> None:
@@ -183,8 +190,12 @@ class GreenRoundedButton(tk.Canvas):
         w = max(8, int(self.winfo_width()))
         h = max(8, int(self.winfo_height()))
         r = max(6, min(self._radius, int(min(w, h) / 2) - 1))
-        fill = "#12c57a" if not self._hover else "#10b76f"
-        outline = "#0fa766"
+        if self._selected:
+            fill = "#10bf74" if not self._hover else "#0eab67"
+            outline = "#0f9d60"
+        else:
+            fill = "#0f8f5b" if not self._hover else "#0d7f50"
+            outline = "#0b7047"
         points = self._rounded_points(1, 1, w - 1, h - 1, r)
         self.create_polygon(
             points,
@@ -199,7 +210,7 @@ class GreenRoundedButton(tk.Canvas):
             h / 2,
             text=self._text,
             fill="#ffffff",
-            font=("Helvetica", 18),
+            font=("Helvetica", 15),
             anchor="center",
         )
 

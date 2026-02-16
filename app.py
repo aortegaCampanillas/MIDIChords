@@ -12,6 +12,7 @@ import mido
 import sounddevice as sd
 
 from audio_engine import PianoAudioEngine
+from guitar_chord_cache import get_cached_variations, load_guitar_chord_cache
 from i18n import NOTE_NAMES, SCALE_NAME_TEXTS, UI_TEXTS
 from music_theory import CHORD_PATTERNS, SCALE_PATTERNS, PC_TO_DIATONIC_LETTER, WHITE_PCS, ChordPattern, ScalePattern, analyze_chord_notes, format_intervals
 from widgets import GrayRoundedButton, GreenRoundedButton, RoundedChoiceButton
@@ -30,6 +31,26 @@ APP_LOGO_CANDIDATES = [
     Path(__file__).resolve().parent / "assets" / "app_logo.gif",
     Path(__file__).resolve().parent / "assets" / "app_logo.ppm",
 ]
+PIANO_IMAGE_CANDIDATES = [
+    Path(__file__).resolve().parent / "assets" / "piano.png",
+    Path(__file__).resolve().parent / "assets" / "piano.gif",
+    Path(__file__).resolve().parent / "assets" / "piano.ppm",
+]
+GUITAR_IMAGE_CANDIDATES = [
+    Path(__file__).resolve().parent / "assets" / "guitar.png",
+    Path(__file__).resolve().parent / "assets" / "guitar.gif",
+    Path(__file__).resolve().parent / "assets" / "guitar.ppm",
+]
+RIGHT_HAND_ICON_CANDIDATES = [
+    Path(__file__).resolve().parent / "assets" / "right_hand.png",
+    Path(__file__).resolve().parent / "assets" / "right_hand.gif",
+    Path(__file__).resolve().parent / "assets" / "right_hand.ppm",
+]
+LEFT_HAND_ICON_CANDIDATES = [
+    Path(__file__).resolve().parent / "assets" / "left_hand.png",
+    Path(__file__).resolve().parent / "assets" / "left_hand.gif",
+    Path(__file__).resolve().parent / "assets" / "left_hand.ppm",
+]
 class MidiChordAnalyzerApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -45,13 +66,22 @@ class MidiChordAnalyzerApp(tk.Tk):
             "metronome_enabled": False,
             "metronome_bpm": 120,
             "mode": "detection",
+            "instrument_view": "piano",
+            "guitar_handedness": "right",
         }
         self.load_config()
         self.brace_base_image: Optional[tk.PhotoImage] = None
         self.brace_image_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.app_logo_image: Optional[tk.PhotoImage] = None
+        self.piano_image: Optional[tk.PhotoImage] = None
+        self.guitar_image: Optional[tk.PhotoImage] = None
+        self.right_hand_icon_image: Optional[tk.PhotoImage] = None
+        self.left_hand_icon_image: Optional[tk.PhotoImage] = None
+        self.instrument_buttons_are_images = False
+        self.handedness_buttons_are_images = False
         self._load_brace_image()
         self._load_app_logo()
+        self._load_instrument_icons()
 
         self.active_notes: set[int] = set()
         self.generated_preview_notes: set[int] = set()
@@ -64,6 +94,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generated_playing_notes: set[int] = set()
         self.generated_play_after_id: Optional[str] = None
         self.generation_play_button_pressed = False
+        self.generation_play_space_pressed = False
         self.white_key_regions: list[tuple[int, float, float, float, float]] = []
         self.black_key_regions: list[tuple[int, float, float, float, float]] = []
         self.message_queue: queue.Queue = queue.Queue()
@@ -102,12 +133,26 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generation_selection_overlay: Optional[tk.Frame] = None
         self.settings_overlay: Optional[tk.Frame] = None
         self.mode_selector_overlay: Optional[tk.Frame] = None
+        self.instrument_view = "piano"
+        self.guitar_handedness = "right"
+        self.guitar_variations: list[dict] = []
+        self.guitar_selected_variation_idx: Optional[int] = None
+        self.guitar_selected_variation_notes: set[int] = set()
+        self.guitar_variation_buttons: list[tk.Button] = []
+        self._last_guitar_chord_key: Optional[tuple[int, str]] = None
+        self.guitar_current_root_pc: Optional[int] = None
         self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
+        self.guitar_chord_cache = load_guitar_chord_cache()
 
         self._build_ui()
+        loaded_instrument_view = str(self.config_data.get("instrument_view", "piano"))
+        loaded_handedness = str(self.config_data.get("guitar_handedness", "right"))
+        self.guitar_handedness = "left" if loaded_handedness == "left" else "right"
+        self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
+        self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()
         self._on_mode_combo_changed(None)
         self.refresh_devices()
@@ -125,6 +170,9 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _build_ui(self) -> None:
         container = ttk.Frame(self, padding=10)
         container.pack(fill=tk.BOTH, expand=True)
+        unified_green_width = 200
+        unified_green_height = 46
+        unified_green_radius = 22
 
         mode_bar = ttk.Frame(container)
         mode_bar.pack(fill=tk.X, pady=(0, 8))
@@ -239,39 +287,39 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_generation_frame,
             text="C",
             command=self.open_generation_root_dialog,
-            width=220,
-            height=52,
-            radius=26,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
         )
-        self.generation_root_btn.grid(row=2, column=0, sticky="w", pady=(0, 4))
+        self.generation_root_btn.grid(row=2, column=0, sticky="w", pady=(0, 4), padx=(0, 6))
 
         self.generation_variant_label = ttk.Label(self.tab_generation_frame, text="")
-        self.generation_variant_label.grid(row=3, column=0, sticky="w", pady=(0, 2))
+        self.generation_variant_label.grid(row=1, column=1, sticky="w", pady=(0, 2), padx=(6, 0))
         self.generation_variant_btn = GreenRoundedButton(
             self.tab_generation_frame,
             text="maj",
             command=self.open_generation_variant_dialog,
-            width=260,
-            height=52,
-            radius=26,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
         )
-        self.generation_variant_btn.grid(row=4, column=0, sticky="w", pady=(0, 4))
+        self.generation_variant_btn.grid(row=2, column=1, sticky="w", pady=(0, 4), padx=(6, 0))
 
         self.generation_inversion_label = ttk.Label(self.tab_generation_frame, text="")
-        self.generation_inversion_label.grid(row=5, column=0, sticky="w", pady=(0, 2))
+        self.generation_inversion_label.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 2))
         self.generation_inversion_btn = GreenRoundedButton(
             self.tab_generation_frame,
             text="-",
             command=self.open_generation_inversion_dialog,
-            width=240,
-            height=52,
-            radius=26,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
         )
-        self.generation_inversion_btn.grid(row=6, column=0, sticky="w", pady=(0, 4))
+        self.generation_inversion_btn.grid(row=4, column=0, sticky="w", pady=(0, 4))
 
         self.generated_chord_var = tk.StringVar(value="-")
         self.generated_chord_row = ttk.Frame(self.tab_generation_frame)
-        self.generated_chord_row.grid(row=7, column=0, sticky="w", pady=(6, 4))
+        self.generated_chord_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         self.generation_play_btn = ttk.Button(
             self.generated_chord_row,
@@ -290,7 +338,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generated_chord_label.pack(side=tk.LEFT, padx=(8, 0))
 
         self.generated_notes_caption_label = ttk.Label(self.tab_generation_frame, text="", font=("Helvetica", 12, "bold"))
-        self.generated_notes_caption_label.grid(row=8, column=0, sticky="w", pady=(4, 2))
+        self.generated_notes_caption_label.grid(row=6, column=0, columnspan=2, sticky="w", pady=(4, 2))
         self.generated_notes_var = tk.StringVar(value="-")
         self.generated_notes_label = ttk.Label(
             self.tab_generation_frame,
@@ -298,9 +346,9 @@ class MidiChordAnalyzerApp(tk.Tk):
             wraplength=420,
             font=("Menlo", 12),
         )
-        self.generated_notes_label.grid(row=9, column=0, sticky="w", pady=(0, 4))
+        self.generated_notes_label.grid(row=7, column=0, columnspan=2, sticky="w", pady=(0, 4))
         self.generated_intervals_caption_label = ttk.Label(self.tab_generation_frame, text="", font=("Helvetica", 12, "bold"))
-        self.generated_intervals_caption_label.grid(row=10, column=0, sticky="w", pady=(2, 2))
+        self.generated_intervals_caption_label.grid(row=8, column=0, columnspan=2, sticky="w", pady=(2, 2))
         self.generated_intervals_var = tk.StringVar(value="-")
         self.generated_intervals_label = ttk.Label(
             self.tab_generation_frame,
@@ -308,9 +356,10 @@ class MidiChordAnalyzerApp(tk.Tk):
             wraplength=420,
             font=("Menlo", 12),
         )
-        self.generated_intervals_label.grid(row=11, column=0, sticky="w", pady=(0, 2))
+        self.generated_intervals_label.grid(row=9, column=0, columnspan=2, sticky="w", pady=(0, 2))
 
         self.tab_generation_frame.columnconfigure(0, weight=1)
+        self.tab_generation_frame.columnconfigure(1, weight=1)
 
         self.scale_title_row = ttk.Frame(self.tab_scale_frame)
         self.scale_title_row.grid(row=0, column=0, sticky="w", pady=(4, 8))
@@ -326,18 +375,18 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.scale_buttons_row,
             text="C",
             command=self.open_scale_tonic_dialog,
-            width=126,
-            height=56,
-            radius=28,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
         )
         self.scale_tonic_btn.pack(side=tk.LEFT, padx=(0, 8))
         self.scale_type_btn = GreenRoundedButton(
             self.scale_buttons_row,
             text=self.scale_pattern_name,
             command=self.open_scale_type_dialog,
-            width=340,
-            height=56,
-            radius=28,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
         )
         self.scale_type_btn.pack(side=tk.LEFT)
 
@@ -360,14 +409,133 @@ class MidiChordAnalyzerApp(tk.Tk):
         separator = ttk.Separator(container, orient=tk.HORIZONTAL)
         separator.pack(fill=tk.X, pady=(10, 10))
 
+        self.instrument_switch_frame = tk.Frame(container, bg=self.cget("background"))
+        self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6))
+        self.instrument_switch_frame.columnconfigure(0, weight=1)
+        self.instrument_switch_frame.columnconfigure(1, weight=0)
+        self.instrument_switch_frame.columnconfigure(2, weight=1)
+        self.instrument_switch_inner = tk.Frame(self.instrument_switch_frame, bg=self.cget("background"))
+        self.instrument_switch_inner.grid(row=0, column=1, sticky="n")
+
+        if self.piano_image is not None and self.guitar_image is not None:
+            self.instrument_buttons_are_images = True
+            self.piano_view_btn = tk.Label(
+                self.instrument_switch_inner,
+                image=self.piano_image,
+                bg=self.cget("background"),
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=6,
+                pady=4,
+            )
+            self.piano_view_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self.piano_view_btn.bind("<Button-1>", lambda _e: self._set_instrument_view("piano"))
+
+            self.guitar_view_btn = tk.Label(
+                self.instrument_switch_inner,
+                image=self.guitar_image,
+                bg=self.cget("background"),
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=6,
+                pady=4,
+            )
+            self.guitar_view_btn.pack(side=tk.LEFT)
+            self.guitar_view_btn.bind("<Button-1>", lambda _e: self._set_instrument_view("guitar"))
+        else:
+            self.instrument_buttons_are_images = False
+            self.piano_view_btn = GreenRoundedButton(
+                self.instrument_switch_inner,
+                text="Piano",
+                command=lambda: self._set_instrument_view("piano"),
+                width=140,
+                height=42,
+                radius=20,
+            )
+            self.piano_view_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+            self.guitar_view_btn = GreenRoundedButton(
+                self.instrument_switch_inner,
+                text="Guitarra",
+                command=lambda: self._set_instrument_view("guitar"),
+                width=140,
+                height=42,
+                radius=20,
+            )
+            self.guitar_view_btn.pack(side=tk.LEFT)
+
+        if self.right_hand_icon_image is not None and self.left_hand_icon_image is not None:
+            self.handedness_buttons_are_images = True
+            panel_bg = self.cget("background")
+            self.guitar_right_btn = tk.Label(
+                self.instrument_switch_frame,
+                image=self.right_hand_icon_image,
+                bg=panel_bg,
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=8,
+                pady=6,
+            )
+            self.guitar_right_btn.bind("<Button-1>", lambda _e: self._set_guitar_handedness("right"))
+            self.guitar_right_btn.grid(row=0, column=0, sticky="w", padx=(6, 0))
+            self.guitar_left_btn = tk.Label(
+                self.instrument_switch_frame,
+                image=self.left_hand_icon_image,
+                bg=panel_bg,
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=8,
+                pady=6,
+            )
+            self.guitar_left_btn.bind("<Button-1>", lambda _e: self._set_guitar_handedness("left"))
+            self.guitar_left_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
+        else:
+            self.handedness_buttons_are_images = False
+            self.guitar_right_btn = GreenRoundedButton(
+                self.instrument_switch_frame,
+                text="Diestro",
+                command=lambda: self._set_guitar_handedness("right"),
+                width=130,
+                height=38,
+                radius=18,
+            )
+            self.guitar_right_btn.grid(row=0, column=0, sticky="w", padx=(6, 0))
+            self.guitar_left_btn = GreenRoundedButton(
+                self.instrument_switch_frame,
+                text="Zurdo",
+                command=lambda: self._set_guitar_handedness("left"),
+                width=130,
+                height=38,
+                radius=18,
+            )
+            self.guitar_left_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
+
+        self.instrument_canvas_holder = tk.Frame(container, bg=self.cget("background"))
+        self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+
         self.keyboard_canvas = tk.Canvas(
-            container,
+            self.instrument_canvas_holder,
             bg="#f5f4ef",
             height=156,
             highlightthickness=1,
             highlightbackground="#cfc9bc",
         )
         self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+
+        self.guitar_canvas = tk.Canvas(
+            self.instrument_canvas_holder,
+            bg="#2f3137",
+            height=196,
+            highlightthickness=1,
+            highlightbackground="#5c6068",
+        )
+        self.guitar_variations_frame = tk.Frame(self.instrument_canvas_holder, bg="#1f2024")
+        self.guitar_variations_inner = tk.Frame(self.guitar_variations_frame, bg="#1f2024")
+        self.guitar_variations_inner.pack(anchor="center")
 
         self.staff_canvas.bind("<Configure>", lambda _event: self.redraw_staff())
         self.staff_canvas.bind("<Motion>", self._on_staff_motion)
@@ -378,6 +546,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.keyboard_canvas.bind("<ButtonPress-1>", self._on_keyboard_press)
         self.keyboard_canvas.bind("<B1-Motion>", self._on_keyboard_drag)
         self.keyboard_canvas.bind("<ButtonRelease-1>", self._on_keyboard_release)
+        self.guitar_canvas.bind("<Configure>", lambda _event: self.redraw_guitar_fretboard())
         self.bind_all("<KeyPress-Shift_L>", self._on_shift_press)
         self.bind_all("<KeyPress-Shift_R>", self._on_shift_press)
         self.bind_all("<KeyRelease-Shift_L>", self._on_shift_release)
@@ -385,11 +554,13 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.bind_all("<Escape>", self._on_escape_pressed, add="+")
         self.bind_all("<Return>", self._on_return_pressed, add="+")
         self.bind_all("<space>", self._on_space_pressed, add="+")
+        self.bind_all("<KeyRelease-space>", self._on_space_released, add="+")
         self.bind_all("<ButtonPress-1>", self._on_global_click_press, add="+")
         self.bind_all("<MouseWheel>", self._on_any_mousewheel, add="+")
         self.bind_all("<Shift-MouseWheel>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-4>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-5>", self._on_any_mousewheel, add="+")
+        self._set_instrument_view(self.instrument_view)
 
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
@@ -406,12 +577,30 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
         self.config_icon_btn.configure(text="⚙")
+        if not self.instrument_buttons_are_images:
+            self.piano_view_btn.set_text(self.tr("instrument_piano"))
+            self.guitar_view_btn.set_text(self.tr("instrument_guitar"))
+        if not self.handedness_buttons_are_images:
+            self.guitar_right_btn.set_text(self.tr("handed_right"))
+            self.guitar_left_btn.set_text(self.tr("handed_left"))
         self.mode_var.set(self._mode_label(self.current_mode))
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
         self._refresh_generation_controls()
         self._refresh_scale_preview()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
+
+    def _instrument_display_notes(self) -> set[int]:
+        if self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
+            return set(self.guitar_selected_variation_notes)
+        if self.generation_tab_active:
+            return set(self.generated_preview_notes)
+        if self.scale_tab_active:
+            notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
+            if self.scale_loop_active and self.scale_current_note is not None:
+                notes.add(self.scale_current_note)
+            return notes
+        return self._current_detection_notes()
 
     def _refresh_generation_controls(self) -> None:
         if self.generation_pattern_suffix not in {p.suffix for p in CHORD_PATTERNS}:
@@ -425,6 +614,417 @@ class MidiChordAnalyzerApp(tk.Tk):
         variant_label = self.generation_pattern_suffix if self.generation_pattern_suffix else "maj"
         self.generation_variant_btn.set_text(variant_label)
         self.generation_inversion_btn.set_text(self._inversion_label(self.generation_inversion))
+
+    def _set_instrument_view(self, view: str) -> None:
+        self.instrument_view = "guitar" if view == "guitar" else "piano"
+        self.config_data["instrument_view"] = self.instrument_view
+        self.save_config()
+        if self.instrument_view == "guitar":
+            self.guitar_right_btn.grid()
+            self.guitar_left_btn.grid()
+            self.keyboard_canvas.pack_forget()
+            self.guitar_canvas.pack(fill=tk.BOTH, expand=False)
+            self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
+        else:
+            self.guitar_right_btn.grid_remove()
+            self.guitar_left_btn.grid_remove()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+        self._refresh_instrument_toggle_styles()
+        self._refresh_handedness_toggle_styles()
+        self._refresh_guitar_variations()
+        self.redraw_keyboard()
+        self.redraw_guitar_fretboard()
+
+    def _set_guitar_handedness(self, handedness: str) -> None:
+        self.guitar_handedness = "left" if handedness == "left" else "right"
+        self.config_data["guitar_handedness"] = self.guitar_handedness
+        self.save_config()
+        self._refresh_handedness_toggle_styles()
+        self.redraw_guitar_fretboard()
+
+    def _refresh_instrument_toggle_styles(self) -> None:
+        if self.instrument_buttons_are_images:
+            panel_bg = self.cget("background")
+            selected_hl = "#21d686"
+            normal_hl = "#2d3138"
+            if self.instrument_view == "piano":
+                self.piano_view_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+                self.guitar_view_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+            else:
+                self.piano_view_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+                self.guitar_view_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+            return
+        self.piano_view_btn.set_selected(self.instrument_view == "piano")
+        self.guitar_view_btn.set_selected(self.instrument_view == "guitar")
+
+    def _refresh_handedness_toggle_styles(self) -> None:
+        if self.handedness_buttons_are_images:
+            panel_bg = self.cget("background")
+            selected_hl = "#21d686"
+            normal_hl = "#2d3138"
+            if self.guitar_handedness == "right":
+                self.guitar_right_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+                self.guitar_left_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+            else:
+                self.guitar_right_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+                self.guitar_left_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+            return
+        self.guitar_right_btn.set_selected(self.guitar_handedness == "right")
+        self.guitar_left_btn.set_selected(self.guitar_handedness == "left")
+
+    def _compute_guitar_variations(self, root_pc: int, pattern: ChordPattern) -> list[dict]:
+        cached = get_cached_variations(self.guitar_chord_cache, root_pc, pattern.suffix)
+        if cached:
+            return cached
+
+        tuning = [40, 45, 50, 55, 59, 64]  # E2 A2 D3 G3 B3 E4 (6->1)
+        pcs = {(root_pc + interval) % 12 for interval in pattern.intervals}
+        candidate_shapes: list[tuple[tuple[int, int, int, int, int, int, int], dict]] = []
+        seen: set[tuple[int, ...]] = set()
+
+        for start in range(0, 11):
+            end = start + 4
+            per_string_options: list[list[int]] = []
+            for string_idx, open_note in enumerate(tuning):
+                options = {-1}
+                for fret in range(0, 16):
+                    if (open_note + fret) % 12 not in pcs:
+                        continue
+                    if fret == 0:
+                        if start == 0:
+                            options.add(0)
+                        continue
+                    if start <= fret <= end:
+                        options.add(fret)
+                # Prefer not muting treble strings by default to keep complete voicings.
+                ordered = sorted(options, key=lambda f: (0 if (f >= 0 and string_idx >= 2) else 1, f))
+                per_string_options.append(ordered)
+
+            stack: list[tuple[int, list[int]]] = [(0, [])]
+            while stack:
+                idx, current = stack.pop()
+                if idx == 6:
+                    frets = current
+                    sounding = [(i, f) for i, f in enumerate(frets) if f >= 0]
+                    if len(sounding) < 3:
+                        continue
+                    notes = [tuning[i] + f for i, f in sounding]
+                    note_pcs = {n % 12 for n in notes}
+                    if root_pc not in note_pcs:
+                        continue
+                    if len(note_pcs) < min(3, len(pcs)):
+                        continue
+
+                    fretted = [f for f in frets if f > 0]
+                    open_count = sum(1 for f in frets if f == 0)
+                    if fretted and (max(fretted) - min(fretted) > 4):
+                        continue
+                    # Closed-position shapes (e.g. barre chords) should not keep open strings.
+                    if fretted and min(fretted) > 0 and open_count > 0:
+                        continue
+
+                    key = tuple(frets)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    bass_pc = notes[0] % 12
+                    mute_count = sum(1 for f in frets if f < 0)
+                    span = (max(fretted) - min(fretted)) if fretted else 0
+                    position = min(fretted) if fretted else 0
+                    complexity = len({f for f in fretted})
+                    # Logical order: open/low positions first, then compact and easy fingerings.
+                    sort_key = (
+                        0 if position == 0 else 1,
+                        position,
+                        0 if bass_pc == root_pc else 1,
+                        mute_count,
+                        open_count,
+                        span,
+                        complexity,
+                        -len(note_pcs),
+                    )
+                    fingers = self._assign_guitar_fingers(frets)
+                    string_notes = [(tuning[i] + frets[i]) if frets[i] >= 0 else None for i in range(6)]
+                    candidate_shapes.append(
+                        (
+                            sort_key,
+                            {
+                                "frets": frets,
+                                "notes": notes,
+                                "fingers": fingers,
+                                "string_notes": string_notes,
+                            },
+                        )
+                    )
+                    continue
+
+                # Limit branching: keep at most first 6 options per string after ordering.
+                for fret in reversed(per_string_options[idx][:6]):
+                    stack.append((idx + 1, current + [fret]))
+
+        candidate_shapes.sort(key=lambda item: item[0])
+
+        by_position: set[int] = set()
+        variations: list[dict] = []
+
+        # First pass: prioritize one strong shape per position.
+        for _key, entry in candidate_shapes:
+            fretted = [f for f in entry["frets"] if f > 0]
+            pos = min(fretted) if fretted else 0
+            if pos in by_position:
+                continue
+            by_position.add(pos)
+            variations.append(entry)
+
+        # Second pass: append remaining shapes preserving the sorted order.
+        chosen = {tuple(v["frets"]) for v in variations}
+        for _key, entry in candidate_shapes:
+            shape_key = tuple(entry["frets"])
+            if shape_key in chosen:
+                continue
+            variations.append(entry)
+            chosen.add(shape_key)
+
+        if not variations:
+            notes = [60 + root_pc + iv for iv in pattern.intervals]
+            variations.append(
+                {
+                    "frets": [-1, -1, -1, -1, -1, -1],
+                    "notes": notes,
+                    "fingers": [0, 0, 0, 0, 0, 0],
+                    "string_notes": [None, None, None, None, None, None],
+                }
+            )
+        return variations
+
+    @staticmethod
+    def _assign_guitar_fingers(frets: list[int]) -> list[int]:
+        pressed = sorted({f for f in frets if f > 0})
+        if not pressed:
+            return [0 for _ in frets]
+        finger_map = {fret: min(4, idx + 1) for idx, fret in enumerate(pressed)}
+        return [finger_map.get(fret, 0) if fret > 0 else 0 for fret in frets]
+
+    def _resolve_guitar_chord_context(self) -> tuple[Optional[int], Optional[ChordPattern]]:
+        if self.generation_tab_active:
+            root = self.generation_root_pc
+            pattern = self._resolve_generation_pattern()
+            return root, pattern
+        notes = self._current_detection_notes()
+        if not notes:
+            return None, None
+        root, pattern, _bass = self._analyze_chord_notes(notes)
+        return root, pattern
+
+    def _refresh_guitar_variations(self) -> None:
+        for btn in self.guitar_variation_buttons:
+            btn.destroy()
+        self.guitar_variation_buttons.clear()
+
+        root, pattern = self._resolve_guitar_chord_context()
+        if root is None or pattern is None:
+            self.guitar_variations = []
+            self.guitar_selected_variation_idx = None
+            self.guitar_selected_variation_notes = set()
+            self._last_guitar_chord_key = None
+            return
+
+        chord_key = (root, pattern.suffix)
+        self.guitar_current_root_pc = root
+        if chord_key != self._last_guitar_chord_key:
+            self.guitar_variations = self._compute_guitar_variations(root, pattern)
+            self.guitar_selected_variation_idx = 0 if self.guitar_variations else None
+            self._last_guitar_chord_key = chord_key
+
+        if self.guitar_selected_variation_idx is None:
+            self.guitar_selected_variation_notes = set()
+            return
+
+        self.guitar_selected_variation_idx = max(0, min(self.guitar_selected_variation_idx, len(self.guitar_variations) - 1))
+        self.guitar_selected_variation_notes = set(self.guitar_variations[self.guitar_selected_variation_idx]["notes"])
+
+        for idx in range(len(self.guitar_variations)):
+            selected = idx == self.guitar_selected_variation_idx
+            btn = tk.Button(
+                self.guitar_variations_inner,
+                text=str(idx + 1),
+                command=lambda i=idx: self._select_guitar_variation(i),
+                width=3,
+                relief=tk.FLAT,
+                bd=0,
+                cursor="hand2",
+                bg="#ff9f1a" if selected else "#6a7283",
+                fg="#000000",
+                activebackground="#ffb347" if selected else "#7d879b",
+                activeforeground="#000000",
+                font=("Helvetica", 10, "bold"),
+            )
+            btn.pack(side=tk.LEFT, padx=(0 if idx == 0 else 4, 0), pady=4)
+            self.guitar_variation_buttons.append(btn)
+
+    def _select_guitar_variation(self, idx: int) -> None:
+        if idx < 0 or idx >= len(self.guitar_variations):
+            return
+        self.guitar_selected_variation_idx = idx
+        self.guitar_selected_variation_notes = set(self.guitar_variations[idx]["notes"])
+        self._refresh_guitar_variations()
+        self.redraw_keyboard()
+        self.redraw_staff()
+
+    def redraw_guitar_fretboard(self) -> None:
+        canvas = self.guitar_canvas
+        canvas.delete("all")
+        w = max(720, canvas.winfo_width())
+        h = max(180, canvas.winfo_height())
+        canvas.create_rectangle(0, 0, w, h, fill="#ffffff", outline="")
+
+        frets = 16
+        is_left_handed = self.guitar_handedness == "left"
+        nut_margin = 58
+        board_margin = 12
+        if is_left_handed:
+            nut_x = w - nut_margin
+            board_far_x = board_margin
+            direction = -1.0
+        else:
+            nut_x = nut_margin
+            board_far_x = w - board_margin
+            direction = 1.0
+        step = abs(board_far_x - nut_x) / frets
+        open_edge_x = nut_x - direction * (step * 0.5)
+        board_x1 = min(nut_x, board_far_x)
+        board_x2 = max(nut_x, board_far_x)
+        strings_x1 = min(open_edge_x, board_far_x)
+        strings_x2 = max(open_edge_x, board_far_x)
+        board_y1 = 24
+        board_y2 = h - 14
+        canvas.create_rectangle(board_x1, board_y1, board_x2, board_y2, fill="#34363c", outline="#4a4f58", width=1)
+        canvas.create_rectangle(min(open_edge_x, nut_x), board_y1, max(open_edge_x, nut_x), board_y2, fill="#ffffff", outline="")
+        canvas.create_line(nut_x, board_y1, nut_x, board_y2, fill="#c8b79f", width=3)
+
+        def fret_center_x(fret: int) -> float:
+            # Open string marker goes in the half-fret white area before the nut.
+            if fret <= 0:
+                return (open_edge_x + nut_x) / 2.0
+            return nut_x + direction * (fret - 0.5) * step
+
+        for f in range(1, frets + 1):
+            x = nut_x + direction * f * step
+            canvas.create_line(x, board_y1, x, board_y2, fill="#c8b79f", width=2)
+            shadow_x = x + (2 if direction > 0 else -2)
+            canvas.create_line(shadow_x, board_y1, shadow_x, board_y2, fill="#8f8576", width=1)
+
+        for n in range(frets):
+            label_x = fret_center_x(n)
+            canvas.create_text(label_x, 8, text=str(n), fill="#222", font=("Helvetica", 10, "bold"))
+
+        # E B G D A E (de aguda a grave)
+        tuning = [64, 59, 55, 50, 45, 40]
+        names = ["E", "B", "G", "D", "A", "E"]
+        string_gap = (board_y2 - board_y1) / 5.0
+        variation = None
+        if self.guitar_selected_variation_idx is not None and self.guitar_selected_variation_idx < len(self.guitar_variations):
+            variation = self.guitar_variations[self.guitar_selected_variation_idx]
+        frets_selected = variation["frets"] if variation is not None else None
+        fingers_selected = variation.get("fingers", [0, 0, 0, 0, 0, 0]) if variation is not None else [0, 0, 0, 0, 0, 0]
+        root_pc = self.guitar_current_root_pc
+
+        for i, (open_note, name) in enumerate(zip(tuning, names)):
+            y = board_y1 + i * string_gap
+            canvas.create_line(strings_x1, y, strings_x2, y, fill="#bdbdbd", width=2)
+            canvas.create_line(strings_x1, y + 1, strings_x2, y + 1, fill="#8a8a8a", width=1)
+            canvas.create_text(strings_x1 - 22, y, text=name, fill="#111", font=("Helvetica", 10, "bold"))
+
+        if frets_selected is None:
+            return
+
+        # Detect barre segments on displayed order (high E -> low E).
+        disp_frets = [frets_selected[5 - i] for i in range(6)]
+        disp_fingers = [fingers_selected[5 - i] for i in range(6)]
+        barre_segments: list[tuple[int, int, int, int, set[int]]] = []  # (fret, finger, start_string, end_string, covered_strings)
+        barre_covered: set[int] = set()
+        sounded_idxs = [i for i, f in enumerate(disp_frets) if f >= 0]
+        min_sounded = min(sounded_idxs) if sounded_idxs else 0
+        max_sounded = max(sounded_idxs) if sounded_idxs else 0
+        for fret in sorted({f for f in disp_frets if f > 0}):
+            idxs = [i for i, f in enumerate(disp_frets) if f == fret and disp_fingers[i] > 0]
+            if len(idxs) < 2:
+                continue
+            # Full barre: same fret on first and last sounding string (e.g., F major at fret 1).
+            if idxs[0] == min_sounded and idxs[-1] == max_sounded:
+                finger = disp_fingers[idxs[0]]
+                covered = set(idxs)
+                barre_segments.append((fret, finger, idxs[0], idxs[-1], covered))
+                barre_covered.update(covered)
+                continue
+            run_start = idxs[0]
+            run_prev = idxs[0]
+            for idx in idxs[1:]:
+                if idx == run_prev + 1:
+                    run_prev = idx
+                else:
+                    if run_prev - run_start + 1 >= 2:
+                        finger = disp_fingers[run_start]
+                        covered = set(range(run_start, run_prev + 1))
+                        barre_segments.append((fret, finger, run_start, run_prev, covered))
+                        barre_covered.update(covered)
+                    run_start = idx
+                    run_prev = idx
+            if run_prev - run_start + 1 >= 2:
+                finger = disp_fingers[run_start]
+                covered = set(range(run_start, run_prev + 1))
+                barre_segments.append((fret, finger, run_start, run_prev, covered))
+                barre_covered.update(covered)
+
+        for fret, finger, start_s, end_s, covered in barre_segments:
+            x = fret_center_x(fret)
+            y1 = board_y1 + start_s * string_gap
+            y2 = board_y1 + end_s * string_gap
+            width = max(8, int(string_gap * 0.72))
+            canvas.create_line(x, y1, x, y2, fill="#f7b500", width=width, capstyle=tk.ROUND)
+            for s in sorted(covered):
+                if disp_frets[s] != fret:
+                    continue
+                y = board_y1 + s * string_gap
+                note = tuning[s] + fret
+                is_tonic = (root_pc is not None) and ((note % 12) == root_pc)
+                r = max(7, min(12, int(string_gap * 0.30)))
+                fill = "#b35f00" if is_tonic else "#f4a742"
+                text_color = "#ffffff" if is_tonic else "#1f1200"
+                canvas.create_oval(x - r, y - r, x + r, y + r, fill=fill, outline="#2e2e2e", width=1)
+                canvas.create_text(x, y, text=str(finger), fill=text_color, font=("Helvetica", 9, "bold"))
+
+        # Draw non-barre finger circles.
+        for i, open_note in enumerate(tuning):
+            y = board_y1 + i * string_gap
+            disp_idx = i
+            pos_fret = disp_frets[disp_idx]
+            if pos_fret is None:
+                continue
+            if pos_fret < 0:
+                canvas.create_text(
+                    fret_center_x(0),
+                    y,
+                    text="X",
+                    fill="#9d0d00",
+                    font=("Helvetica", 16, "bold"),
+                )
+                continue
+            if disp_idx in barre_covered:
+                continue
+            finger = disp_fingers[disp_idx]
+            note = open_note + pos_fret
+            is_tonic = (root_pc is not None) and ((note % 12) == root_pc)
+            cx = fret_center_x(pos_fret)
+            r = max(7, min(12, int(string_gap * 0.30)))
+            fill = "#b35f00" if is_tonic else "#f4a742"
+            text_color = "#ffffff" if is_tonic else "#1f1200"
+            canvas.create_oval(cx - r, y - r, cx + r, y + r, fill=fill, outline="#f1c27d", width=1)
+            if pos_fret > 0:
+                canvas.create_text(cx, y, text=str(finger if finger > 0 else 1), fill=text_color, font=("Helvetica", 9, "bold"))
 
     @staticmethod
     def _pointer_inside_widget(widget: tk.Widget) -> bool:
@@ -557,6 +1157,114 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         return content
 
+    def _build_rounded_search_entry(self, parent: tk.Widget, placeholder: str) -> tuple[tk.StringVar, tk.Entry]:
+        wrapper = tk.Frame(parent, bg="#2b2d38")
+        wrapper.pack(fill=tk.X, pady=(0, 8))
+
+        canvas = tk.Canvas(
+            wrapper,
+            bg="#2b2d38",
+            height=42,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
+        )
+        canvas.pack(fill=tk.X)
+
+        search_var = tk.StringVar(value="")
+        entry = tk.Entry(
+            canvas,
+            textvariable=search_var,
+            relief=tk.FLAT,
+            bd=0,
+            bg="#1f2128",
+            fg="#f0f0f0",
+            insertbackground="#f0f0f0",
+            font=("Helvetica", 15, "bold"),
+        )
+        entry_window = canvas.create_window(46, 21, anchor="w", window=entry, height=24)
+        placeholder_id = canvas.create_text(50, 21, anchor="w", text=placeholder, fill="#a4a9b6", font=("Helvetica", 15, "bold"))
+        clear_button_bg_id = canvas.create_oval(0, 0, 0, 0, fill="#81858f", outline="")
+        clear_button_x_id = canvas.create_text(0, 0, text="✕", fill="#242730", font=("Helvetica", 10, "bold"))
+        search_lens_id = canvas.create_oval(0, 0, 0, 0, outline="#eceff5", width=2)
+        search_handle_id = canvas.create_line(0, 0, 0, 0, fill="#eceff5", width=2, capstyle=tk.ROUND)
+
+        def rounded_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
+            return [
+                x1 + r, y1,
+                x2 - r, y1,
+                x2, y1,
+                x2, y1 + r,
+                x2, y2 - r,
+                x2, y2,
+                x2 - r, y2,
+                x1 + r, y2,
+                x1, y2,
+                x1, y2 - r,
+                x1, y1 + r,
+                x1, y1,
+            ]
+
+        def redraw(_event: Optional[tk.Event] = None) -> None:
+            w = max(40, int(canvas.winfo_width()))
+            h = max(30, int(canvas.winfo_height()))
+            r = max(10, min(h // 2, 20))
+            canvas.delete("search_bg")
+            canvas.create_polygon(
+                rounded_points(1, 1, w - 1, h - 1, r),
+                smooth=True,
+                splinesteps=18,
+                fill="#1f2128",
+                outline="#666a74",
+                width=2.0,
+                tags="search_bg",
+            )
+            cx = 28
+            cy = h / 2
+            lens_r = 8
+            canvas.coords(search_lens_id, cx - lens_r, cy - lens_r, cx + lens_r, cy + lens_r)
+            canvas.coords(search_handle_id, cx + 6, cy + 6, cx + 12, cy + 12)
+
+            clear_r = 10
+            clear_cx = w - 24
+            clear_cy = h / 2
+            canvas.coords(clear_button_bg_id, clear_cx - clear_r, clear_cy - clear_r, clear_cx + clear_r, clear_cy + clear_r)
+            canvas.coords(clear_button_x_id, clear_cx, clear_cy)
+
+            canvas.coords(entry_window, 46, h / 2)
+            canvas.itemconfigure(entry_window, width=max(16, w - 82))
+            canvas.coords(placeholder_id, 50, h / 2)
+            canvas.tag_lower("search_bg")
+
+        def update_placeholder(*_args) -> None:
+            is_empty = not search_var.get().strip()
+            has_focus = self.focus_get() == entry
+            canvas.itemconfigure(placeholder_id, state=("normal" if (is_empty and not has_focus) else "hidden"))
+            canvas.itemconfigure(
+                clear_button_bg_id,
+                state=("hidden" if is_empty else "normal"),
+            )
+            canvas.itemconfigure(
+                clear_button_x_id,
+                state=("hidden" if is_empty else "normal"),
+            )
+
+        def clear_search(_event: Optional[tk.Event] = None) -> None:
+            search_var.set("")
+            entry.focus_set()
+
+        canvas.bind("<Configure>", redraw)
+        canvas.bind("<Button-1>", lambda _e: entry.focus_set())
+        canvas.tag_bind(placeholder_id, "<Button-1>", lambda _e: entry.focus_set())
+        canvas.tag_bind(clear_button_bg_id, "<Button-1>", clear_search)
+        canvas.tag_bind(clear_button_x_id, "<Button-1>", clear_search)
+        entry.bind("<FocusIn>", lambda _e: update_placeholder())
+        entry.bind("<FocusOut>", lambda _e: update_placeholder())
+        search_var.trace_add("write", update_placeholder)
+        redraw()
+        update_placeholder()
+        return search_var, entry
+
     def _open_generation_selection_overlay(self, kind: str) -> None:
         if self.generation_selection_overlay is not None:
             self._close_generation_selection_overlay()
@@ -581,40 +1289,88 @@ class MidiChordAnalyzerApp(tk.Tk):
             title = self.tr("label_inversion")
         tk.Label(header, text=title, bg="#2b2d38", fg="#f0f0f0", font=("Helvetica", 13, "bold")).pack(side=tk.LEFT)
 
-        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
-
         if kind == "root":
+            buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
             columns = 3
             options: list[tuple[str, int, bool]] = []
             for pc in range(12):
                 options.append((self.note_name(pc, with_octave=False), pc, pc == self.generation_root_pc))
-        elif kind == "variant":
+            for col in range(columns):
+                buttons_frame.columnconfigure(col, weight=1)
+
+            for idx, (label, value, selected) in enumerate(options):
+                btn = GrayRoundedButton(
+                    buttons_frame,
+                    text=str(label),
+                    command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                    width=122,
+                    height=74,
+                    radius=28,
+                    font_size=22,
+                )
+                btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
+                btn.set_selected(bool(selected))
+            return
+
+        if kind == "variant":
+            body = tk.Frame(overlay, bg="#2b2d38")
+            body.pack(fill=tk.BOTH, expand=True, padx=10, pady=(2, 10))
+            search_var, entry = self._build_rounded_search_entry(body, self.tr("label_search_variant"))
+
+            buttons_frame = self._build_scrollable_area(body, bg="#2b2d38", padx=0, pady=(0, 0))
             columns = 3
-            options = []
-            for pattern in CHORD_PATTERNS:
-                label = pattern.suffix if pattern.suffix else "maj"
-                options.append((label, pattern.suffix, pattern.suffix == self.generation_pattern_suffix))
-        else:
+            for col in range(columns):
+                buttons_frame.columnconfigure(col, weight=1)
+
+            def render_buttons() -> None:
+                for w in buttons_frame.winfo_children():
+                    w.destroy()
+                term = search_var.get().strip().lower()
+                options: list[tuple[str, str, bool]] = []
+                for pattern in CHORD_PATTERNS:
+                    label = pattern.suffix if pattern.suffix else "maj"
+                    if term and term not in label.lower():
+                        continue
+                    options.append((label, pattern.suffix, pattern.suffix == self.generation_pattern_suffix))
+                for idx, (label, value, selected) in enumerate(options):
+                    btn = GrayRoundedButton(
+                        buttons_frame,
+                        text=str(label),
+                        command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                        width=160,
+                        height=64,
+                        radius=24,
+                        font_size=16,
+                    )
+                    btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
+                    btn.set_selected(bool(selected))
+
+            search_var.trace_add("write", lambda *_args: render_buttons())
+            render_buttons()
+            entry.focus_set()
+            return
+
+        # inversion
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+        if kind == "inversion":
             columns = 3
-            options = []
+            options: list[tuple[str, int, bool]] = []
             for inv in range(self._max_generation_inversion() + 1):
                 options.append((self._inversion_label(inv), inv, inv == self.generation_inversion))
-
-        for col in range(columns):
-            buttons_frame.columnconfigure(col, weight=1)
-
-        for idx, (label, value, selected) in enumerate(options):
-            btn = GrayRoundedButton(
-                buttons_frame,
-                text=str(label),
-                command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
-                width=160 if kind != "root" else 122,
-                height=74 if kind == "root" else 64,
-                radius=28 if kind == "root" else 24,
-                font_size=16 if kind == "inversion" else 22,
-            )
-            btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
-            btn.set_selected(bool(selected))
+            for col in range(columns):
+                buttons_frame.columnconfigure(col, weight=1)
+            for idx, (label, value, selected) in enumerate(options):
+                btn = GrayRoundedButton(
+                    buttons_frame,
+                    text=str(label),
+                    command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                    width=160,
+                    height=64,
+                    radius=24,
+                    font_size=16,
+                )
+                btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
+                btn.set_selected(bool(selected))
 
     def _select_generation_overlay_value(self, kind: str, value) -> None:
         if kind == "root":
@@ -738,16 +1494,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         body = tk.Frame(overlay, bg="#2b2d38")
         body.pack(fill=tk.BOTH, expand=True, padx=10, pady=(2, 10))
-        tk.Label(
-            body,
-            text=self.tr("label_search_scale"),
-            bg="#2b2d38",
-            fg="#dfe2e8",
-            font=("Helvetica", 11),
-        ).pack(anchor="w")
-        search_var = tk.StringVar(value="")
-        entry = ttk.Entry(body, textvariable=search_var, width=34)
-        entry.pack(fill=tk.X, pady=(4, 8))
+        search_var, entry = self._build_rounded_search_entry(body, self.tr("label_search_scale"))
 
         buttons_frame = self._build_scrollable_area(body, bg="#2b2d38", padx=0, pady=(0, 0))
         for col in range(2):
@@ -822,6 +1569,15 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _on_space_pressed(self, _event: tk.Event) -> Optional[str]:
         if self.scale_tab_active:
             self._toggle_scale_play()
+            return "break"
+        if self.generation_tab_active and not self.generation_play_space_pressed:
+            self._start_generated_hold(source="space")
+            return "break"
+        return None
+
+    def _on_space_released(self, _event: tk.Event) -> Optional[str]:
+        if self.generation_tab_active and self.generation_play_space_pressed:
+            self._stop_generated_hold(source="space")
             return "break"
         return None
 
@@ -1233,10 +1989,26 @@ class MidiChordAnalyzerApp(tk.Tk):
                     self.scale_loop_index = idx - 1
         self.scale_loop_after_id = self.after(step_ms, self._play_next_scale_step)
 
-    def _on_generation_play_press(self, _event: tk.Event) -> str:
-        self.generation_play_button_pressed = True
+    def _start_generated_hold(self, source: str) -> None:
+        if source == "button":
+            self.generation_play_button_pressed = True
+        else:
+            self.generation_play_space_pressed = True
         self.generation_play_btn.state(["pressed"])
         self._play_generated_chord()
+
+    def _stop_generated_hold(self, source: str) -> None:
+        if source == "button":
+            self.generation_play_button_pressed = False
+        else:
+            self.generation_play_space_pressed = False
+        if self.generation_play_button_pressed or self.generation_play_space_pressed:
+            return
+        self.generation_play_btn.state(["!pressed"])
+        self._stop_generated_playback()
+
+    def _on_generation_play_press(self, _event: tk.Event) -> str:
+        self._start_generated_hold(source="button")
         return "break"
 
     def _toggle_scale_play(self) -> None:
@@ -1247,9 +2019,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def _on_global_mouse_release(self, _event: tk.Event) -> None:
         if self.generation_play_button_pressed:
-            self.generation_play_button_pressed = False
-            self.generation_play_btn.state(["!pressed"])
-            self._stop_generated_playback()
+            self._stop_generated_hold(source="button")
 
     def _show_forbidden_note_feedback(self, note: int) -> None:
         self.blocked_note_until[note] = time.monotonic() + 0.35
@@ -1297,6 +2067,135 @@ class MidiChordAnalyzerApp(tk.Tk):
                 return
             except tk.TclError:
                 continue
+
+    def _load_instrument_icons(self) -> None:
+        self.piano_image = None
+        self.guitar_image = None
+
+        for path in PIANO_IMAGE_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                img = tk.PhotoImage(file=str(path))
+                self.piano_image = self._fit_photo_image(img, max_w=86, max_h=34)
+                break
+            except tk.TclError:
+                continue
+
+        for path in GUITAR_IMAGE_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                img = tk.PhotoImage(file=str(path))
+                fitted = self._fit_photo_image(img, max_w=86, max_h=34)
+                self._recolor_dark_pixels(fitted, threshold=56, target=(255, 255, 255))
+                self.guitar_image = fitted
+                break
+            except tk.TclError:
+                continue
+
+        for path in RIGHT_HAND_ICON_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                img = tk.PhotoImage(file=str(path))
+                fitted = self._fit_photo_image(img, max_w=44, max_h=22)
+                self.right_hand_icon_image = self._pad_photo_image(fitted, pad_x=6, pad_y=4)
+                break
+            except tk.TclError:
+                continue
+
+        for path in LEFT_HAND_ICON_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                img = tk.PhotoImage(file=str(path))
+                fitted = self._fit_photo_image(img, max_w=44, max_h=22)
+                self.left_hand_icon_image = self._pad_photo_image(fitted, pad_x=6, pad_y=4)
+                break
+            except tk.TclError:
+                continue
+
+    @staticmethod
+    def _fit_photo_image(image: tk.PhotoImage, max_w: int, max_h: int) -> tk.PhotoImage:
+        w = image.width()
+        h = image.height()
+        if w <= 0 or h <= 0:
+            return image
+        if w <= max_w and h <= max_h:
+            return image
+
+        best_zoom = 1
+        best_sub = 1
+        best_diff = float("inf")
+
+        for zoom in range(1, 5):
+            for sub in range(1, 20):
+                nw = max(1, (w * zoom) // sub)
+                nh = max(1, (h * zoom) // sub)
+                if nw > max_w or nh > max_h:
+                    continue
+                diff = (max_w - nw) + (max_h - nh)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_zoom = zoom
+                    best_sub = sub
+
+        if best_zoom == 1 and best_sub == 1:
+            return image.subsample(max(1, (w + max_w - 1) // max_w), max(1, (h + max_h - 1) // max_h))
+
+        fitted = image.zoom(best_zoom, best_zoom)
+        if best_sub > 1:
+            fitted = fitted.subsample(best_sub, best_sub)
+        return fitted
+
+    @staticmethod
+    def _pad_photo_image(image: tk.PhotoImage, pad_x: int = 4, pad_y: int = 4) -> tk.PhotoImage:
+        w = image.width()
+        h = image.height()
+        out = tk.PhotoImage(width=w + pad_x * 2, height=h + pad_y * 2)
+        out.copy(image, to=(pad_x, pad_y))
+        return out
+
+    @staticmethod
+    def _recolor_dark_pixels(image: tk.PhotoImage, threshold: int = 56, target: tuple[int, int, int] = (255, 255, 255)) -> None:
+        target_hex = f"#{target[0]:02x}{target[1]:02x}{target[2]:02x}"
+        w = image.width()
+        h = image.height()
+        dark_map = [[False for _ in range(w)] for _ in range(h)]
+        rgb_map: list[list[tuple[int, int, int] | None]] = [[None for _ in range(w)] for _ in range(h)]
+
+        for y in range(h):
+            for x in range(w):
+                rgb = image.get(x, y)
+                if isinstance(rgb, tuple) and len(rgb) >= 3:
+                    r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
+                elif isinstance(rgb, str) and rgb.startswith("#") and len(rgb) == 7:
+                    r = int(rgb[1:3], 16)
+                    g = int(rgb[3:5], 16)
+                    b = int(rgb[5:7], 16)
+                else:
+                    continue
+                rgb_map[y][x] = (r, g, b)
+                dark_map[y][x] = r <= threshold and g <= threshold and b <= threshold
+
+        for y in range(h):
+            for x in range(w):
+                if not dark_map[y][x]:
+                    continue
+                # Recolor only edge dark pixels (likely strokes), not full dark backgrounds.
+                has_light_neighbor = False
+                for ny in range(max(0, y - 1), min(h, y + 2)):
+                    for nx in range(max(0, x - 1), min(w, x + 2)):
+                        if nx == x and ny == y:
+                            continue
+                        if not dark_map[ny][nx]:
+                            has_light_neighbor = True
+                            break
+                    if has_light_neighbor:
+                        break
+                if has_light_neighbor:
+                    image.put(target_hex, (x, y))
 
     def _get_brace_image_for_height(self, target_height: int) -> Optional[tk.PhotoImage]:
         if self.brace_base_image is None or target_height <= 0:
@@ -1583,6 +2482,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def update_music_views(self) -> None:
         self._refresh_scale_preview()
+        self._refresh_guitar_variations()
         active_set = self._current_detection_notes()
         generated_set = set(self.generated_preview_notes)
 
@@ -1610,18 +2510,14 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.redraw_staff()
 
     def redraw_keyboard(self) -> None:
+        if self.instrument_view == "guitar":
+            self.redraw_guitar_fretboard()
+            return
         canvas = self.keyboard_canvas
         canvas.delete("all")
         self.white_key_regions = []
         self.black_key_regions = []
-        if self.generation_tab_active:
-            display_active_notes = set(self.generated_preview_notes)
-        elif self.scale_tab_active:
-            display_active_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
-            if self.scale_loop_active and self.scale_current_note is not None:
-                display_active_notes.add(self.scale_current_note)
-        else:
-            display_active_notes = self._current_detection_notes()
+        display_active_notes = self._instrument_display_notes()
         if self.scale_tab_active:
             name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
             if self.scale_loop_active and self.scale_current_note is not None:
@@ -1778,7 +2674,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         canvas = self.staff_canvas
         canvas.delete("all")
         self.staff_scale_note_regions = []
-        if self.scale_tab_active:
+        instrument_override = self.instrument_view == "guitar" and bool(self.guitar_selected_variation_notes)
+        if instrument_override:
+            display_notes_list = []
+            display_notes = set(self.guitar_selected_variation_notes)
+        elif self.scale_tab_active:
             display_notes_list = list(self.scale_preview_notes)
             display_notes = set(display_notes_list)
         else:

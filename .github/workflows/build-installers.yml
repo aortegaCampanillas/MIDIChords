@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows Package
+    name: Build Windows Installer
     runs-on: windows-latest
 
     steps:
@@ -33,25 +33,64 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets;assets" app.py
 
-      - name: Package artifact
+      - name: Install Inno Setup
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/MIDIChords.exe -DestinationPath MIDIChords-windows-x64.zip -Force
+          choco install innosetup --no-progress -y
+
+      - name: Build installer (.exe)
+        shell: pwsh
+        run: |
+          @"
+          [Setup]
+          AppId={{A4F55F54-4AA1-4A4F-B112-0F7A2755CE16}
+          AppName=MIDIChords
+          AppVersion=${{ github.ref_name }}
+          AppPublisher=Antonio Ortega González
+          DefaultDirName={autopf}\MIDIChords
+          DefaultGroupName=MIDIChords
+          DisableProgramGroupPage=yes
+          OutputDir=.
+          OutputBaseFilename=MIDIChords-windows-installer-x64
+          Compression=lzma
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesAllowed=x64
+          ArchitecturesInstallIn64BitMode=x64
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"
+
+          [Files]
+          Source: "dist\MIDIChords.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Icons]
+          Name: "{group}\MIDIChords"; Filename: "{app}\MIDIChords.exe"
+          Name: "{autodesktop}\MIDIChords"; Filename: "{app}\MIDIChords.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\MIDIChords.exe"; Description: "Launch MIDIChords"; Flags: nowait postinstall skipifsilent
+          "@ | Set-Content -Path installer.iss -Encoding UTF8
+
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MIDIChords-windows-x64
-          path: MIDIChords-windows-x64.zip
+          name: MIDIChords-windows-installer-x64
+          path: MIDIChords-windows-installer-x64.exe
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: MIDIChords-windows-x64.zip
+          files: MIDIChords-windows-installer-x64.exe
 
   build-macos:
-    name: Build macOS Package
+    name: Build macOS Installer
     runs-on: macos-latest
 
     steps:
@@ -73,21 +112,25 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --windowed --name MIDIChords --add-data "assets:assets" app.py
 
-      - name: Package artifact
+      - name: Build installer (.dmg)
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/MIDIChords.app MIDIChords-macos.zip
+          rm -rf dmg-root
+          mkdir -p dmg-root
+          cp -R dist/MIDIChords.app dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MIDIChords-macos
-          path: MIDIChords-macos.zip
+          name: MIDIChords-macos-dmg
+          path: MIDIChords-macos.dmg
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: MIDIChords-macos.zip
+          files: MIDIChords-macos.dmg
 
   build-debian:
     name: Build Debian Package

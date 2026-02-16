@@ -2071,6 +2071,8 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _load_instrument_icons(self) -> None:
         self.piano_image = None
         self.guitar_image = None
+        self.right_hand_icon_image = None
+        self.left_hand_icon_image = None
 
         for path in PIANO_IMAGE_CANDIDATES:
             if not path.exists():
@@ -2079,7 +2081,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 img = tk.PhotoImage(file=str(path))
                 self.piano_image = self._fit_photo_image(img, max_w=86, max_h=34)
                 break
-            except tk.TclError:
+            except Exception:
                 continue
 
         for path in GUITAR_IMAGE_CANDIDATES:
@@ -2091,7 +2093,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 self._recolor_dark_pixels(fitted, threshold=56, target=(255, 255, 255))
                 self.guitar_image = fitted
                 break
-            except tk.TclError:
+            except Exception:
                 continue
 
         for path in RIGHT_HAND_ICON_CANDIDATES:
@@ -2102,7 +2104,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 fitted = self._fit_photo_image(img, max_w=44, max_h=22)
                 self.right_hand_icon_image = self._pad_photo_image(fitted, pad_x=6, pad_y=4)
                 break
-            except tk.TclError:
+            except Exception:
                 continue
 
         for path in LEFT_HAND_ICON_CANDIDATES:
@@ -2113,7 +2115,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                 fitted = self._fit_photo_image(img, max_w=44, max_h=22)
                 self.left_hand_icon_image = self._pad_photo_image(fitted, pad_x=6, pad_y=4)
                 break
-            except tk.TclError:
+            except Exception:
                 continue
 
     @staticmethod
@@ -2154,7 +2156,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         w = image.width()
         h = image.height()
         out = tk.PhotoImage(width=w + pad_x * 2, height=h + pad_y * 2)
-        out.copy(image, to=(pad_x, pad_y))
+        out.tk.call(str(out), "copy", str(image), "-to", pad_x, pad_y)
         return out
 
     @staticmethod

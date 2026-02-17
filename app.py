@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import queue
 import time
@@ -9,7 +10,13 @@ from tkinter import ttk
 from typing import Optional
 
 import mido
+import numpy as np
 import sounddevice as sd
+
+try:
+    import aubio  # type: ignore
+except Exception:
+    aubio = None
 
 from audio_engine import PianoAudioEngine
 from guitar_chord_cache import get_cached_variations, load_guitar_chord_cache
@@ -79,6 +86,11 @@ class MidiChordAnalyzerApp(tk.Tk):
             "mode": "detection",
             "instrument_view": "piano",
             "guitar_handedness": "right",
+            "tuner_tuning": "standard_e",
+            "tuner_input": "",
+            "tuner_input_gain": 100,
+            "tuner_spectrum_min_hz": 0,
+            "tuner_spectrum_max_hz": 500,
         }
         self.load_config()
         self.brace_base_image: Optional[tk.PhotoImage] = None
@@ -117,16 +129,19 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.input_port: Optional[mido.ports.BaseInput] = None
 
         self.input_names: list[str] = []
+        self.audio_input_names: list[str] = []
+        self.audio_input_map: dict[str, int] = {}
         self.audio_output_names: list[str] = []
         self.audio_output_map: dict[str, int] = {}
         self.audio_engine = PianoAudioEngine()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        if self.current_mode not in {"detection", "generation", "scales", "metronome"}:
+        if self.current_mode not in {"detection", "generation", "scales", "metronome", "tuner"}:
             self.current_mode = "detection"
         self.generation_tab_active = False
         self.scale_tab_active = False
         self.metronome_tab_active = False
+        self.tuner_tab_active = False
         self.mode_var = tk.StringVar()
         self.generation_root_pc = 0
         self.generation_pattern_suffix = ""
@@ -144,6 +159,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_space_release_after_id: Optional[str] = None
         self.metronome_space_pressed = False
         self.metronome_space_release_after_id: Optional[str] = None
+        self.tuner_space_pressed = False
+        self.tuner_space_release_after_id: Optional[str] = None
         self.staff_hover_note: Optional[int] = None
         self.staff_pressed_scale_notes: set[int] = set()
         self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
@@ -199,6 +216,49 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.metronome_motion_start_ts = time.monotonic()
         self.metronome_timer_remaining = 0.0
         self.metronome_timer_last_ts = time.monotonic()
+        self.tuner_tuning_defs = [
+            {"key": "standard_e", "es": "Estándar", "en": "Standard", "notes": [40, 45, 50, 55, 59, 64]},
+            {"key": "drop_d", "es": "Drop D", "en": "Drop D", "notes": [38, 45, 50, 55, 59, 64]},
+            {"key": "drop_c", "es": "Drop C", "en": "Drop C", "notes": [36, 43, 48, 53, 57, 62]},
+            {"key": "half_step_down", "es": "1/2 tono abajo", "en": "Half-step down", "notes": [39, 44, 49, 54, 58, 63]},
+            {"key": "whole_step_down", "es": "1 tono abajo", "en": "Whole-step down", "notes": [38, 43, 48, 53, 57, 62]},
+            {"key": "open_g", "es": "Open G", "en": "Open G", "notes": [38, 43, 50, 55, 59, 62]},
+            {"key": "open_d", "es": "Open D", "en": "Open D", "notes": [38, 45, 50, 54, 57, 62]},
+            {"key": "dadgad", "es": "DADGAD", "en": "DADGAD", "notes": [38, 45, 50, 55, 57, 62]},
+        ]
+        loaded_tuning = str(self.config_data.get("tuner_tuning", "standard_e"))
+        if loaded_tuning not in {str(t["key"]) for t in self.tuner_tuning_defs}:
+            loaded_tuning = "standard_e"
+        self.tuner_tuning_key = loaded_tuning
+        self.tuner_input_name = str(self.config_data.get("tuner_input", ""))
+        self.tuner_input_gain = max(0, min(200, int(self.config_data.get("tuner_input_gain", 100))))
+        self.tuner_spectrum_min_hz = max(0, min(3000, int(self.config_data.get("tuner_spectrum_min_hz", 0))))
+        self.tuner_spectrum_max_hz = max(1, min(3000, int(self.config_data.get("tuner_spectrum_max_hz", 500))))
+        if self.tuner_spectrum_max_hz <= self.tuner_spectrum_min_hz + 10:
+            self.tuner_spectrum_max_hz = min(3000, self.tuner_spectrum_min_hz + 200)
+        self.tuner_spectrum_dragging: Optional[str] = None
+        self.tuner_running = False
+        self.tuner_stream: Optional[sd.InputStream] = None
+        self.tuner_audio_queue: queue.Queue[np.ndarray] = queue.Queue()
+        self.tuner_audio_buffer = np.zeros(0, dtype=np.float32)
+        self.tuner_last_analysis_ts = 0.0
+        self.tuner_current_string_idx: Optional[int] = None
+        self.tuner_current_cents = 0.0
+        self.tuner_current_freq = 0.0
+        self.tuner_detected_note_midi: Optional[int] = None
+        self.tuner_last_candidate_midi: Optional[int] = None
+        self.tuner_note_stable_count = 0
+        self.tuner_silence_frames = 0
+        self.tuner_string_buttons: list[tk.Button] = []
+        self.tuner_button_active_until: dict[int, float] = {}
+        self.tuner_reference_note: Optional[int] = None
+        self.tuner_reference_off_after_id: Optional[str] = None
+        self.tuner_tuning_overlay: Optional[tk.Frame] = None
+        self.tuner_string_regions: list[tuple[int, float, float, float, float]] = []
+        self.tuner_spectrum_freqs = np.zeros(0, dtype=np.float32)
+        self.tuner_spectrum_mags = np.zeros(0, dtype=np.float32)
+        self.tuner_pitch_detector = None
+        self.tuner_pitch_hop = 256
 
         self._build_ui()
         loaded_instrument_view = str(self.config_data.get("instrument_view", "piano"))
@@ -313,6 +373,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.tab_generation_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
         self.tab_scale_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
         self.tab_metronome_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
+        self.tab_tuner_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
         self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
 
         self.chord_title_label = ttk.Label(self.tab_detection_frame, text="", font=("Helvetica", 18, "bold"))
@@ -622,6 +683,139 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.tab_metronome_frame.columnconfigure(0, weight=1)
 
+        self.tuner_gain_label = ttk.Label(self.tab_tuner_frame, text="", font=("Helvetica", 13, "bold"), anchor="center", justify="center")
+        self.tuner_gain_label.grid(row=4, column=0, sticky="ew", pady=(2, 2))
+        self.tuner_gain_row = ttk.Frame(self.tab_tuner_frame)
+        self.tuner_gain_row.grid(row=5, column=0, sticky="", pady=(0, 8))
+        self.tuner_gain_row.columnconfigure(1, weight=1)
+        self.tuner_gain_minus_btn = tk.Canvas(self.tuner_gain_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.tuner_gain_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.tuner_gain_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_gain_minus_btn, "−"))
+        self.tuner_gain_minus_btn.bind("<Button-1>", self._on_tuner_gain_minus)
+        self.tuner_gain_slider_canvas = tk.Canvas(self.tuner_gain_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        self.tuner_gain_slider_canvas.grid(row=0, column=1, sticky="ew")
+        self.tuner_gain_slider_canvas.bind("<Configure>", lambda _e: self._draw_tuner_gain_slider())
+        self.tuner_gain_slider_canvas.bind("<Button-1>", self._on_tuner_gain_slider_interact)
+        self.tuner_gain_slider_canvas.bind("<B1-Motion>", self._on_tuner_gain_slider_interact)
+        self.tuner_gain_plus_btn = tk.Canvas(self.tuner_gain_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.tuner_gain_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.tuner_gain_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_gain_plus_btn, "+"))
+        self.tuner_gain_plus_btn.bind("<Button-1>", self._on_tuner_gain_plus)
+        self.tuner_gain_var = tk.StringVar(value="")
+        self.tuner_gain_value_label = tk.Label(
+            self.tuner_gain_row,
+            textvariable=self.tuner_gain_var,
+            bg=self.cget("background"),
+            fg="#ff533d",
+            font=("Helvetica", 11, "bold"),
+            width=7,
+            anchor="center",
+        )
+        self.tuner_gain_value_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+
+        self.tuner_spectrum_range_label = ttk.Label(self.tab_tuner_frame, text="", font=("Helvetica", 13, "bold"), anchor="center")
+        self.tuner_spectrum_range_label.grid(row=6, column=0, sticky="ew", pady=(2, 2))
+        self.tuner_spectrum_range_row = ttk.Frame(self.tab_tuner_frame)
+        self.tuner_spectrum_range_row.grid(row=7, column=0, sticky="", pady=(0, 6))
+        self.tuner_spectrum_range_row.columnconfigure(2, weight=1)
+
+        self.tuner_spectrum_min_minus_btn = tk.Canvas(
+            self.tuner_spectrum_range_row,
+            width=28,
+            height=28,
+            bg=self.cget("background"),
+            highlightthickness=0,
+            bd=0,
+        )
+        self.tuner_spectrum_min_minus_btn.grid(row=0, column=0, padx=(0, 4))
+        self.tuner_spectrum_min_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_spectrum_min_minus_btn, "−"))
+        self.tuner_spectrum_min_minus_btn.bind("<Button-1>", self._on_tuner_spectrum_min_minus)
+
+        self.tuner_spectrum_max_minus_btn = tk.Canvas(
+            self.tuner_spectrum_range_row,
+            width=28,
+            height=28,
+            bg=self.cget("background"),
+            highlightthickness=0,
+            bd=0,
+        )
+        self.tuner_spectrum_max_minus_btn.grid(row=0, column=1, padx=(0, 8))
+        self.tuner_spectrum_max_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_spectrum_max_minus_btn, "−"))
+        self.tuner_spectrum_max_minus_btn.bind("<Button-1>", self._on_tuner_spectrum_max_minus)
+
+        self.tuner_spectrum_range_canvas = tk.Canvas(
+            self.tuner_spectrum_range_row,
+            width=440,
+            height=34,
+            bg=self.cget("background"),
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
+        self.tuner_spectrum_range_canvas.grid(row=0, column=2, sticky="ew")
+        self.tuner_spectrum_range_canvas.bind("<Configure>", lambda _e: self._draw_tuner_spectrum_range_slider())
+        self.tuner_spectrum_range_canvas.bind("<Button-1>", self._on_tuner_spectrum_range_press)
+        self.tuner_spectrum_range_canvas.bind("<B1-Motion>", self._on_tuner_spectrum_range_drag)
+        self.tuner_spectrum_range_canvas.bind("<ButtonRelease-1>", self._on_tuner_spectrum_range_release)
+
+        self.tuner_spectrum_min_plus_btn = tk.Canvas(
+            self.tuner_spectrum_range_row,
+            width=28,
+            height=28,
+            bg=self.cget("background"),
+            highlightthickness=0,
+            bd=0,
+        )
+        self.tuner_spectrum_min_plus_btn.grid(row=0, column=3, padx=(8, 4))
+        self.tuner_spectrum_min_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_spectrum_min_plus_btn, "+"))
+        self.tuner_spectrum_min_plus_btn.bind("<Button-1>", self._on_tuner_spectrum_min_plus)
+
+        self.tuner_spectrum_max_plus_btn = tk.Canvas(
+            self.tuner_spectrum_range_row,
+            width=28,
+            height=28,
+            bg=self.cget("background"),
+            highlightthickness=0,
+            bd=0,
+        )
+        self.tuner_spectrum_max_plus_btn.grid(row=0, column=4, padx=(0, 0))
+        self.tuner_spectrum_max_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.tuner_spectrum_max_plus_btn, "+"))
+        self.tuner_spectrum_max_plus_btn.bind("<Button-1>", self._on_tuner_spectrum_max_plus)
+        self.tuner_spectrum_range_var = tk.StringVar(value="")
+        self.tuner_spectrum_range_value_label = tk.Label(
+            self.tab_tuner_frame,
+            textvariable=self.tuner_spectrum_range_var,
+            bg=self.cget("background"),
+            fg="#ff533d",
+            font=("Helvetica", 11, "bold"),
+            anchor="center",
+        )
+        self.tuner_spectrum_range_value_label.grid(row=8, column=0, sticky="ew", pady=(0, 2))
+
+        self.tuner_status_var = tk.StringVar(value="-")
+
+        self.tuner_tuning_label = ttk.Label(self.tab_tuner_frame, text="", anchor="center", justify="center")
+        self.tuner_tuning_label.grid(row=0, column=0, sticky="ew", pady=(2, 2))
+        self.tuner_tuning_btn = GreenRoundedButton(
+            self.tab_tuner_frame,
+            text="-",
+            command=self.open_tuner_tuning_dialog,
+            width=unified_green_width,
+            height=unified_green_height,
+            radius=unified_green_radius,
+        )
+        self.tuner_tuning_btn.grid(row=1, column=0, sticky="", pady=(0, 6))
+
+        self.tuner_input_label = ttk.Label(self.tab_tuner_frame, text="", anchor="center", justify="center")
+        self.tuner_input_label.grid(row=2, column=0, sticky="ew", pady=(2, 2))
+        self.tuner_input_var = tk.StringVar(value=self.tuner_input_name)
+        self.tuner_input_combo = ttk.Combobox(self.tab_tuner_frame, textvariable=self.tuner_input_var, state="readonly", values=[""], width=42)
+        self.tuner_input_combo.grid(row=3, column=0, sticky="", pady=(0, 8))
+        self.tuner_input_combo.bind("<<ComboboxSelected>>", self._on_tuner_input_changed)
+        self.tuner_input_combo.configure(postcommand=self.refresh_devices)
+
+        self.tab_tuner_frame.columnconfigure(0, weight=1)
+
         self.status_var = tk.StringVar(value="")
 
         self.bottom_separator = ttk.Separator(container, orient=tk.HORIZONTAL)
@@ -861,6 +1055,15 @@ class MidiChordAnalyzerApp(tk.Tk):
         )
         self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
 
+        self.tuner_spectrum_canvas = tk.Canvas(
+            self.instrument_canvas_holder,
+            bg="#0b0c10",
+            height=190,
+            highlightthickness=1,
+            highlightbackground="#3a3a3a",
+        )
+        self.tuner_spectrum_canvas.bind("<Configure>", lambda _e: self._draw_tuner_spectrum())
+
         self.guitar_canvas = tk.Canvas(
             self.instrument_canvas_holder,
             bg="#2f3137",
@@ -918,6 +1121,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.metronome_timer_minutes_label.configure(text=self.tr("label_metronome_minutes"))
         self.metronome_timer_seconds_label.configure(text=self.tr("label_metronome_seconds"))
         self.metronome_bar_accent_check.configure(text=self.tr("label_metronome_bar_accent"))
+        self.tuner_tuning_label.configure(text=self.tr("label_tuner_tuning"))
+        self.tuner_input_label.configure(text=self.tr("label_tuner_input"))
+        self.tuner_gain_label.configure(text=self.tr("label_tuner_input_gain"))
+        self.tuner_spectrum_range_label.configure(text=self.tr("label_tuner_spectrum_range"))
         self.config_icon_btn.configure(text="⚙")
         if not self.instrument_buttons_are_images:
             self.piano_view_btn.set_text(self.tr("instrument_piano"))
@@ -935,10 +1142,19 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._refresh_generation_controls()
         self._refresh_scale_preview()
         self._refresh_metronome_ui()
+        self._refresh_tuner_ui()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
 
     def _instrument_display_notes(self) -> set[int]:
+        if self.tuner_tab_active:
+            notes: set[int] = set()
+            if self.tuner_detected_note_midi is not None:
+                notes.add(int(self.tuner_detected_note_midi))
+            if self.tuner_reference_note is not None:
+                notes.add(int(self.tuner_reference_note))
+            if notes:
+                return notes
         if self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
             return set(self.guitar_selected_variation_notes)
         if self.generation_tab_active:
@@ -949,6 +1165,577 @@ class MidiChordAnalyzerApp(tk.Tk):
                 notes.add(self.scale_current_note)
             return notes
         return self._current_detection_notes()
+
+    def _tuner_tuning_def(self) -> dict:
+        for tuning in self.tuner_tuning_defs:
+            if str(tuning["key"]) == self.tuner_tuning_key:
+                return tuning
+        return self.tuner_tuning_defs[0]
+
+    def _tuner_tuning_display_name(self) -> str:
+        language = str(self.config_data.get("language", "es"))
+        tuning = self._tuner_tuning_def()
+        return str(tuning["es"] if language == "es" else tuning["en"])
+
+    @staticmethod
+    def _guitar_string_ordinal(index_6_to_1: int, language: str) -> str:
+        num = 6 - index_6_to_1
+        return f"{num}ª" if language == "es" else f"{num}th"
+
+    def _refresh_tuner_string_buttons(self) -> None:
+        if self.tuner_tab_active:
+            self.redraw_staff()
+
+    def _draw_tuner_meter(self) -> None:
+        if self.tuner_tab_active:
+            self.redraw_staff()
+
+    def _draw_tuner_gain_slider(self) -> None:
+        canvas = self.tuner_gain_slider_canvas
+        canvas.delete("all")
+        w = max(120, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        ratio = self.tuner_input_gain / 200.0
+        knob_x = x1 + ratio * (x2 - x1)
+        r = 10
+        canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
+
+    def _set_tuner_input_gain(self, gain: int, save: bool = True) -> None:
+        self.tuner_input_gain = max(0, min(200, int(gain)))
+        self.tuner_gain_var.set(f"{self.tuner_input_gain}%")
+        self._draw_tuner_gain_slider()
+        if save:
+            self.config_data["tuner_input_gain"] = self.tuner_input_gain
+            self.save_config()
+
+    def _on_tuner_gain_minus(self, _event: tk.Event) -> str:
+        self._set_tuner_input_gain(self.tuner_input_gain - 1)
+        return "break"
+
+    def _on_tuner_gain_plus(self, _event: tk.Event) -> str:
+        self._set_tuner_input_gain(self.tuner_input_gain + 1)
+        return "break"
+
+    def _on_tuner_gain_slider_interact(self, event: tk.Event) -> str:
+        w = max(120, int(self.tuner_gain_slider_canvas.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        gain = int(round(ratio * 200.0))
+        self._set_tuner_input_gain(gain)
+        return "break"
+
+    def _draw_tuner_spectrum_range_slider(self) -> None:
+        canvas = self.tuner_spectrum_range_canvas
+        canvas.delete("all")
+        w = max(180, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        hz_min_limit = 0.0
+        hz_max_limit = 3000.0
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        r1 = (float(self.tuner_spectrum_min_hz) - hz_min_limit) / (hz_max_limit - hz_min_limit)
+        r2 = (float(self.tuner_spectrum_max_hz) - hz_min_limit) / (hz_max_limit - hz_min_limit)
+        r1 = max(0.0, min(1.0, r1))
+        r2 = max(0.0, min(1.0, r2))
+        kx1 = x1 + r1 * (x2 - x1)
+        kx2 = x1 + r2 * (x2 - x1)
+        canvas.create_line(kx1, y, kx2, y, fill="#ff533d", width=6)
+        r = 9
+        canvas.create_oval(kx1 - r, y - r, kx1 + r, y + r, fill="#ff533d", outline="")
+        canvas.create_oval(kx2 - r, y - r, kx2 + r, y + r, fill="#ff533d", outline="")
+
+    def _set_tuner_spectrum_range(self, min_hz: int, max_hz: int, save: bool = True) -> None:
+        hz_min_limit = 0
+        hz_max_limit = 3000
+        min_hz = max(hz_min_limit, min(hz_max_limit - 10, int(min_hz)))
+        max_hz = max(hz_min_limit + 10, min(hz_max_limit, int(max_hz)))
+        if max_hz <= min_hz + 10:
+            max_hz = min(hz_max_limit, min_hz + 10)
+        self.tuner_spectrum_min_hz = min_hz
+        self.tuner_spectrum_max_hz = max_hz
+        self.tuner_spectrum_range_var.set(f"{self.tuner_spectrum_min_hz} - {self.tuner_spectrum_max_hz} Hz")
+        self._draw_tuner_spectrum_range_slider()
+        if save:
+            self.config_data["tuner_spectrum_min_hz"] = self.tuner_spectrum_min_hz
+            self.config_data["tuner_spectrum_max_hz"] = self.tuner_spectrum_max_hz
+            self.save_config()
+        if self.tuner_tab_active:
+            self._draw_tuner_spectrum()
+
+    def _tuner_spectrum_hz_from_x(self, x: float) -> int:
+        w = max(180, int(self.tuner_spectrum_range_canvas.winfo_width()))
+        x1 = 12.0
+        x2 = float(w - 12)
+        xx = min(max(float(x), x1), x2)
+        ratio = (xx - x1) / max(1.0, (x2 - x1))
+        return int(round(0.0 + ratio * 3000.0))
+
+    def _on_tuner_spectrum_range_press(self, event: tk.Event) -> str:
+        w = max(180, int(self.tuner_spectrum_range_canvas.winfo_width()))
+        x1 = 12.0
+        x2 = float(w - 12)
+        r1 = float(self.tuner_spectrum_min_hz) / 3000.0
+        r2 = float(self.tuner_spectrum_max_hz) / 3000.0
+        kx1 = x1 + r1 * (x2 - x1)
+        kx2 = x1 + r2 * (x2 - x1)
+        if abs(float(event.x) - kx1) <= abs(float(event.x) - kx2):
+            self.tuner_spectrum_dragging = "min"
+        else:
+            self.tuner_spectrum_dragging = "max"
+        return self._on_tuner_spectrum_range_drag(event)
+
+    def _on_tuner_spectrum_range_drag(self, event: tk.Event) -> str:
+        if self.tuner_spectrum_dragging is None:
+            return "break"
+        hz = self._tuner_spectrum_hz_from_x(float(event.x))
+        if self.tuner_spectrum_dragging == "min":
+            self._set_tuner_spectrum_range(hz, self.tuner_spectrum_max_hz)
+        else:
+            self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz, hz)
+        return "break"
+
+    def _on_tuner_spectrum_range_release(self, _event: tk.Event) -> str:
+        self.tuner_spectrum_dragging = None
+        return "break"
+
+    def _on_tuner_spectrum_min_minus(self, _event: tk.Event) -> str:
+        self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz - 1, self.tuner_spectrum_max_hz)
+        return "break"
+
+    def _on_tuner_spectrum_max_minus(self, _event: tk.Event) -> str:
+        self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz, self.tuner_spectrum_max_hz - 1)
+        return "break"
+
+    def _on_tuner_spectrum_min_plus(self, _event: tk.Event) -> str:
+        self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz + 1, self.tuner_spectrum_max_hz)
+        return "break"
+
+    def _on_tuner_spectrum_max_plus(self, _event: tk.Event) -> str:
+        self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz, self.tuner_spectrum_max_hz + 1)
+        return "break"
+
+    def _refresh_tuner_ui(self) -> None:
+        self.tuner_tuning_btn.set_text(self._tuner_tuning_display_name())
+        if hasattr(self, "tuner_input_combo"):
+            vals = [""] + self.audio_input_names
+            self.tuner_input_combo.configure(values=vals)
+            if self.tuner_input_name in vals:
+                self.tuner_input_var.set(self.tuner_input_name)
+        if self.tuner_current_string_idx is None:
+            self.tuner_status_var.set("-")
+        else:
+            if self.tuner_detected_note_midi is not None:
+                note_name = self.note_name(int(self.tuner_detected_note_midi), with_octave=False)
+            else:
+                tuning = self._tuner_tuning_def()
+                note = int(tuning["notes"][self.tuner_current_string_idx])
+                note_name = self.note_name(note, with_octave=False)
+            self.tuner_status_var.set(f"{note_name}  {self.tuner_current_freq:.1f} Hz")
+        self._refresh_tuner_string_buttons()
+        self._set_tuner_input_gain(self.tuner_input_gain, save=False)
+        self._set_tuner_spectrum_range(self.tuner_spectrum_min_hz, self.tuner_spectrum_max_hz, save=False)
+        if self.tuner_tab_active:
+            self.redraw_staff()
+
+    def _on_tuner_input_changed(self, _event: Optional[tk.Event] = None) -> None:
+        self.tuner_input_name = self.tuner_input_var.get().strip()
+        self.config_data["tuner_input"] = self.tuner_input_name
+        self.save_config()
+        if self.tuner_running:
+            self._start_tuner_stream()
+
+    def _play_tuner_string(self, idx: int) -> None:
+        tuning = self._tuner_tuning_def()
+        notes = list(tuning["notes"])
+        if idx < 0 or idx >= len(notes):
+            return
+        note = int(notes[idx])
+        self.tuner_current_string_idx = idx
+        self.tuner_current_cents = 0.0
+        self.tuner_current_freq = self.audio_engine.midi_note_to_freq(note)
+        self.tuner_detected_note_midi = note
+        self.tuner_last_candidate_midi = note
+        self.tuner_note_stable_count = 0
+        self.tuner_button_active_until[idx] = time.monotonic() + 0.9
+        self.tuner_reference_note = note
+        if self.tuner_reference_off_after_id is not None:
+            try:
+                self.after_cancel(self.tuner_reference_off_after_id)
+            except Exception:
+                pass
+            self.tuner_reference_off_after_id = None
+        self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.8)
+        self.tuner_reference_off_after_id = self.after(750, self._stop_tuner_reference_note)
+        self._refresh_tuner_ui()
+        self.redraw_keyboard()
+
+    def _stop_tuner_reference_note(self) -> None:
+        self.tuner_reference_off_after_id = None
+        self.tuner_reference_note = None
+        if self.tuner_tab_active:
+            self.redraw_keyboard()
+
+    def _toggle_tuner(self) -> None:
+        if not self.tuner_tab_active:
+            return
+        if self.tuner_running:
+            self._stop_tuner_stream()
+        else:
+            self._start_tuner_stream()
+        self._refresh_tuner_ui()
+
+    def _tuner_audio_callback(self, indata: np.ndarray, _frames: int, _time, _status) -> None:
+        try:
+            mono = np.asarray(indata[:, 0], dtype=np.float32).copy()
+            self.tuner_audio_queue.put_nowait(mono)
+        except Exception:
+            pass
+
+    def _start_tuner_stream(self) -> None:
+        self._stop_tuner_stream()
+        device_index = self.audio_input_map.get(self.tuner_input_name)
+        try:
+            self._init_tuner_pitch_detector()
+            self.tuner_stream = sd.InputStream(
+                samplerate=48000,
+                channels=1,
+                device=device_index,
+                dtype="float32",
+                blocksize=0,
+                latency="low",
+                callback=self._tuner_audio_callback,
+            )
+            self.tuner_stream.start()
+            self.tuner_running = True
+            self.tuner_audio_buffer = np.zeros(0, dtype=np.float32)
+            self.tuner_last_analysis_ts = 0.0
+        except Exception as exc:
+            self.tuner_running = False
+            self.tuner_stream = None
+            self.status_var.set(f"{self.tr('status_audio_error')}: {exc}")
+
+    def _stop_tuner_stream(self) -> None:
+        self.tuner_running = False
+        self.tuner_pitch_detector = None
+        if self.tuner_stream is not None:
+            try:
+                self.tuner_stream.stop()
+            except Exception:
+                pass
+            try:
+                self.tuner_stream.close()
+            except Exception:
+                pass
+            self.tuner_stream = None
+        self.tuner_audio_buffer = np.zeros(0, dtype=np.float32)
+        self.tuner_current_string_idx = None
+        self.tuner_current_cents = 0.0
+        self.tuner_current_freq = 0.0
+        self.tuner_detected_note_midi = None
+        self.tuner_last_candidate_midi = None
+        self.tuner_note_stable_count = 0
+        self.tuner_silence_frames = 0
+        self.tuner_spectrum_freqs = np.zeros(0, dtype=np.float32)
+        self.tuner_spectrum_mags = np.zeros(0, dtype=np.float32)
+
+    @staticmethod
+    def _estimate_pitch_hz(samples: np.ndarray, sample_rate: int) -> Optional[float]:
+        if samples.size < 1024:
+            return None
+        x = samples.astype(np.float64, copy=False)
+        x = x - np.mean(x)
+        rms = float(np.sqrt(np.mean(x * x)))
+        if rms < 0.003:
+            return None
+        x = x * np.hanning(x.size)
+        corr = np.correlate(x, x, mode="full")[x.size - 1:]
+        if corr.size < 8:
+            return None
+        min_lag = max(8, int(sample_rate / 420))
+        max_lag = min(corr.size - 1, int(sample_rate / 70))
+        if max_lag <= min_lag:
+            return None
+        corr[:min_lag] = 0.0
+        region = corr[min_lag:max_lag + 1]
+        if region.size == 0:
+            return None
+        rel_idx = int(np.argmax(region))
+        peak_lag = min_lag + rel_idx
+        peak_val = float(corr[peak_lag])
+        zero = float(corr[0]) if corr[0] != 0 else 1.0
+        if peak_val <= 0.0 or (peak_val / max(1e-9, zero)) < 0.10:
+            return None
+        if 1 <= peak_lag < corr.size - 1:
+            y0 = corr[peak_lag - 1]
+            y1 = corr[peak_lag]
+            y2 = corr[peak_lag + 1]
+            denom = (y0 - 2.0 * y1 + y2)
+            if abs(denom) > 1e-12:
+                peak_lag = peak_lag + float(0.5 * (y0 - y2) / denom)
+        if peak_lag <= 0:
+            return None
+        freq = float(sample_rate / peak_lag)
+        if freq < 70.0 or freq > 420.0:
+            return None
+        return freq
+
+    def _init_tuner_pitch_detector(self) -> None:
+        self.tuner_pitch_detector = None
+        if aubio is None:
+            return
+        try:
+            detector = aubio.pitch("yinfft", 2048, self.tuner_pitch_hop, 48000)
+            detector.set_unit("Hz")
+            detector.set_silence(-45)
+            detector.set_tolerance(0.86)
+            self.tuner_pitch_detector = detector
+        except Exception:
+            self.tuner_pitch_detector = None
+
+    def _detect_tuner_pitch(self, frame: np.ndarray) -> Optional[float]:
+        if frame.size < 1024:
+            return None
+        if self.tuner_pitch_detector is not None and aubio is not None:
+            try:
+                hop = int(self.tuner_pitch_hop)
+                if hop <= 0:
+                    hop = 256
+                block = frame[-max(hop, 2048):]
+                value: Optional[float] = None
+                for i in range(0, len(block) - hop + 1, hop):
+                    chunk = np.asarray(block[i:i + hop], dtype=np.float32)
+                    hz = float(self.tuner_pitch_detector(chunk)[0])
+                    if 70.0 <= hz <= 420.0:
+                        value = hz
+                return value
+            except Exception:
+                pass
+        return self._estimate_pitch_hz(frame, 48000)
+
+    @staticmethod
+    def _filter_tuner_noise(frame: np.ndarray, sample_rate: int = 48000) -> np.ndarray:
+        if frame.size < 128:
+            return frame.astype(np.float32, copy=True)
+        x = frame.astype(np.float64, copy=False)
+        x = x - np.mean(x)
+        rms = float(np.sqrt(np.mean(x * x)))
+        if rms < 0.0018:
+            return np.zeros_like(frame, dtype=np.float32)
+
+        n = x.size
+        window = np.hanning(n)
+        spec = np.fft.rfft(x * window)
+        freqs = np.fft.rfftfreq(n, d=1.0 / float(sample_rate))
+
+        # Keep guitar-relevant band and attenuate tiny bins (spectral gate).
+        band = (freqs >= 65.0) & (freqs <= 3000.0)
+        mag = np.abs(spec)
+        if np.any(band):
+            band_mag = mag[band]
+            floor = float(np.percentile(band_mag, 35))
+            gate = floor * 1.8
+            keep = band & (mag >= gate)
+            spec[~keep] *= 0.15
+        else:
+            spec[:] = 0.0
+
+        y = np.fft.irfft(spec, n=n)
+        return y.astype(np.float32)
+
+    def _process_tuner_audio(self) -> None:
+        if not self.tuner_running:
+            return
+        has_data = False
+        while True:
+            try:
+                chunk = self.tuner_audio_queue.get_nowait()
+            except queue.Empty:
+                break
+            if chunk.size:
+                has_data = True
+                gain = max(0.0, float(self.tuner_input_gain) / 100.0)
+                self.tuner_audio_buffer = np.concatenate((self.tuner_audio_buffer, (chunk * gain).astype(np.float32)))
+        if self.tuner_audio_buffer.size > 12000:
+            self.tuner_audio_buffer = self.tuner_audio_buffer[-12000:]
+        now = time.monotonic()
+        if not has_data and (now - self.tuner_last_analysis_ts) < 0.08:
+            return
+        if self.tuner_audio_buffer.size < 4096:
+            return
+        self.tuner_last_analysis_ts = now
+        raw_frame = self.tuner_audio_buffer[-4096:]
+        frame = self._filter_tuner_noise(raw_frame, 48000)
+        self._update_tuner_spectrum(frame)
+        freq = self._detect_tuner_pitch(frame)
+        if freq is None:
+            self.tuner_silence_frames += 1
+            self.tuner_current_cents *= 0.72
+            self.tuner_current_freq *= 0.75
+            if self.tuner_silence_frames >= 4:
+                self.tuner_current_string_idx = None
+                self.tuner_current_cents = 0.0
+                self.tuner_current_freq = 0.0
+                self.tuner_detected_note_midi = None
+                self.tuner_last_candidate_midi = None
+                self.tuner_note_stable_count = 0
+            self._refresh_tuner_ui()
+            return
+        self.tuner_silence_frames = 0
+        tuning = self._tuner_tuning_def()
+        notes = list(tuning["notes"])
+        best_idx = 0
+        best_cents = 9999.0
+        for i, note in enumerate(notes):
+            target = self.audio_engine.midi_note_to_freq(int(note))
+            cents = 1200.0 * math.log2(max(1e-9, freq) / target)
+            if abs(cents) < abs(best_cents):
+                best_cents = cents
+                best_idx = i
+        # Smooth freq to reduce jitter.
+        if self.tuner_current_freq <= 0.0:
+            self.tuner_current_freq = freq
+        else:
+            self.tuner_current_freq = (self.tuner_current_freq * 0.82) + (freq * 0.18)
+
+        detected_midi = int(round(69.0 + 12.0 * math.log2(max(1e-9, freq) / 440.0)))
+        candidate_midi = max(0, min(127, detected_midi))
+        if candidate_midi == self.tuner_last_candidate_midi:
+            self.tuner_note_stable_count += 1
+        else:
+            self.tuner_last_candidate_midi = candidate_midi
+            self.tuner_note_stable_count = 1
+
+        if self.tuner_detected_note_midi is None:
+            self.tuner_detected_note_midi = candidate_midi
+        else:
+            # Hysteresis: only change note after a few stable frames.
+            if candidate_midi != self.tuner_detected_note_midi and self.tuner_note_stable_count >= 3:
+                self.tuner_detected_note_midi = candidate_midi
+
+        self.tuner_current_string_idx = best_idx
+        target_cents = max(-50.0, min(50.0, float(best_cents)))
+        self.tuner_current_cents = (self.tuner_current_cents * 0.78) + (target_cents * 0.22)
+        self.tuner_button_active_until[best_idx] = time.monotonic() + 0.20
+        self._refresh_tuner_ui()
+
+    def _update_tuner_spectrum(self, frame: np.ndarray) -> None:
+        if frame.size < 1024:
+            return
+        n = min(8192, int(frame.size))
+        data = frame[-n:].astype(np.float64, copy=False)
+        data = data - np.mean(data)
+        window = np.hanning(n)
+        spec = np.abs(np.fft.rfft(data * window))
+        freqs = np.fft.rfftfreq(n, d=1.0 / 48000.0)
+        fmin = float(self.tuner_spectrum_min_hz)
+        fmax = float(self.tuner_spectrum_max_hz)
+        mask = (freqs >= fmin) & (freqs <= fmax)
+        if not np.any(mask):
+            self.tuner_spectrum_freqs = np.zeros(0, dtype=np.float32)
+            self.tuner_spectrum_mags = np.zeros(0, dtype=np.float32)
+            return
+        sel_freqs = freqs[mask].astype(np.float32)
+        sel_spec = spec[mask]
+        db = 20.0 * np.log10(sel_spec + 1e-9)
+        db_min = float(np.percentile(db, 8))
+        db_max = float(np.percentile(db, 99))
+        if db_max - db_min < 1e-6:
+            norm = np.zeros_like(db, dtype=np.float32)
+        else:
+            norm = np.clip((db - db_min) / (db_max - db_min), 0.0, 1.0).astype(np.float32)
+        # Visual smoothing to reduce jitter from residual noise.
+        if norm.size >= 7:
+            kernel = np.ones(7, dtype=np.float32) / 7.0
+            norm = np.convolve(norm, kernel, mode="same").astype(np.float32)
+        self.tuner_spectrum_freqs = sel_freqs
+        self.tuner_spectrum_mags = norm
+        if self.tuner_tab_active:
+            self._draw_tuner_spectrum()
+
+    def _draw_tuner_spectrum(self) -> None:
+        canvas = self.tuner_spectrum_canvas
+        if not self.tuner_tab_active:
+            canvas.delete("all")
+            return
+        canvas.delete("all")
+        w = max(320, int(canvas.winfo_width()))
+        h = max(140, int(canvas.winfo_height()))
+        canvas.create_rectangle(0, 0, w, h, fill="#0b0c10", outline="")
+        pad_l = 42.0
+        pad_r = 14.0
+        pad_t = 12.0
+        pad_b = 30.0
+        x1, x2 = pad_l, w - pad_r
+        y1, y2 = pad_t, h - pad_b
+        canvas.create_rectangle(x1, y1, x2, y2, outline="#465062", width=1, fill="#10131a")
+
+        fmin = float(self.tuner_spectrum_min_hz)
+        fmax = float(self.tuner_spectrum_max_hz)
+        if fmax <= fmin + 1.0:
+            fmax = fmin + 1.0
+
+        # Log scale cannot represent 0 Hz, so map from at least 1 Hz for drawing.
+        fmin_log = max(1.0, fmin)
+        log_min = math.log10(fmin_log)
+        log_max = math.log10(fmax)
+
+        def fx(freq: float) -> float:
+            safe_f = max(fmin_log, min(fmax, float(freq)))
+            ratio = (math.log10(safe_f) - log_min) / max(1e-6, (log_max - log_min))
+            ratio = max(0.0, min(1.0, ratio))
+            return x1 + ratio * (x2 - x1)
+
+        # Grid and Hz labels in log domain.
+        tick_hz = [70, 80, 90, 100, 120, 140, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1400, 1600, 2000, 2500, 3000]
+        major_hz = {100, 200, 400, 800, 1000}
+        for hz in tick_hz:
+            if hz < fmin or hz > fmax:
+                continue
+            x = fx(float(hz))
+            main = hz in major_hz
+            canvas.create_line(x, y1, x, y2, fill="#293140" if main else "#1f2531", width=1)
+            if main:
+                canvas.create_text(x, y2 + 12, text=str(hz), fill="#8f98a8", font=("Helvetica", 8))
+        canvas.create_text((x1 + x2) / 2, h - 8, text="Hz", fill="#a0a8b7", font=("Helvetica", 9, "bold"))
+
+        # All chromatic notes in selected range.
+        min_midi = max(0, int(math.floor(69.0 + 12.0 * math.log2(max(1e-9, fmin) / 440.0))) - 1)
+        max_midi = min(127, int(math.ceil(69.0 + 12.0 * math.log2(max(1e-9, fmax) / 440.0))) + 1)
+        for midi in range(min_midi, max_midi + 1):
+            freq = self.audio_engine.midi_note_to_freq(midi)
+            if freq < fmin or freq > fmax:
+                continue
+            x = fx(freq)
+            is_natural = (midi % 12) in WHITE_PCS
+            line_color = "#ff9f2a" if is_natural else "#8a5f22"
+            canvas.create_line(x, y1, x, y2, fill=line_color, width=1)
+            # Stagger labels to reduce overlap in narrow ranges.
+            label_y = y1 + (8 if (midi % 2 == 0) else 18)
+            label_color = "#ffbf6c" if is_natural else "#b58a4f"
+            canvas.create_text(
+                x,
+                label_y,
+                text=self.note_name(midi, with_octave=False),
+                fill=label_color,
+                font=("Helvetica", 7, "bold"),
+            )
+
+        if self.tuner_spectrum_freqs.size >= 2 and self.tuner_spectrum_mags.size == self.tuner_spectrum_freqs.size:
+            pts: list[float] = []
+            for f, mag in zip(self.tuner_spectrum_freqs.tolist(), self.tuner_spectrum_mags.tolist()):
+                x = fx(float(f))
+                y = y2 - float(mag) * (y2 - y1)
+                pts.extend([x, y])
+            if len(pts) >= 4:
+                canvas.create_line(*pts, fill="#50c6ff", width=1.6, smooth=True)
 
     def _refresh_generation_controls(self) -> None:
         if self.generation_pattern_suffix not in {p.suffix for p in CHORD_PATTERNS}:
@@ -984,6 +1771,15 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()
+
+    def _set_tuner_spectrum_visible(self, visible: bool) -> None:
+        if visible:
+            if not self.tuner_spectrum_canvas.winfo_ismapped():
+                self.tuner_spectrum_canvas.pack(fill=tk.BOTH, expand=False)
+            self._draw_tuner_spectrum()
+        else:
+            if self.tuner_spectrum_canvas.winfo_ismapped():
+                self.tuner_spectrum_canvas.pack_forget()
 
     def _set_scale_play_mode(self, mode: str) -> None:
         self.scale_play_mode = "metronome" if mode == "metronome" else "piano"
@@ -2269,6 +3065,60 @@ class MidiChordAnalyzerApp(tk.Tk):
     def open_generation_inversion_dialog(self) -> None:
         self._open_generation_selection_overlay("inversion")
 
+    def _close_tuner_tuning_overlay(self) -> None:
+        if self.tuner_tuning_overlay is not None:
+            self.tuner_tuning_overlay.destroy()
+            self.tuner_tuning_overlay = None
+
+    def open_tuner_tuning_dialog(self) -> None:
+        if self.tuner_tuning_overlay is not None:
+            self._close_tuner_tuning_overlay()
+            return
+        overlay = tk.Frame(
+            self.chord_panel,
+            bg="#2b2d38",
+            highlightthickness=1,
+            highlightbackground="#4a4f5f",
+            bd=0,
+        )
+        overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
+        self.tuner_tuning_overlay = overlay
+        header = tk.Frame(overlay, bg="#2b2d38")
+        header.pack(fill=tk.X, padx=10, pady=(10, 4))
+        tk.Label(
+            header,
+            text=self.tr("label_tuner_tuning"),
+            bg="#2b2d38",
+            fg="#f0f0f0",
+            font=("Helvetica", 13, "bold"),
+        ).pack(side=tk.LEFT)
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+        for col in range(2):
+            buttons_frame.columnconfigure(col, weight=1)
+        for idx, tuning in enumerate(self.tuner_tuning_defs):
+            text = str(tuning["es"] if self.config_data.get("language", "es") == "es" else tuning["en"])
+            key = str(tuning["key"])
+            btn = GrayRoundedButton(
+                buttons_frame,
+                text=text,
+                command=lambda k=key: self._select_tuner_tuning_from_overlay(k),
+                width=210,
+                height=64,
+                radius=24,
+                font_size=16,
+            )
+            btn.grid(row=idx // 2, column=idx % 2, sticky="ew", padx=6, pady=6)
+            btn.set_selected(key == self.tuner_tuning_key)
+
+    def _select_tuner_tuning_from_overlay(self, key: str) -> None:
+        if key not in {str(t["key"]) for t in self.tuner_tuning_defs}:
+            return
+        self.tuner_tuning_key = key
+        self.config_data["tuner_tuning"] = key
+        self.save_config()
+        self._refresh_tuner_ui()
+        self._close_tuner_tuning_overlay()
+
     def _resolve_scale_pattern(self) -> ScalePattern:
         for pattern in SCALE_PATTERNS:
             if pattern.name == self.scale_pattern_name:
@@ -2437,6 +3287,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
+        self._close_tuner_tuning_overlay()
         self._close_settings_overlay()
 
     def _on_return_pressed(self, _event: tk.Event) -> Optional[str]:
@@ -2517,6 +3368,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.generation_tab_active and self.generation_play_space_pressed:
             self._stop_generated_hold(source="space")
 
+    def _finalize_tuner_space_release(self) -> None:
+        self.tuner_space_release_after_id = None
+        self.tuner_space_pressed = False
+
     def _finalize_scale_space_release(self) -> None:
         self.scale_space_release_after_id = None
         self.scale_space_pressed = False
@@ -2540,6 +3395,9 @@ class MidiChordAnalyzerApp(tk.Tk):
                 self.generation_inversion_btn,
             }:
                 self._close_generation_selection_overlay()
+        if self.tuner_tuning_overlay is not None and not self._is_widget_inside(self.tuner_tuning_overlay, widget):
+            if widget != self.tuner_tuning_btn:
+                self._close_tuner_tuning_overlay()
         if self.settings_overlay is not None and not self._is_widget_inside(self.settings_overlay, widget):
             if widget != self.config_icon_btn:
                 self._close_settings_overlay()
@@ -2554,6 +3412,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             return self.tr("mode_scales")
         if mode_key == "metronome":
             return self.tr("mode_metronome")
+        if mode_key == "tuner":
+            return self.tr("mode_tuner")
         return self.tr("mode_detection")
 
     def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
@@ -2574,7 +3434,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             highlightbackground="#4a4f5f",
             bd=0,
         )
-        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.38)
+        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.54)
         self.mode_selector_overlay = overlay
 
         cards_frame = tk.Frame(overlay, bg="#2b2d38")
@@ -2583,12 +3443,14 @@ class MidiChordAnalyzerApp(tk.Tk):
         cards_frame.columnconfigure(1, weight=1)
         cards_frame.rowconfigure(0, weight=1)
         cards_frame.rowconfigure(1, weight=1)
+        cards_frame.rowconfigure(2, weight=1)
 
         options = [
             ("detection", self._mode_label("detection"), "◎", "#ffa320"),
             ("generation", self._mode_label("generation"), "♬", "#39c8ff"),
             ("scales", self._mode_label("scales"), "♪", "#e4eb3f"),
             ("metronome", self._mode_label("metronome"), "⏱", "#ff8f40"),
+            ("tuner", self._mode_label("tuner"), "🎸", "#8eea6b"),
         ]
 
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
@@ -2639,6 +3501,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
+        self._close_tuner_tuning_overlay()
         self._close_settings_overlay()
         self._stop_staff_scale_note_playback()
         selected = self.mode_var.get()
@@ -2648,6 +3511,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.current_mode = "scales"
         elif selected == self._mode_label("metronome"):
             self.current_mode = "metronome"
+        elif selected == self._mode_label("tuner"):
+            self.current_mode = "tuner"
         else:
             self.current_mode = "detection"
         self.config_data["mode"] = self.current_mode
@@ -2657,6 +3522,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generation_tab_active = self.current_mode == "generation"
         self.scale_tab_active = self.current_mode == "scales"
         self.metronome_tab_active = self.current_mode == "metronome"
+        self.tuner_tab_active = self.current_mode == "tuner"
+        self._set_tuner_spectrum_visible(self.tuner_tab_active)
         if self.generation_space_release_after_id is not None:
             try:
                 self.after_cancel(self.generation_space_release_after_id)
@@ -2675,11 +3542,19 @@ class MidiChordAnalyzerApp(tk.Tk):
             except Exception:
                 pass
             self.metronome_space_release_after_id = None
+        if self.tuner_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.tuner_space_release_after_id)
+            except Exception:
+                pass
+            self.tuner_space_release_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
         self._stop_metronome()
+        self._stop_tuner_stream()
         self.scale_space_pressed = False
         self.metronome_space_pressed = False
+        self.tuner_space_pressed = False
 
         if self.generation_tab_active:
             self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
@@ -2693,6 +3568,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_detection_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
             self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
@@ -2708,6 +3584,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_detection_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
         elif self.metronome_tab_active:
@@ -2722,8 +3599,25 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
             self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_metronome_ui()
+        elif self.tuner_tab_active:
+            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_right_btn.grid_remove()
+            self.guitar_left_btn.grid_remove()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack_forget()
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
+            self.tab_tuner_frame.pack(fill=tk.BOTH, expand=True)
+            self._start_tuner_stream()
+            self._refresh_tuner_ui()
         else:
             self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
             self.instrument_switch_frame.pack_forget()
@@ -2736,6 +3630,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
         self.update_music_views()
 
@@ -2895,7 +3790,19 @@ class MidiChordAnalyzerApp(tk.Tk):
                 best_note = note
         return best_note
 
+    def _tuner_string_at_position(self, x: float, y: float) -> Optional[int]:
+        if not self.tuner_tab_active:
+            return None
+        for idx, x1, y1, x2, y2 in self.tuner_string_regions:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return idx
+        return None
+
     def _on_staff_motion(self, event: tk.Event) -> None:
+        if self.tuner_tab_active:
+            idx = self._tuner_string_at_position(float(event.x), float(event.y))
+            self.staff_canvas.configure(cursor="hand2" if idx is not None else "")
+            return
         if not self.scale_tab_active:
             return
         note = self._staff_scale_note_at_position(float(event.x), float(event.y))
@@ -2905,6 +3812,9 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.staff_canvas.configure(cursor="hand2" if note is not None else "")
 
     def _on_staff_leave(self, _event: tk.Event) -> None:
+        if self.tuner_tab_active:
+            self.staff_canvas.configure(cursor="")
+            return
         if not self.scale_tab_active:
             return
         if self.staff_hover_note is not None:
@@ -2913,6 +3823,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.staff_canvas.configure(cursor="")
 
     def _on_staff_press(self, event: tk.Event) -> None:
+        if self.tuner_tab_active:
+            idx = self._tuner_string_at_position(float(event.x), float(event.y))
+            if idx is not None:
+                self._play_tuner_string(idx)
+            return
         if not self.scale_tab_active:
             return
         note = self._staff_scale_note_at_position(float(event.x), float(event.y))
@@ -3303,9 +4218,15 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.audio_output_map = {}
         self.audio_output_names = []
+        self.audio_input_map = {}
+        self.audio_input_names = []
         try:
             devices = sd.query_devices()
             for idx, device in enumerate(devices):
+                if int(device.get("max_input_channels", 0)) > 0:
+                    in_name = f"{idx}: {device.get('name', 'Input')}"
+                    self.audio_input_map[in_name] = idx
+                    self.audio_input_names.append(in_name)
                 if int(device.get("max_output_channels", 0)) <= 0:
                     continue
                 name = f"{idx}: {device.get('name', 'Output')}"
@@ -3315,6 +4236,14 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.status_var.set(f"{self.tr('error_list_outputs')}: {exc}")
             self.audio_output_names = []
             self.audio_output_map = {}
+            self.audio_input_names = []
+            self.audio_input_map = {}
+        if hasattr(self, "tuner_input_combo"):
+            self.tuner_input_combo["values"] = [""] + self.audio_input_names
+            if self.tuner_input_name in self.tuner_input_combo["values"]:
+                self.tuner_input_var.set(self.tuner_input_name)
+            elif self.tuner_input_var.get() not in self.tuner_input_combo["values"]:
+                self.tuner_input_var.set("")
 
     def connect_ports(self) -> None:
         self.disconnect_ports()
@@ -3492,6 +4421,8 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         if changed:
             self._refresh_sounding_notes()
+        if self.tuner_running:
+            self._process_tuner_audio()
 
         self.after(20, self._process_midi_queue)
 
@@ -3568,8 +4499,12 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.chord_var.set(self.scale_title_var.get())
         elif self.metronome_tab_active:
             self.chord_var.set("-")
+        elif self.tuner_tab_active:
+            self.chord_var.set(self.tuner_status_var.get())
         else:
             self.chord_var.set(self.detect_chord(active_set))
+        if self.tuner_tab_active:
+            self._refresh_tuner_ui()
         self.redraw_keyboard()
         self.redraw_staff()
 
@@ -3588,6 +4523,12 @@ class MidiChordAnalyzerApp(tk.Tk):
                 name_overlay_notes.add(self.scale_current_note)
         elif self.generation_tab_active:
             name_overlay_notes = set(self.generated_preview_notes)
+        elif self.tuner_tab_active:
+            name_overlay_notes = set()
+            if self.tuner_detected_note_midi is not None:
+                name_overlay_notes.add(int(self.tuner_detected_note_midi))
+            if self.tuner_reference_note is not None:
+                name_overlay_notes.add(int(self.tuner_reference_note))
         else:
             name_overlay_notes = set(self._current_detection_notes())
         scale_pc_set = {note % 12 for note in self.scale_preview_notes} if self.scale_tab_active else set()
@@ -3828,6 +4769,102 @@ class MidiChordAnalyzerApp(tk.Tk):
         canvas = self.staff_canvas
         canvas.delete("all")
         self.staff_scale_note_regions = []
+        self.tuner_string_regions = []
+        if self.tuner_tab_active:
+            w = max(300, canvas.winfo_width())
+            h = max(220, canvas.winfo_height())
+            canvas.create_rectangle(0, 0, w, h, fill="#000000", outline="")
+            tuning = self._tuner_tuning_def()
+            notes = [int(n) for n in tuning["notes"]]
+            language = str(self.config_data.get("language", "es"))
+            now = time.monotonic()
+
+            top_margin = 16.0
+            bottom_margin = 14.0
+            section_gap = max(10.0, h * 0.028)
+            usable_h = max(140.0, h - top_margin - bottom_margin)
+
+            cards_h = min(122.0, max(72.0, usable_h * 0.36))
+            note_h = min(72.0, max(40.0, usable_h * 0.18))
+            meter_h = min(62.0, max(42.0, usable_h * 0.20))
+            cents_h = min(30.0, max(18.0, usable_h * 0.10))
+
+            # If content overflows, shrink note + cards first.
+            total_h = cards_h + note_h + meter_h + cents_h + (section_gap * 3)
+            overflow = total_h - usable_h
+            if overflow > 0:
+                reduce_note = min(overflow * 0.55, max(0.0, note_h - 34.0))
+                note_h -= reduce_note
+                overflow -= reduce_note
+            if overflow > 0:
+                reduce_cards = min(overflow, max(0.0, cards_h - 64.0))
+                cards_h -= reduce_cards
+
+            total_h = cards_h + note_h + meter_h + cents_h + (section_gap * 3)
+            start_y = max(top_margin, (h - total_h) * 0.5)
+
+            pad_x = 20.0
+            card_gap = max(6.0, min(12.0, w * 0.012))
+            card_w = max(64.0, (w - (pad_x * 2) - (card_gap * 5)) / 6.0)
+            cards_y = start_y
+            for idx, note in enumerate(notes):
+                x1 = pad_x + idx * (card_w + card_gap)
+                x2 = x1 + card_w
+                y1 = cards_y
+                y2 = y1 + cards_h
+                active = self.tuner_current_string_idx == idx or self.tuner_button_active_until.get(idx, 0.0) > now
+                fill = "#f39c12" if active else "#d2d8df"
+                text_color = "#ffffff" if active else "#2b2e34"
+                # Rounded capsule card for each string button.
+                r = min((y2 - y1) / 2.0, max(10.0, (x2 - x1) * 0.26))
+                canvas.create_oval(x1, y1, x1 + 2 * r, y2, fill=fill, outline="")
+                canvas.create_oval(x2 - 2 * r, y1, x2, y2, fill=fill, outline="")
+                canvas.create_rectangle(x1 + r, y1, x2 - r, y2, fill=fill, outline="")
+                ordinal = self._guitar_string_ordinal(idx, language)
+                note_name = self.note_name(note, with_octave=False)
+                ord_font = ("Helvetica", max(10, min(13, int(cards_h * 0.14))), "bold")
+                note_font = ("Helvetica", max(17, min(26, int(cards_h * 0.29))), "bold")
+                canvas.create_text((x1 + x2) / 2, y1 + cards_h * 0.28, text=ordinal, fill=text_color, font=ord_font)
+                canvas.create_text((x1 + x2) / 2, y1 + cards_h * 0.64, text=note_name, fill=text_color, font=note_font)
+                self.tuner_string_regions.append((idx, x1, y1, x2, y2))
+
+            live_note = "-"
+            note_y = cards_y + cards_h + section_gap + (note_h * 0.5)
+            live_font = ("Helvetica", max(24, min(44, int(note_h * 0.78))), "bold")
+            if self.tuner_detected_note_midi is not None:
+                live_note = self.note_name(int(self.tuner_detected_note_midi), with_octave=False)
+                if self.tuner_current_freq > 0.0:
+                    live_note = f"{live_note} ({self.tuner_current_freq:.1f} Hz)"
+                    live_font = ("Helvetica", max(18, min(30, int(note_h * 0.55))), "bold")
+            canvas.create_text(w / 2, note_y, text=live_note, fill="#ff9e34", font=live_font)
+
+            meter_x1 = 24.0
+            meter_x2 = w - 24.0
+            meter_y1 = note_y + (note_h * 0.5) + section_gap
+            meter_y2 = meter_y1 + meter_h
+            canvas.create_oval(meter_x1, meter_y1, meter_x1 + (meter_y2 - meter_y1), meter_y2, fill="#c8c8ca", outline="")
+            canvas.create_oval(meter_x2 - (meter_y2 - meter_y1), meter_y1, meter_x2, meter_y2, fill="#c8c8ca", outline="")
+            canvas.create_rectangle(
+                meter_x1 + (meter_y2 - meter_y1) / 2,
+                meter_y1,
+                meter_x2 - (meter_y2 - meter_y1) / 2,
+                meter_y2,
+                fill="#c8c8ca",
+                outline="",
+            )
+            center_x = (meter_x1 + meter_x2) / 2
+            canvas.create_line(center_x, meter_y1 + 2, center_x, meter_y2 - 2, fill="#16a05f", width=5)
+            cents = max(-50.0, min(50.0, float(self.tuner_current_cents)))
+            knob_x = meter_x1 + ((cents + 50.0) / 100.0) * (meter_x2 - meter_x1)
+            r = min(14.0, (meter_y2 - meter_y1) * 0.36)
+            canvas.create_oval(knob_x - r, (meter_y1 + meter_y2) / 2 - r, knob_x + r, (meter_y1 + meter_y2) / 2 + r, fill="#ff5a2f", outline="")
+
+            if self.tuner_current_string_idx is not None:
+                cents_txt = f"{self.tuner_current_cents:+.1f} cents"
+                cents_font = ("Helvetica", max(11, min(15, int(cents_h * 0.60))), "bold")
+                cents_y = min(h - bottom_margin, meter_y2 + section_gap + (cents_h * 0.45))
+                canvas.create_text(w / 2, cents_y, text=cents_txt, fill="#9fb2c8", font=cents_font)
+            return
         if self.metronome_tab_active:
             self._draw_metronome_panel(canvas)
             return
@@ -4224,9 +5261,23 @@ class MidiChordAnalyzerApp(tk.Tk):
             except Exception:
                 pass
             self.metronome_space_release_after_id = None
+        if self.tuner_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.tuner_space_release_after_id)
+            except Exception:
+                pass
+            self.tuner_space_release_after_id = None
+        if self.tuner_reference_off_after_id is not None:
+            try:
+                self.after_cancel(self.tuner_reference_off_after_id)
+            except Exception:
+                pass
+            self.tuner_reference_off_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
         self._stop_metronome()
+        self._stop_tuner_stream()
+        self._stop_tuner_reference_note()
         self._stop_staff_scale_note_playback()
         self.disconnect_ports()
         self.destroy()

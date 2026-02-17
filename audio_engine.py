@@ -32,6 +32,15 @@ class ClickVoice:
     age_samples: int = 0
 
 
+@dataclass
+class GuitarVoice:
+    buffer: np.ndarray
+    pos: int
+    gain: float
+    decay: float
+    remaining_samples: int
+
+
 class PianoAudioEngine:
     def __init__(self, sample_rate: int = 48000) -> None:
         self.sample_rate = sample_rate
@@ -42,9 +51,11 @@ class PianoAudioEngine:
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
         self.click_voices: list[ClickVoice] = []
+        self.guitar_voices: list[GuitarVoice] = []
         self.metronome_sample: Optional[np.ndarray] = self._load_default_metronome_sample()
         self.metronome_sample_accent: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample)
         self.metronome_sample_bar: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample, ratio=1.34)
+        self.rng = np.random.default_rng()
 
     def set_preset(self, preset: str) -> None:
         if preset not in {"acoustic", "warm", "bright", "soft"}:
@@ -72,6 +83,7 @@ class PianoAudioEngine:
         with self.lock:
             self.voices.clear()
             self.click_voices.clear()
+            self.guitar_voices.clear()
 
         if self.stream is not None:
             try:
@@ -147,6 +159,26 @@ class PianoAudioEngine:
             else:
                 self.click_voices.append(ClickVoice(accent_level=level, age_samples=0))
 
+    def pluck_guitar_note(self, note: int, velocity: int = 100, duration_seconds: float = 1.6) -> None:
+        freq = self.midi_note_to_freq(note)
+        period = max(8, int(round(self.sample_rate / max(40.0, freq))))
+        noise = self.rng.uniform(-1.0, 1.0, period).astype(np.float32)
+        # Short pick envelope at start.
+        noise *= np.linspace(1.0, 0.35, period, dtype=np.float32)
+        gain = max(0.08, min(0.9, velocity / 127.0)) * 0.35
+        remaining = max(1, int(duration_seconds * self.sample_rate))
+        decay = 0.9965 if freq < 180 else 0.9958
+        with self.lock:
+            self.guitar_voices.append(
+                GuitarVoice(
+                    buffer=noise.copy(),
+                    pos=0,
+                    gain=gain,
+                    decay=decay,
+                    remaining_samples=remaining,
+                )
+            )
+
     def _load_default_metronome_sample(self) -> Optional[np.ndarray]:
         base = Path(__file__).resolve().parent
         candidates = [
@@ -206,7 +238,7 @@ class PianoAudioEngine:
         signal = np.zeros(frames, dtype=np.float32)
 
         with self.lock:
-            if not self.voices and not self.click_voices:
+            if not self.voices and not self.click_voices and not self.guitar_voices:
                 outdata.fill(0)
                 return
 
@@ -308,6 +340,30 @@ class PianoAudioEngine:
 
             for note in to_remove:
                 self.voices.pop(note, None)
+
+            remaining_guitars: list[GuitarVoice] = []
+            for gvoice in self.guitar_voices:
+                if gvoice.remaining_samples <= 0 or gvoice.buffer.size < 2:
+                    continue
+                local = np.zeros(frames, dtype=np.float32)
+                buf = gvoice.buffer
+                pos = gvoice.pos
+                buf_len = buf.size
+                for i in range(frames):
+                    if gvoice.remaining_samples <= 0:
+                        break
+                    nxt = (pos + 1) % buf_len
+                    y = float(buf[pos])
+                    new_val = np.float32((y + float(buf[nxt])) * 0.5 * gvoice.decay)
+                    buf[pos] = new_val
+                    local[i] = np.float32(y)
+                    pos = nxt
+                    gvoice.remaining_samples -= 1
+                gvoice.pos = pos
+                signal += local * gvoice.gain
+                if gvoice.remaining_samples > 0:
+                    remaining_guitars.append(gvoice)
+            self.guitar_voices = remaining_guitars
 
             remaining_clicks: list[ClickVoice] = []
             for click in self.click_voices:

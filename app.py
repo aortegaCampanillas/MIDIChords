@@ -86,6 +86,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             "scale_play_mode": "piano",
             "mode": "detection",
             "instrument_view": "piano",
+            "generation_instrument_view": "piano",
             "guitar_handedness": "right",
             "tuner_tuning": "standard_e",
             "tuner_input": "",
@@ -118,6 +119,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.pedal_active = False
         self.mouse_current_note: Optional[int] = None
         self.generated_playing_notes: set[int] = set()
+        self.generated_note_highlight_after: dict[int, str] = {}
         self.generated_play_after_id: Optional[str] = None
         self.generation_play_button_pressed = False
         self.generation_play_space_pressed = False
@@ -167,6 +169,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.staff_hover_note: Optional[int] = None
         self.staff_pressed_scale_notes: set[int] = set()
         self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
+        self.staff_generation_note_regions: list[tuple[int, float, float, float, float]] = []
         self.scale_tonic_overlay: Optional[tk.Frame] = None
         self.scale_type_overlay: Optional[tk.Frame] = None
         self.generation_selection_overlay: Optional[tk.Frame] = None
@@ -187,6 +190,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._last_guitar_chord_key: Optional[tuple[int, str]] = None
         self.guitar_current_root_pc: Optional[int] = None
         self.scale_guitar_tonic_regions: list[tuple[int, float, float, float, float]] = []
+        self.scale_guitar_note_regions: list[tuple[int, float, float, float, float]] = []
+        self.scale_guitar_click_highlight_exact_notes: set[int] = set()
+        self.scale_guitar_click_highlight_pcs: set[int] = set()
+        self.scale_guitar_click_highlight_notes: set[int] = set()
+        self.guitar_generation_note_regions: list[tuple[int, float, float, float, float]] = []
         self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False
@@ -266,7 +274,12 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.tuner_pitch_hop = 256
 
         self._build_ui()
-        loaded_instrument_view = str(self.config_data.get("instrument_view", "piano"))
+        loaded_instrument_view = str(
+            self.config_data.get(
+                "generation_instrument_view",
+                self.config_data.get("instrument_view", "piano"),
+            )
+        )
         loaded_handedness = str(self.config_data.get("guitar_handedness", "right"))
         self.guitar_handedness = "left" if loaded_handedness == "left" else "right"
         loaded_scale_play_mode = str(self.config_data.get("scale_play_mode", "piano"))
@@ -1786,6 +1799,7 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _set_instrument_view(self, view: str) -> None:
         self.instrument_view = "guitar" if view == "guitar" else "piano"
         self.config_data["instrument_view"] = self.instrument_view
+        self.config_data["generation_instrument_view"] = self.instrument_view
         self.save_config()
         if self.instrument_view == "guitar":
             self.guitar_right_btn.grid()
@@ -2708,22 +2722,60 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.redraw_staff()
 
     def _on_guitar_canvas_press(self, event: tk.Event) -> None:
+        if self.generation_tab_active and self.instrument_view == "guitar":
+            x = float(event.x)
+            y = float(event.y)
+            for note, x1, y1, x2, y2 in self.guitar_generation_note_regions:
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
+                    self.generated_playing_notes.add(note)
+                    self.redraw_staff()
+                    self.after(520, lambda n=note: self._clear_generated_single_note(n))
+                    break
+            return
         if not (self.scale_tab_active and self.scale_play_mode == "guitar"):
             return
         x = float(event.x)
         y = float(event.y)
+        clicked_note: Optional[int] = None
+        for note, x1, y1, x2, y2 in self.scale_guitar_note_regions:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                clicked_note = int(note)
+                break
+        clicked_tonic_note: Optional[int] = None
         for note, x1, y1, x2, y2 in self.scale_guitar_tonic_regions:
             if x1 <= x <= x2 and y1 <= y <= y2:
-                self.scale_guitar_start_note = int(note)
-                self._refresh_scale_preview()
+                clicked_tonic_note = int(note)
+                break
+        if clicked_tonic_note is not None and self.pedal_active:
+            self.scale_guitar_start_note = clicked_tonic_note
+            self._refresh_scale_preview()
+            self.redraw_guitar_fretboard()
+        if clicked_note is not None:
+            self.audio_engine.pluck_guitar_note(clicked_note, velocity=106, duration_seconds=1.1)
+            self.scale_guitar_click_highlight_exact_notes.add(clicked_note)
+            self.redraw_guitar_fretboard()
+            self.after(520, lambda n=clicked_note: self._clear_scale_guitar_exact_highlight(n))
+            staff_note = self._scale_staff_note_for_pitch(clicked_note)
+            if staff_note is not None:
+                self.scale_guitar_click_highlight_notes.add(staff_note)
+                self.after(520, lambda n=staff_note: self._clear_scale_guitar_click_highlight(n))
+            self.redraw_staff()
+            self.redraw_keyboard()
+
+    def _clear_generated_single_note(self, note: int) -> None:
+        if note in self.generated_playing_notes:
+            self.generated_playing_notes.discard(note)
+            if self.generation_tab_active:
                 self.redraw_guitar_fretboard()
                 self.redraw_staff()
-                break
 
     def redraw_guitar_fretboard(self) -> None:
         canvas = self.guitar_canvas
         canvas.delete("all")
         self.scale_guitar_tonic_regions = []
+        self.scale_guitar_note_regions = []
+        self.guitar_generation_note_regions = []
         w = max(720, canvas.winfo_width())
         h = max(180, canvas.winfo_height())
         canvas.create_rectangle(0, 0, w, h, fill="#ffffff", outline="")
@@ -2802,8 +2854,10 @@ class MidiChordAnalyzerApp(tk.Tk):
                     cx = fret_center_x(fret)
                     is_tonic = (note % 12) == tonic_pc
                     is_current = current_note is not None and note == current_note
+                    is_click_exact = note in self.scale_guitar_click_highlight_exact_notes
+                    is_click_pc = (note % 12) in self.scale_guitar_click_highlight_pcs
                     is_selected_start = selected_start is not None and note == selected_start and is_tonic
-                    if is_current:
+                    if is_current or is_click_exact or is_click_pc:
                         fill = "#2fa8ff"
                         outline = "#0f5f99"
                     elif is_selected_start:
@@ -2830,6 +2884,9 @@ class MidiChordAnalyzerApp(tk.Tk):
                         text=self.note_name(note, with_octave=False),
                         fill="#0f0f0f",
                         font=("Helvetica", 8, "bold"),
+                    )
+                    self.scale_guitar_note_regions.append(
+                        (note, cx - note_radius, y - note_radius, cx + note_radius, y + note_radius)
                     )
                     if is_tonic:
                         self.scale_guitar_tonic_regions.append(
@@ -2890,11 +2947,17 @@ class MidiChordAnalyzerApp(tk.Tk):
                 y = board_y1 + s * string_gap
                 note = tuning[s] + fret
                 is_tonic = (root_pc is not None) and ((note % 12) == root_pc)
+                is_playing = note in self.generated_playing_notes
                 r = max(7, min(12, int(string_gap * 0.30)))
-                fill = "#b35f00" if is_tonic else "#f4a742"
-                text_color = "#ffffff" if is_tonic else "#1f1200"
+                if is_playing:
+                    fill = "#2faeff"
+                    text_color = "#ffffff"
+                else:
+                    fill = "#b35f00" if is_tonic else "#f4a742"
+                    text_color = "#ffffff" if is_tonic else "#1f1200"
                 canvas.create_oval(x - r, y - r, x + r, y + r, fill=fill, outline="#2e2e2e", width=1)
                 canvas.create_text(x, y, text=str(finger), fill=text_color, font=("Helvetica", 9, "bold"))
+                self.guitar_generation_note_regions.append((note, x - r, y - r, x + r, y + r))
 
         # Draw non-barre finger circles.
         for i, open_note in enumerate(tuning):
@@ -2917,13 +2980,19 @@ class MidiChordAnalyzerApp(tk.Tk):
             finger = disp_fingers[disp_idx]
             note = open_note + pos_fret
             is_tonic = (root_pc is not None) and ((note % 12) == root_pc)
+            is_playing = note in self.generated_playing_notes
             cx = fret_center_x(pos_fret)
             r = max(7, min(12, int(string_gap * 0.30)))
-            fill = "#b35f00" if is_tonic else "#f4a742"
-            text_color = "#ffffff" if is_tonic else "#1f1200"
+            if is_playing:
+                fill = "#2faeff"
+                text_color = "#ffffff"
+            else:
+                fill = "#b35f00" if is_tonic else "#f4a742"
+                text_color = "#ffffff" if is_tonic else "#1f1200"
             canvas.create_oval(cx - r, y - r, cx + r, y + r, fill=fill, outline="#f1c27d", width=1)
             if pos_fret > 0:
                 canvas.create_text(cx, y, text=str(finger if finger > 0 else 1), fill=text_color, font=("Helvetica", 9, "bold"))
+            self.guitar_generation_note_regions.append((note, cx - r, y - r, cx + r, y + r))
 
     @staticmethod
     def _pointer_inside_widget(widget: tk.Widget) -> bool:
@@ -3962,10 +4031,79 @@ class MidiChordAnalyzerApp(tk.Tk):
             except Exception:
                 pass
             self.generated_play_after_id = None
+        for after_id in list(self.generated_note_highlight_after.values()):
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+        self.generated_note_highlight_after.clear()
         for note in list(self.generated_playing_notes):
             self.audio_engine.note_off(note)
         self.generated_playing_notes.clear()
         if self.generation_tab_active:
+            self.redraw_staff()
+
+    def _generation_staff_note_at_position(self, x: float, y: float) -> Optional[int]:
+        if not self.generation_tab_active:
+            return None
+        best_note: Optional[int] = None
+        best_dist = 10_000.0
+        for note, cx, cy, rx, ry in self.staff_generation_note_regions:
+            nx = (x - cx) / max(1.0, rx + 4.0)
+            ny = (y - cy) / max(1.0, ry + 3.0)
+            if (nx * nx + ny * ny) > 1.0:
+                continue
+            dist = abs(x - cx) + abs(y - cy)
+            if dist < best_dist:
+                best_dist = dist
+                best_note = note
+        return best_note
+
+    def _clear_generated_note_highlight(self, note: int, stop_audio: bool = True) -> None:
+        self.generated_note_highlight_after.pop(note, None)
+        if note in self.generated_playing_notes:
+            self.generated_playing_notes.discard(note)
+        if stop_audio:
+            self.audio_engine.note_off(note)
+        if self.generation_tab_active:
+            self.redraw_keyboard()
+            self.redraw_guitar_fretboard()
+            self.redraw_staff()
+
+    def _trigger_generated_single_note(self, note: int) -> None:
+        if self.generation_tab_active and self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
+            allowed_notes = set(self.guitar_selected_variation_notes)
+        else:
+            allowed_notes = set(self.generated_preview_notes)
+        if note not in allowed_notes:
+            return
+        for after_id in list(self.generated_note_highlight_after.values()):
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+        self.generated_note_highlight_after.clear()
+        self.generated_playing_notes.clear()
+        if note in self.generated_note_highlight_after:
+            try:
+                self.after_cancel(self.generated_note_highlight_after[note])
+            except Exception:
+                pass
+            self.generated_note_highlight_after.pop(note, None)
+        self.generated_playing_notes.add(note)
+        if self.instrument_view == "guitar":
+            self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
+            stop_audio = False
+        else:
+            self.audio_engine.note_on(note, 108)
+            stop_audio = True
+        self.generated_note_highlight_after[note] = self.after(
+            520,
+            lambda n=note, s=stop_audio: self._clear_generated_note_highlight(n, stop_audio=s),
+        )
+        if self.generation_tab_active:
+            self.redraw_keyboard()
+            self.redraw_guitar_fretboard()
             self.redraw_staff()
 
     def _stop_scale_playback(self) -> None:
@@ -3988,15 +4126,43 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.redraw_staff()
 
     def _stop_staff_scale_note_playback(self) -> None:
-        if not self.staff_pressed_scale_notes and self.staff_hover_note is None:
+        if not self.staff_pressed_scale_notes and not self.scale_guitar_click_highlight_notes and self.staff_hover_note is None:
             return
         for note in list(self.staff_pressed_scale_notes):
             self.audio_engine.note_off(note)
         self.staff_pressed_scale_notes.clear()
+        self.scale_guitar_click_highlight_notes.clear()
         self.staff_hover_note = None
         self.staff_scale_note_regions.clear()
         self.redraw_keyboard()
         self.redraw_staff()
+
+    def _scale_staff_note_for_pitch(self, note: int) -> Optional[int]:
+        if not self.scale_preview_notes:
+            return None
+        pc = int(note) % 12
+        for n in self.scale_preview_notes:
+            if (n % 12) == pc:
+                return n
+        return None
+
+    def _clear_scale_guitar_click_highlight(self, note: int) -> None:
+        if note in self.scale_guitar_click_highlight_notes:
+            self.scale_guitar_click_highlight_notes.discard(note)
+            if self.scale_tab_active:
+                self.redraw_staff()
+
+    def _clear_scale_guitar_exact_highlight(self, note: int) -> None:
+        if note in self.scale_guitar_click_highlight_exact_notes:
+            self.scale_guitar_click_highlight_exact_notes.discard(note)
+            if self.scale_tab_active and self.scale_play_mode == "guitar":
+                self.redraw_guitar_fretboard()
+
+    def _clear_scale_guitar_pc_highlight(self, pc: int) -> None:
+        if pc in self.scale_guitar_click_highlight_pcs:
+            self.scale_guitar_click_highlight_pcs.discard(pc)
+            if self.scale_tab_active and self.scale_play_mode == "guitar":
+                self.redraw_guitar_fretboard()
 
     def _staff_scale_note_at_position(self, x: float, y: float) -> Optional[int]:
         if not self.scale_tab_active:
@@ -4054,6 +4220,16 @@ class MidiChordAnalyzerApp(tk.Tk):
             if idx is not None:
                 self._play_tuner_string(idx)
             return
+        if self.generation_tab_active and self.instrument_view == "guitar":
+            note = self._generation_staff_note_at_position(float(event.x), float(event.y))
+            if note is not None:
+                self._trigger_generated_single_note(note)
+            return
+        if self.generation_tab_active and self.instrument_view == "piano":
+            note = self._generation_staff_note_at_position(float(event.x), float(event.y))
+            if note is not None:
+                self._trigger_generated_single_note(note)
+            return
         if not self.scale_tab_active:
             return
         note = self._staff_scale_note_at_position(float(event.x), float(event.y))
@@ -4062,7 +4238,14 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.staff_hover_note = note
         if note not in self.staff_pressed_scale_notes:
             self.staff_pressed_scale_notes.add(note)
-            self.audio_engine.note_on(note, 106)
+            if self.scale_play_mode == "guitar":
+                self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.1)
+                pc = int(note) % 12
+                self.scale_guitar_click_highlight_pcs.add(pc)
+                self.redraw_guitar_fretboard()
+                self.after(520, lambda p=pc: self._clear_scale_guitar_pc_highlight(p))
+            else:
+                self.audio_engine.note_on(note, 106)
         self.redraw_staff()
         self.redraw_keyboard()
 
@@ -4600,7 +4783,31 @@ class MidiChordAnalyzerApp(tk.Tk):
         if note is None:
             return
         if self.generation_tab_active:
+            if self.instrument_view == "piano":
+                if note in self.generated_preview_notes:
+                    self._trigger_generated_single_note(note)
+                else:
+                    self._show_forbidden_note_feedback(note)
+                return
             self._show_forbidden_note_feedback(note)
+            return
+        if self.scale_tab_active and self.scale_play_mode == "piano":
+            scale_pcs = {n % 12 for n in self.scale_preview_notes}
+            if (note % 12) not in scale_pcs:
+                self._show_forbidden_note_feedback(note)
+                return
+            if self.mouse_current_note == note:
+                return
+            if self.mouse_current_note is not None:
+                self._note_off_from_source(self.mouse_current_note, source="mouse")
+            self.mouse_current_note = note
+            self._note_on_from_source(note, velocity=100, source="mouse")
+            self.staff_pressed_scale_notes.clear()
+            staff_note = self._scale_staff_note_for_pitch(note)
+            if staff_note is not None:
+                self.staff_pressed_scale_notes.add(staff_note)
+            self._refresh_sounding_notes()
+            self.redraw_staff()
             return
         if self.pedal_active and note in self.active_notes:
             # Toggle con pedal: clic en nota activa la deselecciona.
@@ -4624,6 +4831,25 @@ class MidiChordAnalyzerApp(tk.Tk):
             if note is not None:
                 self._show_forbidden_note_feedback(note)
             return
+        if self.scale_tab_active and self.scale_play_mode == "piano":
+            scale_pcs = {n % 12 for n in self.scale_preview_notes}
+            if note is not None and (note % 12) not in scale_pcs:
+                note = None
+            if note == self.mouse_current_note:
+                return
+            if self.mouse_current_note is not None:
+                self._note_off_from_source(self.mouse_current_note, source="mouse")
+                self.mouse_current_note = None
+            self.staff_pressed_scale_notes.clear()
+            if note is not None:
+                self.mouse_current_note = note
+                self._note_on_from_source(note, velocity=100, source="mouse")
+                staff_note = self._scale_staff_note_for_pitch(note)
+                if staff_note is not None:
+                    self.staff_pressed_scale_notes.add(staff_note)
+            self._refresh_sounding_notes()
+            self.redraw_staff()
+            return
         if note == self.mouse_current_note:
             return
         if self.mouse_current_note is not None:
@@ -4638,6 +4864,9 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.mouse_current_note is not None:
             self._note_off_from_source(self.mouse_current_note, source="mouse")
             self.mouse_current_note = None
+            if self.scale_tab_active and self.scale_play_mode == "piano":
+                self.staff_pressed_scale_notes.clear()
+                self.redraw_staff()
             self._refresh_sounding_notes()
 
     def _on_shift_press(self, _event: tk.Event) -> None:
@@ -4777,6 +5006,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.white_key_regions = []
         self.black_key_regions = []
         display_active_notes = self._instrument_display_notes()
+        if self.generation_tab_active and self.instrument_view == "piano" and self.generated_playing_notes:
+            display_active_notes = set(self.generated_playing_notes)
         if self.scale_tab_active:
             name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
             if self.scale_loop_active and self.scale_current_note is not None:
@@ -5029,6 +5260,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         canvas = self.staff_canvas
         canvas.delete("all")
         self.staff_scale_note_regions = []
+        self.staff_generation_note_regions = []
         self.tuner_string_regions = []
         if self.tuner_tab_active:
             w = max(300, canvas.winfo_width())
@@ -5128,7 +5360,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         if self.metronome_tab_active:
             self._draw_metronome_panel(canvas)
             return
-        instrument_override = self.instrument_view == "guitar" and bool(self.guitar_selected_variation_notes)
+        instrument_override = self.generation_tab_active and self.instrument_view == "guitar" and bool(self.guitar_selected_variation_notes)
         if instrument_override:
             display_notes_list = []
             display_notes = set(self.guitar_selected_variation_notes)
@@ -5215,6 +5447,10 @@ class MidiChordAnalyzerApp(tk.Tk):
             else:
                 ordered = sorted(display_notes)
                 chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
+            generation_single_note: Optional[int] = None
+            if self.generation_tab_active and len(self.generated_playing_notes) == 1:
+                generation_single_note = next(iter(self.generated_playing_notes))
+            generation_note_label_y = treble_top - 30
             placed_treble_cols: dict[int, list[float]] = {}
             placed_bass_cols: dict[int, list[float]] = {}
 
@@ -5285,7 +5521,7 @@ class MidiChordAnalyzerApp(tk.Tk):
                     )
                 if self.scale_tab_active:
                     is_hovered = self.staff_hover_note == note
-                    is_pressed = note in self.staff_pressed_scale_notes
+                    is_pressed = (note in self.staff_pressed_scale_notes) or (note in self.scale_guitar_click_highlight_notes)
                     is_current = self.scale_loop_active and self.scale_current_note == note
                     if is_hovered:
                         note_fill = "#49c6ff"
@@ -5314,12 +5550,26 @@ class MidiChordAnalyzerApp(tk.Tk):
                     outline=note_outline,
                     width=2,
                 )
+                if self.generation_tab_active:
+                    self.staff_generation_note_regions.append((note, x, y, note_rx, note_ry))
+                    if generation_single_note is not None and note == generation_single_note:
+                        canvas.create_text(
+                            x,
+                            generation_note_label_y,
+                            text=self.note_name(note, with_octave=False),
+                            fill="#6fe0ff",
+                            font=("Helvetica", 15, "bold"),
+                        )
                 for ledger_y in ledger_lines_y:
                     canvas.create_line(x - ledger_half, ledger_y, x + ledger_half, ledger_y, fill="#bfbfbf", width=1)
                 if self.scale_tab_active:
                     label_text = self.note_name(note, with_octave=False)
                     label_y = label_y_base
-                    is_label_hl = (self.staff_hover_note == note) or (note in self.staff_pressed_scale_notes)
+                    is_label_hl = (
+                        (self.staff_hover_note == note)
+                        or (note in self.staff_pressed_scale_notes)
+                        or (note in self.scale_guitar_click_highlight_notes)
+                    )
                     is_current_label = self.scale_loop_active and self.scale_current_note == note
                     if is_current_label:
                         label_fill = "#6fe0ff"
@@ -5342,6 +5592,14 @@ class MidiChordAnalyzerApp(tk.Tk):
                 w / 2,
                 h - 14,
                 text=self.tr("staff_shift_hint"),
+                fill="#a8a8a8",
+                font=("Helvetica", 10, "italic"),
+            )
+        elif self.scale_tab_active and self.scale_play_mode == "guitar":
+            canvas.create_text(
+                w / 2,
+                h - 14,
+                text=self.tr("staff_scale_guitar_shift_hint"),
                 fill="#a8a8a8",
                 font=("Helvetica", 10, "italic"),
             )

@@ -180,6 +180,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_transport_pressed_mode: Optional[str] = None
         self.guitar_handedness = "right"
         self.guitar_variations: list[dict] = []
+        self.guitar_variations_all: list[dict] = []
         self.guitar_selected_variation_idx: Optional[int] = None
         self.guitar_selected_variation_notes: set[int] = set()
         self.guitar_variation_buttons: list[tk.Button] = []
@@ -2603,6 +2604,24 @@ class MidiChordAnalyzerApp(tk.Tk):
         root, pattern, _bass = self._analyze_chord_notes(notes)
         return root, pattern
 
+    @staticmethod
+    def _variation_bass_pc(variation: dict) -> Optional[int]:
+        string_notes = variation.get("string_notes")
+        if isinstance(string_notes, list) and len(string_notes) >= 6:
+            for note in string_notes:
+                if note is not None:
+                    return int(note) % 12
+        frets = variation.get("frets")
+        if isinstance(frets, list) and len(frets) >= 6:
+            tuning = [40, 45, 50, 55, 59, 64]  # 6->1
+            for i, fret in enumerate(frets):
+                if isinstance(fret, int) and fret >= 0:
+                    return (tuning[i] + fret) % 12
+        notes = variation.get("notes")
+        if isinstance(notes, list) and notes:
+            return int(min(int(n) for n in notes)) % 12
+        return None
+
     def _refresh_guitar_variations(self) -> None:
         for btn in self.guitar_variation_buttons:
             btn.destroy()
@@ -2610,6 +2629,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         root, pattern = self._resolve_guitar_chord_context()
         if root is None or pattern is None:
+            self.guitar_variations_all = []
             self.guitar_variations = []
             self.guitar_selected_variation_idx = None
             self.guitar_selected_variation_notes = set()
@@ -2619,15 +2639,41 @@ class MidiChordAnalyzerApp(tk.Tk):
         chord_key = (root, pattern.suffix)
         self.guitar_current_root_pc = root
         if chord_key != self._last_guitar_chord_key:
-            self.guitar_variations = self._compute_guitar_variations(root, pattern)
-            self.guitar_selected_variation_idx = 0 if self.guitar_variations else None
+            self.guitar_variations_all = self._compute_guitar_variations(root, pattern)
+            self.guitar_selected_variation_idx = 0 if self.guitar_variations_all else None
             self._last_guitar_chord_key = chord_key
 
-        if self.guitar_selected_variation_idx is None:
+        prev_selected_key: Optional[tuple[int, ...]] = None
+        if (
+            self.guitar_selected_variation_idx is not None
+            and 0 <= self.guitar_selected_variation_idx < len(self.guitar_variations)
+        ):
+            prev_selected_key = tuple(int(f) for f in self.guitar_variations[self.guitar_selected_variation_idx].get("frets", []))
+
+        displayed_variations = list(self.guitar_variations_all)
+        if self.generation_tab_active and displayed_variations:
+            inversion_idx = min(max(0, int(self.generation_inversion)), max(0, len(pattern.intervals) - 1))
+            target_bass_pc = (root + int(pattern.intervals[inversion_idx])) % 12
+            filtered = [v for v in displayed_variations if self._variation_bass_pc(v) == target_bass_pc]
+            if filtered:
+                displayed_variations = filtered
+
+        self.guitar_variations = displayed_variations
+
+        if not self.guitar_variations:
             self.guitar_selected_variation_notes = set()
+            self.guitar_selected_variation_idx = None
             return
 
-        self.guitar_selected_variation_idx = max(0, min(self.guitar_selected_variation_idx, len(self.guitar_variations) - 1))
+        selected_idx: Optional[int] = None
+        if prev_selected_key is not None:
+            for idx, variation in enumerate(self.guitar_variations):
+                if tuple(int(f) for f in variation.get("frets", [])) == prev_selected_key:
+                    selected_idx = idx
+                    break
+        if selected_idx is None:
+            selected_idx = 0
+        self.guitar_selected_variation_idx = selected_idx
         self.guitar_selected_variation_notes = set(self.guitar_variations[self.guitar_selected_variation_idx]["notes"])
 
         for idx in range(len(self.guitar_variations)):
@@ -4035,8 +4081,13 @@ class MidiChordAnalyzerApp(tk.Tk):
         if not self.generated_preview_notes:
             return
         self._stop_generated_playback()
-        for note in sorted(self.generated_preview_notes):
-            self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
+        if self.instrument_view == "guitar":
+            for note in sorted(self.generated_preview_notes):
+                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
+        else:
+            for note in sorted(self.generated_preview_notes):
+                self.audio_engine.note_on(note, 108)
+                self.generated_playing_notes.add(note)
         if self.generation_tab_active:
             self.redraw_staff()
 

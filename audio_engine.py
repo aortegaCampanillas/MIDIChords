@@ -47,6 +47,7 @@ class PianoAudioEngine:
         self.channels = 2
         self.master_gain = 0.14
         self.preset = "acoustic"
+        self.guitar_preset = "steel_clean"
         self.stream: Optional[sd.OutputStream] = None
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
@@ -61,6 +62,11 @@ class PianoAudioEngine:
         if preset not in {"acoustic", "warm", "bright", "soft"}:
             preset = "acoustic"
         self.preset = preset
+
+    def set_guitar_preset(self, preset: str) -> None:
+        if preset not in {"steel_clean", "steel_bright", "nylon_warm", "muted_short"}:
+            preset = "steel_clean"
+        self.guitar_preset = preset
 
     @staticmethod
     def midi_note_to_freq(note: int) -> float:
@@ -163,11 +169,27 @@ class PianoAudioEngine:
         freq = self.midi_note_to_freq(note)
         period = max(8, int(round(self.sample_rate / max(40.0, freq))))
         noise = self.rng.uniform(-1.0, 1.0, period).astype(np.float32)
-        # Short pick envelope at start.
-        noise *= np.linspace(1.0, 0.35, period, dtype=np.float32)
-        gain = max(0.08, min(0.9, velocity / 127.0)) * 0.35
-        remaining = max(1, int(duration_seconds * self.sample_rate))
+        env_end = 0.35
+        gain_mul = 0.35
         decay = 0.9965 if freq < 180 else 0.9958
+        duration_mul = 1.0
+        if self.guitar_preset == "steel_bright":
+            env_end = 0.28
+            gain_mul = 0.38
+            decay = 0.9971 if freq < 180 else 0.9963
+        elif self.guitar_preset == "nylon_warm":
+            env_end = 0.46
+            gain_mul = 0.33
+            decay = 0.9960 if freq < 180 else 0.9953
+        elif self.guitar_preset == "muted_short":
+            env_end = 0.25
+            gain_mul = 0.32
+            decay = 0.9928 if freq < 180 else 0.9920
+            duration_mul = 0.55
+        # Short pick envelope at start.
+        noise *= np.linspace(1.0, env_end, period, dtype=np.float32)
+        gain = max(0.08, min(0.9, velocity / 127.0)) * gain_mul
+        remaining = max(1, int(duration_seconds * duration_mul * self.sample_rate))
         with self.lock:
             self.guitar_voices.append(
                 GuitarVoice(

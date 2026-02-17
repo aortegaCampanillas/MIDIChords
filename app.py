@@ -74,6 +74,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             "midi_input": "",
             "audio_output": "",
             "sound_preset": "acoustic",
+            "guitar_sound_preset": "steel_clean",
             "show_keyboard_note_labels": False,
             "metronome_bpm": 120,
             "metronome_beats_per_bar": 4,
@@ -135,6 +136,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.audio_output_map: dict[str, int] = {}
         self.audio_engine = PianoAudioEngine()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
+        self.audio_engine.set_guitar_preset(str(self.config_data.get("guitar_sound_preset", "steel_clean")))
         self.current_mode = str(self.config_data.get("mode", "detection"))
         if self.current_mode not in {"detection", "generation", "scales", "metronome", "tuner"}:
             self.current_mode = "detection"
@@ -149,6 +151,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_tonic_pc = 0
         self.scale_pattern_name = SCALE_PATTERNS[0].name
         self.scale_preview_notes: list[int] = []
+        self.scale_guitar_start_note: Optional[int] = None
         self.scale_playing_notes: set[int] = set()
         self.scale_loop_active = False
         self.scale_loop_after_id: Optional[str] = None
@@ -182,6 +185,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.guitar_variation_buttons: list[tk.Button] = []
         self._last_guitar_chord_key: Optional[tuple[int, str]] = None
         self.guitar_current_root_pc: Optional[int] = None
+        self.scale_guitar_tonic_regions: list[tuple[int, float, float, float, float]] = []
         self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False
@@ -265,7 +269,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         loaded_handedness = str(self.config_data.get("guitar_handedness", "right"))
         self.guitar_handedness = "left" if loaded_handedness == "left" else "right"
         loaded_scale_play_mode = str(self.config_data.get("scale_play_mode", "piano"))
-        self.scale_play_mode = "metronome" if loaded_scale_play_mode == "metronome" else "piano"
+        if loaded_scale_play_mode in {"piano", "guitar", "metronome"}:
+            self.scale_play_mode = loaded_scale_play_mode
+        else:
+            self.scale_play_mode = "piano"
         self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
         self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()
@@ -957,6 +964,20 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.scale_mode_piano_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "piano"))
             self.scale_mode_piano_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "piano"))
 
+            self.scale_mode_guitar_btn = tk.Label(
+                self.scale_transport_icons,
+                image=self.guitar_image if self.guitar_image is not None else self.piano_image,
+                bg=panel_bg,
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=6,
+                pady=4,
+            )
+            self.scale_mode_guitar_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self.scale_mode_guitar_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "guitar"))
+            self.scale_mode_guitar_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "guitar"))
+
             self.scale_mode_metronome_btn = tk.Label(
                 self.scale_transport_icons,
                 image=self.metronome_image,
@@ -981,6 +1002,15 @@ class MidiChordAnalyzerApp(tk.Tk):
                 radius=19,
             )
             self.scale_mode_piano_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self.scale_mode_guitar_btn = GreenRoundedButton(
+                self.scale_transport_icons,
+                text="Guitarra",
+                command=lambda: self._set_scale_play_mode("guitar"),
+                width=130,
+                height=40,
+                radius=19,
+            )
+            self.scale_mode_guitar_btn.pack(side=tk.LEFT, padx=(0, 8))
             self.scale_mode_metronome_btn = GreenRoundedButton(
                 self.scale_transport_icons,
                 text="Metrónomo",
@@ -1085,6 +1115,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.keyboard_canvas.bind("<B1-Motion>", self._on_keyboard_drag)
         self.keyboard_canvas.bind("<ButtonRelease-1>", self._on_keyboard_release)
         self.guitar_canvas.bind("<Configure>", lambda _event: self.redraw_guitar_fretboard())
+        self.guitar_canvas.bind("<ButtonPress-1>", self._on_guitar_canvas_press)
         self.bind_all("<KeyPress-Shift_L>", self._on_shift_press)
         self.bind_all("<KeyPress-Shift_R>", self._on_shift_press)
         self.bind_all("<KeyRelease-Shift_L>", self._on_shift_release)
@@ -1134,6 +1165,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.guitar_left_btn.set_text(self.tr("handed_left"))
         if not self.scale_transport_buttons_are_images:
             self.scale_mode_piano_btn.set_text(self.tr("instrument_piano"))
+            self.scale_mode_guitar_btn.set_text(self.tr("instrument_guitar"))
             self.scale_mode_metronome_btn.set_text(self.tr("scale_play_metronome"))
         self.scale_bpm_value_label.configure(text=f"{int(self.config_data.get('metronome_bpm', 120))} {self.tr('scale_bpm_short')}")
         self.mode_var.set(self._mode_label(self.current_mode))
@@ -1782,10 +1814,15 @@ class MidiChordAnalyzerApp(tk.Tk):
                 self.tuner_spectrum_canvas.pack_forget()
 
     def _set_scale_play_mode(self, mode: str) -> None:
-        self.scale_play_mode = "metronome" if mode == "metronome" else "piano"
+        if mode in {"piano", "guitar", "metronome"}:
+            self.scale_play_mode = mode
+        else:
+            self.scale_play_mode = "piano"
         self.config_data["scale_play_mode"] = self.scale_play_mode
         self.save_config()
+        self._refresh_scale_preview()
         self._refresh_scale_transport_styles()
+        self._refresh_scale_instrument_view()
         if self.scale_loop_active and self.scale_play_mode == "metronome" and self.scale_current_note is not None:
             # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
             self.audio_engine.note_off(self.scale_current_note)
@@ -2296,6 +2333,47 @@ class MidiChordAnalyzerApp(tk.Tk):
                     padx=6,
                     pady=4,
                 )
+                self.scale_mode_guitar_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
+            elif self.scale_play_mode == "guitar":
+                self.scale_mode_piano_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
+                self.scale_mode_metronome_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
+                self.scale_mode_guitar_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=7,
+                    pady=5,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
             else:
                 self.scale_mode_piano_btn.configure(
                     bg=panel_bg,
@@ -2317,14 +2395,30 @@ class MidiChordAnalyzerApp(tk.Tk):
                     highlightcolor=selected_hl,
                     highlightthickness=1,
                 )
+                self.scale_mode_guitar_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
             return
         self.scale_mode_piano_btn.set_selected(self.scale_play_mode == "piano")
+        self.scale_mode_guitar_btn.set_selected(self.scale_play_mode == "guitar")
         self.scale_mode_metronome_btn.set_selected(self.scale_play_mode == "metronome")
 
     def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
         if not self.scale_transport_buttons_are_images:
             return
-        widget = self.scale_mode_piano_btn if mode == "piano" else self.scale_mode_metronome_btn
+        if mode == "piano":
+            widget = self.scale_mode_piano_btn
+        elif mode == "guitar":
+            widget = self.scale_mode_guitar_btn
+        else:
+            widget = self.scale_mode_metronome_btn
         if pressed:
             widget.configure(
                 bg="#b86b14",
@@ -2339,6 +2433,21 @@ class MidiChordAnalyzerApp(tk.Tk):
         else:
             widget.configure(padx=6, pady=4)
             self._refresh_scale_transport_styles()
+
+    def _refresh_scale_instrument_view(self) -> None:
+        if not self.scale_tab_active:
+            return
+        self.guitar_variations_frame.pack_forget()
+        self.guitar_right_btn.grid_remove()
+        self.guitar_left_btn.grid_remove()
+        if self.scale_play_mode == "guitar":
+            self.keyboard_canvas.pack_forget()
+            self.guitar_canvas.pack(fill=tk.BOTH, expand=False)
+            self.redraw_guitar_fretboard()
+        else:
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.redraw_keyboard()
 
     def _on_scale_transport_icon_press(self, _event: tk.Event, mode: str) -> None:
         self.scale_transport_pressed_mode = mode
@@ -2523,20 +2632,23 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         for idx in range(len(self.guitar_variations)):
             selected = idx == self.guitar_selected_variation_idx
-            btn = tk.Button(
+            btn = tk.Label(
                 self.guitar_variations_inner,
                 text=str(idx + 1),
-                command=lambda i=idx: self._select_guitar_variation(i),
-                width=3,
-                relief=tk.FLAT,
-                bd=0,
                 cursor="hand2",
+                font=("Helvetica", 10, "bold"),
+                width=3,
+                padx=2,
+                pady=2,
+                bd=2,
+                relief=tk.SUNKEN if selected else tk.FLAT,
                 bg="#ff9f1a" if selected else "#6a7283",
                 fg="#000000",
-                activebackground="#ffb347" if selected else "#7d879b",
-                activeforeground="#000000",
-                font=("Helvetica", 10, "bold"),
+                highlightthickness=1,
+                highlightbackground="#ffbf66" if selected else "#8a92a3",
+                highlightcolor="#ffbf66" if selected else "#8a92a3",
             )
+            btn.bind("<Button-1>", lambda _e, i=idx: self._select_guitar_variation(i))
             btn.pack(side=tk.LEFT, padx=(0 if idx == 0 else 4, 0), pady=4)
             self.guitar_variation_buttons.append(btn)
 
@@ -2549,9 +2661,23 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.redraw_keyboard()
         self.redraw_staff()
 
+    def _on_guitar_canvas_press(self, event: tk.Event) -> None:
+        if not (self.scale_tab_active and self.scale_play_mode == "guitar"):
+            return
+        x = float(event.x)
+        y = float(event.y)
+        for note, x1, y1, x2, y2 in self.scale_guitar_tonic_regions:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                self.scale_guitar_start_note = int(note)
+                self._refresh_scale_preview()
+                self.redraw_guitar_fretboard()
+                self.redraw_staff()
+                break
+
     def redraw_guitar_fretboard(self) -> None:
         canvas = self.guitar_canvas
         canvas.delete("all")
+        self.scale_guitar_tonic_regions = []
         w = max(720, canvas.winfo_width())
         h = max(180, canvas.winfo_height())
         canvas.create_rectangle(0, 0, w, h, fill="#ffffff", outline="")
@@ -2612,6 +2738,58 @@ class MidiChordAnalyzerApp(tk.Tk):
             canvas.create_line(strings_x1, y, strings_x2, y, fill="#bdbdbd", width=2)
             canvas.create_line(strings_x1, y + 1, strings_x2, y + 1, fill="#8a8a8a", width=1)
             canvas.create_text(strings_x1 - 22, y, text=name, fill="#111", font=("Helvetica", 10, "bold"))
+
+        if self.scale_tab_active and self.scale_play_mode == "guitar":
+            scale_pcs = {n % 12 for n in self.scale_preview_notes}
+            if not scale_pcs:
+                return
+            tonic_pc = self.scale_tonic_pc
+            current_note = self.scale_current_note if self.scale_loop_active else None
+            selected_start = self.scale_guitar_start_note
+            note_radius = max(7, min(12, int(string_gap * 0.30)))
+            for i, open_note in enumerate(tuning):
+                y = board_y1 + i * string_gap
+                for fret in range(0, frets):
+                    note = open_note + fret
+                    if (note % 12) not in scale_pcs:
+                        continue
+                    cx = fret_center_x(fret)
+                    is_tonic = (note % 12) == tonic_pc
+                    is_current = current_note is not None and note == current_note
+                    is_selected_start = selected_start is not None and note == selected_start and is_tonic
+                    if is_current:
+                        fill = "#2fa8ff"
+                        outline = "#0f5f99"
+                    elif is_selected_start:
+                        fill = "#ff9800"
+                        outline = "#8a4f10"
+                    elif is_tonic:
+                        fill = "#f6b60b"
+                        outline = "#b38b00"
+                    else:
+                        fill = "#ffffff"
+                        outline = "#2f3137"
+                    canvas.create_oval(
+                        cx - note_radius,
+                        y - note_radius,
+                        cx + note_radius,
+                        y + note_radius,
+                        fill=fill,
+                        outline=outline,
+                        width=1,
+                    )
+                    canvas.create_text(
+                        cx,
+                        y,
+                        text=self.note_name(note, with_octave=False),
+                        fill="#0f0f0f",
+                        font=("Helvetica", 8, "bold"),
+                    )
+                    if is_tonic:
+                        self.scale_guitar_tonic_regions.append(
+                            (note, cx - note_radius, y - note_radius, cx + note_radius, y + note_radius)
+                        )
+            return
 
         if frets_selected is None:
             return
@@ -3133,7 +3311,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_type_btn.set_text(localized_scale_name)
         self.scale_title_var.set(f"{tonic_name} {localized_scale_name}")
 
-        root_midi = 60 + self.scale_tonic_pc
+        default_root_midi = 60 + self.scale_tonic_pc
+        if self.scale_guitar_start_note is None or (self.scale_guitar_start_note % 12) != self.scale_tonic_pc:
+            self.scale_guitar_start_note = default_root_midi
+        root_midi = self.scale_guitar_start_note if self.scale_play_mode == "guitar" else default_root_midi
         self.scale_preview_notes = [root_midi + interval for interval in pattern.intervals]
         if self.scale_preview_notes:
             self.scale_notes_var.set(" - ".join(self.note_name(note) for note in self.scale_preview_notes))
@@ -3578,8 +3759,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.guitar_right_btn.grid_remove()
             self.guitar_left_btn.grid_remove()
             self.guitar_variations_frame.pack_forget()
-            self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self._refresh_scale_instrument_view()
             self._clear_live_input_state()
             self.tab_detection_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
@@ -3856,10 +4036,32 @@ class MidiChordAnalyzerApp(tk.Tk):
             return
         self._stop_generated_playback()
         for note in sorted(self.generated_preview_notes):
-            self.audio_engine.note_on(note, 108)
-            self.generated_playing_notes.add(note)
+            self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
         if self.generation_tab_active:
             self.redraw_staff()
+
+    def _preview_piano_sound(self, preset: str) -> None:
+        previous = str(self.audio_engine.preset)
+        self.audio_engine.set_preset(preset)
+        preview_note = 60
+        self.audio_engine.note_on(preview_note, 106)
+
+        def stop_preview() -> None:
+            self.audio_engine.note_off(preview_note)
+            self.audio_engine.set_preset(previous)
+
+        self.after(520, stop_preview)
+
+    def _preview_guitar_sound(self, preset: str) -> None:
+        previous = str(self.audio_engine.guitar_preset)
+        self.audio_engine.set_guitar_preset(preset)
+        for note in (52, 59, 64):
+            self.audio_engine.pluck_guitar_note(note, velocity=104, duration_seconds=1.3)
+
+        def restore_preview() -> None:
+            self.audio_engine.set_guitar_preset(previous)
+
+        self.after(220, restore_preview)
 
     def _play_scale(self) -> None:
         self._stop_scale_playback()
@@ -3889,6 +4091,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         idx = max(0, min(self.scale_loop_index, len(notes) - 1))
         note = notes[idx]
         play_piano = self.scale_play_mode == "piano"
+        play_guitar = self.scale_play_mode == "guitar"
 
         if self.scale_current_note is not None:
             if self.scale_current_note not in self.staff_pressed_scale_notes:
@@ -3898,6 +4101,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         if play_piano:
             self.audio_engine.note_on(note, 104)
             self.scale_playing_notes.add(note)
+        elif play_guitar:
+            self.audio_engine.pluck_guitar_note(note, velocity=104, duration_seconds=1.2)
         self._play_metronome_click(accent=(idx == 0 and self.scale_loop_direction > 0))
         if self.scale_tab_active:
             self.redraw_keyboard()
@@ -4248,6 +4453,7 @@ class MidiChordAnalyzerApp(tk.Tk):
     def connect_ports(self) -> None:
         self.disconnect_ports()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
+        self.audio_engine.set_guitar_preset(str(self.config_data.get("guitar_sound_preset", "steel_clean")))
 
         input_name = self.config_data.get("midi_input", "")
         audio_name = self.config_data.get("audio_output", "")
@@ -4509,7 +4715,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.redraw_staff()
 
     def redraw_keyboard(self) -> None:
-        if self.instrument_view == "guitar":
+        if self.scale_tab_active and self.scale_play_mode == "guitar":
+            self.redraw_guitar_fretboard()
+            return
+        if self.generation_tab_active and self.instrument_view == "guitar":
             self.redraw_guitar_fretboard()
             return
         canvas = self.keyboard_canvas
@@ -5138,28 +5347,69 @@ class MidiChordAnalyzerApp(tk.Tk):
         out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values, width=48)
         out_combo.grid(row=2, column=1, sticky="ew", pady=4)
 
-        sound_options = [
+        piano_sound_options = [
             ("acoustic", self.tr("sound_acoustic")),
             ("warm", self.tr("sound_warm")),
             ("bright", self.tr("sound_bright")),
             ("soft", self.tr("sound_soft")),
         ]
-        sound_id_to_label = {sid: label for sid, label in sound_options}
-        sound_label_to_id = {label: sid for sid, label in sound_options}
-        current_sound = str(self.config_data.get("sound_preset", "acoustic"))
-        if current_sound not in sound_id_to_label:
-            current_sound = "acoustic"
+        piano_sound_id_to_label = {sid: label for sid, label in piano_sound_options}
+        piano_sound_label_to_id = {label: sid for sid, label in piano_sound_options}
+        current_piano_sound = str(self.config_data.get("sound_preset", "acoustic"))
+        if current_piano_sound not in piano_sound_id_to_label:
+            current_piano_sound = "acoustic"
 
-        ttk.Label(frame, text=self.tr("settings_sound")).grid(row=3, column=0, sticky="w", pady=4)
-        sound_var = tk.StringVar(value=sound_id_to_label[current_sound])
-        sound_combo = ttk.Combobox(
-            frame,
-            textvariable=sound_var,
+        guitar_sound_options = [
+            ("steel_clean", self.tr("guitar_sound_steel_clean")),
+            ("steel_bright", self.tr("guitar_sound_steel_bright")),
+            ("nylon_warm", self.tr("guitar_sound_nylon_warm")),
+            ("muted_short", self.tr("guitar_sound_muted_short")),
+        ]
+        guitar_sound_id_to_label = {sid: label for sid, label in guitar_sound_options}
+        guitar_sound_label_to_id = {label: sid for sid, label in guitar_sound_options}
+        current_guitar_sound = str(self.config_data.get("guitar_sound_preset", "steel_clean"))
+        if current_guitar_sound not in guitar_sound_id_to_label:
+            current_guitar_sound = "steel_clean"
+
+        ttk.Label(frame, text=self.tr("settings_piano_sound")).grid(row=3, column=0, sticky="w", pady=4)
+        piano_sound_row = ttk.Frame(frame)
+        piano_sound_row.grid(row=3, column=1, sticky="ew", pady=4)
+        piano_sound_row.columnconfigure(0, weight=1)
+        piano_sound_var = tk.StringVar(value=piano_sound_id_to_label[current_piano_sound])
+        piano_sound_combo = ttk.Combobox(
+            piano_sound_row,
+            textvariable=piano_sound_var,
             state="readonly",
-            values=[label for _, label in sound_options],
-            width=48,
+            values=[label for _, label in piano_sound_options],
+            width=44,
         )
-        sound_combo.grid(row=3, column=1, sticky="ew", pady=4)
+        piano_sound_combo.grid(row=0, column=0, sticky="ew")
+        ttk.Button(
+            piano_sound_row,
+            text="🔊",
+            width=3,
+            command=lambda: self._preview_piano_sound(piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")),
+        ).grid(row=0, column=1, padx=(6, 0))
+
+        ttk.Label(frame, text=self.tr("settings_guitar_sound")).grid(row=4, column=0, sticky="w", pady=4)
+        guitar_sound_row = ttk.Frame(frame)
+        guitar_sound_row.grid(row=4, column=1, sticky="ew", pady=4)
+        guitar_sound_row.columnconfigure(0, weight=1)
+        guitar_sound_var = tk.StringVar(value=guitar_sound_id_to_label[current_guitar_sound])
+        guitar_sound_combo = ttk.Combobox(
+            guitar_sound_row,
+            textvariable=guitar_sound_var,
+            state="readonly",
+            values=[label for _, label in guitar_sound_options],
+            width=44,
+        )
+        guitar_sound_combo.grid(row=0, column=0, sticky="ew")
+        ttk.Button(
+            guitar_sound_row,
+            text="🔊",
+            width=3,
+            command=lambda: self._preview_guitar_sound(guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")),
+        ).grid(row=0, column=1, padx=(6, 0))
 
         def refresh_device_lists() -> None:
             prev_in = in_var.get()
@@ -5182,9 +5432,9 @@ class MidiChordAnalyzerApp(tk.Tk):
             text=self.tr("settings_show_key_labels"),
             variable=show_labels_var,
         )
-        show_labels_chk.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 4))
+        show_labels_chk.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
-        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=5, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=6, column=0, sticky="w", pady=4)
         handed_options = [("right", self.tr("handed_right")), ("left", self.tr("handed_left"))]
         handed_id_to_label = {hid: label for hid, label in handed_options}
         handed_label_to_id = {label: hid for hid, label in handed_options}
@@ -5199,16 +5449,19 @@ class MidiChordAnalyzerApp(tk.Tk):
             values=[label for _, label in handed_options],
             width=18,
         )
-        handed_combo.grid(row=5, column=1, sticky="w", pady=4)
+        handed_combo.grid(row=6, column=1, sticky="w", pady=4)
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
             self.config_data["midi_input"] = in_var.get().strip()
             self.config_data["audio_output"] = out_var.get().strip()
-            self.config_data["sound_preset"] = sound_label_to_id.get(sound_var.get(), "acoustic")
+            self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
+            self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
             self.config_data["guitar_handedness"] = handed_label_to_id.get(handed_var.get(), "right")
             self.guitar_handedness = "left" if self.config_data["guitar_handedness"] == "left" else "right"
+            self.audio_engine.set_preset(str(self.config_data["sound_preset"]))
+            self.audio_engine.set_guitar_preset(str(self.config_data["guitar_sound_preset"]))
             self.apply_ui_language()
             self.save_config()
             self.connect_ports()
@@ -5223,7 +5476,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             return "break"
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=6, column=0, columnspan=2, sticky="e")
+        buttons.grid(row=7, column=0, columnspan=2, sticky="e")
 
         ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)

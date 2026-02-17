@@ -25,7 +25,7 @@ class Voice:
 
 @dataclass
 class ClickVoice:
-    accent: bool
+    accent_level: int
     sample: Optional[np.ndarray] = None
     sample_pos: int = 0
     sample_gain: float = 1.0
@@ -43,6 +43,8 @@ class PianoAudioEngine:
         self.voices: dict[int, Voice] = {}
         self.click_voices: list[ClickVoice] = []
         self.metronome_sample: Optional[np.ndarray] = self._load_default_metronome_sample()
+        self.metronome_sample_accent: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample)
+        self.metronome_sample_bar: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample, ratio=1.34)
 
     def set_preset(self, preset: str) -> None:
         if preset not in {"acoustic", "warm", "bright", "soft"}:
@@ -120,21 +122,30 @@ class PianoAudioEngine:
                 voice.released = True
                 voice.release_samples = 0
 
-    def metronome_click(self, accent: bool = False) -> None:
+    def metronome_click(self, accent: bool = False, bar: bool = False) -> None:
         with self.lock:
+            level = 2 if bar else (1 if accent else 0)
             if self.metronome_sample is not None and len(self.metronome_sample) > 0:
-                gain = 1.0 if accent else 0.82
+                if level >= 2 and self.metronome_sample_bar is not None:
+                    sample = self.metronome_sample_bar
+                    gain = 1.02
+                elif level == 1 and self.metronome_sample_accent is not None:
+                    sample = self.metronome_sample_accent
+                    gain = 0.96
+                else:
+                    sample = self.metronome_sample
+                    gain = 0.82
                 self.click_voices.append(
                     ClickVoice(
-                        accent=accent,
-                        sample=self.metronome_sample,
+                        accent_level=level,
+                        sample=sample,
                         sample_pos=0,
                         sample_gain=gain,
                         age_samples=0,
                     )
                 )
             else:
-                self.click_voices.append(ClickVoice(accent=accent, age_samples=0))
+                self.click_voices.append(ClickVoice(accent_level=level, age_samples=0))
 
     def _load_default_metronome_sample(self) -> Optional[np.ndarray]:
         base = Path(__file__).resolve().parent
@@ -176,6 +187,20 @@ class PianoAudioEngine:
         if data.size > max_len:
             data = data[:max_len]
         return data
+
+    def _build_accent_sample(self, sample: Optional[np.ndarray], ratio: float = 1.22) -> Optional[np.ndarray]:
+        if sample is None or sample.size == 0:
+            return None
+        # Resample >1x to make accent slightly higher in pitch.
+        x_old = np.arange(sample.size, dtype=np.float64)
+        x_new = np.arange(0.0, sample.size - 1, ratio, dtype=np.float64)
+        if x_new.size < 4:
+            return sample.copy()
+        pitched = np.interp(x_new, x_old, sample).astype(np.float32)
+        peak = float(np.max(np.abs(pitched)))
+        if peak > 0.0001:
+            pitched = pitched / peak
+        return pitched
 
     def _audio_callback(self, outdata: np.ndarray, frames: int, _time, _status) -> None:
         signal = np.zeros(frames, dtype=np.float32)
@@ -298,7 +323,11 @@ class PianoAudioEngine:
                 else:
                     start_age = click.age_samples
                     age = (start_age + n) / self.sample_rate
-                    if click.accent:
+                    if click.accent_level >= 2:
+                        freq = 2550.0
+                        decay = 78.0
+                        gain = 0.34
+                    elif click.accent_level == 1:
                         freq = 2200.0
                         decay = 82.0
                         gain = 0.30

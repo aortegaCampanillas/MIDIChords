@@ -69,6 +69,12 @@ class MidiChordAnalyzerApp(tk.Tk):
             "sound_preset": "acoustic",
             "show_keyboard_note_labels": False,
             "metronome_bpm": 120,
+            "metronome_beats_per_bar": 4,
+            "metronome_clicks_per_beat": 1,
+            "metronome_timer_enabled": False,
+            "metronome_timer_minutes": 2,
+            "metronome_timer_seconds": 0,
+            "metronome_bar_accent_enabled": True,
             "scale_play_mode": "piano",
             "mode": "detection",
             "instrument_view": "piano",
@@ -116,10 +122,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.audio_engine = PianoAudioEngine()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        if self.current_mode not in {"detection", "generation", "scales"}:
+        if self.current_mode not in {"detection", "generation", "scales", "metronome"}:
             self.current_mode = "detection"
         self.generation_tab_active = False
         self.scale_tab_active = False
+        self.metronome_tab_active = False
         self.mode_var = tk.StringVar()
         self.generation_root_pc = 0
         self.generation_pattern_suffix = ""
@@ -135,6 +142,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_current_note: Optional[int] = None
         self.scale_space_pressed = False
         self.scale_space_release_after_id: Optional[str] = None
+        self.metronome_space_pressed = False
+        self.metronome_space_release_after_id: Optional[str] = None
         self.staff_hover_note: Optional[int] = None
         self.staff_pressed_scale_notes: set[int] = set()
         self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
@@ -161,6 +170,35 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.detect_hold_active = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
         self.guitar_chord_cache = load_guitar_chord_cache()
+        self.metronome_bpm = max(1, min(300, int(self.config_data.get("metronome_bpm", 120))))
+        self.metronome_beats_per_bar = max(1, min(16, int(self.config_data.get("metronome_beats_per_bar", 4))))
+        self.metronome_clicks_per_beat = max(1, min(16, int(self.config_data.get("metronome_clicks_per_beat", 1))))
+        self.metronome_timer_enabled = bool(self.config_data.get("metronome_timer_enabled", False))
+        self.metronome_timer_minutes = max(0, min(99, int(self.config_data.get("metronome_timer_minutes", 2))))
+        self.metronome_timer_seconds = max(0, min(59, int(self.config_data.get("metronome_timer_seconds", 0))))
+        self.metronome_bar_accent_enabled = bool(self.config_data.get("metronome_bar_accent_enabled", True))
+        self.metronome_click_figure_defs = [
+            {"key": "q", "clicks": 1, "glyph": "♩", "triplet": False},
+            {"key": "e", "clicks": 2, "glyph": "♪♪", "triplet": False},
+            {"key": "s", "clicks": 4, "glyph": "♬", "triplet": False},
+            {"key": "t3", "clicks": 3, "glyph": "♪♪♪", "triplet": True},
+            {"key": "t6", "clicks": 6, "glyph": "♬♬", "triplet": True},
+        ]
+        self.metronome_click_figure_key = next(
+            (str(f["key"]) for f in self.metronome_click_figure_defs if int(f["clicks"]) == self.metronome_clicks_per_beat),
+            "q",
+        )
+        self.metronome_figure_buttons: dict[str, tk.Canvas] = {}
+        self.metronome_running = False
+        self.metronome_after_id: Optional[str] = None
+        self.metronome_anim_after_id: Optional[str] = None
+        self.metronome_current_beat = 0
+        self.metronome_current_subclick = 0
+        self.metronome_tick_count = 0
+        self.metronome_direction = 1
+        self.metronome_motion_start_ts = time.monotonic()
+        self.metronome_timer_remaining = 0.0
+        self.metronome_timer_last_ts = time.monotonic()
 
         self._build_ui()
         loaded_instrument_view = str(self.config_data.get("instrument_view", "piano"))
@@ -274,6 +312,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.tab_detection_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
         self.tab_generation_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
         self.tab_scale_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
+        self.tab_metronome_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
         self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
 
         self.chord_title_label = ttk.Label(self.tab_detection_frame, text="", font=("Helvetica", 18, "bold"))
@@ -422,10 +461,171 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.tab_scale_frame.columnconfigure(0, weight=1)
 
+        self.metronome_title_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_title_row.grid(row=0, column=0, sticky="w", pady=(4, 10))
+        self.metronome_play_btn = ttk.Button(self.metronome_title_row, text="▶", width=3, command=self._toggle_metronome, takefocus=False)
+        self.metronome_play_btn.pack(side=tk.LEFT)
+        self.metronome_play_btn.bind("<space>", lambda _e: "break")
+
+        self.metronome_tempo_label = ttk.Label(self.tab_metronome_frame, text="", font=("Helvetica", 13, "bold"), anchor="center")
+        self.metronome_tempo_label.grid(row=1, column=0, sticky="ew", pady=(0, 2))
+
+        self.metronome_slider_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_slider_row.grid(row=2, column=0, sticky="ew", pady=(0, 2))
+        self.metronome_slider_row.columnconfigure(1, weight=1)
+        self.metronome_minus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.metronome_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_minus_btn, "−"))
+        self.metronome_minus_btn.bind("<Button-1>", self._on_metronome_bpm_minus)
+        self.metronome_slider_canvas = tk.Canvas(self.metronome_slider_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        self.metronome_slider_canvas.grid(row=0, column=1, sticky="ew")
+        self.metronome_slider_canvas.bind("<Configure>", lambda _e: self._draw_metronome_bpm_slider())
+        self.metronome_slider_canvas.bind("<Button-1>", self._on_metronome_slider_interact)
+        self.metronome_slider_canvas.bind("<B1-Motion>", self._on_metronome_slider_interact)
+        self.metronome_plus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.metronome_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_plus_btn, "+"))
+        self.metronome_plus_btn.bind("<Button-1>", self._on_metronome_bpm_plus)
+        self.metronome_bpm_var = tk.StringVar(value="")
+        self.metronome_bpm_label = tk.Label(
+            self.metronome_slider_row,
+            textvariable=self.metronome_bpm_var,
+            bg=self.cget("background"),
+            fg="#ff533d",
+            font=("Helvetica", 11, "bold"),
+            width=7,
+            anchor="center",
+        )
+        self.metronome_bpm_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+
+        self.metronome_info_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_info_row.grid(row=3, column=0, sticky="ew", pady=(2, 10))
+        self.metronome_info_row.columnconfigure(0, weight=1)
+        self.metronome_preset_var = tk.StringVar(value="")
+        self.metronome_preset_label = ttk.Label(
+            self.metronome_info_row,
+            textvariable=self.metronome_preset_var,
+            font=("Helvetica", 12, "bold"),
+            anchor="center",
+            justify="center",
+        )
+        self.metronome_preset_label.grid(row=0, column=0, sticky="ew")
+
+        self.metronome_meter_label = ttk.Label(self.tab_metronome_frame, text="", font=("Helvetica", 13, "bold"), anchor="center")
+        self.metronome_meter_label.grid(row=4, column=0, sticky="ew", pady=(2, 2))
+        self.metronome_meter_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_meter_row.grid(row=5, column=0, sticky="ew", pady=(0, 8))
+        self.metronome_meter_row.columnconfigure(1, weight=1)
+        self.metronome_meter_minus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_meter_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.metronome_meter_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_minus_btn, "−"))
+        self.metronome_meter_minus_btn.bind("<Button-1>", self._on_metronome_meter_minus)
+        self.metronome_meter_canvas = tk.Canvas(self.metronome_meter_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        self.metronome_meter_canvas.grid(row=0, column=1, sticky="ew")
+        self.metronome_meter_canvas.bind("<Configure>", lambda _e: self._draw_metronome_meter_slider())
+        self.metronome_meter_canvas.bind("<Button-1>", self._on_metronome_meter_slider_interact)
+        self.metronome_meter_canvas.bind("<B1-Motion>", self._on_metronome_meter_slider_interact)
+        self.metronome_meter_plus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_meter_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.metronome_meter_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_plus_btn, "+"))
+        self.metronome_meter_plus_btn.bind("<Button-1>", self._on_metronome_meter_plus)
+        self.metronome_meter_var = tk.StringVar(value="")
+        self.metronome_meter_value_label = tk.Label(
+            self.metronome_meter_row,
+            textvariable=self.metronome_meter_var,
+            bg=self.cget("background"),
+            fg="#ff533d",
+            font=("Helvetica", 11, "bold"),
+            width=7,
+            anchor="center",
+        )
+        self.metronome_meter_value_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+
+        self.metronome_clicks_label = ttk.Label(self.tab_metronome_frame, text="", font=("Helvetica", 13, "bold"), anchor="center")
+        self.metronome_clicks_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_clicks_row.grid(row=6, column=0, sticky="ew", pady=(0, 2))
+        for col, figure in enumerate(self.metronome_click_figure_defs):
+            btn = tk.Canvas(
+                self.metronome_clicks_row,
+                width=88,
+                height=64,
+                bg=self.cget("background"),
+                highlightthickness=0,
+                bd=0,
+                cursor="hand2",
+            )
+            btn.grid(row=0, column=col, padx=6, pady=2)
+            key = str(figure["key"])
+            btn.bind("<Button-1>", lambda _e, k=key: self._select_metronome_click_figure(k))
+            btn.bind("<Configure>", lambda _e, k=key: self._draw_metronome_figure_button(k))
+            self.metronome_figure_buttons[key] = btn
+
+        self.metronome_timer_row = ttk.Frame(self.tab_metronome_frame)
+        self.metronome_timer_row.grid(row=7, column=0, sticky="w", pady=(8, 2))
+        self.metronome_timer_enabled_var = tk.BooleanVar(value=self.metronome_timer_enabled)
+        self.metronome_timer_check = ttk.Checkbutton(
+            self.metronome_timer_row,
+            text="",
+            variable=self.metronome_timer_enabled_var,
+            command=self._on_metronome_timer_toggle,
+        )
+        self.metronome_timer_check.grid(row=0, column=0, sticky="w")
+        self.metronome_timer_label = ttk.Label(self.metronome_timer_row, text="", font=("Helvetica", 13, "bold"))
+        self.metronome_timer_label.grid(row=0, column=1, sticky="w", padx=(4, 10))
+
+        self.metronome_timer_minutes_label = ttk.Label(self.metronome_timer_row, text="", font=("Helvetica", 12, "bold"))
+        self.metronome_timer_minutes_label.grid(row=0, column=2, sticky="w")
+        self.metronome_timer_minutes_var = tk.StringVar(value=str(self.metronome_timer_minutes))
+        self.metronome_timer_minutes_spin = ttk.Spinbox(
+            self.metronome_timer_row,
+            from_=0,
+            to=99,
+            increment=1,
+            textvariable=self.metronome_timer_minutes_var,
+            width=4,
+            command=self._on_metronome_timer_fields_changed,
+        )
+        self.metronome_timer_minutes_spin.grid(row=0, column=3, sticky="w", padx=(4, 10))
+        self.metronome_timer_minutes_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
+        self.metronome_timer_minutes_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
+
+        self.metronome_timer_seconds_label = ttk.Label(self.metronome_timer_row, text="", font=("Helvetica", 12, "bold"))
+        self.metronome_timer_seconds_label.grid(row=0, column=4, sticky="w")
+        self.metronome_timer_seconds_var = tk.StringVar(value=str(self.metronome_timer_seconds))
+        self.metronome_timer_seconds_spin = ttk.Spinbox(
+            self.metronome_timer_row,
+            from_=0,
+            to=59,
+            increment=1,
+            textvariable=self.metronome_timer_seconds_var,
+            width=4,
+            command=self._on_metronome_timer_fields_changed,
+        )
+        self.metronome_timer_seconds_spin.grid(row=0, column=5, sticky="w", padx=(4, 0))
+        self.metronome_timer_seconds_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
+        self.metronome_timer_seconds_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
+
+        self.metronome_bar_accent_var = tk.BooleanVar(value=self.metronome_bar_accent_enabled)
+        self.metronome_bar_accent_check = ttk.Checkbutton(
+            self.tab_metronome_frame,
+            text="",
+            variable=self.metronome_bar_accent_var,
+            command=self._on_metronome_bar_accent_toggle,
+        )
+        self.metronome_bar_accent_check.grid(row=8, column=0, sticky="w", pady=(6, 0))
+        try:
+            self.metronome_bar_accent_check.configure(style="Metronome.TCheckbutton")
+            style = ttk.Style()
+            style.configure("Metronome.TCheckbutton", font=("Helvetica", 13, "bold"))
+        except Exception:
+            pass
+
+        self.tab_metronome_frame.columnconfigure(0, weight=1)
+
         self.status_var = tk.StringVar(value="")
 
-        separator = ttk.Separator(container, orient=tk.HORIZONTAL)
-        separator.pack(fill=tk.X, pady=(10, 10))
+        self.bottom_separator = ttk.Separator(container, orient=tk.HORIZONTAL)
+        self.bottom_separator.pack(fill=tk.X, pady=(10, 10))
 
         self.instrument_toolbar_height = 56
 
@@ -711,6 +911,13 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generated_intervals_caption_label.configure(text=self.tr("label_intervals"))
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
+        self.metronome_tempo_label.configure(text=self.tr("label_metronome_tempo"))
+        self.metronome_meter_label.configure(text=self.tr("label_metronome_meter"))
+        self.metronome_clicks_label.configure(text=self.tr("label_metronome_clicks"))
+        self.metronome_timer_label.configure(text=self.tr("label_metronome_timer"))
+        self.metronome_timer_minutes_label.configure(text=self.tr("label_metronome_minutes"))
+        self.metronome_timer_seconds_label.configure(text=self.tr("label_metronome_seconds"))
+        self.metronome_bar_accent_check.configure(text=self.tr("label_metronome_bar_accent"))
         self.config_icon_btn.configure(text="⚙")
         if not self.instrument_buttons_are_images:
             self.piano_view_btn.set_text(self.tr("instrument_piano"))
@@ -727,6 +934,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._refresh_scale_transport_styles()
         self._refresh_generation_controls()
         self._refresh_scale_preview()
+        self._refresh_metronome_ui()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
 
@@ -814,8 +1022,13 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _set_scale_bpm(self, bpm: int, save: bool = True) -> None:
         self.scale_bpm_value = max(self.scale_bpm_min, min(self.scale_bpm_max, int(bpm)))
         self.config_data["metronome_bpm"] = self.scale_bpm_value
+        self.metronome_bpm = self.scale_bpm_value
         self.scale_bpm_value_label.configure(text=f"{self.scale_bpm_value} {self.tr('scale_bpm_short')}")
         self._draw_scale_bpm_slider()
+        if hasattr(self, "metronome_bpm_var"):
+            self.metronome_bpm_var.set(f"{self.metronome_bpm} {self.tr('scale_bpm_short')}")
+        if hasattr(self, "metronome_slider_canvas"):
+            self._draw_metronome_bpm_slider()
         if save:
             self.save_config()
 
@@ -836,6 +1049,321 @@ class MidiChordAnalyzerApp(tk.Tk):
         bpm = int(round(self.scale_bpm_min + ratio * (self.scale_bpm_max - self.scale_bpm_min)))
         self._set_scale_bpm(bpm)
         return "break"
+
+    @staticmethod
+    def _metronome_preset_text(bpm: int, language: str) -> str:
+        # Rangos de tempo con nombres musicales tradicionales.
+        labels_es = [
+            (24, "Larguísimo"),
+            (45, "Grave"),
+            (60, "Largo"),
+            (76, "Lento"),
+            (108, "Andante"),
+            (120, "Moderato"),
+            (156, "Allegro"),
+            (176, "Vivace"),
+            (200, "Presto"),
+            (999, "Prestísimo"),
+        ]
+        labels_en = [
+            (24, "Larghissimo"),
+            (45, "Grave"),
+            (60, "Largo"),
+            (76, "Lento"),
+            (108, "Andante"),
+            (120, "Moderato"),
+            (156, "Allegro"),
+            (176, "Vivace"),
+            (200, "Presto"),
+            (999, "Prestissimo"),
+        ]
+        table = labels_es if language == "es" else labels_en
+        for limit, text in table:
+            if bpm <= limit:
+                return text
+        return table[-1][1]
+
+    def _refresh_metronome_ui(self) -> None:
+        bpm = max(1, min(300, int(self.metronome_bpm)))
+        self.metronome_bpm = bpm
+        self.metronome_bpm_var.set(f"{bpm} {self.tr('scale_bpm_short')}")
+        self.metronome_preset_var.set(self._metronome_preset_text(bpm, str(self.config_data.get("language", "es"))))
+        self.metronome_meter_var.set(str(self.metronome_beats_per_bar))
+        self.metronome_timer_enabled_var.set(self.metronome_timer_enabled)
+        self.metronome_timer_minutes_var.set(str(self.metronome_timer_minutes))
+        self.metronome_timer_seconds_var.set(str(self.metronome_timer_seconds))
+        self.metronome_bar_accent_var.set(self.metronome_bar_accent_enabled)
+        self.metronome_play_btn.configure(text="■" if self.metronome_running else "▶")
+        self._draw_metronome_bpm_slider()
+        self._draw_metronome_meter_slider()
+        self._refresh_metronome_figure_buttons()
+        timer_state = tk.NORMAL if self.metronome_timer_enabled else tk.DISABLED
+        self.metronome_timer_minutes_spin.configure(state=timer_state)
+        self.metronome_timer_seconds_spin.configure(state=timer_state)
+        self.redraw_staff()
+
+    def _on_metronome_timer_toggle(self) -> None:
+        self.metronome_timer_enabled = bool(self.metronome_timer_enabled_var.get())
+        self.config_data["metronome_timer_enabled"] = self.metronome_timer_enabled
+        self.save_config()
+        self._refresh_metronome_ui()
+
+    def _on_metronome_timer_fields_changed(self, _event: Optional[tk.Event] = None) -> None:
+        try:
+            minutes = int(float(self.metronome_timer_minutes_var.get()))
+        except (TypeError, ValueError):
+            minutes = self.metronome_timer_minutes
+        try:
+            seconds = int(float(self.metronome_timer_seconds_var.get()))
+        except (TypeError, ValueError):
+            seconds = self.metronome_timer_seconds
+        self.metronome_timer_minutes = max(0, min(99, minutes))
+        self.metronome_timer_seconds = max(0, min(59, seconds))
+        self.config_data["metronome_timer_minutes"] = self.metronome_timer_minutes
+        self.config_data["metronome_timer_seconds"] = self.metronome_timer_seconds
+        self.save_config()
+        self._refresh_metronome_ui()
+
+    def _on_metronome_bar_accent_toggle(self) -> None:
+        self.metronome_bar_accent_enabled = bool(self.metronome_bar_accent_var.get())
+        self.config_data["metronome_bar_accent_enabled"] = self.metronome_bar_accent_enabled
+        self.save_config()
+        self._refresh_metronome_ui()
+
+    @staticmethod
+    def _format_timer_mmss(total_seconds: float) -> str:
+        total = max(0, int(total_seconds))
+        mm = total // 60
+        ss = total % 60
+        return f"{mm:02d}:{ss:02d}"
+
+    def _draw_circle_step_button(self, canvas: tk.Canvas, symbol: str) -> None:
+        canvas.delete("all")
+        w = max(2, int(canvas.winfo_width()))
+        h = max(2, int(canvas.winfo_height()))
+        cx = w / 2
+        cy = h / 2
+        r = min(w, h) * 0.46
+        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline="#555d67", width=1.5, fill="#1f2127")
+        canvas.create_text(cx, cy, text=symbol, fill="#dfe3e9", font=("Helvetica", 16, "bold"))
+
+    def _draw_metronome_bpm_slider(self) -> None:
+        canvas = self.metronome_slider_canvas
+        canvas.delete("all")
+        w = max(120, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        ratio = (self.metronome_bpm - self.scale_bpm_min) / max(1, (self.scale_bpm_max - self.scale_bpm_min))
+        knob_x = x1 + ratio * (x2 - x1)
+        r = 10
+        canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
+
+    def _draw_metronome_meter_slider(self) -> None:
+        canvas = self.metronome_meter_canvas
+        canvas.delete("all")
+        w = max(120, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        ratio = (self.metronome_beats_per_bar - 1) / 15.0
+        knob_x = x1 + ratio * (x2 - x1)
+        r = 10
+        canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
+
+    def _closest_metronome_figure_key(self, clicks: int) -> str:
+        best = self.metronome_click_figure_defs[0]
+        best_diff = abs(int(best["clicks"]) - clicks)
+        for figure in self.metronome_click_figure_defs[1:]:
+            diff = abs(int(figure["clicks"]) - clicks)
+            if diff < best_diff:
+                best = figure
+                best_diff = diff
+        return str(best["key"])
+
+    def _draw_metronome_figure_button(self, key: str) -> None:
+        btn = self.metronome_figure_buttons.get(key)
+        if btn is None:
+            return
+        figure = next((f for f in self.metronome_click_figure_defs if str(f["key"]) == key), None)
+        if figure is None:
+            return
+        btn.delete("all")
+        w = max(30, int(btn.winfo_width()))
+        h = max(24, int(btn.winfo_height()))
+        selected = (self.metronome_click_figure_key == key)
+        fill = "#ff533d" if selected else "#8896a3"
+        outline = "#ff7b69" if selected else "#99a8b5"
+        text_color = "#ffffff"
+        btn.create_rectangle(4, 4, w - 4, h - 4, fill=fill, outline=outline, width=1.5)
+        if bool(figure.get("triplet", False)):
+            btn.create_text(w / 2, 16, text="3", fill=text_color, font=("Helvetica", 11, "bold"))
+            btn.create_text(w / 2, h / 2 + 8, text=str(figure["glyph"]), fill=text_color, font=("Helvetica", 16, "bold"))
+        else:
+            btn.create_text(w / 2, h / 2 + 2, text=str(figure["glyph"]), fill=text_color, font=("Helvetica", 18, "bold"))
+
+    def _refresh_metronome_figure_buttons(self) -> None:
+        for figure in self.metronome_click_figure_defs:
+            self._draw_metronome_figure_button(str(figure["key"]))
+
+    def _select_metronome_click_figure(self, key: str) -> None:
+        figure = next((f for f in self.metronome_click_figure_defs if str(f["key"]) == key), None)
+        if figure is None:
+            return
+        self.metronome_click_figure_key = key
+        self._set_metronome_clicks(int(figure["clicks"]))
+
+    def _set_metronome_bpm(self, bpm: int) -> None:
+        self.metronome_bpm = max(1, min(300, int(bpm)))
+        self.config_data["metronome_bpm"] = self.metronome_bpm
+        self.scale_bpm_value = self.metronome_bpm
+        self.save_config()
+        if hasattr(self, "scale_bpm_value_label"):
+            self.scale_bpm_value_label.configure(text=f"{self.scale_bpm_value} {self.tr('scale_bpm_short')}")
+        if hasattr(self, "scale_bpm_slider"):
+            self._draw_scale_bpm_slider()
+        self._refresh_metronome_ui()
+
+    def _on_metronome_bpm_minus(self, _event: tk.Event) -> str:
+        self._set_metronome_bpm(self.metronome_bpm - 1)
+        return "break"
+
+    def _on_metronome_bpm_plus(self, _event: tk.Event) -> str:
+        self._set_metronome_bpm(self.metronome_bpm + 1)
+        return "break"
+
+    def _on_metronome_slider_interact(self, event: tk.Event) -> str:
+        w = max(120, int(self.metronome_slider_canvas.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        bpm = int(round(self.scale_bpm_min + ratio * (self.scale_bpm_max - self.scale_bpm_min)))
+        self._set_metronome_bpm(bpm)
+        return "break"
+
+    def _set_metronome_meter(self, value: int) -> None:
+        self.metronome_beats_per_bar = max(1, min(16, int(value)))
+        self.config_data["metronome_beats_per_bar"] = self.metronome_beats_per_bar
+        self.save_config()
+        if self.metronome_current_beat >= self.metronome_beats_per_bar:
+            self.metronome_current_beat = 0
+        self._refresh_metronome_ui()
+
+    def _on_metronome_meter_minus(self, _event: tk.Event) -> str:
+        self._set_metronome_meter(self.metronome_beats_per_bar - 1)
+        return "break"
+
+    def _on_metronome_meter_plus(self, _event: tk.Event) -> str:
+        self._set_metronome_meter(self.metronome_beats_per_bar + 1)
+        return "break"
+
+    def _on_metronome_meter_slider_interact(self, event: tk.Event) -> str:
+        w = max(120, int(self.metronome_meter_canvas.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        value = 1 + int(round(ratio * 15.0))
+        self._set_metronome_meter(value)
+        return "break"
+
+    def _set_metronome_clicks(self, value: int) -> None:
+        self.metronome_clicks_per_beat = max(1, min(16, int(value)))
+        self.metronome_click_figure_key = self._closest_metronome_figure_key(self.metronome_clicks_per_beat)
+        self.config_data["metronome_clicks_per_beat"] = self.metronome_clicks_per_beat
+        self.save_config()
+        self._refresh_metronome_ui()
+
+    def _toggle_metronome(self) -> None:
+        if not self.metronome_tab_active:
+            return
+        if self.metronome_running:
+            self._stop_metronome()
+        else:
+            self._start_metronome()
+
+    def _start_metronome(self) -> None:
+        self._stop_metronome()
+        self.metronome_running = True
+        self.metronome_current_beat = 0
+        self.metronome_current_subclick = 0
+        self.metronome_tick_count = 0
+        self.metronome_direction = 1
+        now = time.monotonic()
+        self.metronome_motion_start_ts = now
+        self.metronome_timer_last_ts = now
+        if self.metronome_timer_enabled:
+            self.metronome_timer_remaining = max(0.0, float(self.metronome_timer_minutes * 60 + self.metronome_timer_seconds))
+        else:
+            self.metronome_timer_remaining = 0.0
+        self._metronome_tick()
+        self._metronome_anim_loop()
+        self._refresh_metronome_ui()
+
+    def _stop_metronome(self) -> None:
+        self.metronome_running = False
+        if self.metronome_after_id is not None:
+            try:
+                self.after_cancel(self.metronome_after_id)
+            except Exception:
+                pass
+            self.metronome_after_id = None
+        if self.metronome_anim_after_id is not None:
+            try:
+                self.after_cancel(self.metronome_anim_after_id)
+            except Exception:
+                pass
+            self.metronome_anim_after_id = None
+        self.metronome_current_subclick = 0
+        self.metronome_tick_count = 0
+        self.metronome_timer_last_ts = time.monotonic()
+        if self.metronome_timer_enabled:
+            self.metronome_timer_remaining = max(0.0, float(self.metronome_timer_minutes * 60 + self.metronome_timer_seconds))
+        self._refresh_metronome_ui()
+
+    def _metronome_step_ms(self) -> int:
+        pulse_ms = 60000.0 / max(1, self.metronome_bpm)
+        return max(10, int(round(pulse_ms / max(1, self.metronome_clicks_per_beat))))
+
+    def _metronome_tick(self) -> None:
+        if not self.metronome_running:
+            return
+        now = time.monotonic()
+        if self.metronome_current_subclick == 0:
+            if self.metronome_tick_count > 0:
+                self.metronome_current_beat = (self.metronome_current_beat + 1) % max(1, self.metronome_beats_per_bar)
+                self.metronome_direction *= -1
+            self.metronome_motion_start_ts = now
+
+        accent = self.metronome_current_subclick == 0
+        bar_accent = accent and (self.metronome_current_beat == 0) and self.metronome_bar_accent_enabled
+        self.audio_engine.metronome_click(accent=accent, bar=bar_accent)
+        self.redraw_staff()
+
+        self.metronome_current_subclick = (self.metronome_current_subclick + 1) % max(1, self.metronome_clicks_per_beat)
+        self.metronome_tick_count += 1
+        self.metronome_after_id = self.after(self._metronome_step_ms(), self._metronome_tick)
+
+    def _metronome_anim_loop(self) -> None:
+        if not self.metronome_running:
+            return
+        now = time.monotonic()
+        if self.metronome_timer_enabled:
+            elapsed = max(0.0, now - self.metronome_timer_last_ts)
+            self.metronome_timer_remaining = max(0.0, self.metronome_timer_remaining - elapsed)
+            if self.metronome_timer_remaining <= 0.0:
+                self.metronome_timer_last_ts = now
+                self._stop_metronome()
+                return
+        self.metronome_timer_last_ts = now
+        if self.metronome_tab_active:
+            self.redraw_staff()
+        self.metronome_anim_after_id = self.after(16, self._metronome_anim_loop)
 
     def _set_guitar_handedness(self, handedness: str) -> None:
         self.guitar_handedness = "left" if handedness == "left" else "right"
@@ -1918,6 +2446,18 @@ class MidiChordAnalyzerApp(tk.Tk):
         return None
 
     def _on_space_pressed(self, _event: tk.Event) -> Optional[str]:
+        if self.metronome_tab_active:
+            if self.metronome_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.metronome_space_release_after_id)
+                except Exception:
+                    pass
+                self.metronome_space_release_after_id = None
+            if self.metronome_space_pressed:
+                return "break"
+            self.metronome_space_pressed = True
+            self._toggle_metronome()
+            return "break"
         if self.scale_tab_active:
             if self.scale_space_release_after_id is not None:
                 try:
@@ -1943,6 +2483,15 @@ class MidiChordAnalyzerApp(tk.Tk):
         return None
 
     def _on_space_released(self, _event: tk.Event) -> Optional[str]:
+        if self.metronome_tab_active:
+            if self.metronome_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.metronome_space_release_after_id)
+                except Exception:
+                    pass
+                self.metronome_space_release_after_id = None
+            self.metronome_space_release_after_id = self.after(35, self._finalize_metronome_space_release)
+            return "break"
         if self.scale_tab_active:
             if self.scale_space_release_after_id is not None:
                 try:
@@ -1972,6 +2521,10 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_space_release_after_id = None
         self.scale_space_pressed = False
 
+    def _finalize_metronome_space_release(self) -> None:
+        self.metronome_space_release_after_id = None
+        self.metronome_space_pressed = False
+
     def _on_global_click_press(self, event: tk.Event) -> None:
         widget = event.widget
         if self.scale_tonic_overlay is not None and not self._is_widget_inside(self.scale_tonic_overlay, widget):
@@ -1999,6 +2552,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             return self.tr("mode_generation")
         if mode_key == "scales":
             return self.tr("mode_scales")
+        if mode_key == "metronome":
+            return self.tr("mode_metronome")
         return self.tr("mode_detection")
 
     def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
@@ -2033,6 +2588,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             ("detection", self._mode_label("detection"), "◎", "#ffa320"),
             ("generation", self._mode_label("generation"), "♬", "#39c8ff"),
             ("scales", self._mode_label("scales"), "♪", "#e4eb3f"),
+            ("metronome", self._mode_label("metronome"), "⏱", "#ff8f40"),
         ]
 
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
@@ -2090,6 +2646,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.current_mode = "generation"
         elif selected == self._mode_label("scales"):
             self.current_mode = "scales"
+        elif selected == self._mode_label("metronome"):
+            self.current_mode = "metronome"
         else:
             self.current_mode = "detection"
         self.config_data["mode"] = self.current_mode
@@ -2098,6 +2656,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.generation_tab_active = self.current_mode == "generation"
         self.scale_tab_active = self.current_mode == "scales"
+        self.metronome_tab_active = self.current_mode == "metronome"
         if self.generation_space_release_after_id is not None:
             try:
                 self.after_cancel(self.generation_space_release_after_id)
@@ -2110,11 +2669,20 @@ class MidiChordAnalyzerApp(tk.Tk):
             except Exception:
                 pass
             self.scale_space_release_after_id = None
+        if self.metronome_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.metronome_space_release_after_id)
+            except Exception:
+                pass
+            self.metronome_space_release_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
+        self._stop_metronome()
         self.scale_space_pressed = False
+        self.metronome_space_pressed = False
 
         if self.generation_tab_active:
+            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
             self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
             self.scale_transport_frame.pack_forget()
             self._set_instrument_view(self.instrument_view)
@@ -2123,9 +2691,11 @@ class MidiChordAnalyzerApp(tk.Tk):
             if detected_notes:
                 self._load_generation_from_detected_notes(detected_notes)
             self.tab_detection_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
+            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
             self._refresh_scale_transport_styles()
@@ -2136,10 +2706,26 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
             self._clear_live_input_state()
             self.tab_detection_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
+        elif self.metronome_tab_active:
+            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_right_btn.grid_remove()
+            self.guitar_left_btn.grid_remove()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
+            self._refresh_metronome_ui()
         else:
+            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
             self.guitar_right_btn.grid_remove()
@@ -2149,6 +2735,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
         self.update_music_views()
 
@@ -2377,7 +2964,7 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _play_metronome_click(self, accent: bool) -> None:
         if self.scale_play_mode != "metronome":
             return
-        self.audio_engine.metronome_click(accent=accent)
+        self.audio_engine.metronome_click(accent=accent, bar=False)
 
     def _play_next_scale_step(self) -> None:
         if not self.scale_loop_active or not self.scale_preview_notes:
@@ -2979,6 +3566,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.chord_var.set(self.generated_chord_var.get())
         elif self.scale_tab_active:
             self.chord_var.set(self.scale_title_var.get())
+        elif self.metronome_tab_active:
+            self.chord_var.set("-")
         else:
             self.chord_var.set(self.detect_chord(active_set))
         self.redraw_keyboard()
@@ -3152,10 +3741,96 @@ class MidiChordAnalyzerApp(tk.Tk):
                 octave = note // 12 - 1
                 canvas.create_text(x, h - 5, text=f"C{octave}", anchor="s", fill="#8f8f8f", font=("Helvetica", 9))
 
+    def _draw_metronome_panel(self, canvas: tk.Canvas) -> None:
+        w = max(300, canvas.winfo_width())
+        h = max(220, canvas.winfo_height())
+        canvas.create_rectangle(0, 0, w, h, fill="#000000", outline="")
+        beats = max(1, self.metronome_beats_per_bar)
+        left = 80.0
+        right = w - 80.0
+        if right <= left:
+            right = left + 1.0
+        y_top = max(54.0, h * 0.33)
+        y_bot = min(h - 56.0, y_top + 84.0)
+        if beats == 1:
+            xs = [(left + right) * 0.5]
+            spacing = (right - left)
+        else:
+            step = (right - left) / (beats - 1)
+            xs = [left + i * step for i in range(beats)]
+            spacing = step
+
+        # Eje de desplazamiento del punto rojo con divisiones por click.
+        axis_y = y_bot + 18.0
+        canvas.create_line(left, axis_y, right, axis_y, fill="#8f98a3", width=3)
+        clicks = max(1, self.metronome_clicks_per_beat)
+        # Divisiones del eje solo por clicks por pulso (independiente de pulsos por compas).
+        for k in range(clicks + 1):
+            x_tick = left + (right - left) * (k / clicks)
+            is_end = k in {0, clicks}
+            tick_h = 18 if is_end else 13
+            tick_w = 2.8 if is_end else 2.0
+            tick_color = "#9aa6b2" if is_end else "#747f8d"
+            canvas.create_line(x_tick, axis_y - tick_h / 2, x_tick, axis_y + tick_h / 2, fill=tick_color, width=tick_w)
+
+        current = self.metronome_current_beat % beats
+        # Radio adaptativo: mayor con pocos pulsos, menor con muchos (sin solape).
+        base_r = max(7.0, min(24.0, 30.0 - (beats * 0.75)))
+        max_r_by_spacing = max(6.0, (spacing * 0.42) - 2.0)
+        normal_r = min(base_r, max_r_by_spacing)
+        active_r = min(normal_r + 2.0, max_r_by_spacing + 1.5)
+        for idx, x in enumerate(xs):
+            active = self.metronome_running and idx == current
+            fill = "#ffd24a" if active else "#c8a832"
+            outline = "#f3da7a" if active else "#9f8427"
+            r = active_r if active else normal_r
+            canvas.create_oval(x - r, y_top - r, x + r, y_top + r, fill=fill, outline=outline, width=2)
+            canvas.create_text(
+                x,
+                y_top,
+                text=str(idx + 1),
+                fill="#1a1a1a",
+                font=("Helvetica", max(8, min(12, int(normal_r * 0.82))), "bold"),
+            )
+
+        red_x = xs[0]
+        if self.metronome_running:
+            pulse_seconds = 60.0 / max(1, self.metronome_bpm)
+            elapsed = max(0.0, time.monotonic() - self.metronome_motion_start_ts)
+            t = min(1.0, elapsed / max(0.001, pulse_seconds))
+            if self.metronome_direction > 0:
+                red_x = left + (right - left) * t
+            else:
+                red_x = right - (right - left) * t
+        red_r = 12
+        red_y = axis_y
+        canvas.create_oval(
+            red_x - red_r,
+            red_y - red_r,
+            red_x + red_r,
+            red_y + red_r,
+            fill="#ff4333",
+            outline="#ff8d81",
+            width=2,
+        )
+        if self.metronome_timer_enabled:
+            timer_text = self._format_timer_mmss(self.metronome_timer_remaining)
+            timer_y = axis_y + ((h - axis_y) * 0.5)
+            canvas.create_text(
+                w / 2,
+                timer_y,
+                text=timer_text,
+                fill="#ffb17a",
+                font=("Helvetica", 56, "bold"),
+            )
+
     def redraw_staff(self) -> None:
         canvas = self.staff_canvas
         canvas.delete("all")
         self.staff_scale_note_regions = []
+        if self.metronome_tab_active:
+            self._draw_metronome_panel(canvas)
+            return
         instrument_override = self.instrument_view == "guitar" and bool(self.guitar_selected_variation_notes)
         if instrument_override:
             display_notes_list = []
@@ -3543,8 +4218,15 @@ class MidiChordAnalyzerApp(tk.Tk):
             except Exception:
                 pass
             self.scale_space_release_after_id = None
+        if self.metronome_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.metronome_space_release_after_id)
+            except Exception:
+                pass
+            self.metronome_space_release_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
+        self._stop_metronome()
         self._stop_staff_scale_note_playback()
         self.disconnect_ports()
         self.destroy()

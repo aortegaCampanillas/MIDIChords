@@ -8,7 +8,10 @@
       "program": "${workspaceFolder}/app.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
+      "justMyCode": true,
+      "env": {
+        "MIDICHORDS_FORCE_MIDI_OPEN": "1"
+      }
     }
   ]
 }

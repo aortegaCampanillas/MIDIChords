@@ -1711,6 +1711,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._stop_scale_playback()
 
         if self.generation_tab_active:
+            self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
+            self._set_instrument_view(self.instrument_view)
             detected_notes = self._current_detection_notes()
             self._clear_live_input_state()
             if detected_notes:
@@ -1719,12 +1721,24 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_scale_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
+            self.instrument_switch_frame.pack_forget()
+            self.guitar_right_btn.grid_remove()
+            self.guitar_left_btn.grid_remove()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
             self._clear_live_input_state()
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
         else:
+            self.instrument_switch_frame.pack_forget()
+            self.guitar_right_btn.grid_remove()
+            self.guitar_left_btn.grid_remove()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
@@ -2996,6 +3010,23 @@ class MidiChordAnalyzerApp(tk.Tk):
         bpm_spin = ttk.Spinbox(frame, from_=30, to=240, increment=1, textvariable=bpm_var, width=8)
         bpm_spin.grid(row=6, column=1, sticky="w", pady=4)
 
+        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=7, column=0, sticky="w", pady=4)
+        handed_options = [("right", self.tr("handed_right")), ("left", self.tr("handed_left"))]
+        handed_id_to_label = {hid: label for hid, label in handed_options}
+        handed_label_to_id = {label: hid for hid, label in handed_options}
+        current_handed = str(self.config_data.get("guitar_handedness", "right"))
+        if current_handed not in handed_id_to_label:
+            current_handed = "right"
+        handed_var = tk.StringVar(value=handed_id_to_label[current_handed])
+        handed_combo = ttk.Combobox(
+            frame,
+            textvariable=handed_var,
+            state="readonly",
+            values=[label for _, label in handed_options],
+            width=18,
+        )
+        handed_combo.grid(row=7, column=1, sticky="w", pady=4)
+
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
             self.config_data["midi_input"] = in_var.get().strip()
@@ -3008,9 +3039,13 @@ class MidiChordAnalyzerApp(tk.Tk):
             except (TypeError, ValueError):
                 bpm_value = 120
             self.config_data["metronome_bpm"] = max(30, min(240, bpm_value))
+            self.config_data["guitar_handedness"] = handed_label_to_id.get(handed_var.get(), "right")
+            self.guitar_handedness = "left" if self.config_data["guitar_handedness"] == "left" else "right"
             self.apply_ui_language()
             self.save_config()
             self.connect_ports()
+            self._refresh_handedness_toggle_styles()
+            self.redraw_guitar_fretboard()
             self.update_music_views()
             self._close_settings_overlay()
             return "break"
@@ -3020,7 +3055,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             return "break"
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=7, column=0, columnspan=2, sticky="e")
+        buttons.grid(row=8, column=0, columnspan=2, sticky="e")
 
         ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)

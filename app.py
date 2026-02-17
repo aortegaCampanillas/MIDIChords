@@ -36,6 +36,11 @@ PIANO_IMAGE_CANDIDATES = [
     Path(__file__).resolve().parent / "assets" / "piano.gif",
     Path(__file__).resolve().parent / "assets" / "piano.ppm",
 ]
+METRONOME_IMAGE_CANDIDATES = [
+    Path(__file__).resolve().parent / "assets" / "metronome.png",
+    Path(__file__).resolve().parent / "assets" / "metronome.gif",
+    Path(__file__).resolve().parent / "assets" / "metronome.ppm",
+]
 GUITAR_IMAGE_CANDIDATES = [
     Path(__file__).resolve().parent / "assets" / "guitar.png",
     Path(__file__).resolve().parent / "assets" / "guitar.gif",
@@ -63,8 +68,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             "audio_output": "",
             "sound_preset": "acoustic",
             "show_keyboard_note_labels": False,
-            "metronome_enabled": False,
             "metronome_bpm": 120,
+            "scale_play_mode": "piano",
             "mode": "detection",
             "instrument_view": "piano",
             "guitar_handedness": "right",
@@ -74,10 +79,12 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.brace_image_cache: dict[tuple[int, int], tk.PhotoImage] = {}
         self.app_logo_image: Optional[tk.PhotoImage] = None
         self.piano_image: Optional[tk.PhotoImage] = None
+        self.metronome_image: Optional[tk.PhotoImage] = None
         self.guitar_image: Optional[tk.PhotoImage] = None
         self.right_hand_icon_image: Optional[tk.PhotoImage] = None
         self.left_hand_icon_image: Optional[tk.PhotoImage] = None
         self.instrument_buttons_are_images = False
+        self.scale_transport_buttons_are_images = False
         self.handedness_buttons_are_images = False
         self._load_brace_image()
         self._load_app_logo()
@@ -95,6 +102,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.generated_play_after_id: Optional[str] = None
         self.generation_play_button_pressed = False
         self.generation_play_space_pressed = False
+        self.generation_space_release_after_id: Optional[str] = None
         self.white_key_regions: list[tuple[int, float, float, float, float]] = []
         self.black_key_regions: list[tuple[int, float, float, float, float]] = []
         self.message_queue: queue.Queue = queue.Queue()
@@ -125,6 +133,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.scale_loop_index = 0
         self.scale_loop_direction = 1
         self.scale_current_note: Optional[int] = None
+        self.scale_space_pressed = False
+        self.scale_space_release_after_id: Optional[str] = None
         self.staff_hover_note: Optional[int] = None
         self.staff_pressed_scale_notes: set[int] = set()
         self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
@@ -134,6 +144,11 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.settings_overlay: Optional[tk.Frame] = None
         self.mode_selector_overlay: Optional[tk.Frame] = None
         self.instrument_view = "piano"
+        self.scale_play_mode = "piano"
+        self.scale_bpm_min = 1
+        self.scale_bpm_max = 300
+        self.scale_bpm_value = int(self.config_data.get("metronome_bpm", 120))
+        self.scale_transport_pressed_mode: Optional[str] = None
         self.guitar_handedness = "right"
         self.guitar_variations: list[dict] = []
         self.guitar_selected_variation_idx: Optional[int] = None
@@ -151,6 +166,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         loaded_instrument_view = str(self.config_data.get("instrument_view", "piano"))
         loaded_handedness = str(self.config_data.get("guitar_handedness", "right"))
         self.guitar_handedness = "left" if loaded_handedness == "left" else "right"
+        loaded_scale_play_mode = str(self.config_data.get("scale_play_mode", "piano"))
+        self.scale_play_mode = "metronome" if loaded_scale_play_mode == "metronome" else "piano"
         self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
         self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()
@@ -363,8 +380,9 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.scale_title_row = ttk.Frame(self.tab_scale_frame)
         self.scale_title_row.grid(row=0, column=0, sticky="w", pady=(4, 8))
-        self.scale_play_btn = ttk.Button(self.scale_title_row, text="▶", width=3, command=self._toggle_scale_play)
+        self.scale_play_btn = ttk.Button(self.scale_title_row, text="▶", width=3, command=self._toggle_scale_play, takefocus=False)
         self.scale_play_btn.pack(side=tk.LEFT)
+        self.scale_play_btn.bind("<space>", lambda _e: "break")
         self.scale_title_var = tk.StringVar(value="-")
         self.scale_title_label = ttk.Label(self.scale_title_row, textvariable=self.scale_title_var, font=("Helvetica", 28, "bold"))
         self.scale_title_label.pack(side=tk.LEFT, padx=(8, 0))
@@ -409,13 +427,18 @@ class MidiChordAnalyzerApp(tk.Tk):
         separator = ttk.Separator(container, orient=tk.HORIZONTAL)
         separator.pack(fill=tk.X, pady=(10, 10))
 
+        self.instrument_toolbar_height = 56
+
         self.instrument_switch_frame = tk.Frame(container, bg=self.cget("background"))
+        self.instrument_switch_frame.configure(height=self.instrument_toolbar_height)
+        self.instrument_switch_frame.pack_propagate(False)
         self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6))
+        self.instrument_switch_frame.rowconfigure(0, weight=1)
         self.instrument_switch_frame.columnconfigure(0, weight=1)
         self.instrument_switch_frame.columnconfigure(1, weight=0)
         self.instrument_switch_frame.columnconfigure(2, weight=1)
         self.instrument_switch_inner = tk.Frame(self.instrument_switch_frame, bg=self.cget("background"))
-        self.instrument_switch_inner.grid(row=0, column=1, sticky="n")
+        self.instrument_switch_inner.grid(row=0, column=1, sticky="")
 
         if self.piano_image is not None and self.guitar_image is not None:
             self.instrument_buttons_are_images = True
@@ -514,6 +537,118 @@ class MidiChordAnalyzerApp(tk.Tk):
             )
             self.guitar_left_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
 
+        self.scale_transport_frame = tk.Frame(container, bg=self.cget("background"))
+        self.scale_transport_frame.configure(height=self.instrument_toolbar_height)
+        self.scale_transport_frame.pack_propagate(False)
+        self.scale_transport_frame.pack(fill=tk.X, pady=(0, 6))
+        self.scale_transport_icons = tk.Frame(self.scale_transport_frame, bg=self.cget("background"))
+        self.scale_transport_icons.place(relx=0.5, rely=0.5, anchor="center")
+        self.scale_transport_bpm_frame = tk.Frame(self.scale_transport_frame, bg=self.cget("background"))
+        self.scale_transport_bpm_frame.place(relx=1.0, rely=0.5, anchor="e", x=-6)
+
+        if self.piano_image is not None and self.metronome_image is not None:
+            self.scale_transport_buttons_are_images = True
+            panel_bg = self.cget("background")
+            self.scale_mode_piano_btn = tk.Label(
+                self.scale_transport_icons,
+                image=self.piano_image,
+                bg=panel_bg,
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=6,
+                pady=4,
+            )
+            self.scale_mode_piano_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self.scale_mode_piano_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "piano"))
+            self.scale_mode_piano_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "piano"))
+
+            self.scale_mode_metronome_btn = tk.Label(
+                self.scale_transport_icons,
+                image=self.metronome_image,
+                bg=panel_bg,
+                bd=2,
+                relief=tk.FLAT,
+                cursor="hand2",
+                padx=6,
+                pady=4,
+            )
+            self.scale_mode_metronome_btn.pack(side=tk.LEFT, padx=(0, 6))
+            self.scale_mode_metronome_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "metronome"))
+            self.scale_mode_metronome_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "metronome"))
+        else:
+            self.scale_transport_buttons_are_images = False
+            self.scale_mode_piano_btn = GreenRoundedButton(
+                self.scale_transport_icons,
+                text="Piano",
+                command=lambda: self._set_scale_play_mode("piano"),
+                width=130,
+                height=40,
+                radius=19,
+            )
+            self.scale_mode_piano_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self.scale_mode_metronome_btn = GreenRoundedButton(
+                self.scale_transport_icons,
+                text="Metrónomo",
+                command=lambda: self._set_scale_play_mode("metronome"),
+                width=160,
+                height=40,
+                radius=19,
+            )
+            self.scale_mode_metronome_btn.pack(side=tk.LEFT, padx=(0, 6))
+        panel_bg = self.cget("background")
+        self.scale_bpm_minus_btn = tk.Canvas(
+            self.scale_transport_bpm_frame,
+            width=34,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+        )
+        self.scale_bpm_minus_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−")
+        self.scale_bpm_minus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−"))
+        self.scale_bpm_minus_btn.bind("<Button-1>", self._on_scale_bpm_minus)
+
+        self.scale_bpm_slider = tk.Canvas(
+            self.scale_transport_bpm_frame,
+            width=240,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
+        self.scale_bpm_slider.pack(side=tk.LEFT, padx=(0, 8))
+        self.scale_bpm_slider.bind("<Configure>", lambda _e: self._draw_scale_bpm_slider())
+        self.scale_bpm_slider.bind("<Button-1>", self._on_scale_bpm_slider_interact)
+        self.scale_bpm_slider.bind("<B1-Motion>", self._on_scale_bpm_slider_interact)
+
+        self.scale_bpm_plus_btn = tk.Canvas(
+            self.scale_transport_bpm_frame,
+            width=34,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+        )
+        self.scale_bpm_plus_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+")
+        self.scale_bpm_plus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+"))
+        self.scale_bpm_plus_btn.bind("<Button-1>", self._on_scale_bpm_plus)
+
+        self.scale_bpm_value_label = tk.Label(
+            self.scale_transport_bpm_frame,
+            text="120 BPM",
+            bg=panel_bg,
+            fg="#ff533d",
+            font=("Helvetica", 11, "bold"),
+            width=7,
+            anchor="e",
+        )
+        self.scale_bpm_value_label.pack(side=tk.LEFT)
+        self._set_scale_bpm(self.scale_bpm_value, save=False)
+
         self.instrument_canvas_holder = tk.Frame(container, bg=self.cget("background"))
         self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
 
@@ -583,8 +718,13 @@ class MidiChordAnalyzerApp(tk.Tk):
         if not self.handedness_buttons_are_images:
             self.guitar_right_btn.set_text(self.tr("handed_right"))
             self.guitar_left_btn.set_text(self.tr("handed_left"))
+        if not self.scale_transport_buttons_are_images:
+            self.scale_mode_piano_btn.set_text(self.tr("instrument_piano"))
+            self.scale_mode_metronome_btn.set_text(self.tr("scale_play_metronome"))
+        self.scale_bpm_value_label.configure(text=f"{int(self.config_data.get('metronome_bpm', 120))} {self.tr('scale_bpm_short')}")
         self.mode_var.set(self._mode_label(self.current_mode))
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
+        self._refresh_scale_transport_styles()
         self._refresh_generation_controls()
         self._refresh_scale_preview()
         if not self.active_notes:
@@ -637,6 +777,66 @@ class MidiChordAnalyzerApp(tk.Tk):
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()
 
+    def _set_scale_play_mode(self, mode: str) -> None:
+        self.scale_play_mode = "metronome" if mode == "metronome" else "piano"
+        self.config_data["scale_play_mode"] = self.scale_play_mode
+        self.save_config()
+        self._refresh_scale_transport_styles()
+        if self.scale_loop_active and self.scale_play_mode == "metronome" and self.scale_current_note is not None:
+            # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
+            self.audio_engine.note_off(self.scale_current_note)
+            self.scale_playing_notes.discard(self.scale_current_note)
+
+    def _draw_scale_bpm_step_button(self, canvas: tk.Canvas, symbol: str) -> None:
+        canvas.delete("all")
+        w = max(2, int(canvas.winfo_width()))
+        h = max(2, int(canvas.winfo_height()))
+        cx = w / 2
+        cy = h / 2
+        r = min(w, h) * 0.46
+        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline="#555d67", width=1.5, fill="#1f2127")
+        canvas.create_text(cx, cy, text=symbol, fill="#dfe3e9", font=("Helvetica", 16, "bold"))
+
+    def _draw_scale_bpm_slider(self) -> None:
+        canvas = self.scale_bpm_slider
+        canvas.delete("all")
+        w = max(120, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        ratio = (self.scale_bpm_value - self.scale_bpm_min) / max(1, (self.scale_bpm_max - self.scale_bpm_min))
+        knob_x = x1 + ratio * (x2 - x1)
+        r = 10
+        canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
+
+    def _set_scale_bpm(self, bpm: int, save: bool = True) -> None:
+        self.scale_bpm_value = max(self.scale_bpm_min, min(self.scale_bpm_max, int(bpm)))
+        self.config_data["metronome_bpm"] = self.scale_bpm_value
+        self.scale_bpm_value_label.configure(text=f"{self.scale_bpm_value} {self.tr('scale_bpm_short')}")
+        self._draw_scale_bpm_slider()
+        if save:
+            self.save_config()
+
+    def _on_scale_bpm_minus(self, _event: tk.Event) -> str:
+        self._set_scale_bpm(self.scale_bpm_value - 1)
+        return "break"
+
+    def _on_scale_bpm_plus(self, _event: tk.Event) -> str:
+        self._set_scale_bpm(self.scale_bpm_value + 1)
+        return "break"
+
+    def _on_scale_bpm_slider_interact(self, event: tk.Event) -> str:
+        w = max(120, int(self.scale_bpm_slider.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        bpm = int(round(self.scale_bpm_min + ratio * (self.scale_bpm_max - self.scale_bpm_min)))
+        self._set_scale_bpm(bpm)
+        return "break"
+
     def _set_guitar_handedness(self, handedness: str) -> None:
         self.guitar_handedness = "left" if handedness == "left" else "right"
         self.config_data["guitar_handedness"] = self.guitar_handedness
@@ -647,14 +847,50 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _refresh_instrument_toggle_styles(self) -> None:
         if self.instrument_buttons_are_images:
             panel_bg = self.cget("background")
-            selected_hl = "#21d686"
-            normal_hl = "#2d3138"
+            selected_hl = "#f39c12"
+            normal_hl = panel_bg
             if self.instrument_view == "piano":
-                self.piano_view_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
-                self.guitar_view_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+                self.piano_view_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=7,
+                    pady=5,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
+                self.guitar_view_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    padx=6,
+                    pady=4,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                )
             else:
-                self.piano_view_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
-                self.guitar_view_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+                self.piano_view_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    padx=6,
+                    pady=4,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                )
+                self.guitar_view_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=7,
+                    pady=5,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
             return
         self.piano_view_btn.set_selected(self.instrument_view == "piano")
         self.guitar_view_btn.set_selected(self.instrument_view == "guitar")
@@ -662,17 +898,132 @@ class MidiChordAnalyzerApp(tk.Tk):
     def _refresh_handedness_toggle_styles(self) -> None:
         if self.handedness_buttons_are_images:
             panel_bg = self.cget("background")
-            selected_hl = "#21d686"
-            normal_hl = "#2d3138"
+            selected_hl = "#f39c12"
+            normal_hl = panel_bg
             if self.guitar_handedness == "right":
-                self.guitar_right_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
-                self.guitar_left_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
+                self.guitar_right_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=9,
+                    pady=7,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
+                self.guitar_left_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    padx=8,
+                    pady=6,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                )
             else:
-                self.guitar_right_btn.configure(bg=panel_bg, highlightbackground=normal_hl, highlightthickness=1)
-                self.guitar_left_btn.configure(bg=panel_bg, highlightbackground=selected_hl, highlightthickness=2)
+                self.guitar_right_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    padx=8,
+                    pady=6,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                )
+                self.guitar_left_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=9,
+                    pady=7,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
             return
         self.guitar_right_btn.set_selected(self.guitar_handedness == "right")
         self.guitar_left_btn.set_selected(self.guitar_handedness == "left")
+
+    def _refresh_scale_transport_styles(self) -> None:
+        if self.scale_transport_buttons_are_images:
+            panel_bg = self.cget("background")
+            selected_hl = "#f39c12"
+            normal_hl = panel_bg
+            if self.scale_play_mode == "piano":
+                self.scale_mode_piano_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=7,
+                    pady=5,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
+                self.scale_mode_metronome_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
+            else:
+                self.scale_mode_piano_btn.configure(
+                    bg=panel_bg,
+                    relief=tk.FLAT,
+                    bd=2,
+                    highlightbackground=normal_hl,
+                    highlightcolor=normal_hl,
+                    highlightthickness=0,
+                    padx=6,
+                    pady=4,
+                )
+                self.scale_mode_metronome_btn.configure(
+                    bg="#8a4f10",
+                    relief=tk.SUNKEN,
+                    bd=3,
+                    padx=7,
+                    pady=5,
+                    highlightbackground=selected_hl,
+                    highlightcolor=selected_hl,
+                    highlightthickness=1,
+                )
+            return
+        self.scale_mode_piano_btn.set_selected(self.scale_play_mode == "piano")
+        self.scale_mode_metronome_btn.set_selected(self.scale_play_mode == "metronome")
+
+    def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
+        if not self.scale_transport_buttons_are_images:
+            return
+        widget = self.scale_mode_piano_btn if mode == "piano" else self.scale_mode_metronome_btn
+        if pressed:
+            widget.configure(
+                bg="#b86b14",
+                relief=tk.SUNKEN,
+                bd=4,
+                padx=7,
+                pady=5,
+                highlightbackground="#f39c12",
+                highlightcolor="#f39c12",
+                highlightthickness=1,
+            )
+        else:
+            widget.configure(padx=6, pady=4)
+            self._refresh_scale_transport_styles()
+
+    def _on_scale_transport_icon_press(self, _event: tk.Event, mode: str) -> None:
+        self.scale_transport_pressed_mode = mode
+        self._set_scale_transport_icon_pressed(mode, True)
+
+    def _on_scale_transport_icon_release(self, _event: tk.Event, mode: str) -> None:
+        self._set_scale_transport_icon_pressed(mode, False)
+        self.scale_transport_pressed_mode = None
+        self._set_scale_play_mode(mode)
 
     def _compute_guitar_variations(self, root_pc: int, pattern: ChordPattern) -> list[dict]:
         cached = get_cached_variations(self.guitar_chord_cache, root_pc, pattern.suffix)
@@ -1568,18 +1919,58 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def _on_space_pressed(self, _event: tk.Event) -> Optional[str]:
         if self.scale_tab_active:
+            if self.scale_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.scale_space_release_after_id)
+                except Exception:
+                    pass
+                self.scale_space_release_after_id = None
+            if self.scale_space_pressed:
+                return "break"
+            self.scale_space_pressed = True
             self._toggle_scale_play()
             return "break"
-        if self.generation_tab_active and not self.generation_play_space_pressed:
-            self._start_generated_hold(source="space")
+        if self.generation_tab_active:
+            if self.generation_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.generation_space_release_after_id)
+                except Exception:
+                    pass
+                self.generation_space_release_after_id = None
+            if not self.generation_play_space_pressed:
+                self._start_generated_hold(source="space")
             return "break"
         return None
 
     def _on_space_released(self, _event: tk.Event) -> Optional[str]:
+        if self.scale_tab_active:
+            if self.scale_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.scale_space_release_after_id)
+                except Exception:
+                    pass
+                self.scale_space_release_after_id = None
+            self.scale_space_release_after_id = self.after(35, self._finalize_scale_space_release)
+            return "break"
         if self.generation_tab_active and self.generation_play_space_pressed:
-            self._stop_generated_hold(source="space")
+            if self.generation_space_release_after_id is not None:
+                try:
+                    self.after_cancel(self.generation_space_release_after_id)
+                except Exception:
+                    pass
+                self.generation_space_release_after_id = None
+            self.generation_space_release_after_id = self.after(35, self._finalize_generation_space_release)
             return "break"
         return None
+
+    def _finalize_generation_space_release(self) -> None:
+        self.generation_space_release_after_id = None
+        if self.generation_tab_active and self.generation_play_space_pressed:
+            self._stop_generated_hold(source="space")
+
+    def _finalize_scale_space_release(self) -> None:
+        self.scale_space_release_after_id = None
+        self.scale_space_pressed = False
 
     def _on_global_click_press(self, event: tk.Event) -> None:
         widget = event.widget
@@ -1707,11 +2098,25 @@ class MidiChordAnalyzerApp(tk.Tk):
 
         self.generation_tab_active = self.current_mode == "generation"
         self.scale_tab_active = self.current_mode == "scales"
+        if self.generation_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.generation_space_release_after_id)
+            except Exception:
+                pass
+            self.generation_space_release_after_id = None
+        if self.scale_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.scale_space_release_after_id)
+            except Exception:
+                pass
+            self.scale_space_release_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
+        self.scale_space_pressed = False
 
         if self.generation_tab_active:
             self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
+            self.scale_transport_frame.pack_forget()
             self._set_instrument_view(self.instrument_view)
             detected_notes = self._current_detection_notes()
             self._clear_live_input_state()
@@ -1722,6 +2127,8 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
             self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
+            self._refresh_scale_transport_styles()
             self.guitar_right_btn.grid_remove()
             self.guitar_left_btn.grid_remove()
             self.guitar_variations_frame.pack_forget()
@@ -1734,6 +2141,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             self._refresh_scale_preview()
         else:
             self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
             self.guitar_right_btn.grid_remove()
             self.guitar_left_btn.grid_remove()
             self.guitar_variations_frame.pack_forget()
@@ -1849,6 +2257,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         for note in list(self.generated_playing_notes):
             self.audio_engine.note_off(note)
         self.generated_playing_notes.clear()
+        if self.generation_tab_active:
+            self.redraw_staff()
 
     def _stop_scale_playback(self) -> None:
         self.scale_loop_active = False
@@ -1946,6 +2356,8 @@ class MidiChordAnalyzerApp(tk.Tk):
         for note in sorted(self.generated_preview_notes):
             self.audio_engine.note_on(note, 108)
             self.generated_playing_notes.add(note)
+        if self.generation_tab_active:
+            self.redraw_staff()
 
     def _play_scale(self) -> None:
         self._stop_scale_playback()
@@ -1959,11 +2371,11 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def _scale_step_ms(self) -> int:
         bpm = int(self.config_data.get("metronome_bpm", 120))
-        bpm = max(30, min(240, bpm))
+        bpm = max(1, min(300, bpm))
         return int(60000 / bpm)
 
     def _play_metronome_click(self, accent: bool) -> None:
-        if not bool(self.config_data.get("metronome_enabled", False)):
+        if self.scale_play_mode != "metronome":
             return
         self.audio_engine.metronome_click(accent=accent)
 
@@ -1974,14 +2386,16 @@ class MidiChordAnalyzerApp(tk.Tk):
         notes = self.scale_preview_notes
         idx = max(0, min(self.scale_loop_index, len(notes) - 1))
         note = notes[idx]
+        play_piano = self.scale_play_mode == "piano"
 
         if self.scale_current_note is not None:
             if self.scale_current_note not in self.staff_pressed_scale_notes:
                 self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
-        self.audio_engine.note_on(note, 104)
-        self.scale_playing_notes.add(note)
         self.scale_current_note = note
+        if play_piano:
+            self.audio_engine.note_on(note, 104)
+            self.scale_playing_notes.add(note)
         self._play_metronome_click(accent=(idx == 0 and self.scale_loop_direction > 0))
         if self.scale_tab_active:
             self.redraw_keyboard()
@@ -2026,12 +2440,17 @@ class MidiChordAnalyzerApp(tk.Tk):
         return "break"
 
     def _toggle_scale_play(self) -> None:
+        if not self.scale_tab_active:
+            return
         if self.scale_loop_active:
             self._stop_scale_playback()
         else:
             self._play_scale()
 
     def _on_global_mouse_release(self, _event: tk.Event) -> None:
+        if self.scale_transport_buttons_are_images and self.scale_transport_pressed_mode is not None:
+            self._set_scale_transport_icon_pressed(self.scale_transport_pressed_mode, False)
+            self.scale_transport_pressed_mode = None
         if self.generation_play_button_pressed:
             self._stop_generated_hold(source="button")
 
@@ -2084,6 +2503,7 @@ class MidiChordAnalyzerApp(tk.Tk):
 
     def _load_instrument_icons(self) -> None:
         self.piano_image = None
+        self.metronome_image = None
         self.guitar_image = None
         self.right_hand_icon_image = None
         self.left_hand_icon_image = None
@@ -2094,6 +2514,18 @@ class MidiChordAnalyzerApp(tk.Tk):
             try:
                 img = tk.PhotoImage(file=str(path))
                 self.piano_image = self._fit_photo_image(img, max_w=86, max_h=34)
+                break
+            except Exception:
+                continue
+
+        for path in METRONOME_IMAGE_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                img = tk.PhotoImage(file=str(path))
+                fitted = self._fit_photo_image(img, max_w=86, max_h=34)
+                self._prepare_icon_for_dark_ui(fitted, bg=(43, 47, 55), fg=(246, 246, 246))
+                self.metronome_image = fitted
                 break
             except Exception:
                 continue
@@ -2212,6 +2644,33 @@ class MidiChordAnalyzerApp(tk.Tk):
                         break
                 if has_light_neighbor:
                     image.put(target_hex, (x, y))
+
+    @staticmethod
+    def _prepare_icon_for_dark_ui(
+        image: tk.PhotoImage,
+        bg: tuple[int, int, int] = (43, 47, 55),
+        fg: tuple[int, int, int] = (246, 246, 246),
+        light_threshold: int = 232,
+    ) -> None:
+        bg_hex = f"#{bg[0]:02x}{bg[1]:02x}{bg[2]:02x}"
+        fg_hex = f"#{fg[0]:02x}{fg[1]:02x}{fg[2]:02x}"
+        w = image.width()
+        h = image.height()
+        for y in range(h):
+            for x in range(w):
+                rgb = image.get(x, y)
+                if isinstance(rgb, tuple) and len(rgb) >= 3:
+                    r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
+                elif isinstance(rgb, str) and rgb.startswith("#") and len(rgb) == 7:
+                    r = int(rgb[1:3], 16)
+                    g = int(rgb[3:5], 16)
+                    b = int(rgb[5:7], 16)
+                else:
+                    continue
+                if r >= light_threshold and g >= light_threshold and b >= light_threshold:
+                    image.put(bg_hex, (x, y))
+                else:
+                    image.put(fg_hex, (x, y))
 
     def _get_brace_image_for_height(self, target_height: int) -> Optional[tk.PhotoImage]:
         if self.brace_base_image is None or target_height <= 0:
@@ -2583,6 +3042,9 @@ class MidiChordAnalyzerApp(tk.Tk):
             elif note in display_active_notes:
                 top_fill = "#4da3ea"
                 base_fill = "#4da3ea"
+            elif self.scale_tab_active and (note % 12) in scale_pc_set:
+                top_fill = "#eefaff"
+                base_fill = "#d8f1ff"
             else:
                 top_fill = "#f9f9f5"
                 base_fill = "#ecebe7"
@@ -2645,6 +3107,10 @@ class MidiChordAnalyzerApp(tk.Tk):
                 top = "#0078d7"
                 mid = "#0078d7"
                 low = "#0078d7"
+            elif self.scale_tab_active and (note % 12) in scale_pc_set:
+                top = "#6d97ab"
+                mid = "#4b6977"
+                low = "#304851"
             else:
                 top = "#3a3a3a"
                 mid = "#161616"
@@ -2861,6 +3327,9 @@ class MidiChordAnalyzerApp(tk.Tk):
                     else:
                         note_fill = "#000000"
                         note_outline = "#ffffff"
+                elif self.generation_tab_active and note in self.generated_playing_notes:
+                    note_fill = "#2faeff"
+                    note_outline = "#ffffff"
                 else:
                     note_fill = "#000000"
                     note_outline = "#ffffff"
@@ -2879,13 +3348,19 @@ class MidiChordAnalyzerApp(tk.Tk):
                     label_text = self.note_name(note, with_octave=False)
                     label_y = label_y_base
                     is_label_hl = (self.staff_hover_note == note) or (note in self.staff_pressed_scale_notes)
-                    label_fill = "#7ed1ff" if is_label_hl else "#d4d8df"
+                    is_current_label = self.scale_loop_active and self.scale_current_note == note
+                    if is_current_label:
+                        label_fill = "#6fe0ff"
+                    elif is_label_hl:
+                        label_fill = "#7ed1ff"
+                    else:
+                        label_fill = "#d4d8df"
                     canvas.create_text(
                         x,
                         label_y,
                         text=label_text,
                         fill=label_fill,
-                        font=("Helvetica", 11, "bold" if is_label_hl else "normal"),
+                        font=("Helvetica", 11, "bold" if (is_label_hl or is_current_label) else "normal"),
                     )
                     label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
                     self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w))
@@ -2997,20 +3472,7 @@ class MidiChordAnalyzerApp(tk.Tk):
         )
         show_labels_chk.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
-        metronome_enabled_var = tk.BooleanVar(value=bool(self.config_data.get("metronome_enabled", False)))
-        metronome_chk = ttk.Checkbutton(
-            frame,
-            text=self.tr("settings_metronome"),
-            variable=metronome_enabled_var,
-        )
-        metronome_chk.grid(row=5, column=0, columnspan=2, sticky="w", pady=(2, 4))
-
-        ttk.Label(frame, text=self.tr("settings_metronome_bpm")).grid(row=6, column=0, sticky="w", pady=4)
-        bpm_var = tk.StringVar(value=str(int(self.config_data.get("metronome_bpm", 120))))
-        bpm_spin = ttk.Spinbox(frame, from_=30, to=240, increment=1, textvariable=bpm_var, width=8)
-        bpm_spin.grid(row=6, column=1, sticky="w", pady=4)
-
-        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=7, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=5, column=0, sticky="w", pady=4)
         handed_options = [("right", self.tr("handed_right")), ("left", self.tr("handed_left"))]
         handed_id_to_label = {hid: label for hid, label in handed_options}
         handed_label_to_id = {label: hid for hid, label in handed_options}
@@ -3025,7 +3487,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             values=[label for _, label in handed_options],
             width=18,
         )
-        handed_combo.grid(row=7, column=1, sticky="w", pady=4)
+        handed_combo.grid(row=5, column=1, sticky="w", pady=4)
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
@@ -3033,12 +3495,6 @@ class MidiChordAnalyzerApp(tk.Tk):
             self.config_data["audio_output"] = out_var.get().strip()
             self.config_data["sound_preset"] = sound_label_to_id.get(sound_var.get(), "acoustic")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
-            self.config_data["metronome_enabled"] = bool(metronome_enabled_var.get())
-            try:
-                bpm_value = int(float(bpm_var.get()))
-            except (TypeError, ValueError):
-                bpm_value = 120
-            self.config_data["metronome_bpm"] = max(30, min(240, bpm_value))
             self.config_data["guitar_handedness"] = handed_label_to_id.get(handed_var.get(), "right")
             self.guitar_handedness = "left" if self.config_data["guitar_handedness"] == "left" else "right"
             self.apply_ui_language()
@@ -3055,7 +3511,7 @@ class MidiChordAnalyzerApp(tk.Tk):
             return "break"
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=8, column=0, columnspan=2, sticky="e")
+        buttons.grid(row=6, column=0, columnspan=2, sticky="e")
 
         ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)
@@ -3075,6 +3531,18 @@ class MidiChordAnalyzerApp(tk.Tk):
         self._settings_save_callback = None
 
     def on_close(self) -> None:
+        if self.generation_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.generation_space_release_after_id)
+            except Exception:
+                pass
+            self.generation_space_release_after_id = None
+        if self.scale_space_release_after_id is not None:
+            try:
+                self.after_cancel(self.scale_space_release_after_id)
+            except Exception:
+                pass
+            self.scale_space_release_after_id = None
         self._stop_generated_playback()
         self._stop_scale_playback()
         self._stop_staff_scale_note_playback()

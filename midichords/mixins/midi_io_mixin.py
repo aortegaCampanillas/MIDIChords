@@ -6,6 +6,7 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Optional
 
 import mido
 import sounddevice as sd
@@ -14,7 +15,18 @@ from midichords.core.app_constants import DISABLE_RTMIDI_SCAN_ENV, FORCE_MIDI_OP
 
 
 class MidiIOMixin:
+    def _is_frozen_app(self) -> bool:
+        return bool(getattr(sys, "frozen", False))
+
     def _scan_midi_inputs_isolated(self) -> tuple[list[str], Optional[str]]:
+        # In frozen bundles (PyInstaller), sys.executable points to the app binary.
+        # Spawning it with "-c" can relaunch GUI windows recursively.
+        if self._is_frozen_app():
+            try:
+                return [str(x) for x in mido.get_input_names()], None
+            except Exception as exc:
+                return [], str(exc)
+
         probe_code = (
             "import json, mido; "
             "print(json.dumps(mido.get_input_names(), ensure_ascii=False))"
@@ -163,6 +175,18 @@ class MidiIOMixin:
         self.message_queue.put(message)
     def _start_midi_bridge(self, input_name: str) -> bool:
         self._stop_midi_bridge()
+
+        # In packaged apps, avoid subprocess bridge to prevent recursive app launches.
+        if self._is_frozen_app():
+            try:
+                self.input_port = mido.open_input(input_name, callback=self._on_midi_message)
+                self.midi_bridge_proc = None
+                self.midi_bridge_thread = None
+                return True
+            except Exception:
+                self.input_port = None
+                return False
+
         bridge_code = """
 import json
 import sys

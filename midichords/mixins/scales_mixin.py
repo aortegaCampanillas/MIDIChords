@@ -90,16 +90,26 @@ class ScalesMixin:
         return names
 
     def _set_scale_play_mode(self, mode: str) -> None:
-        if mode in {"piano", "guitar", "metronome"}:
+        previous_metronome_only = self.scale_metronome_only
+        if mode == "metronome":
+            self.scale_metronome_only = not self.scale_metronome_only
+        elif mode in {"piano", "guitar"}:
             self.scale_play_mode = mode
         else:
             self.scale_play_mode = "piano"
         self.config_data["scale_play_mode"] = self.scale_play_mode
+        self.config_data["scale_instrument_mode"] = self.scale_play_mode
+        self.config_data["scale_metronome_only"] = self.scale_metronome_only
         self.save_config()
         self._refresh_scale_preview()
         self._refresh_scale_transport_styles()
         self._refresh_scale_instrument_view()
-        if self.scale_loop_active and self.scale_play_mode == "metronome" and self.scale_current_note is not None:
+        if (
+            self.scale_loop_active
+            and (not previous_metronome_only)
+            and self.scale_metronome_only
+            and self.scale_current_note is not None
+        ):
             # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
             self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
@@ -108,103 +118,37 @@ class ScalesMixin:
             panel_bg = self.cget("background")
             selected_hl = "#f3bf2f"
             normal_hl = panel_bg
-            if self.scale_play_mode == "piano":
-                self.scale_mode_piano_btn.configure(
-                    bg="#343a44",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=7,
-                    pady=5,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-                self.scale_mode_metronome_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
-                self.scale_mode_guitar_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
-            elif self.scale_play_mode == "guitar":
-                self.scale_mode_piano_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
-                self.scale_mode_metronome_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
-                self.scale_mode_guitar_btn.configure(
-                    bg="#343a44",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=7,
-                    pady=5,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-            else:
-                self.scale_mode_piano_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
-                self.scale_mode_metronome_btn.configure(
-                    bg="#343a44",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=7,
-                    pady=5,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-                self.scale_mode_guitar_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                    padx=6,
-                    pady=4,
-                )
+            def style_button(widget: tk.Widget, selected: bool) -> None:
+                if selected:
+                    widget.configure(
+                        bg="#343a44",
+                        relief=tk.SUNKEN,
+                        bd=3,
+                        padx=7,
+                        pady=5,
+                        highlightbackground=selected_hl,
+                        highlightcolor=selected_hl,
+                        highlightthickness=1,
+                    )
+                else:
+                    widget.configure(
+                        bg=panel_bg,
+                        relief=tk.FLAT,
+                        bd=2,
+                        highlightbackground=normal_hl,
+                        highlightcolor=normal_hl,
+                        highlightthickness=0,
+                        padx=6,
+                        pady=4,
+                    )
+
+            style_button(self.scale_mode_piano_btn, self.scale_play_mode == "piano")
+            style_button(self.scale_mode_guitar_btn, self.scale_play_mode == "guitar")
+            style_button(self.scale_mode_metronome_btn, self.scale_metronome_only)
             return
         self.scale_mode_piano_btn.set_selected(self.scale_play_mode == "piano")
         self.scale_mode_guitar_btn.set_selected(self.scale_play_mode == "guitar")
-        self.scale_mode_metronome_btn.set_selected(self.scale_play_mode == "metronome")
+        self.scale_mode_metronome_btn.set_selected(self.scale_metronome_only)
     def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
         if not self.scale_transport_buttons_are_images:
             return
@@ -232,16 +176,16 @@ class ScalesMixin:
         if not self.scale_tab_active:
             return
         self.guitar_variations_frame.pack_forget()
-        self.guitar_right_btn.grid_remove()
-        self.guitar_left_btn.grid_remove()
+        self.guitar_handedness_combo.pack_forget()
         if self.scale_play_mode == "guitar":
             self.keyboard_canvas.pack_forget()
-            self.guitar_canvas.pack(fill=tk.BOTH, expand=False)
+            self.guitar_canvas.pack(fill=tk.X, expand=False)
             self.redraw_guitar_fretboard()
         else:
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.keyboard_canvas.pack(fill=tk.X, expand=False)
             self.redraw_keyboard()
+        self._fit_instrument_panel_height()
     def _on_scale_transport_icon_press(self, _event: tk.Event, mode: str) -> None:
         self.scale_transport_pressed_mode = mode
         self._set_scale_transport_icon_pressed(mode, True)
@@ -275,7 +219,8 @@ class ScalesMixin:
         localized_scale_name = self.scale_name(pattern.name)
         self.scale_tonic_btn.set_text(tonic_name)
         self.scale_type_btn.set_text(localized_scale_name)
-        self.scale_title_var.set(f"{tonic_name} {localized_scale_name}")
+        if hasattr(self, "scale_name_var"):
+            self.scale_name_var.set(f"{tonic_name} {localized_scale_name}")
 
         default_root_midi = 60 + self.scale_tonic_pc
         if self.scale_guitar_start_note is None or (self.scale_guitar_start_note % 12) != self.scale_tonic_pc:
@@ -331,6 +276,8 @@ class ScalesMixin:
                 width=122,
                 height=74,
                 radius=28,
+                text_color="#f2f2f2",
+                selected_text_color="#000000",
             )
             btn.grid(row=pc // 3, column=pc % 3, sticky="ew", padx=6, pady=6)
             btn.set_selected(pc == self.scale_tonic_pc)
@@ -385,9 +332,7 @@ class ScalesMixin:
 
             term = search_var.get().strip().lower()
             filtered = [p for p in SCALE_PATTERNS if term in self.scale_name(p.name).lower()]
-            primary_modes = {"Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian"}
             for idx, pattern in enumerate(filtered):
-                is_primary = pattern.name in primary_modes
                 btn = GrayRoundedButton(
                     buttons_frame,
                     text=self.scale_name(pattern.name),
@@ -396,8 +341,8 @@ class ScalesMixin:
                     height=64,
                     radius=24,
                     font_size=16,
-                    text_color="#19d27f" if is_primary else "#f2f2f2",
-                    selected_text_color="#19d27f" if is_primary else "#ffffff",
+                    text_color="#f2f2f2",
+                    selected_text_color="#000000",
                 )
                 btn.grid(row=idx // 2, column=idx % 2, sticky="ew", padx=6, pady=6)
                 btn.set_selected(pattern.name == self.scale_pattern_name)
@@ -524,8 +469,8 @@ class ScalesMixin:
         notes = self.scale_preview_notes
         idx = max(0, min(self.scale_loop_index, len(notes) - 1))
         note = notes[idx]
-        play_piano = self.scale_play_mode == "piano"
-        play_guitar = self.scale_play_mode == "guitar"
+        play_piano = self.scale_play_mode == "piano" and not self.scale_metronome_only
+        play_guitar = self.scale_play_mode == "guitar" and not self.scale_metronome_only
 
         if self.scale_current_note is not None:
             if self.scale_current_note not in self.staff_pressed_scale_notes:

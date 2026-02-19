@@ -345,7 +345,7 @@ class MetronomeMixin:
         self.metronome_space_release_after_id = None
         self.metronome_space_pressed = False
     def _play_metronome_click(self, accent: bool) -> None:
-        if self.scale_play_mode != "metronome":
+        if not self.scale_metronome_only:
             return
         self.audio_engine.metronome_click(accent=accent, bar=False)
     def _draw_metronome_panel(self, canvas: tk.Canvas) -> None:

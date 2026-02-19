@@ -5,7 +5,7 @@ NOTE_NAMES = {
 
 UI_TEXTS = {
     "es": {
-        "app_title": "Analizador de Acordes MIDI",
+        "app_title": "MIDIChords",
         "panel_chord": "Acorde",
         "panel_settings": "Configuración",
         "label_mode": "Modo:",
@@ -14,6 +14,9 @@ UI_TEXTS = {
         "mode_scales": "Escalas",
         "mode_metronome": "Metrónomo",
         "mode_tuner": "Afinación",
+        "detection_title": "Detección",
+        "detection_help": "Pulsa notas en piano/guitarra para detectar acordes o usa un dispositivo MIDI.",
+        "button_clear": "Limpiar",
         "label_active_notes": "Notas",
         "label_extra_notes": "Notas sobrantes",
         "label_intervals": "Intervalos",
@@ -84,7 +87,7 @@ UI_TEXTS = {
         "button_save": "Guardar",
     },
     "en": {
-        "app_title": "MIDI Chords Analyzer",
+        "app_title": "MIDIChords",
         "panel_chord": "Chord",
         "panel_settings": "Settings",
         "label_mode": "Mode:",
@@ -93,6 +96,9 @@ UI_TEXTS = {
         "mode_scales": "Scales",
         "mode_metronome": "Metronome",
         "mode_tuner": "Tuner",
+        "detection_title": "Detection",
+        "detection_help": "Press notes on piano/guitar to detect chords or use a MIDI device.",
+        "button_clear": "Clear",
         "label_active_notes": "Notes",
         "label_extra_notes": "Extra notes",
         "label_intervals": "Intervals",

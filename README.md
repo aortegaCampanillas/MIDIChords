@@ -1,199 +1,101 @@
-# MIDI Chords Analyzer
+# MIDIChords Monorepo
 
-Desktop Python (Tkinter) app for macOS, Windows, and Linux that analyzes MIDI notes in real time, detects chords, and displays them on a piano keyboard and grand staff.
+Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas:
 
-Author: Antonio Ortega González
+- `apps/desktop`: aplicación de escritorio (Tkinter, Python)
+- `apps/web`: aplicación web (FastAPI + frontend JS)
+- `apps/mobile_flutter`: aplicación tablet (Flutter para iOS/Android)
+- `midichords`: librería Python común (teoría musical, audio y lógica compartida)
+- `assets`: recursos gráficos y muestras de audio compartidas
 
-## Features
+## Estructura
 
-- Real-time chord detection from currently active notes.
-- Configurable MIDI input (external keyboard/controller).
-- Built-in audio synthesis with an acoustic-piano-like timbre.
-- Additional sampled presets:
-  - `Grand piano (sample)`
-  - `Nylon guitar (sample)`
-- Interactive visual keyboard:
-  - Active note highlighting.
-  - Mouse input support.
-  - Sustain pedal behavior using the `Shift` key.
-- Grand staff display (treble and bass clef).
-- Note names in Spanish or English.
-- Option to show note names on white keys.
-- Persistent configuration stored in `config.json`.
+```text
+.
+├── apps/
+│   ├── desktop/
+│   │   └── main.py
+│   ├── web/
+│   │   ├── main.py
+│   │   ├── templates/
+│   │   └── static/
+│   └── mobile_flutter/
+├── midichords/
+├── assets/
+├── launch.py
+├── app.py
+├── requirements.txt
+└── requirements-web.txt
+```
 
-## Assets
+## Requisitos
 
-- Application logo: `assets/app_logo.png`
-- Staff brace image: `assets/brace_left.png`
-- Instrument samples:
-  - `assets/samples/grand_piano/*.mp3`
-  - `assets/samples/guitar_nylon/*.mp3`
-  - Attribution: `assets/samples/ATTRIBUTION.md`
-
-## Requirements
-
-- macOS, Windows 10/11, or Linux
 - Python 3.10+
-- MIDI input device (optional, mouse input is also supported)
+- Dependencias desktop: `requirements.txt`
+- Dependencias web: `requirements-web.txt`
+- Flutter (solo para móvil): 3.38+
 
-Python dependencies:
-
-- `mido`
-- `python-rtmidi`
-- `numpy`
-- `sounddevice`
-
-## Installation (macOS)
+## Instalación (Python)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-web.txt
 ```
 
-## Run (macOS)
+## Ejecución unificada
+
+### Desktop
+
+```bash
+python launch.py desktop
+```
+
+También sigue funcionando:
 
 ```bash
 python app.py
 ```
 
-## Installation (Linux)
-
-Install Python and audio/MIDI runtime libraries first (Ubuntu/Debian example):
+### Web
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip libasound2-dev libjack-jackd2-dev
+python launch.py web --host 127.0.0.1 --port 8000 --reload
 ```
 
-Then create and activate the virtual environment:
+Abrir: `http://127.0.0.1:8000`
+
+## Flutter (tablets iOS/Android)
+
+Proyecto base creado en `apps/mobile_flutter`.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python launch.py mobile
 ```
 
-## Run (Linux)
+Opcional, para pasar argumentos a Flutter:
 
 ```bash
-python app.py
+python launch.py mobile -- -d <device_id>
 ```
 
-## Installation (Windows)
+Nota: la app Flutter ya incluye detección, generación de acordes, generación de escalas, metrónomo y afinador.
 
-If you have Python Launcher (`py`):
+## VS Code launch
 
-```powershell
-py -3 -m venv .venv
-.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
-```
+Se añadieron dos configuraciones:
 
-If `py` is not available, use `python`:
+- `Desktop: MIDIChords`
+- `Web: MIDIChords`
 
-```powershell
-python -m venv .venv
-.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
-```
+Archivo: `.vscode/launch.json`
 
-If PowerShell blocks activation scripts, run:
+## Librerías compartidas
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Or activate the environment from Command Prompt (`cmd`) without changing PowerShell policy:
-
-```cmd
-.venv\Scripts\activate.bat
-```
-
-If neither `py` nor `python` is recognized, install Python first:
-
-```powershell
-winget install Python.Python.3.12
-```
-
-## Run (Windows)
-
-With Python Launcher:
-
-```powershell
-py app.py
-```
-
-Or with `python`:
-
-```powershell
-python app.py
-```
-
-## Windows Troubleshooting
-
-### Error installing `python-rtmidi` (missing C/C++ compiler)
-
-If you see an error like:
-
-- `ERROR: Unknown compiler(s): [['icl'], ['cl'], ['c++'], ...]`
-- `Could not find ... vswhere.exe`
-
-`pip` is trying to build `python-rtmidi` from source, but no C/C++ build tools are installed.
-
-Recommended fix (simplest):
-
-1. Install Python 3.12.
-2. Recreate the virtual environment with Python 3.12.
-3. Reinstall requirements.
-
-```powershell
-deactivate
-Remove-Item -Recurse -Force .venv
-winget install Python.Python.3.12
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
-```
-
-If `py` is not available, use the Python 3.12 executable directly:
-
-```powershell
-& "C:\Users\<YourUser>\AppData\Local\Programs\Python\Python312\python.exe" -m venv .venv
-```
-
-Alternative:
-
-- Install Visual Studio Build Tools (C++) and then run `pip install -r requirements.txt` again.
-
-## Quick Start
-
-1. Open the app.
-2. Click `Abrir configuración`.
-3. Select language, MIDI input, and audio output.
-4. (Optional) Enable `Mostrar notas en teclas blancas`.
-5. Play notes on your MIDI keyboard or click keys on the on-screen piano.
-6. Hold `Shift` for sustain; release `Shift` to release sustained notes.
-
-## Project Structure
-
-- `app.py`: main application (UI, MIDI, audio, staff/keyboard rendering).
-- `requirements.txt`: project dependencies.
-- `assets/`: graphic assets.
-
-## Publish to GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial commit: MIDI Chords Analyzer"
-# create the repository on GitHub, then:
-git remote add origin <URL_DEL_REPO>
-git branch -M main
-git push -u origin main
-```
-
-## License
-
-This project is distributed under the MIT license. See `LICENSE`.
+- La lógica musical reutilizable para web/desktop está en `midichords/core/music_service.py`.
+- Esta capa expone:
+  - detección armónica de acordes
+  - generación de acordes
+  - generación de escalas
+  - listados de patrones

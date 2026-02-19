@@ -1,0 +1,2 @@
+"""Desktop app entrypoint package."""
+

@@ -231,7 +231,20 @@ class RenderMixin:
             y = board_y1 + i * string_gap
             canvas.create_line(strings_x1, y, strings_x2, y, fill="#bdbdbd", width=2)
             canvas.create_line(strings_x1, y + 1, strings_x2, y + 1, fill="#8a8a8a", width=1)
-            canvas.create_text(strings_x1 - 22, y, text=name, fill="#111", font=("Helvetica", 10, "bold"))
+            if is_left_handed:
+                label_x = min(float(w - 6), float(open_edge_x + 10))
+                label_anchor = "w"
+            else:
+                label_x = max(6.0, float(open_edge_x - 10))
+                label_anchor = "e"
+            canvas.create_text(
+                label_x,
+                y,
+                text=name,
+                fill="#111",
+                font=("Helvetica", 10, "bold"),
+                anchor=label_anchor,
+            )
 
         if self.scale_tab_active and self.scale_play_mode == "guitar":
             scale_pcs = {n % 12 for n in self.scale_preview_notes}
@@ -432,6 +445,8 @@ class RenderMixin:
         now = time.monotonic()
         self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
         overlay_label_positions: dict[int, tuple[float, str, str]] = {}
+        # In generation mode, note names are already conveyed on-key; avoid duplicate labels on top.
+        show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active)
 
         w = max(100, canvas.winfo_width())
         h = max(156, canvas.winfo_height())
@@ -447,7 +462,7 @@ class RenderMixin:
             }
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
         white_w = w / len(white_notes)
-        key_top = 28
+        key_top = 8
         key_bottom = h - 6
         black_h = int((key_bottom - key_top) * 0.58)
 
@@ -459,8 +474,57 @@ class RenderMixin:
                 idx += 1
 
         # Fondo y marco base del teclado.
-        canvas.create_rectangle(0, 0, w, h, fill="#1f1f1f", outline="")
-        canvas.create_rectangle(0, key_top, w, key_bottom, fill="#d8d8d8", outline="#b7b7b7", width=1)
+        canvas.create_rectangle(0, 0, w, h, fill="#d8d8d8", outline="")
+        canvas.create_rectangle(0, key_top, w, key_bottom, fill="#d8d8d8", outline="#c4c8cf", width=1)
+
+        def _draw_bottom_rounded_key(
+            x1: float,
+            y1: float,
+            x2: float,
+            y2: float,
+            radius: float,
+            *,
+            fill: str,
+            outline: str,
+            width: float,
+        ) -> None:
+            r = max(0.0, min(radius, (x2 - x1) / 2.0, (y2 - y1) / 2.0))
+            if r < 1.0:
+                canvas.create_rectangle(x1, y1, x2, y2, fill=fill, outline=outline, width=width)
+                return
+            # Fill with bottom-only rounding.
+            canvas.create_rectangle(x1, y1, x2, y2 - r, fill=fill, outline="")
+            canvas.create_rectangle(x1 + r, y2 - r, x2 - r, y2, fill=fill, outline="")
+            canvas.create_arc(x1, y2 - (2 * r), x1 + (2 * r), y2, start=180, extent=90, style=tk.PIESLICE, fill=fill, outline="")
+            canvas.create_arc(x2 - (2 * r), y2 - (2 * r), x2, y2, start=270, extent=90, style=tk.PIESLICE, fill=fill, outline="")
+
+            # Outline preserving square top corners.
+            canvas.create_line(x1, y1, x2, y1, fill=outline, width=width)
+            canvas.create_line(x1, y1, x1, y2 - r, fill=outline, width=width)
+            canvas.create_line(x2, y1, x2, y2 - r, fill=outline, width=width)
+            canvas.create_line(x1 + r, y2, x2 - r, y2, fill=outline, width=width)
+            canvas.create_arc(
+                x1,
+                y2 - (2 * r),
+                x1 + (2 * r),
+                y2,
+                start=180,
+                extent=90,
+                style=tk.ARC,
+                outline=outline,
+                width=width,
+            )
+            canvas.create_arc(
+                x2 - (2 * r),
+                y2 - (2 * r),
+                x2,
+                y2,
+                start=270,
+                extent=90,
+                style=tk.ARC,
+                outline=outline,
+                width=width,
+            )
 
         for note in notes:
             if (note % 12) not in WHITE_PCS:
@@ -470,24 +534,26 @@ class RenderMixin:
             x2 = (i + 1) * white_w
 
             if note in detection_extra_notes:
-                top_fill = "#d64545"
-                base_fill = "#bf2f2f"
+                fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
-                top_fill = "#65b7ff"
-                base_fill = "#65b7ff"
+                fill_color = "#65b7ff"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
-                top_fill = "#ffad66"
-                base_fill = "#ff8a2b"
+                fill_color = "#ff8a2b"
             elif note in display_active_notes:
-                top_fill = "#4da3ea"
-                base_fill = "#4da3ea"
+                fill_color = "#4da3ea"
             else:
-                top_fill = "#f9f9f5"
-                base_fill = "#ecebe7"
+                fill_color = "#f7f7f4"
 
-            canvas.create_rectangle(x1, key_top, x2, key_bottom, fill=base_fill, outline="#9a9a9a", width=1)
-            canvas.create_rectangle(x1 + 1, key_top + 1, x2 - 1, key_top + (key_bottom - key_top) * 0.42, fill=top_fill, outline="")
-            canvas.create_line(x1 + 1, key_bottom - 2, x2 - 1, key_bottom - 2, fill="#c8c8c8")
+            _draw_bottom_rounded_key(
+                x1,
+                key_top,
+                x2,
+                key_bottom,
+                radius=max(2.0, min(4.0, white_w * 0.13)),
+                fill=fill_color,
+                outline="#b7bec7",
+                width=1,
+            )
             show_label = self.config_data.get("show_keyboard_note_labels", False) and not self.scale_tab_active
             if show_label:
                 label_color = "#0b2540" if note in display_active_notes else "#5f5f5f"
@@ -506,7 +572,7 @@ class RenderMixin:
                 r = max(11, min(17, white_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
-            if note in name_overlay_notes:
+            if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:
                     overlay_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
@@ -536,41 +602,43 @@ class RenderMixin:
             center_x = (i + 1) * white_w
             x1 = center_x - black_w / 2
             x2 = center_x + black_w / 2
+            # Keep black-key geometry on whole pixels to avoid anti-aliased light artifacts.
+            x1_i = int(round(x1))
+            x2_i = int(round(x2))
+            if x2_i <= x1_i:
+                x2_i = x1_i + 1
 
             if note in detection_extra_notes:
-                top = "#f17c7c"
-                mid = "#bf2f2f"
-                low = "#7f1f1f"
+                fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
-                top = "#72c1ff"
-                mid = "#388fdb"
-                low = "#1c5f99"
+                fill_color = "#388fdb"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
-                top = "#ffad66"
-                mid = "#ff8a2b"
-                low = "#b45a00"
+                fill_color = "#ff8a2b"
             elif note in display_active_notes:
-                top = "#0078d7"
-                mid = "#0078d7"
-                low = "#0078d7"
+                fill_color = "#0078d7"
             else:
-                top = "#3a3a3a"
-                mid = "#161616"
-                low = "#050505"
+                fill_color = "#101822"
 
-            canvas.create_rectangle(x1, key_top, x2, key_top + black_h, fill=mid, outline="#000000", width=1)
-            canvas.create_rectangle(x1 + 1, key_top + 1, x2 - 1, key_top + black_h * 0.45, fill=top, outline="")
-            canvas.create_rectangle(x1 + 1, key_top + black_h * 0.75, x2 - 1, key_top + black_h - 1, fill=low, outline="")
-            canvas.create_line(x1 + 1, key_top + black_h - 3, x2 - 1, key_top + black_h - 3, fill="#2a2a2a")
+            _draw_bottom_rounded_key(
+                x1_i,
+                key_top,
+                x2_i,
+                key_top + black_h,
+                # Square black-key base avoids anti-aliased bright artifacts on some canvases.
+                radius=0.0,
+                fill=fill_color,
+                outline="#0a0f16",
+                width=1,
+            )
             if self.scale_tab_active and (note % 12) in scale_pc_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
-                cx = (x1 + x2) / 2
+                cx = (x1_i + x2_i) / 2
                 cy = key_top + black_h - 22
                 r = max(9, min(13, black_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
-            if note in name_overlay_notes:
+            if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:
                     overlay_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
@@ -580,10 +648,10 @@ class RenderMixin:
                     overlay_text = detection_name_map.get(note, self.note_name(note, with_octave=False))
                 else:
                     overlay_text = self.note_name(note, with_octave=False)
-                overlay_label_positions[note] = ((x1 + x2) / 2, overlay_text, label_fill)
+                overlay_label_positions[note] = ((x1_i + x2_i) / 2, overlay_text, label_fill)
             if note in self.blocked_note_until:
-                self._draw_forbidden_icon(canvas, (x1 + x2) / 2, key_top + black_h * 0.5, 7)
-            self.black_key_regions.append((note, x1, key_top, x2, key_top + black_h))
+                self._draw_forbidden_icon(canvas, (x1_i + x2_i) / 2, key_top + black_h * 0.5, 7)
+            self.black_key_regions.append((note, x1_i, key_top, x2_i, key_top + black_h))
 
         if overlay_label_positions:
             if detection_mode:

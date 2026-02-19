@@ -133,7 +133,18 @@ class InputDetectionMixin:
             chord = f"{chord}/{bass_name}"
 
         expected_pcs = {(int(root) + int(interval)) % 12 for interval in pattern.intervals}
-        extras = {int(note) for note in chord_notes if (int(note) % 12) not in expected_pcs}
+        extras: set[int] = set()
+        notes_by_pc: dict[int, list[int]] = {}
+        for note in sorted(chord_notes):
+            note_int = int(note)
+            notes_by_pc.setdefault(note_int % 12, []).append(note_int)
+        for pc, grouped_notes in notes_by_pc.items():
+            if pc not in expected_pcs:
+                extras.update(grouped_notes)
+                continue
+            if len(grouped_notes) > 1:
+                # Keep one representative tone per pitch class in the detected chord.
+                extras.update(grouped_notes[1:])
 
         map_oct: dict[int, str] = {}
         map_no_oct: dict[int, str] = {}
@@ -172,6 +183,7 @@ class InputDetectionMixin:
         self.sustain_latched_notes.clear()
         self.note_velocity.clear()
         self.mouse_current_note = None
+        self._clear_detection_hold()
     def _clear_detection_hold(self) -> None:
         self.detect_hold_active = False
         self.detect_hold_notes.clear()
@@ -457,7 +469,11 @@ class InputDetectionMixin:
         if self.generation_tab_active:
             self.chord_var.set(self.generated_chord_var.get())
         elif self.scale_tab_active:
-            self.chord_var.set(self.scale_title_var.get())
+            scale_name = getattr(self, "scale_name_var", None)
+            if scale_name is not None:
+                self.chord_var.set(scale_name.get())
+            else:
+                self.chord_var.set("-")
         elif self.metronome_tab_active:
             self.chord_var.set("-")
         elif self.tuner_tab_active:

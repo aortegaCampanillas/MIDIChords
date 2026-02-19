@@ -146,6 +146,77 @@ class RoundedChoiceButton(tk.Canvas):
         )
 
 
+class RoundedPanel(tk.Canvas):
+    def __init__(
+        self,
+        master: tk.Misc,
+        *,
+        radius: int = 16,
+        bg_color: str = "#2f3f56",
+        border_color: str = "#56627a",
+        border_width: float = 1.2,
+        padding: tuple[int, int, int, int] = (12, 12, 12, 12),
+    ) -> None:
+        parent_bg = _resolve_canvas_bg(master, "#1b2534")
+        super().__init__(
+            master,
+            highlightthickness=0,
+            bd=0,
+            bg=parent_bg,
+            highlightbackground=parent_bg,
+            highlightcolor=parent_bg,
+        )
+        self._radius = radius
+        self._bg_color = bg_color
+        self._border_color = border_color
+        self._border_width = border_width
+        self._padding = padding
+        self.content = tk.Frame(self, bg=self._bg_color, bd=0, highlightthickness=0)
+        self._content_window = self.create_window(0, 0, anchor="nw", window=self.content)
+        self.bind("<Configure>", lambda _e: self._redraw())
+        self._redraw()
+
+    def _rounded_points(self, x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
+        return [
+            x1 + r, y1,
+            x2 - r, y1,
+            x2, y1,
+            x2, y1 + r,
+            x2, y2 - r,
+            x2, y2,
+            x2 - r, y2,
+            x1 + r, y2,
+            x1, y2,
+            x1, y2 - r,
+            x1, y1 + r,
+            x1, y1,
+        ]
+
+    def _redraw(self) -> None:
+        parent_bg = _resolve_canvas_bg(self.master, str(self.cget("bg")))
+        if parent_bg != str(self.cget("bg")):
+            self.configure(bg=parent_bg, highlightbackground=parent_bg, highlightcolor=parent_bg)
+        self.delete("panel")
+        w = max(4, int(self.winfo_width()))
+        h = max(4, int(self.winfo_height()))
+        r = max(6, min(self._radius, int(min(w, h) / 2) - 1))
+        points = self._rounded_points(1, 1, w - 1, h - 1, r)
+        self.create_polygon(
+            points,
+            smooth=True,
+            splinesteps=20,
+            fill=self._bg_color,
+            outline=self._border_color,
+            width=self._border_width,
+            tags="panel",
+        )
+        left, top, right, bottom = self._padding
+        inner_w = max(1, w - left - right)
+        inner_h = max(1, h - top - bottom)
+        self.coords(self._content_window, left, top)
+        self.itemconfigure(self._content_window, width=inner_w, height=inner_h)
+
+
 class GreenRoundedButton(tk.Canvas):
     def __init__(
         self,
@@ -301,6 +372,9 @@ class GrayRoundedButton(tk.Canvas):
         font_size: int = 22,
         text_color: str = "#dde2e8",
         selected_text_color: str = "#16dfa0",
+        selected_fill_color: str = "#f3bf2f",
+        selected_outline_color: str = "#f3bf2f",
+        selected_border_width: float = 2.2,
     ) -> None:
         parent_bg = _resolve_canvas_bg(master, "#2a2f36")
         super().__init__(
@@ -320,6 +394,9 @@ class GrayRoundedButton(tk.Canvas):
         self._font_size = font_size
         self._text_color = text_color
         self._selected_text_color = selected_text_color
+        self._selected_fill_color = selected_fill_color
+        self._selected_outline_color = selected_outline_color
+        self._selected_border_width = float(selected_border_width)
         self._hover = False
         self._selected = False
         self._font_family = _pick_font_family(self, ["Avenir Next", "SF Pro Text", "Segoe UI", "Helvetica Neue"], "Helvetica")
@@ -375,15 +452,15 @@ class GrayRoundedButton(tk.Canvas):
         r = max(6, min(self._radius, int(min(w, h) / 2) - 1))
 
         if self._selected:
-            outline = "#f3bf2f"
-            fill = "#3a4048"
+            outline = self._selected_outline_color
+            fill = self._selected_fill_color
             text_color = self._selected_text_color
-            border_w = 2.2
+            border_w = self._selected_border_width
         else:
-            outline = "#3a4048"
-            fill = "#3a4048" if not self._hover else "#454c56"
+            outline = "#4a5360"
+            fill = "#262c34" if not self._hover else "#2b323b"
             text_color = self._text_color
-            border_w = 1.2
+            border_w = 1.6
 
         points = self._rounded_points(1, 1, w - 1, h - 1, r)
         self.create_polygon(

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MIDIChords</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>MIDIChords</h1>
+      <div class="topbar-center">
+        <select id="modeSelect">
+          <option value="detection">Detección de Acordes</option>
+          <option value="generation">Generación de Acordes</option>
+          <option value="scales">Escalas</option>
+          <option value="metronome">Metrónomo</option>
+          <option value="tuner">Afinador</option>
+        </select>
+      </div>
+      <div class="topbar-controls">
+        <div class="controls-inline">
+          <select id="language">
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+          <select id="accidental">
+            <option value="sharp">#</option>
+            <option value="flat">♭</option>
+          </select>
+        </div>
+        <div id="instrumentSwitch" class="controls-inline">
+          <button id="midiToggle" class="ghost" title="Entrada MIDI Web">MIDI: Off</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section id="modeScreen" class="mode-screen">
+        <div class="mode-layout">
+          <section id="staffArea" class="staff-panel">
+            <div id="staffHeader" class="staff-header">Pentagrama</div>
+            <canvas id="staffCanvas" width="900" height="430"></canvas>
+          </section>
+          <aside class="sidebar">
+            <div class="sidebar-top">
+              <section id="panelDetection" class="mode-panel hidden">
+                <h3 id="headingDetection">Detección</h3>
+                <p id="detectionHint" class="muted">Pulsa notas en piano/guitarra para detectar acordes.</p>
+                <div class="controls-inline">
+                  <button id="detectClear">Limpiar</button>
+                  <button id="detectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
+                  <div><span id="labelDetectNotes" class="label">Notas:</span> <span id="detectNotes">-</span></div>
+                  <div><span id="labelDetectExtras" class="label">Sobrantes:</span> <span id="detectExtras">-</span></div>
+                  <div><span id="labelDetectIntervals" class="label">Intervalos:</span> <span id="detectIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelGeneration" class="mode-panel hidden">
+                <h3 id="headingGeneration">Generación de Acordes</h3>
+                <div class="row">
+                  <label id="labelGenRoot" for="genRoot">Tónica</label>
+                  <select id="genRoot"></select>
+                </div>
+                <div class="row">
+                  <label id="labelGenVariant" for="genVariant">Variante</label>
+                  <select id="genVariant"></select>
+                </div>
+                <div class="row">
+                  <label id="labelGenInversion" for="genInversion">Inversión</label>
+                  <select id="genInversion"></select>
+                </div>
+                <div class="controls-inline">
+                  <button id="genPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong></div>
+                  <div><span id="labelGenNotes" class="label">Notas:</span> <span id="genNotes">-</span></div>
+                  <div><span id="labelGenIntervals" class="label">Intervalos:</span> <span id="genIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelScales" class="mode-panel hidden">
+                <h3 id="headingScales">Escalas</h3>
+                <div class="row">
+                  <label id="labelScaleRoot" for="scaleRoot">Tónica</label>
+                  <select id="scaleRoot"></select>
+                </div>
+                <div class="row">
+                  <label id="labelScaleType" for="scaleType">Tipo</label>
+                  <select id="scaleType"></select>
+                </div>
+                <div class="controls-inline">
+                  <button id="scalePlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                  <button id="scaleModeMetronome" class="icon-play-btn scale-mode-btn" type="button" aria-label="Modo metrónomo" title="Modo metrónomo">⏱</button>
+                </div>
+                <div class="row">
+                  <label id="labelScaleBpm" for="scaleBpm">Velocidad</label>
+                  <input id="scaleBpm" type="range" min="1" max="300" value="120" />
+                  <span id="scaleBpmValue">120 PPM</span>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelScaleName" class="label">Escala:</span> <strong id="scaleName">-</strong></div>
+                  <div><span id="labelScaleNotes" class="label">Notas:</span> <span id="scaleNotes">-</span></div>
+                  <div><span id="labelScaleIntervals" class="label">Intervalos:</span> <span id="scaleIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelMetronome" class="mode-panel hidden">
+                <h3 id="headingMetronome">Metrónomo</h3>
+                <div class="row">
+                  <label id="labelMetronomeBpm" for="bpm">BPM</label>
+                  <button id="metroBpmMinus" type="button">−</button>
+                  <input id="bpm" type="range" min="40" max="220" value="120" />
+                  <button id="metroBpmPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="metro-bpm-meta">
+                  <div id="bpmValue">120 BPM</div>
+                  <div id="metroPresetValue">Moderato</div>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeBeats" for="metroMeter">Pulsos por compás</label>
+                  <button id="metroMeterMinus" type="button">−</button>
+                  <input id="metroMeter" type="range" min="1" max="16" value="4" />
+                  <button id="metroMeterPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="metro-meter-meta">
+                  <div id="metroMeterValue">4</div>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeSubdivision">Subdivisión</label>
+                  <div id="metroFigures" class="controls-inline">
+                    <button class="metro-figure active" data-clicks="1" type="button">♩</button>
+                    <button class="metro-figure" data-clicks="2" type="button">♪♪</button>
+                    <button class="metro-figure" data-clicks="4" type="button">♬</button>
+                    <button class="metro-figure triplet" data-clicks="3" type="button"><span class="triplet-num">3</span><span class="triplet-glyph">♪♪♪</span></button>
+                    <button class="metro-figure triplet" data-clicks="6" type="button"><span class="triplet-num">3</span><span class="triplet-glyph">♬♬</span></button>
+                  </div>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeBarAccent" for="metroBarAccent">Acento de compás</label>
+                  <input id="metroBarAccent" type="checkbox" checked />
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeTimerEnabled" for="metroTimerEnabled">Temporizador</label>
+                  <input id="metroTimerEnabled" type="checkbox" />
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="row metro-timer-row">
+                  <label id="labelMetronomeTimer" for="metroTimerMinutes">Tiempo</label>
+                  <input id="metroTimerMinutes" type="number" min="0" max="99" value="2" />
+                  <span>:</span>
+                  <input id="metroTimerSeconds" type="number" min="0" max="59" value="0" />
+                  <span id="metroTimerDisplay">00:00</span>
+                </div>
+                <div class="controls-inline">
+                  <button id="metroToggle" class="icon-play-btn" aria-label="Iniciar metrónomo" title="Iniciar metrónomo">▶</button>
+                </div>
+              </section>
+
+              <section id="panelTuner" class="mode-panel hidden">
+                <h3 id="headingTuner">Afinador</h3>
+                <div class="controls-inline">
+                  <button id="tunerToggle" class="icon-play-btn" aria-label="Iniciar afinador" title="Iniciar afinador">▶</button>
+                </div>
+                <div class="row">
+                  <label id="labelTunerTuning" for="tunerTuning">Afinación</label>
+                  <select id="tunerTuning"></select>
+                </div>
+                <div class="row">
+                  <label id="labelTunerGain" for="tunerGain">Ganancia de entrada</label>
+                  <button id="tunerGainMinus" type="button">−</button>
+                  <input id="tunerGain" type="range" min="0" max="200" value="100" />
+                  <button id="tunerGainPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="tuner-meta">
+                  <div id="tunerGainValue">100%</div>
+                </div>
+                <div class="row">
+                  <label id="labelTunerSpectrumRange" for="tunerRangeMin">Rango del espectro</label>
+                  <input id="tunerRangeMin" type="number" min="0" max="2990" step="1" value="20" />
+                  <span>-</span>
+                  <input id="tunerRangeMax" type="number" min="10" max="3000" step="1" value="500" />
+                  <span>Hz</span>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelTunerNote" class="label">Nota:</span> <strong id="tunerNote">-</strong></div>
+                  <div><span id="labelTunerCents" class="label">Desviación:</span> <span id="tunerCents">-</span></div>
+                  <div><span id="labelTunerFreq" class="label">Frecuencia:</span> <span id="tunerFreq">-</span></div>
+                </div>
+              </section>
+            </div>
+          </aside>
+          <section id="instrumentArea" class="instrument-panel">
+            <div class="instrument-dock">
+              <button id="instPianoBtn" class="inst-btn active" data-inst="piano">Piano</button>
+              <button id="instGuitarBtn" class="inst-btn" data-inst="guitar">Guitarra</button>
+              <select id="guitarHandedness" class="hidden" title="Orientación de guitarra">
+                <option value="right">Diestro</option>
+                <option value="left">Zurdo</option>
+              </select>
+            </div>
+            <div id="sharedPiano" class="piano"></div>
+            <canvas id="sharedGuitarCanvas" class="guitar-canvas hidden" width="1400" height="320"></canvas>
+            <canvas id="tunerSpectrumCanvas" class="tuner-spectrum-canvas hidden" width="1400" height="320"></canvas>
+            <div id="guitarVariationBar" class="controls-inline hidden">
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="donationSection" class="donation-section">
+        <h3 id="donationTitle">Apoya MIDIChords</h3>
+        <p id="donationText">
+          Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.
+        </p>
+        <a id="donateBtn" class="donate-btn" href="#" target="_blank" rel="noopener noreferrer">Donar</a>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

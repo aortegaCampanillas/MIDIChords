@@ -553,11 +553,12 @@ class TunerMixin:
     def _set_tuner_spectrum_visible(self, visible: bool) -> None:
         if visible:
             if not self.tuner_spectrum_canvas.winfo_ismapped():
-                self.tuner_spectrum_canvas.pack(fill=tk.BOTH, expand=False)
+                self.tuner_spectrum_canvas.pack(fill=tk.X, expand=False)
             self._draw_tuner_spectrum()
         else:
             if self.tuner_spectrum_canvas.winfo_ismapped():
                 self.tuner_spectrum_canvas.pack_forget()
+        self._fit_instrument_panel_height()
     def _tuner_string_at_position(self, x: float, y: float) -> Optional[int]:
         if not self.tuner_tab_active:
             return None

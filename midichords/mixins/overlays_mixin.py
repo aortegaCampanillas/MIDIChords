@@ -181,11 +181,15 @@ class OverlaysMixin:
             if widget != self.scale_type_btn:
                 self._close_scale_type_overlay()
         if self.generation_selection_overlay is not None and not self._is_widget_inside(self.generation_selection_overlay, widget):
-            if widget not in {
-                self.generation_root_btn,
-                self.generation_variant_btn,
-                self.generation_inversion_btn,
-            }:
+            keep_open_triggers = {
+                getattr(self, "generation_root_btn", None),
+                getattr(self, "generation_variant_btn", None),
+                getattr(self, "generation_inversion_btn", None),
+                getattr(self, "generation_root_combo", None),
+                getattr(self, "generation_variant_combo", None),
+                getattr(self, "generation_inversion_combo", None),
+            }
+            if widget not in keep_open_triggers:
                 self._close_generation_selection_overlay()
         if self.tuner_tuning_overlay is not None and not self._is_widget_inside(self.tuner_tuning_overlay, widget):
             if widget != self.tuner_tuning_btn:

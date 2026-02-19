@@ -143,6 +143,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.mode_selector_overlay: Optional[tk.Frame] = None
         self.instrument_view = "piano"
         self.scale_play_mode = "piano"
+        self.scale_metronome_only = False
         self.scale_bpm_min = 1
         self.scale_bpm_max = 300
         self.scale_bpm_value = int(self.config_data.get("metronome_bpm", 120))
@@ -259,10 +260,16 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         loaded_handedness = str(self.config_data.get("guitar_handedness", "right"))
         self.guitar_handedness = "left" if loaded_handedness == "left" else "right"
         loaded_scale_play_mode = str(self.config_data.get("scale_play_mode", "piano"))
-        if loaded_scale_play_mode in {"piano", "guitar", "metronome"}:
+        if loaded_scale_play_mode in {"piano", "guitar"}:
             self.scale_play_mode = loaded_scale_play_mode
+        elif loaded_scale_play_mode == "metronome":
+            loaded_scale_instrument_mode = str(self.config_data.get("scale_instrument_mode", "piano"))
+            self.scale_play_mode = "guitar" if loaded_scale_instrument_mode == "guitar" else "piano"
         else:
             self.scale_play_mode = "piano"
+        self.scale_metronome_only = bool(
+            self.config_data.get("scale_metronome_only", loaded_scale_play_mode == "metronome")
+        )
         self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
         self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()
@@ -324,18 +331,21 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.config_data["instrument_view"] = self.instrument_view
         self.config_data["generation_instrument_view"] = self.instrument_view
         self.save_config()
+        # Instrument controls now live in the top-right toolbar.
+        # Keep this legacy spacer frame hidden to avoid vertical gaps.
+        self.instrument_switch_frame.pack_forget()
         if self.instrument_view == "guitar":
-            self.guitar_right_btn.grid()
-            self.guitar_left_btn.grid()
+            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
             self.keyboard_canvas.pack_forget()
-            self.guitar_canvas.pack(fill=tk.BOTH, expand=False)
+            self.guitar_canvas.pack(fill=tk.X, expand=False)
             self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
         else:
-            self.guitar_right_btn.grid_remove()
-            self.guitar_left_btn.grid_remove()
+            self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.keyboard_canvas.pack(fill=tk.X, expand=False)
+        self._fit_instrument_panel_height()
         self._refresh_instrument_toggle_styles()
         self._refresh_handedness_toggle_styles()
         self._refresh_guitar_variations()
@@ -385,9 +395,18 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._refresh_handedness_toggle_styles()
         self.redraw_guitar_fretboard()
 
+    def _on_guitar_handedness_combo_changed(self, _event: tk.Event) -> None:
+        right_label = self.tr("handed_right")
+        left_label = self.tr("handed_left")
+        selected = str(self.guitar_handedness_var.get())
+        if selected == left_label:
+            self._set_guitar_handedness("left")
+        else:
+            self._set_guitar_handedness("right")
+
     def _refresh_instrument_toggle_styles(self) -> None:
         if self.instrument_buttons_are_images:
-            panel_bg = self.cget("background")
+            panel_bg = str(self.instrument_view_switch_side.cget("background"))
             selected_hl = "#f39c12"
             normal_hl = panel_bg
             if self.instrument_view == "piano":
@@ -437,55 +456,12 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.guitar_view_btn.set_selected(self.instrument_view == "guitar")
 
     def _refresh_handedness_toggle_styles(self) -> None:
-        if self.handedness_buttons_are_images:
-            panel_bg = self.cget("background")
-            selected_hl = "#f39c12"
-            normal_hl = panel_bg
-            if self.guitar_handedness == "right":
-                self.guitar_right_btn.configure(
-                    bg="#8a4f10",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=9,
-                    pady=7,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-                self.guitar_left_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    padx=8,
-                    pady=6,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                )
-            else:
-                self.guitar_right_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    padx=8,
-                    pady=6,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                )
-                self.guitar_left_btn.configure(
-                    bg="#8a4f10",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=9,
-                    pady=7,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-            return
-        self.guitar_right_btn.set_selected(self.guitar_handedness == "right")
-        self.guitar_left_btn.set_selected(self.guitar_handedness == "left")
+        right_label = self.tr("handed_right")
+        left_label = self.tr("handed_left")
+        self.guitar_handedness_combo.configure(values=(right_label, left_label))
+        target = left_label if self.guitar_handedness == "left" else right_label
+        if str(self.guitar_handedness_var.get()) != target:
+            self.guitar_handedness_var.set(target)
 
 
 
@@ -711,23 +687,21 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
 
         for idx in range(len(self.guitar_variations)):
             selected = idx == self.guitar_selected_variation_idx
-            btn = tk.Label(
+            btn = GrayRoundedButton(
                 self.guitar_variations_inner,
                 text=str(idx + 1),
-                cursor="hand2",
-                font=("Helvetica", 10, "bold"),
-                width=3,
-                padx=2,
-                pady=2,
-                bd=2,
-                relief=tk.SUNKEN if selected else tk.FLAT,
-                bg="#ff9f1a" if selected else "#6a7283",
-                fg="#000000",
-                highlightthickness=1,
-                highlightbackground="#ffbf66" if selected else "#8a92a3",
-                highlightcolor="#ffbf66" if selected else "#8a92a3",
+                command=lambda i=idx: self._select_guitar_variation(i),
+                width=40,
+                height=28,
+                radius=6,
+                font_size=12,
+                text_color="#b8c2d1",
+                selected_text_color="#0e1320",
+                selected_fill_color="#f3bf2f",
+                selected_outline_color="#c9961f",
+                selected_border_width=2.0,
             )
-            btn.bind("<Button-1>", lambda _e, i=idx: self._select_guitar_variation(i))
+            btn.set_selected(selected)
             btn.pack(side=tk.LEFT, padx=(0 if idx == 0 else 4, 0), pady=4)
             self.guitar_variation_buttons.append(btn)
 

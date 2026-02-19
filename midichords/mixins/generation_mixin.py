@@ -103,10 +103,61 @@ class GenerationMixin:
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
     def _refresh_generation_selection_buttons(self) -> None:
-        self.generation_root_btn.set_text(self.note_name(self.generation_root_pc, with_octave=False))
+        # Legacy button-based UI (kept for backward compatibility).
+        if hasattr(self, "generation_root_btn"):
+            self.generation_root_btn.set_text(self.note_name(self.generation_root_pc, with_octave=False))
         variant_label = self.generation_pattern_suffix if self.generation_pattern_suffix else "maj"
-        self.generation_variant_btn.set_text(variant_label)
-        self.generation_inversion_btn.set_text(self._inversion_label(self.generation_inversion))
+        if hasattr(self, "generation_variant_btn"):
+            self.generation_variant_btn.set_text(variant_label)
+        if hasattr(self, "generation_inversion_btn"):
+            self.generation_inversion_btn.set_text(self._inversion_label(self.generation_inversion))
+
+        # Combo-based UI.
+        if hasattr(self, "generation_root_combo") and hasattr(self, "generation_root_var"):
+            root_options = [(self.note_name(pc, with_octave=False), int(pc)) for pc in range(12)]
+            self._generation_root_label_to_pc = {label: pc for label, pc in root_options}
+            self.generation_root_combo.configure(values=[label for label, _ in root_options])
+            self.generation_root_var.set(self.note_name(self.generation_root_pc, with_octave=False))
+
+        if hasattr(self, "generation_variant_combo") and hasattr(self, "generation_variant_var"):
+            variant_options: list[tuple[str, str]] = []
+            seen: set[str] = set()
+            for pattern in CHORD_PATTERNS:
+                label = pattern.suffix if pattern.suffix else "maj"
+                if label in seen:
+                    continue
+                seen.add(label)
+                variant_options.append((label, str(pattern.suffix)))
+            self._generation_variant_label_to_suffix = {label: suffix for label, suffix in variant_options}
+            self.generation_variant_combo.configure(values=[label for label, _ in variant_options])
+            self.generation_variant_var.set(variant_label)
+
+        if hasattr(self, "generation_inversion_combo") and hasattr(self, "generation_inversion_var"):
+            inversion_options = [(self._inversion_label(inv), inv) for inv in range(self._max_generation_inversion() + 1)]
+            self._generation_inversion_label_to_value = {label: inv for label, inv in inversion_options}
+            self.generation_inversion_combo.configure(values=[label for label, _ in inversion_options])
+            self.generation_inversion_var.set(self._inversion_label(self.generation_inversion))
+
+    def _on_generation_root_combo_changed(self, _event: tk.Event) -> None:
+        label = str(self.generation_root_var.get()).strip()
+        pc = getattr(self, "_generation_root_label_to_pc", {}).get(label)
+        if pc is None:
+            return
+        self._on_generation_root_clicked(int(pc))
+
+    def _on_generation_variant_combo_changed(self, _event: tk.Event) -> None:
+        label = str(self.generation_variant_var.get()).strip()
+        suffix = getattr(self, "_generation_variant_label_to_suffix", {}).get(label)
+        if suffix is None:
+            return
+        self._on_generation_variant_clicked(str(suffix))
+
+    def _on_generation_inversion_combo_changed(self, _event: tk.Event) -> None:
+        label = str(self.generation_inversion_var.get()).strip()
+        inversion = getattr(self, "_generation_inversion_label_to_value", {}).get(label)
+        if inversion is None:
+            return
+        self._on_generation_inversion_clicked(int(inversion))
     def _clear_generated_single_note(self, note: int) -> None:
         if note in self.generated_playing_notes:
             self.generated_playing_notes.discard(note)
@@ -213,6 +264,7 @@ class GenerationMixin:
                     height=74,
                     radius=28,
                     font_size=22,
+                    selected_text_color="#000000",
                 )
                 btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
                 btn.set_selected(bool(selected))
@@ -247,6 +299,7 @@ class GenerationMixin:
                         height=64,
                         radius=24,
                         font_size=16,
+                        selected_text_color="#000000",
                     )
                     btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
                     btn.set_selected(bool(selected))
@@ -274,6 +327,7 @@ class GenerationMixin:
                     height=64,
                     radius=24,
                     font_size=16,
+                    selected_text_color="#000000",
                 )
                 btn.grid(row=idx // columns, column=idx % columns, sticky="ew", padx=6, pady=6)
                 btn.set_selected(bool(selected))

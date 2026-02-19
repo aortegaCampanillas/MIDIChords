@@ -1,4 +1,4 @@
-from midichords.main_app import main
+from apps.desktop.main import main
 
 
 if __name__ == "__main__":

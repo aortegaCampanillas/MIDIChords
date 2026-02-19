@@ -5,18 +5,58 @@ import tkinter.font as tkfont
 from tkinter import ttk
 from typing import Optional
 
-from midichords.ui.widgets import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton
+from midichords.ui.widgets import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
 
 class UiMixin:
+    def _draw_vertical_gradient(self, canvas: tk.Canvas, color_top: str, color_bottom: str) -> None:
+        def hex_to_rgb(color: str) -> tuple[int, int, int]:
+            color = color.lstrip("#")
+            return int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
+
+        r1, g1, b1 = hex_to_rgb(color_top)
+        r2, g2, b2 = hex_to_rgb(color_bottom)
+        width = max(1, int(canvas.winfo_width()))
+        height = max(1, int(canvas.winfo_height()))
+        steps = max(1, height - 1)
+
+        canvas.delete("bg_gradient")
+        for i in range(height):
+            ratio = i / steps
+            r = int(r1 + (r2 - r1) * ratio)
+            g = int(g1 + (g2 - g1) * ratio)
+            b = int(b1 + (b2 - b1) * ratio)
+            canvas.create_line(0, i, width, i, fill=f"#{r:02x}{g:02x}{b:02x}", tags="bg_gradient")
+        canvas.lower("bg_gradient")
+
     def _set_generation_toolbar_layout(self, show_instrument_buttons: bool) -> None:
         self.generation_accidental_switch.pack_forget()
-        self.piano_view_btn.pack_forget()
-        self.guitar_view_btn.pack_forget()
         self.generation_accidental_switch.pack(side=tk.LEFT, padx=(0, 10))
         if show_instrument_buttons:
-            self.piano_view_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.guitar_view_btn.pack(side=tk.LEFT)
+            self.instrument_view_switch_side.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+        else:
+            self.instrument_view_switch_side.pack_forget()
+
+    def _show_generation_instrument_buttons(self) -> None:
+        if not hasattr(self, "instrument_view_switch_side"):
+            return
+        self.scale_mode_piano_btn.pack_forget()
+        self.scale_mode_guitar_btn.pack_forget()
+        self.piano_view_btn.pack_forget()
+        self.guitar_view_btn.pack_forget()
+        self.piano_view_btn.pack(side=tk.TOP, pady=(0, 8))
+        self.guitar_view_btn.pack(side=tk.TOP)
+
+    def _show_scale_mode_buttons(self) -> None:
+        if not hasattr(self, "instrument_view_switch_side"):
+            return
+        self.piano_view_btn.pack_forget()
+        self.guitar_view_btn.pack_forget()
+        self.guitar_handedness_combo.pack_forget()
+        self.scale_mode_piano_btn.pack_forget()
+        self.scale_mode_guitar_btn.pack_forget()
+        self.scale_mode_piano_btn.pack(side=tk.TOP, pady=(0, 8))
+        self.scale_mode_guitar_btn.pack(side=tk.TOP)
 
     def _pick_font_family(self, preferred: list[str], fallback: str) -> str:
         try:
@@ -30,14 +70,18 @@ class UiMixin:
         return fallback
 
     def _setup_typography(self) -> None:
-        self.color_bg = "#161a20"
-        self.color_surface = "#1f2329"
-        self.color_surface_alt = "#2a2f36"
-        self.color_card = "#3a4048"
-        self.color_card_hover = "#454c56"
-        self.color_border = "#3f4650"
-        self.color_text = "#e6e9ee"
-        self.color_muted = "#9aa1ab"
+        self.color_bg = "#202834"
+        self.color_bg_gradient_top = "#2a3442"
+        self.color_bg_gradient_bottom = "#202834"
+        self.color_topbar = "#161e2a"
+        self.color_surface = "#182535"
+        self.color_surface_alt = "#2f3a4b"
+        self.color_card = "#3a4452"
+        self.color_card_hover = "#465465"
+        self.color_border = "#56627a"
+        self.color_border_hover = "#6a7a98"
+        self.color_text = "#e9edf2"
+        self.color_muted = "#a8b6c8"
         self.color_accent = "#f3bf2f"
         self.color_accent_soft = "#ffd45e"
 
@@ -45,198 +89,504 @@ class UiMixin:
             ["Avenir Next", "SF Pro Text", "Segoe UI", "Helvetica Neue"],
             "Helvetica",
         )
-        self.ui_mono_font_family = self._pick_font_family(
-            ["JetBrains Mono", "Menlo", "Consolas", "SF Mono", "Courier New"],
-            "Courier",
-        )
+        self.ui_mono_font_family = self.ui_font_family
 
         try:
             default_font = tkfont.nametofont("TkDefaultFont")
-            default_font.configure(family=self.ui_font_family, size=12)
+            default_font.configure(family=self.ui_font_family, size=13)
             text_font = tkfont.nametofont("TkTextFont")
-            text_font.configure(family=self.ui_font_family, size=12)
+            text_font.configure(family=self.ui_font_family, size=13)
             heading_font = tkfont.nametofont("TkHeadingFont")
-            heading_font.configure(family=self.ui_font_family, size=13, weight="bold")
+            heading_font.configure(family=self.ui_font_family, size=14, weight="bold")
         except Exception:
             pass
 
         style = ttk.Style()
-        style.configure("TFrame", background=self.color_bg)
-        style.configure("TLabel", background=self.color_bg, foreground=self.color_text, font=(self.ui_font_family, 13))
-        style.configure("TLabelframe", background=self.color_bg, borderwidth=1, relief=tk.GROOVE)
-        style.configure("TLabelframe.Label", background=self.color_bg, foreground=self.color_text, font=(self.ui_font_family, 13, "bold"))
-        style.configure("TButton", font=(self.ui_font_family, 12, "bold"))
-        style.configure("TCheckbutton", background=self.color_bg, foreground=self.color_text, font=(self.ui_font_family, 13, "bold"))
-        style.configure("TCombobox", font=(self.ui_font_family, 12))
+        style.configure("TFrame", background=self.color_surface_alt)
+        style.configure("TLabel", background=self.color_surface_alt, foreground=self.color_text, font=(self.ui_font_family, 13))
+        style.configure("TLabelframe", background=self.color_surface_alt, borderwidth=0, relief=tk.FLAT)
+        style.configure("TLabelframe.Label", background=self.color_surface_alt, foreground=self.color_text, font=(self.ui_font_family, 13, "bold"))
+        style.configure("TButton", font=(self.ui_font_family, 13, "bold"))
+        style.configure("TCheckbutton", background=self.color_surface_alt, foreground=self.color_text, font=(self.ui_font_family, 13, "bold"))
+        style.configure("TCombobox", font=(self.ui_font_family, 13))
+        style.configure(
+            "Panel.TCombobox",
+            font=(self.ui_font_family, 13),
+            foreground=self.color_text,
+            fieldbackground=self.color_surface,
+            background=self.color_surface,
+            bordercolor=self.color_border,
+            lightcolor=self.color_border,
+            darkcolor=self.color_border,
+            arrowcolor=self.color_text,
+            padding=6,
+        )
+        style.map(
+            "Panel.TCombobox",
+            foreground=[("readonly", self.color_text)],
+            fieldbackground=[("readonly", self.color_surface)],
+            background=[("readonly", self.color_surface)],
+            bordercolor=[("readonly", self.color_border), ("focus", self.color_border_hover)],
+            arrowcolor=[("readonly", self.color_text), ("active", self.color_text)],
+        )
 
     def _build_ui(self) -> None:
         self._setup_typography()
         self.configure(bg=self.color_bg)
-        container = ttk.Frame(self, padding=10)
+        container = tk.Frame(self, bg=self.color_bg, bd=0, highlightthickness=0)
         container.pack(fill=tk.BOTH, expand=True)
+        container.configure(padx=12, pady=12)
         unified_green_width = 200
         unified_green_height = 46
         unified_green_radius = 22
 
-        mode_bar = ttk.Frame(container)
-        mode_bar.pack(fill=tk.X, pady=(0, 8))
+        topbar_bg = self.cget("background")
+        mode_bar = tk.Frame(container, bg=topbar_bg, bd=0, highlightthickness=0)
+        mode_bar.pack(fill=tk.X, pady=(0, 6))
         mode_bar.columnconfigure(0, weight=1)
         mode_bar.columnconfigure(1, weight=1)
         mode_bar.columnconfigure(2, weight=1)
 
-        mode_center = ttk.Frame(mode_bar)
+        self.top_title_label = tk.Label(
+            mode_bar,
+            text="",
+            bg=topbar_bg,
+            fg=self.color_text,
+            font=(self.ui_font_family, 20, "bold"),
+        )
+        self.top_title_label.grid(row=0, column=0, sticky="w")
+
+        mode_center = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
         mode_center.grid(row=0, column=1)
 
         self.mode_trigger_var = tk.StringVar(value="")
-        self.mode_picker_trigger = tk.Frame(
+        self._mode_picker_hover = False
+        self.mode_picker_trigger = tk.Canvas(
             mode_center,
-            bg=self.color_surface,
-            highlightthickness=1,
-            highlightbackground=self.color_border,
+            width=320,
+            height=40,
+            bg=topbar_bg,
+            highlightthickness=0,
             bd=0,
             cursor="hand2",
         )
         self.mode_picker_trigger.pack(side=tk.LEFT)
-        self.mode_picker_label = tk.Label(
-            self.mode_picker_trigger,
-            textvariable=self.mode_trigger_var,
-            bg=self.color_surface,
-            fg=self.color_text,
-            font=(self.ui_font_family, 17, "bold"),
-            padx=16,
-            pady=10,
-            cursor="hand2",
+        self._mode_picker_text_id = self.mode_picker_trigger.create_text(
+            18,
+            20,
+            anchor="w",
+            text="",
+            fill=self.color_text,
+            font=(self.ui_font_family, 13, "bold"),
         )
-        self.mode_picker_label.pack(side=tk.LEFT)
-        self.mode_picker_arrow = tk.Label(
-            self.mode_picker_trigger,
-            text="⌄",
-            bg=self.color_surface,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 18, "bold"),
-            padx=10,
-            pady=7,
-            cursor="hand2",
+        self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
+            0,
+            20,
+            anchor="e",
+            text="▾",
+            fill=self.color_muted,
+            font=(self.ui_font_family, 13, "bold"),
         )
-        self.mode_picker_arrow.pack(side=tk.LEFT)
+
+        def _mode_picker_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
+            return [
+                x1 + r, y1,
+                x2 - r, y1,
+                x2, y1,
+                x2, y1 + r,
+                x2, y2 - r,
+                x2, y2,
+                x2 - r, y2,
+                x1 + r, y2,
+                x1, y2,
+                x1, y2 - r,
+                x1, y1 + r,
+                x1, y1,
+            ]
+
+        def _redraw_mode_picker(_event: Optional[tk.Event] = None) -> None:
+            w = max(120, int(self.mode_picker_trigger.winfo_width()))
+            h = max(34, int(self.mode_picker_trigger.winfo_height()))
+            self.mode_picker_trigger.delete("mode_picker_bg")
+            self.mode_picker_trigger.create_polygon(
+                _mode_picker_points(1, 1, w - 1, h - 1, 11),
+                smooth=True,
+                splinesteps=18,
+                fill=self.color_surface,
+                outline=(self.color_border_hover if self._mode_picker_hover else self.color_border),
+                width=1.4,
+                tags="mode_picker_bg",
+            )
+            self.mode_picker_trigger.coords(self._mode_picker_text_id, 18, h / 2)
+            self.mode_picker_trigger.coords(self._mode_picker_arrow_id, w - 16, h / 2)
+            self.mode_picker_trigger.tag_lower("mode_picker_bg")
+
+        def _refresh_mode_picker_text(*_args: object) -> None:
+            self.mode_picker_trigger.itemconfigure(self._mode_picker_text_id, text=self.mode_trigger_var.get())
+
+        self.mode_picker_trigger.bind("<Configure>", _redraw_mode_picker)
         self.mode_picker_trigger.bind("<Button-1>", self._toggle_mode_selector)
-        self.mode_picker_label.bind("<Button-1>", self._toggle_mode_selector)
-        self.mode_picker_arrow.bind("<Button-1>", self._toggle_mode_selector)
-        self.mode_picker_trigger.bind("<Enter>", lambda _e: self.mode_picker_trigger.configure(highlightbackground="#505864"))
-        self.mode_picker_trigger.bind("<Leave>", lambda _e: self.mode_picker_trigger.configure(highlightbackground=self.color_border))
+        self.mode_picker_trigger.bind("<Enter>", lambda _e: (setattr(self, "_mode_picker_hover", True), _redraw_mode_picker()))
+        self.mode_picker_trigger.bind("<Leave>", lambda _e: (setattr(self, "_mode_picker_hover", False), _redraw_mode_picker()))
+        self.mode_trigger_var.trace_add("write", _refresh_mode_picker_text)
+        _refresh_mode_picker_text()
+        _redraw_mode_picker()
+
+        self.top_right_controls = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
+        self.top_right_controls.grid(row=0, column=2, sticky="e")
+
+        self.top_right_mode_controls = tk.Frame(self.top_right_controls, bg=topbar_bg, bd=0, highlightthickness=0)
+        self.top_right_mode_controls.pack(side=tk.LEFT, padx=(0, 8))
 
         self.config_icon_btn = tk.Label(
-            mode_bar,
+            self.top_right_controls,
             text="⚙",
             fg=self.color_accent,
-            bg=self.cget("background"),
-            font=(self.ui_font_family, 20, "bold"),
+            bg=topbar_bg,
+            font=(self.ui_font_family, 18, "bold"),
             cursor="hand2",
         )
-        self.config_icon_btn.grid(row=0, column=2, sticky="e")
+        self.config_icon_btn.pack(side=tk.LEFT)
         self.config_icon_btn.bind("<Button-1>", lambda _e: self.open_settings_dialog())
         self.config_icon_btn.bind("<Enter>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent_soft))
         self.config_icon_btn.bind("<Leave>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent))
 
-        top_area = ttk.Frame(container)
-        top_area.pack(fill=tk.BOTH, expand=True)
+        top_area = tk.Canvas(container, bg=self.color_bg, bd=0, highlightthickness=0)
+        top_area.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
 
-        # Layout superior fijo 50/50 para evitar que textos largos deformen el pentagrama.
-        left_panel = ttk.Frame(top_area)
-        right_panel = ttk.Frame(top_area)
-        left_panel.place(relx=0.0, rely=0.0, relwidth=0.5, relheight=1.0)
-        right_panel.place(relx=0.5, rely=0.0, relwidth=0.5, relheight=1.0)
+        # Layout superior similar a web: panel izquierdo dominante y derecho secundario.
+        self.left_panel = RoundedPanel(
+            top_area,
+            radius=12,
+            bg_color=self.color_surface_alt,
+            border_color=self.color_border,
+            border_width=1.2,
+            padding=(12, 12, 12, 12),
+        )
+        self.right_panel = RoundedPanel(
+            top_area,
+            radius=12,
+            bg_color=self.color_surface_alt,
+            border_color=self.color_border,
+            border_width=1.2,
+            padding=(12, 12, 12, 12),
+        )
+        def _layout_top_panels(_event: Optional[tk.Event] = None) -> None:
+            self._draw_vertical_gradient(
+                top_area,
+                self.color_bg_gradient_top,
+                self.color_bg_gradient_bottom,
+            )
+            w = max(1, int(top_area.winfo_width()))
+            h = max(1, int(top_area.winfo_height()))
+            gap = 12
+            usable_w = max(1, w - gap)
+            left_w = max(1, int(usable_w * 0.58))
+            right_w = max(1, usable_w - left_w)
+            self.left_panel.place(x=0, y=0, width=left_w, height=h)
+            self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
 
-        self.staff_canvas = tk.Canvas(left_panel, bg="#000000", highlightthickness=1, highlightbackground="#3a3a3a")
-        self.staff_canvas.pack(fill=tk.BOTH, expand=True, padx=(0, 8))
+        top_area.bind("<Configure>", _layout_top_panels)
+        _layout_top_panels()
 
-        side_panel = ttk.Frame(right_panel, padding=(6, 0, 0, 0))
+        self.staff_canvas = tk.Canvas(
+            self.left_panel.content,
+            bg="#0f1621",
+            highlightthickness=1,
+            highlightbackground="#3a4558",
+        )
+        self.staff_canvas.pack(fill=tk.BOTH, expand=True)
+
+        side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
         side_panel.pack(fill=tk.BOTH, expand=True)
         side_panel.columnconfigure(0, weight=1)
         side_panel.rowconfigure(0, weight=1)
 
-        self.chord_panel = ttk.LabelFrame(side_panel, text="", padding=(12, 10))
+        self.chord_panel = tk.Frame(
+            side_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=0,
+            pady=0,
+        )
         self.chord_panel.grid(row=0, column=0, sticky="nsew")
 
-        self.tab_detection_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
-        self.tab_generation_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
-        self.tab_scale_frame = ttk.Frame(self.chord_panel, padding=(6, 4))
-        self.tab_metronome_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
-        self.tab_tuner_frame = ttk.Frame(self.chord_panel, padding=(6, 6))
+        self.tab_detection_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=5,
+            pady=5,
+        )
+        self.tab_generation_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
+        )
+        self.tab_scale_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
+        )
+        self.tab_metronome_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=6,
+        )
+        self.tab_tuner_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=6,
+        )
         self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.chord_title_label = ttk.Label(self.tab_detection_frame, text="", font=(self.ui_font_family, 20, "bold"))
+        self.chord_title_label = tk.Label(
+            self.tab_detection_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 18, "bold"),
+        )
         self.chord_title_label.pack(anchor="w", pady=(4, 8))
+        self.detection_help_label = tk.Label(
+            self.tab_detection_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            justify="left",
+            anchor="w",
+            wraplength=520,
+            font=(self.ui_font_family, 13),
+        )
+        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        self.detection_controls_row.pack(anchor="w", pady=(0, 8))
+        self.detection_clear_btn = GrayRoundedButton(
+            self.detection_controls_row,
+            text="",
+            command=self._clear_detection_panel,
+            width=104,
+            height=34,
+            radius=14,
+            font_size=14,
+        )
+        self.detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.detection_play_btn = PlayTransportButton(
+            self.detection_controls_row,
+            command=self._play_detection_panel,
+            width=58,
+            height=34,
+        )
+        self.detection_play_btn.pack(side=tk.LEFT)
 
         self.chord_var = tk.StringVar(value="-")
-        self.chord_label = ttk.Label(self.tab_detection_frame, textvariable=self.chord_var, font=(self.ui_font_family, 40, "bold"))
-        self.chord_label.pack(anchor="w", pady=(0, 18))
-
-        self.notes_caption_label = ttk.Label(self.tab_detection_frame, text="", font=(self.ui_font_family, 14, "bold"))
-        self.notes_caption_label.pack(anchor="w")
-
-        self.notes_var = tk.StringVar(value="-")
-        self.notes_label = ttk.Label(self.tab_detection_frame, textvariable=self.notes_var, wraplength=420, font=(self.ui_mono_font_family, 14))
-        self.notes_label.pack(anchor="w", pady=(6, 6))
-        self.extra_notes_caption_label = ttk.Label(self.tab_detection_frame, text="", font=(self.ui_font_family, 13, "bold"))
-        self.extra_notes_caption_label.pack(anchor="w", pady=(0, 1))
-        self.extra_notes_var = tk.StringVar(value="")
-        self.extra_notes_label = ttk.Label(
+        self.detection_result_canvas = tk.Canvas(
             self.tab_detection_frame,
-            textvariable=self.extra_notes_var,
-            wraplength=420,
-            font=(self.ui_mono_font_family, 14, "bold"),
-            foreground="#ff5a5f",
+            bg=self.color_surface_alt,
+            height=250,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
         )
-        self.extra_notes_label.pack(anchor="w", pady=(0, 8))
-        self.intervals_caption_label = ttk.Label(self.tab_detection_frame, text="", font=(self.ui_font_family, 14, "bold"))
+        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        self.detection_result_inner = tk.Frame(
+            self.detection_result_canvas,
+            bg="#17273a",
+            bd=0,
+            highlightthickness=0,
+        )
+        self._detection_result_window_id = self.detection_result_canvas.create_window(
+            0,
+            0,
+            anchor="nw",
+            window=self.detection_result_inner,
+        )
+
+        def redraw_detection_result_block(_event: Optional[tk.Event] = None) -> None:
+            w = max(40, int(self.detection_result_canvas.winfo_width()))
+            h = max(180, int(self.detection_result_canvas.winfo_height()))
+            self.detection_result_canvas.delete("result_block_bg")
+            self.detection_result_canvas.create_rectangle(
+                1,
+                1,
+                w - 1,
+                h - 1,
+                fill="#17273a",
+                outline="#73829a",
+                width=1,
+                dash=(3, 3),
+                tags="result_block_bg",
+            )
+            pad = 12
+            self.detection_result_canvas.coords(self._detection_result_window_id, pad, pad)
+            self.detection_result_canvas.itemconfigure(
+                self._detection_result_window_id,
+                width=max(1, w - (pad * 2)),
+                height=max(1, h - (pad * 2)),
+            )
+            self.detection_result_canvas.tag_lower("result_block_bg")
+
+        self.detection_result_canvas.bind("<Configure>", redraw_detection_result_block)
+        redraw_detection_result_block()
+
+        self.chord_label = tk.Label(
+            self.detection_result_inner,
+            textvariable=self.chord_var,
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 52, "bold"),
+        )
+        self.chord_label.pack(anchor="w", pady=(0, 12))
+
+        self.notes_caption_label = tk.Label(
+            self.detection_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.notes_caption_label.pack(anchor="w")
+        self.notes_var = tk.StringVar(value="-")
+        self.notes_label = tk.Label(
+            self.detection_result_inner,
+            textvariable=self.notes_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.notes_label.pack(anchor="w", pady=(6, 6))
+        self.intervals_caption_label = tk.Label(
+            self.detection_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
         self.intervals_caption_label.pack(anchor="w")
         self.intervals_var = tk.StringVar(value="-")
-        self.intervals_label = ttk.Label(self.tab_detection_frame, textvariable=self.intervals_var, wraplength=420, font=(self.ui_mono_font_family, 14))
+        self.intervals_label = tk.Label(
+            self.detection_result_inner,
+            textvariable=self.intervals_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
         self.intervals_label.pack(anchor="w", pady=(6, 10))
+        self.extra_notes_caption_label = tk.Label(
+            self.detection_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 13, "bold"),
+        )
+        self.extra_notes_caption_label.pack(anchor="w", pady=(0, 1))
+        self.extra_notes_var = tk.StringVar(value="")
+        self.extra_notes_label = tk.Label(
+            self.detection_result_inner,
+            textvariable=self.extra_notes_var,
+            bg="#17273a",
+            fg="#ff5a5f",
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14, "bold"),
+        )
+        self.extra_notes_label.pack(anchor="w", pady=(0, 8))
 
-        self.generated_title_label = ttk.Label(self.tab_generation_frame, text="", font=(self.ui_font_family, 18, "bold"))
+        self.generated_title_label = tk.Label(
+            self.tab_generation_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 18, "bold"),
+        )
         self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 10))
 
-        self.generation_root_label = ttk.Label(self.tab_generation_frame, text="")
-        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 2))
-        self.generation_root_btn = GreenRoundedButton(
+        self.generation_root_label = tk.Label(
             self.tab_generation_frame,
-            text="C",
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
+        )
+        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.generation_root_btn = GrayRoundedButton(
+            self.tab_generation_frame,
+            text="-",
             command=self.open_generation_root_dialog,
-            width=unified_green_width,
-            height=unified_green_height,
-            radius=unified_green_radius,
+            width=320,
+            height=40,
+            radius=16,
+            font_size=15,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
         )
-        self.generation_root_btn.grid(row=2, column=0, sticky="w", pady=(0, 4), padx=(0, 6))
+        self.generation_root_btn.grid(row=1, column=1, sticky="ew", pady=(0, 8))
 
-        self.generation_variant_label = ttk.Label(self.tab_generation_frame, text="")
-        self.generation_variant_label.grid(row=1, column=1, sticky="w", pady=(0, 2), padx=(6, 0))
-        self.generation_variant_btn = GreenRoundedButton(
+        self.generation_variant_label = tk.Label(
             self.tab_generation_frame,
-            text="maj",
-            command=self.open_generation_variant_dialog,
-            width=unified_green_width,
-            height=unified_green_height,
-            radius=unified_green_radius,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
         )
-        self.generation_variant_btn.grid(row=2, column=1, sticky="w", pady=(0, 4), padx=(6, 0))
+        self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.generation_variant_btn = GrayRoundedButton(
+            self.tab_generation_frame,
+            text="-",
+            command=self.open_generation_variant_dialog,
+            width=320,
+            height=40,
+            radius=16,
+            font_size=15,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+        )
+        self.generation_variant_btn.grid(row=2, column=1, sticky="ew", pady=(0, 8))
 
-        self.generation_inversion_label = ttk.Label(self.tab_generation_frame, text="")
-        self.generation_inversion_label.grid(row=1, column=2, sticky="w", pady=(0, 2), padx=(6, 0))
-        self.generation_inversion_btn = GreenRoundedButton(
+        self.generation_inversion_label = tk.Label(
+            self.tab_generation_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
+        )
+        self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 6), padx=(0, 8))
+        self.generation_inversion_btn = GrayRoundedButton(
             self.tab_generation_frame,
             text="-",
             command=self.open_generation_inversion_dialog,
-            width=unified_green_width,
-            height=unified_green_height,
-            radius=unified_green_radius,
+            width=320,
+            height=40,
+            radius=16,
+            font_size=15,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
         )
-        self.generation_inversion_btn.grid(row=2, column=2, sticky="w", pady=(0, 4), padx=(6, 0))
+        self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 6))
 
         self.generated_chord_var = tk.StringVar(value="-")
-        self.generated_chord_row = ttk.Frame(self.tab_generation_frame)
-        self.generated_chord_row.grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 4))
+        self.generated_chord_row = tk.Frame(
+            self.tab_generation_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.generated_chord_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         self.generation_play_btn = PlayTransportButton(
             self.generated_chord_row,
@@ -248,86 +598,344 @@ class UiMixin:
         self.generation_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
         self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
 
-        self.generated_chord_label = ttk.Label(
-            self.generated_chord_row,
+        self.generation_result_canvas = tk.Canvas(
+            self.tab_generation_frame,
+            bg=self.color_surface_alt,
+            height=160,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
+        )
+        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(4, 2))
+        self.generation_result_inner = tk.Frame(
+            self.generation_result_canvas,
+            bg="#17273a",
+            bd=0,
+            highlightthickness=0,
+        )
+        self._generation_result_window_id = self.generation_result_canvas.create_window(
+            0,
+            0,
+            anchor="nw",
+            window=self.generation_result_inner,
+        )
+
+        def redraw_generation_result_block(_event: Optional[tk.Event] = None) -> None:
+            w = max(40, int(self.generation_result_canvas.winfo_width()))
+            h = max(120, int(self.generation_result_canvas.winfo_height()))
+            self.generation_result_canvas.delete("result_block_bg")
+            self.generation_result_canvas.create_rectangle(
+                1,
+                1,
+                w - 1,
+                h - 1,
+                fill="#17273a",
+                outline="#73829a",
+                width=1,
+                dash=(3, 3),
+                tags="result_block_bg",
+            )
+            pad = 10
+            self.generation_result_canvas.coords(self._generation_result_window_id, pad, pad)
+            self.generation_result_canvas.itemconfigure(
+                self._generation_result_window_id,
+                width=max(1, w - (pad * 2)),
+                height=max(1, h - (pad * 2)),
+            )
+            self.generation_result_canvas.tag_lower("result_block_bg")
+
+        self.generation_result_canvas.bind("<Configure>", redraw_generation_result_block)
+        redraw_generation_result_block()
+
+        self.generated_notes_caption_label = tk.Label(
+            self.generation_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.generated_chord_inner_label = tk.Label(
+            self.generation_result_inner,
             textvariable=self.generated_chord_var,
-            font=(self.ui_font_family, 32, "bold"),
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 34, "bold"),
         )
-        self.generated_chord_label.pack(side=tk.LEFT, padx=(8, 0))
-
-        self.generated_notes_caption_label = ttk.Label(self.tab_generation_frame, text="", font=(self.ui_font_family, 14, "bold"))
-        self.generated_notes_caption_label.grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 2))
+        self.generated_chord_inner_label.pack(anchor="w", pady=(0, 8))
+        self.generated_notes_caption_label.pack(anchor="w")
         self.generated_notes_var = tk.StringVar(value="-")
-        self.generated_notes_label = ttk.Label(
-            self.tab_generation_frame,
+        self.generated_notes_label = tk.Label(
+            self.generation_result_inner,
             textvariable=self.generated_notes_var,
+            bg="#17273a",
+            fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.generated_notes_label.grid(row=5, column=0, columnspan=3, sticky="w", pady=(0, 4))
-        self.generated_intervals_caption_label = ttk.Label(self.tab_generation_frame, text="", font=(self.ui_font_family, 14, "bold"))
-        self.generated_intervals_caption_label.grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 2))
+        self.generated_notes_label.pack(anchor="w", pady=(6, 6))
+        self.generated_intervals_caption_label = tk.Label(
+            self.generation_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.generated_intervals_caption_label.pack(anchor="w")
         self.generated_intervals_var = tk.StringVar(value="-")
-        self.generated_intervals_label = ttk.Label(
-            self.tab_generation_frame,
+        self.generated_intervals_label = tk.Label(
+            self.generation_result_inner,
             textvariable=self.generated_intervals_var,
+            bg="#17273a",
+            fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.generated_intervals_label.grid(row=7, column=0, columnspan=3, sticky="w", pady=(0, 2))
+        self.generated_intervals_label.pack(anchor="w", pady=(6, 0))
 
-        self.tab_generation_frame.columnconfigure(0, weight=1)
+        self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
-        self.tab_generation_frame.columnconfigure(2, weight=1)
 
-        self.scale_title_row = ttk.Frame(self.tab_scale_frame)
-        self.scale_title_row.grid(row=0, column=0, sticky="w", pady=(4, 8))
+        self.scale_panel_title_label = tk.Label(
+            self.tab_scale_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 18, "bold"),
+        )
+        self.scale_panel_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 10))
+
+        self.scale_controls_row = tk.Frame(
+            self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_controls_row.grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 8))
         self.scale_play_btn = PlayTransportButton(
-            self.scale_title_row,
+            self.scale_controls_row,
             command=self._toggle_scale_play,
             width=58,
             height=34,
         )
         self.scale_play_btn.pack(side=tk.LEFT)
         self.scale_play_btn.bind("<space>", lambda _e: "break")
-        self.scale_title_var = tk.StringVar(value="-")
-        self.scale_title_label = ttk.Label(self.scale_title_row, textvariable=self.scale_title_var, font=(self.ui_font_family, 30, "bold"))
-        self.scale_title_label.pack(side=tk.LEFT, padx=(8, 0))
+        self.scale_mode_metronome_btn = GrayRoundedButton(
+            self.scale_controls_row,
+            text="⏱",
+            command=lambda: self._set_scale_play_mode("metronome"),
+            width=48,
+            height=34,
+            radius=14,
+            font_size=16,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
+            selected_border_width=2.0,
+        )
+        self.scale_mode_metronome_btn.pack(side=tk.LEFT, padx=(8, 0))
 
-        self.scale_buttons_row = ttk.Frame(self.tab_scale_frame)
-        self.scale_buttons_row.grid(row=1, column=0, sticky="w", pady=(4, 8))
-        self.scale_tonic_btn = GreenRoundedButton(
-            self.scale_buttons_row,
+        self.scale_bpm_row = tk.Frame(
+            self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_bpm_row.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        self.scale_bpm_row.columnconfigure(1, weight=1)
+        panel_bg = self.color_surface_alt
+        self.scale_bpm_minus_btn = tk.Canvas(
+            self.scale_bpm_row,
+            width=34,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+        )
+        self.scale_bpm_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−")
+        self.scale_bpm_minus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−"))
+        self.scale_bpm_minus_btn.bind("<Button-1>", self._on_scale_bpm_minus)
+
+        self.scale_bpm_slider = tk.Canvas(
+            self.scale_bpm_row,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
+        self.scale_bpm_slider.grid(row=0, column=1, sticky="ew")
+        self.scale_bpm_slider.bind("<Configure>", lambda _e: self._draw_scale_bpm_slider())
+        self.scale_bpm_slider.bind("<Button-1>", self._on_scale_bpm_slider_interact)
+        self.scale_bpm_slider.bind("<B1-Motion>", self._on_scale_bpm_slider_interact)
+
+        self.scale_bpm_plus_btn = tk.Canvas(
+            self.scale_bpm_row,
+            width=34,
+            height=34,
+            bg=panel_bg,
+            highlightthickness=0,
+            bd=0,
+        )
+        self.scale_bpm_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 8))
+        self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+")
+        self.scale_bpm_plus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+"))
+        self.scale_bpm_plus_btn.bind("<Button-1>", self._on_scale_bpm_plus)
+
+        self.scale_bpm_value_label = tk.Label(
+            self.scale_bpm_row,
+            text="120 BPM",
+            bg=panel_bg,
+            fg="#f3bf2f",
+            font=(self.ui_font_family, 13, "bold"),
+            width=7,
+            anchor="e",
+        )
+        self.scale_bpm_value_label.grid(row=0, column=3, sticky="e")
+        self._set_scale_bpm(self.scale_bpm_value, save=False)
+
+        self.scale_tonic_selector_label = tk.Label(
+            self.tab_scale_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
+        )
+        self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.scale_tonic_btn = GrayRoundedButton(
+            self.tab_scale_frame,
             text="C",
             command=self.open_scale_tonic_dialog,
-            width=unified_green_width,
-            height=unified_green_height,
-            radius=unified_green_radius,
+            width=320,
+            height=40,
+            radius=16,
+            font_size=15,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
         )
-        self.scale_tonic_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self.scale_type_btn = GreenRoundedButton(
-            self.scale_buttons_row,
+        self.scale_tonic_btn.grid(row=1, column=1, sticky="ew", pady=(0, 8))
+
+        self.scale_type_selector_label = tk.Label(
+            self.tab_scale_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
+        )
+        self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.scale_type_btn = GrayRoundedButton(
+            self.tab_scale_frame,
             text=self.scale_pattern_name,
             command=self.open_scale_type_dialog,
-            width=unified_green_width,
-            height=unified_green_height,
-            radius=unified_green_radius,
+            width=320,
+            height=40,
+            radius=16,
+            font_size=15,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
         )
-        self.scale_type_btn.pack(side=tk.LEFT)
+        self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 8))
 
-        self.scale_notes_caption_label = ttk.Label(self.tab_scale_frame, text="", font=(self.ui_font_family, 14, "bold"))
-        self.scale_notes_caption_label.grid(row=2, column=0, sticky="w", pady=(2, 2))
+        self.scale_result_canvas = tk.Canvas(
+            self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            height=150,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
+        )
+        self.scale_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(2, 2))
+        self.scale_result_inner = tk.Frame(
+            self.scale_result_canvas,
+            bg="#17273a",
+            bd=0,
+            highlightthickness=0,
+        )
+        self._scale_result_window_id = self.scale_result_canvas.create_window(
+            0,
+            0,
+            anchor="nw",
+            window=self.scale_result_inner,
+        )
+
+        def redraw_scale_result_block(_event: Optional[tk.Event] = None) -> None:
+            w = max(40, int(self.scale_result_canvas.winfo_width()))
+            h = max(120, int(self.scale_result_canvas.winfo_height()))
+            self.scale_result_canvas.delete("result_block_bg")
+            self.scale_result_canvas.create_rectangle(
+                1,
+                1,
+                w - 1,
+                h - 1,
+                fill="#17273a",
+                outline="#73829a",
+                width=1,
+                dash=(3, 3),
+                tags="result_block_bg",
+            )
+            pad = 10
+            self.scale_result_canvas.coords(self._scale_result_window_id, pad, pad)
+            self.scale_result_canvas.itemconfigure(
+                self._scale_result_window_id,
+                width=max(1, w - (pad * 2)),
+                height=max(1, h - (pad * 2)),
+            )
+            self.scale_result_canvas.tag_lower("result_block_bg")
+
+        self.scale_result_canvas.bind("<Configure>", redraw_scale_result_block)
+        redraw_scale_result_block()
+
+        self.scale_name_var = tk.StringVar(value="-")
+        self.scale_name_label = tk.Label(
+            self.scale_result_inner,
+            textvariable=self.scale_name_var,
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 34, "bold"),
+        )
+        self.scale_name_label.pack(anchor="w", pady=(0, 8))
+
+        self.scale_notes_caption_label = tk.Label(
+            self.scale_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.scale_notes_caption_label.pack(anchor="w")
         self.scale_notes_var = tk.StringVar(value="-")
-        self.scale_notes_label = ttk.Label(self.tab_scale_frame, textvariable=self.scale_notes_var, wraplength=420, font=(self.ui_mono_font_family, 14))
-        self.scale_notes_label.grid(row=3, column=0, sticky="w", pady=(0, 4))
+        self.scale_notes_label = tk.Label(
+            self.scale_result_inner,
+            textvariable=self.scale_notes_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.scale_notes_label.pack(anchor="w", pady=(6, 6))
 
-        self.scale_intervals_caption_label = ttk.Label(self.tab_scale_frame, text="", font=(self.ui_font_family, 14, "bold"))
-        self.scale_intervals_caption_label.grid(row=4, column=0, sticky="w", pady=(2, 2))
+        self.scale_intervals_caption_label = tk.Label(
+            self.scale_result_inner,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.scale_intervals_caption_label.pack(anchor="w")
         self.scale_intervals_var = tk.StringVar(value="-")
-        self.scale_intervals_label = ttk.Label(self.tab_scale_frame, textvariable=self.scale_intervals_var, wraplength=420, font=(self.ui_mono_font_family, 14))
-        self.scale_intervals_label.grid(row=5, column=0, sticky="w", pady=(0, 4))
+        self.scale_intervals_label = tk.Label(
+            self.scale_result_inner,
+            textvariable=self.scale_intervals_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.scale_intervals_label.pack(anchor="w", pady=(6, 0))
 
-        self.tab_scale_frame.columnconfigure(0, weight=1)
+        self.tab_scale_frame.columnconfigure(0, weight=0)
+        self.tab_scale_frame.columnconfigure(1, weight=1)
 
         self.metronome_title_row = ttk.Frame(self.tab_metronome_frame)
         self.metronome_title_row.grid(row=0, column=0, sticky="w", pady=(4, 10))
@@ -630,22 +1238,18 @@ class UiMixin:
 
         self.status_var = tk.StringVar(value="")
 
-        self.bottom_separator = ttk.Separator(container, orient=tk.HORIZONTAL)
-        self.bottom_separator.pack(fill=tk.X, pady=(10, 10))
-
         self.instrument_toolbar_height = 56
 
         self.instrument_switch_frame = tk.Frame(container, bg=self.cget("background"))
         self.instrument_switch_frame.configure(height=self.instrument_toolbar_height)
         self.instrument_switch_frame.pack_propagate(False)
-        self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6))
         self.instrument_switch_frame.rowconfigure(0, weight=1)
         self.instrument_switch_frame.columnconfigure(0, weight=1)
         self.instrument_switch_frame.columnconfigure(1, weight=0)
         self.instrument_switch_frame.columnconfigure(2, weight=1)
-        self.instrument_switch_inner = tk.Frame(self.instrument_switch_frame, bg=self.cget("background"))
-        self.instrument_switch_inner.grid(row=0, column=1, sticky="")
-        self.generation_accidental_switch = tk.Frame(self.instrument_switch_inner, bg=self.cget("background"))
+        self.instrument_switch_inner = tk.Frame(self.top_right_mode_controls, bg=topbar_bg)
+        self.instrument_switch_inner.pack(side=tk.LEFT)
+        self.generation_accidental_switch = tk.Frame(self.instrument_switch_inner, bg=topbar_bg)
         self.generation_accidental_switch.pack(side=tk.LEFT, padx=(0, 10))
         self.generation_accidental_sharp_btn = RoundedChoiceButton(
             self.generation_accidental_switch,
@@ -666,107 +1270,93 @@ class UiMixin:
         )
         self.generation_accidental_flat_btn.pack(side=tk.LEFT)
 
-        if self.piano_image is not None and self.guitar_image is not None:
-            self.instrument_buttons_are_images = True
-            self.piano_view_btn = tk.Label(
-                self.instrument_switch_inner,
-                image=self.piano_image,
-                bg=self.cget("background"),
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=6,
-                pady=4,
-            )
-            self.piano_view_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.piano_view_btn.bind("<Button-1>", lambda _e: self._set_instrument_view("piano"))
+        self.instrument_panel = RoundedPanel(
+            container,
+            radius=12,
+            bg_color=self.color_surface_alt,
+            border_color=self.color_border,
+            border_width=1.2,
+            padding=(12, 12, 12, 6),
+        )
+        self.instrument_panel.pack(fill=tk.X, expand=False)
+        self.instrument_body_row = tk.Frame(self.instrument_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        self.instrument_body_row.pack(fill=tk.X, expand=False)
+        self.instrument_canvas_holder = tk.Frame(self.instrument_body_row, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        self.instrument_canvas_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.instrument_view_switch_side = tk.Frame(self.instrument_body_row, bg=self.color_surface_alt, bd=0, highlightthickness=0)
 
-            self.guitar_view_btn = tk.Label(
-                self.instrument_switch_inner,
-                image=self.guitar_image,
-                bg=self.cget("background"),
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=6,
-                pady=4,
-            )
-            self.guitar_view_btn.pack(side=tk.LEFT)
-            self.guitar_view_btn.bind("<Button-1>", lambda _e: self._set_instrument_view("guitar"))
-        else:
-            self.instrument_buttons_are_images = False
-            self.piano_view_btn = GreenRoundedButton(
-                self.instrument_switch_inner,
-                text="Piano",
-                command=lambda: self._set_instrument_view("piano"),
-                width=140,
-                height=42,
-                radius=20,
-            )
-            self.piano_view_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.keyboard_canvas = tk.Canvas(
+            self.instrument_canvas_holder,
+            bg="#f5f4ef",
+            height=156,
+            highlightthickness=1,
+            highlightbackground="#c5cad3",
+        )
+        self.keyboard_canvas.pack(fill=tk.X, expand=False)
 
-            self.guitar_view_btn = GreenRoundedButton(
-                self.instrument_switch_inner,
-                text="Guitarra",
-                command=lambda: self._set_instrument_view("guitar"),
-                width=140,
-                height=42,
-                radius=20,
-            )
-            self.guitar_view_btn.pack(side=tk.LEFT)
+        self.tuner_spectrum_canvas = tk.Canvas(
+            self.instrument_canvas_holder,
+            bg="#081425",
+            height=190,
+            highlightthickness=1,
+            highlightbackground=self.color_border,
+        )
+        self.tuner_spectrum_canvas.bind("<Configure>", lambda _e: self._draw_tuner_spectrum())
 
-        if self.right_hand_icon_image is not None and self.left_hand_icon_image is not None:
-            self.handedness_buttons_are_images = True
-            panel_bg = self.cget("background")
-            self.guitar_right_btn = tk.Label(
-                self.instrument_switch_frame,
-                image=self.right_hand_icon_image,
-                bg=panel_bg,
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=8,
-                pady=6,
-            )
-            self.guitar_right_btn.bind("<Button-1>", lambda _e: self._set_guitar_handedness("right"))
-            self.guitar_right_btn.grid(row=0, column=0, sticky="w", padx=(6, 0))
-            self.guitar_left_btn = tk.Label(
-                self.instrument_switch_frame,
-                image=self.left_hand_icon_image,
-                bg=panel_bg,
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=8,
-                pady=6,
-            )
-            self.guitar_left_btn.bind("<Button-1>", lambda _e: self._set_guitar_handedness("left"))
-            self.guitar_left_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
-        else:
-            self.handedness_buttons_are_images = False
-            self.guitar_right_btn = GreenRoundedButton(
-                self.instrument_switch_frame,
-                text="Diestro",
-                command=lambda: self._set_guitar_handedness("right"),
-                width=130,
-                height=38,
-                radius=18,
-            )
-            self.guitar_right_btn.grid(row=0, column=0, sticky="w", padx=(6, 0))
-            self.guitar_left_btn = GreenRoundedButton(
-                self.instrument_switch_frame,
-                text="Zurdo",
-                command=lambda: self._set_guitar_handedness("left"),
-                width=130,
-                height=38,
-                radius=18,
-            )
-            self.guitar_left_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
+        self.guitar_canvas = tk.Canvas(
+            self.instrument_canvas_holder,
+            bg="#2f3137",
+            height=196,
+            highlightthickness=1,
+            highlightbackground=self.color_border,
+        )
+        self.guitar_variations_frame = tk.Frame(self.instrument_canvas_holder, bg=self.color_surface_alt)
+        self.guitar_variations_inner = tk.Frame(self.guitar_variations_frame, bg=self.color_surface_alt)
+        self.guitar_variations_inner.pack(anchor="center")
+
+        self.instrument_buttons_are_images = False
+        self.piano_view_btn = GrayRoundedButton(
+            self.instrument_view_switch_side,
+            text="Piano",
+            command=lambda: self._set_instrument_view("piano"),
+            width=124,
+            height=42,
+            radius=20,
+            font_size=13,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
+            selected_border_width=2.0,
+        )
+        self.piano_view_btn.pack(side=tk.TOP, pady=(0, 8))
+
+        self.guitar_view_btn = GrayRoundedButton(
+            self.instrument_view_switch_side,
+            text="Guitarra",
+            command=lambda: self._set_instrument_view("guitar"),
+            width=124,
+            height=42,
+            radius=20,
+            font_size=13,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+        )
+        self.guitar_view_btn.pack(side=tk.TOP)
+
+        self.handedness_buttons_are_images = False
+        self.guitar_handedness_var = tk.StringVar(value="")
+        self.guitar_handedness_combo = ttk.Combobox(
+            self.instrument_view_switch_side,
+            textvariable=self.guitar_handedness_var,
+            state="readonly",
+            width=10,
+        )
+        self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
 
         self.scale_transport_frame = tk.Frame(container, bg=self.cget("background"))
         self.scale_transport_frame.configure(height=self.instrument_toolbar_height)
         self.scale_transport_frame.pack_propagate(False)
-        self.scale_transport_frame.pack(fill=tk.X, pady=(0, 6))
         self.scale_transport_icons = tk.Frame(self.scale_transport_frame, bg=self.cget("background"))
         self.scale_transport_icons.place(relx=0.5, rely=0.5, anchor="center")
         self.scale_accidental_sharp_btn = RoundedChoiceButton(
@@ -790,163 +1380,88 @@ class UiMixin:
         self.scale_transport_bpm_frame = tk.Frame(self.scale_transport_frame, bg=self.cget("background"))
         self.scale_transport_bpm_frame.place(relx=1.0, rely=0.5, anchor="e", x=-6)
 
-        if self.piano_image is not None and self.metronome_image is not None:
-            self.scale_transport_buttons_are_images = True
+        self.scale_transport_buttons_are_images = False
+        self.scale_mode_piano_btn = GrayRoundedButton(
+            self.instrument_view_switch_side,
+            text="Piano",
+            command=lambda: self._set_scale_play_mode("piano"),
+            width=124,
+            height=42,
+            radius=20,
+            font_size=13,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
+            selected_border_width=2.0,
+        )
+        self.scale_mode_guitar_btn = GrayRoundedButton(
+            self.instrument_view_switch_side,
+            text="Guitarra",
+            command=lambda: self._set_scale_play_mode("guitar"),
+            width=124,
+            height=42,
+            radius=20,
+            font_size=13,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
+            selected_border_width=2.0,
+        )
+        if not hasattr(self, "scale_bpm_slider"):
             panel_bg = self.cget("background")
-            self.scale_mode_piano_btn = tk.Label(
-                self.scale_transport_icons,
-                image=self.piano_image,
+            self.scale_bpm_minus_btn = tk.Canvas(
+                self.scale_transport_bpm_frame,
+                width=34,
+                height=34,
                 bg=panel_bg,
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=6,
-                pady=4,
+                highlightthickness=0,
+                bd=0,
             )
-            self.scale_mode_piano_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.scale_mode_piano_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "piano"))
-            self.scale_mode_piano_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "piano"))
+            self.scale_bpm_minus_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−")
+            self.scale_bpm_minus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−"))
+            self.scale_bpm_minus_btn.bind("<Button-1>", self._on_scale_bpm_minus)
 
-            self.scale_mode_guitar_btn = tk.Label(
-                self.scale_transport_icons,
-                image=self.guitar_image if self.guitar_image is not None else self.piano_image,
+            self.scale_bpm_slider = tk.Canvas(
+                self.scale_transport_bpm_frame,
+                width=240,
+                height=34,
                 bg=panel_bg,
-                bd=2,
-                relief=tk.FLAT,
+                highlightthickness=0,
+                bd=0,
                 cursor="hand2",
-                padx=6,
-                pady=4,
             )
-            self.scale_mode_guitar_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.scale_mode_guitar_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "guitar"))
-            self.scale_mode_guitar_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "guitar"))
+            self.scale_bpm_slider.pack(side=tk.LEFT, padx=(0, 8))
+            self.scale_bpm_slider.bind("<Configure>", lambda _e: self._draw_scale_bpm_slider())
+            self.scale_bpm_slider.bind("<Button-1>", self._on_scale_bpm_slider_interact)
+            self.scale_bpm_slider.bind("<B1-Motion>", self._on_scale_bpm_slider_interact)
 
-            self.scale_mode_metronome_btn = tk.Label(
-                self.scale_transport_icons,
-                image=self.metronome_image,
+            self.scale_bpm_plus_btn = tk.Canvas(
+                self.scale_transport_bpm_frame,
+                width=34,
+                height=34,
                 bg=panel_bg,
-                bd=2,
-                relief=tk.FLAT,
-                cursor="hand2",
-                padx=6,
-                pady=4,
+                highlightthickness=0,
+                bd=0,
             )
-            self.scale_mode_metronome_btn.pack(side=tk.LEFT, padx=(0, 6))
-            self.scale_mode_metronome_btn.bind("<ButtonPress-1>", lambda e: self._on_scale_transport_icon_press(e, "metronome"))
-            self.scale_mode_metronome_btn.bind("<ButtonRelease-1>", lambda e: self._on_scale_transport_icon_release(e, "metronome"))
-        else:
-            self.scale_transport_buttons_are_images = False
-            self.scale_mode_piano_btn = GreenRoundedButton(
-                self.scale_transport_icons,
-                text="Piano",
-                command=lambda: self._set_scale_play_mode("piano"),
-                width=130,
-                height=40,
-                radius=19,
+            self.scale_bpm_plus_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+")
+            self.scale_bpm_plus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+"))
+            self.scale_bpm_plus_btn.bind("<Button-1>", self._on_scale_bpm_plus)
+
+            self.scale_bpm_value_label = tk.Label(
+                self.scale_transport_bpm_frame,
+                text="120 BPM",
+                bg=panel_bg,
+                fg="#f3bf2f",
+                font=(self.ui_font_family, 13, "bold"),
+                width=7,
+                anchor="e",
             )
-            self.scale_mode_piano_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.scale_mode_guitar_btn = GreenRoundedButton(
-                self.scale_transport_icons,
-                text="Guitarra",
-                command=lambda: self._set_scale_play_mode("guitar"),
-                width=130,
-                height=40,
-                radius=19,
-            )
-            self.scale_mode_guitar_btn.pack(side=tk.LEFT, padx=(0, 8))
-            self.scale_mode_metronome_btn = GreenRoundedButton(
-                self.scale_transport_icons,
-                text="Metrónomo",
-                command=lambda: self._set_scale_play_mode("metronome"),
-                width=160,
-                height=40,
-                radius=19,
-            )
-            self.scale_mode_metronome_btn.pack(side=tk.LEFT, padx=(0, 6))
-        panel_bg = self.cget("background")
-        self.scale_bpm_minus_btn = tk.Canvas(
-            self.scale_transport_bpm_frame,
-            width=34,
-            height=34,
-            bg=panel_bg,
-            highlightthickness=0,
-            bd=0,
-        )
-        self.scale_bpm_minus_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−")
-        self.scale_bpm_minus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_minus_btn, "−"))
-        self.scale_bpm_minus_btn.bind("<Button-1>", self._on_scale_bpm_minus)
-
-        self.scale_bpm_slider = tk.Canvas(
-            self.scale_transport_bpm_frame,
-            width=240,
-            height=34,
-            bg=panel_bg,
-            highlightthickness=0,
-            bd=0,
-            cursor="hand2",
-        )
-        self.scale_bpm_slider.pack(side=tk.LEFT, padx=(0, 8))
-        self.scale_bpm_slider.bind("<Configure>", lambda _e: self._draw_scale_bpm_slider())
-        self.scale_bpm_slider.bind("<Button-1>", self._on_scale_bpm_slider_interact)
-        self.scale_bpm_slider.bind("<B1-Motion>", self._on_scale_bpm_slider_interact)
-
-        self.scale_bpm_plus_btn = tk.Canvas(
-            self.scale_transport_bpm_frame,
-            width=34,
-            height=34,
-            bg=panel_bg,
-            highlightthickness=0,
-            bd=0,
-        )
-        self.scale_bpm_plus_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+")
-        self.scale_bpm_plus_btn.bind("<Configure>", lambda _e: self._draw_scale_bpm_step_button(self.scale_bpm_plus_btn, "+"))
-        self.scale_bpm_plus_btn.bind("<Button-1>", self._on_scale_bpm_plus)
-
-        self.scale_bpm_value_label = tk.Label(
-            self.scale_transport_bpm_frame,
-            text="120 BPM",
-            bg=panel_bg,
-            fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
-            width=7,
-            anchor="e",
-        )
-        self.scale_bpm_value_label.pack(side=tk.LEFT)
-        self._set_scale_bpm(self.scale_bpm_value, save=False)
-
-        self.instrument_canvas_holder = tk.Frame(container, bg=self.cget("background"))
-        self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
-
-        self.keyboard_canvas = tk.Canvas(
-            self.instrument_canvas_holder,
-            bg="#f5f4ef",
-            height=156,
-            highlightthickness=1,
-            highlightbackground="#cfc9bc",
-        )
-        self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
-
-        self.tuner_spectrum_canvas = tk.Canvas(
-            self.instrument_canvas_holder,
-            bg="#0b0c10",
-            height=190,
-            highlightthickness=1,
-            highlightbackground="#3a3a3a",
-        )
-        self.tuner_spectrum_canvas.bind("<Configure>", lambda _e: self._draw_tuner_spectrum())
-
-        self.guitar_canvas = tk.Canvas(
-            self.instrument_canvas_holder,
-            bg="#2f3137",
-            height=196,
-            highlightthickness=1,
-            highlightbackground="#5c6068",
-        )
-        self.guitar_variations_frame = tk.Frame(self.instrument_canvas_holder, bg="#1f2024")
-        self.guitar_variations_inner = tk.Frame(self.guitar_variations_frame, bg="#1f2024")
-        self.guitar_variations_inner.pack(anchor="center")
+            self.scale_bpm_value_label.pack(side=tk.LEFT)
+            self._set_scale_bpm(self.scale_bpm_value, save=False)
 
         self.staff_canvas.bind("<Configure>", lambda _event: self.redraw_staff())
         self.staff_canvas.bind("<Motion>", self._on_staff_motion)
@@ -974,20 +1489,27 @@ class UiMixin:
         self.bind_all("<Shift-MouseWheel>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-4>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-5>", self._on_any_mousewheel, add="+")
+        self.chord_panel.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
+        self._refresh_right_panel_wraplengths()
         self._set_instrument_view(self.instrument_view)
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
-        self.chord_panel.configure(text="")
-        self.chord_title_label.configure(text="")
+        self.top_title_label.configure(text=self.tr("app_title"))
+        self.chord_title_label.configure(text=self.tr("detection_title"))
+        self.detection_help_label.configure(text=self.tr("detection_help"))
+        self.detection_clear_btn.set_text(self.tr("button_clear"))
         self.notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes"))
         self.intervals_caption_label.configure(text=self.tr("label_intervals"))
-        self.generated_title_label.configure(text="")
+        self.generated_title_label.configure(text=self.tr("mode_generation"))
         self.generation_root_label.configure(text=self.tr("label_root_note"))
         self.generation_variant_label.configure(text=self.tr("label_variant"))
         self.generation_inversion_label.configure(text=self.tr("label_inversion"))
         self.generated_notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.generated_intervals_caption_label.configure(text=self.tr("label_intervals"))
+        self.scale_panel_title_label.configure(text=self.tr("mode_scales"))
+        self.scale_tonic_selector_label.configure(text=self.tr("label_scale_tonic"))
+        self.scale_type_selector_label.configure(text=self.tr("label_scale_type"))
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
         self.metronome_tempo_label.configure(text=self.tr("label_metronome_tempo"))
@@ -1005,13 +1527,12 @@ class UiMixin:
         if not self.instrument_buttons_are_images:
             self.piano_view_btn.set_text(self.tr("instrument_piano"))
             self.guitar_view_btn.set_text(self.tr("instrument_guitar"))
-        if not self.handedness_buttons_are_images:
-            self.guitar_right_btn.set_text(self.tr("handed_right"))
-            self.guitar_left_btn.set_text(self.tr("handed_left"))
+        if hasattr(self, "guitar_handedness_combo"):
+            self._refresh_handedness_toggle_styles()
         if not self.scale_transport_buttons_are_images:
             self.scale_mode_piano_btn.set_text(self.tr("instrument_piano"))
             self.scale_mode_guitar_btn.set_text(self.tr("instrument_guitar"))
-            self.scale_mode_metronome_btn.set_text(self.tr("scale_play_metronome"))
+            self.scale_mode_metronome_btn.set_text("⏱")
         self.scale_bpm_value_label.configure(text=f"{int(self.config_data.get('metronome_bpm', 120))} {self.tr('scale_bpm_short')}")
         self.mode_var.set(self._mode_label(self.current_mode))
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
@@ -1042,6 +1563,81 @@ class UiMixin:
             self._refresh_generation_controls()
         if self.scale_tab_active:
             self._refresh_scale_preview()
+    def _fit_instrument_panel_height(self) -> None:
+        if not hasattr(self, "instrument_panel") or not hasattr(self, "instrument_body_row"):
+            return
+        try:
+            self.update_idletasks()
+            body_height = int(self.instrument_body_row.winfo_reqheight())
+            panel_height = max(80, body_height + 18)
+            window_height = max(1, int(self.winfo_height()))
+            # Prevent the bottom instrument panel from consuming too much vertical space
+            # and clipping the upper content when guitar controls are visible.
+            max_panel_height = max(170, int(window_height * 0.42))
+            panel_height = min(panel_height, max_panel_height)
+            self.instrument_panel.configure(height=panel_height)
+        except Exception:
+            pass
+    def _refresh_right_panel_wraplengths(self, _event: Optional[tk.Event] = None) -> None:
+        try:
+            panel_width = int(self.chord_panel.winfo_width())
+        except Exception:
+            return
+        if panel_width <= 1:
+            return
+
+        help_wrap = max(220, panel_width - 56)
+        result_wrap = max(180, panel_width - 84)
+
+        try:
+            self.detection_help_label.configure(wraplength=help_wrap)
+        except Exception:
+            pass
+
+        for widget_name in (
+            "notes_label",
+            "extra_notes_label",
+            "intervals_label",
+            "generated_notes_label",
+            "generated_intervals_label",
+            "scale_notes_label",
+            "scale_intervals_label",
+        ):
+            widget = getattr(self, widget_name, None)
+            if widget is not None:
+                try:
+                    widget.configure(wraplength=result_wrap)
+                except Exception:
+                    pass
+    def _clear_detection_panel(self) -> None:
+        self._stop_detection_preview()
+        self._clear_live_input_state()
+        self.update_music_views()
+    def _play_detection_panel(self) -> None:
+        detection_notes = sorted(self._current_detection_notes())
+        if not detection_notes or self.active_notes:
+            return
+        self._stop_detection_preview()
+        self._detection_preview_notes = set(detection_notes)
+        for note in detection_notes:
+            self.audio_engine.note_on(int(note), 108)
+        self.detection_play_btn.set_playing(True)
+        self._detection_preview_after_id = self.after(650, self._stop_detection_preview)
+    def _stop_detection_preview(self) -> None:
+        after_id = getattr(self, "_detection_preview_after_id", None)
+        if after_id is not None:
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+            self._detection_preview_after_id = None
+        preview_notes = set(getattr(self, "_detection_preview_notes", set()))
+        if preview_notes:
+            for note in preview_notes:
+                self.audio_engine.note_off(int(note))
+        self._detection_preview_notes = set()
+        if hasattr(self, "detection_play_btn"):
+            self.detection_play_btn.set_playing(False)
     def _pointer_inside_widget(self, widget: tk.Widget) -> bool:
         try:
             pointer_x, pointer_y = widget.winfo_pointerxy()
@@ -1083,10 +1679,11 @@ class UiMixin:
     def _build_scrollable_area(
         self,
         parent: tk.Widget,
-        bg: str = "#2a2f36",
+        bg: Optional[str] = None,
         padx: int = 8,
         pady: tuple[int, int] = (2, 10),
     ) -> tk.Frame:
+        bg = bg or self.color_surface_alt
         wrapper = tk.Frame(parent, bg=bg)
         wrapper.pack(fill=tk.BOTH, expand=True, padx=padx, pady=pady)
 
@@ -1127,12 +1724,12 @@ class UiMixin:
 
         return content
     def _build_rounded_search_entry(self, parent: tk.Widget, placeholder: str) -> tuple[tk.StringVar, tk.Entry]:
-        wrapper = tk.Frame(parent, bg="#2a2f36")
+        wrapper = tk.Frame(parent, bg=self.color_surface_alt)
         wrapper.pack(fill=tk.X, pady=(0, 8))
 
         canvas = tk.Canvas(
             wrapper,
-            bg="#2a2f36",
+            bg=self.color_surface_alt,
             height=42,
             highlightthickness=0,
             bd=0,
@@ -1146,17 +1743,20 @@ class UiMixin:
             textvariable=search_var,
             relief=tk.FLAT,
             bd=0,
-            bg="#1f2128",
-            fg="#f0f0f0",
-            insertbackground="#f0f0f0",
+            highlightthickness=0,
+            highlightbackground=self.color_surface,
+            highlightcolor=self.color_surface,
+            bg=self.color_surface,
+            fg=self.color_text,
+            insertbackground=self.color_text,
             font=(self.ui_font_family, 15, "bold"),
         )
         entry_window = canvas.create_window(46, 21, anchor="w", window=entry, height=24)
-        placeholder_id = canvas.create_text(50, 21, anchor="w", text=placeholder, fill="#a4a9b6", font=(self.ui_font_family, 15, "bold"))
-        clear_button_bg_id = canvas.create_oval(0, 0, 0, 0, fill="#81858f", outline="")
-        clear_button_x_id = canvas.create_text(0, 0, text="✕", fill="#242730", font=(self.ui_font_family, 10, "bold"))
-        search_lens_id = canvas.create_oval(0, 0, 0, 0, outline="#eceff5", width=2)
-        search_handle_id = canvas.create_line(0, 0, 0, 0, fill="#eceff5", width=2, capstyle=tk.ROUND)
+        placeholder_id = canvas.create_text(50, 21, anchor="w", text=placeholder, fill=self.color_muted, font=(self.ui_font_family, 15, "bold"))
+        clear_button_bg_id = canvas.create_oval(0, 0, 0, 0, fill=self.color_muted, outline="")
+        clear_button_x_id = canvas.create_text(0, 0, text="✕", fill=self.color_surface, font=(self.ui_font_family, 10, "bold"))
+        search_lens_id = canvas.create_oval(0, 0, 0, 0, outline=self.color_text, width=2)
+        search_handle_id = canvas.create_line(0, 0, 0, 0, fill=self.color_text, width=2, capstyle=tk.ROUND)
 
         def rounded_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
             return [
@@ -1183,8 +1783,8 @@ class UiMixin:
                 rounded_points(1, 1, w - 1, h - 1, r),
                 smooth=True,
                 splinesteps=18,
-                fill="#1f2128",
-                outline="#666a74",
+                fill=self.color_surface,
+                outline=self.color_border,
                 width=2.0,
                 tags="search_bg",
             )
@@ -1255,15 +1855,15 @@ class UiMixin:
 
         overlay = tk.Frame(
             self,
-            bg="#2a2f36",
+            bg=self.color_surface_alt,
             highlightthickness=1,
-            highlightbackground="#505864",
+            highlightbackground=self.color_border,
             bd=0,
         )
         overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.62)
         self.mode_selector_overlay = overlay
 
-        cards_frame = tk.Frame(overlay, bg="#2a2f36")
+        cards_frame = tk.Frame(overlay, bg=self.color_surface_alt)
         cards_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         cards_frame.columnconfigure(0, weight=1)
         cards_frame.columnconfigure(1, weight=1)
@@ -1282,20 +1882,20 @@ class UiMixin:
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
             card = tk.Frame(
                 cards_frame,
-                bg="#3a4048",
+                bg=self.color_card,
                 highlightthickness=2 if self.current_mode == mode_key else 1,
-                highlightbackground="#f3bf2f" if self.current_mode == mode_key else "#3a4048",
+                highlightbackground=self.color_accent if self.current_mode == mode_key else self.color_card,
                 bd=0,
                 cursor="hand2",
             )
             card.grid(row=idx // 2, column=idx % 2, sticky="nsew", padx=8, pady=8)
-            icon = tk.Label(card, text=icon_txt, bg="#3a4048", fg=icon_color, font=(self.ui_font_family, 30, "bold"), cursor="hand2")
+            icon = tk.Label(card, text=icon_txt, bg=self.color_card, fg=icon_color, font=(self.ui_font_family, 30, "bold"), cursor="hand2")
             icon.pack(pady=(10, 2))
             label = tk.Label(
                 card,
                 text=mode_text,
-                bg="#3a4048",
-                fg="#e2e4ea",
+                bg=self.color_card,
+                fg=self.color_text,
                 font=(self.ui_font_family, 16, "bold"),
                 justify="center",
                 cursor="hand2",
@@ -1303,16 +1903,16 @@ class UiMixin:
             label.pack(pady=(0, 10), padx=8)
 
             def on_enter(_e: tk.Event, c=card) -> None:
-                c.configure(bg="#454c56")
+                c.configure(bg=self.color_card_hover)
                 for child in c.winfo_children():
-                    child.configure(bg="#454c56")
+                    child.configure(bg=self.color_card_hover)
 
             def on_leave(_e: tk.Event, c=card, is_current=(self.current_mode == mode_key)) -> None:
-                base = "#3a4048"
+                base = self.color_card
                 c.configure(bg=base)
                 for child in c.winfo_children():
                     child.configure(bg=base)
-                c.configure(highlightbackground="#f3bf2f" if is_current else "#3a4048")
+                c.configure(highlightbackground=self.color_accent if is_current else self.color_card)
 
             card.bind("<Enter>", on_enter)
             card.bind("<Leave>", on_leave)
@@ -1349,6 +1949,7 @@ class UiMixin:
         self.config_data["mode"] = self.current_mode
         self.save_config()
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
+        self._set_generation_toolbar_layout(show_instrument_buttons=self.current_mode == "generation")
 
         self.generation_tab_active = self.current_mode == "generation"
         self.scale_tab_active = self.current_mode == "scales"
@@ -1383,15 +1984,15 @@ class UiMixin:
         self._stop_scale_playback()
         self._stop_metronome()
         self._stop_tuner_stream()
+        self._stop_detection_preview()
         self.scale_space_pressed = False
         self.metronome_space_pressed = False
         self.tuner_space_pressed = False
 
         if self.generation_tab_active:
-            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
-            self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
-            self._set_generation_toolbar_layout(show_instrument_buttons=True)
+            self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
+            self._show_generation_instrument_buttons()
             self._set_instrument_view(self.instrument_view)
             detected_notes = self._current_detection_notes()
             self._clear_live_input_state()
@@ -1403,12 +2004,13 @@ class UiMixin:
             self.tab_tuner_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
-            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+            self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
-            self.scale_transport_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
+            self.scale_transport_frame.pack_forget()
+            self.instrument_view_switch_side.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+            self._show_scale_mode_buttons()
             self._refresh_scale_transport_styles()
-            self.guitar_right_btn.grid_remove()
-            self.guitar_left_btn.grid_remove()
+            self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self._refresh_scale_instrument_view()
             self._clear_live_input_state()
@@ -1419,14 +2021,13 @@ class UiMixin:
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
         elif self.metronome_tab_active:
-            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+            self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_right_btn.grid_remove()
-            self.guitar_left_btn.grid_remove()
+            self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.keyboard_canvas.pack(fill=tk.X, expand=False)
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
@@ -1434,11 +2035,10 @@ class UiMixin:
             self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_metronome_ui()
         elif self.tuner_tab_active:
-            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
+            self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_right_btn.grid_remove()
-            self.guitar_left_btn.grid_remove()
+            self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_canvas.pack_forget()
@@ -1450,18 +2050,16 @@ class UiMixin:
             self._start_tuner_stream()
             self._refresh_tuner_ui()
         else:
-            self.instrument_canvas_holder.pack(fill=tk.BOTH, expand=False)
-            self.instrument_switch_frame.pack(fill=tk.X, pady=(0, 6), before=self.instrument_canvas_holder)
-            self._set_generation_toolbar_layout(show_instrument_buttons=False)
+            self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
-            self.guitar_right_btn.grid_remove()
-            self.guitar_left_btn.grid_remove()
+            self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.BOTH, expand=False)
+            self.keyboard_canvas.pack(fill=tk.X, expand=False)
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
+        self._fit_instrument_panel_height()
         self.update_music_views()

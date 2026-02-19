@@ -2,16 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: MIDI Chords Analyzer",
+      "name": "Desktop: MIDIChords",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/app.py",
+      "program": "${workspaceFolder}/launch.py",
+      "args": ["desktop"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
       "env": {
         "MIDICHORDS_FORCE_MIDI_OPEN": "1"
       }
+    },
+    {
+      "name": "Web: MIDIChords",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
+      "args": ["web", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
     }
   ]
 }

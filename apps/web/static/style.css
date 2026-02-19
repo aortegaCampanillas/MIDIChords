@@ -1,0 +1,846 @@
+:root {
+  --bg: #202834;
+  --bg-soft: #2a3442;
+  --card: #3a4452;
+  --text: #e9edf2;
+  --muted: #a8b6c8;
+  --accent: #f2bf2f;
+  --good: #33d46f;
+  --danger: #e56363;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% 8%, #3e4a5f 0%, transparent 30%),
+    radial-gradient(circle at 90% 5%, #35414e 0%, transparent 26%),
+    var(--bg);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #4b5668;
+  background: rgba(22, 30, 42, 0.85);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 22px;
+  justify-self: start;
+}
+
+.topbar-center {
+  justify-self: center;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-self: end;
+}
+
+.app-main {
+  padding: 14px;
+}
+
+.donation-section {
+  margin-top: 12px;
+  background: linear-gradient(170deg, #2f3a4b, #263041);
+  border: 1px solid #56627a;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.donation-section h3 {
+  margin: 0 0 8px 0;
+}
+
+.donation-section p {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.donate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #ffd060;
+  background: #ffd060;
+  color: #0f1b28;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.donate-btn:hover {
+  filter: brightness(1.04);
+}
+
+.controls-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+select,
+input[type="range"],
+button {
+  border-radius: 8px;
+  border: 1px solid #627189;
+  background: #182535;
+  color: var(--text);
+  padding: 6px 10px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.icon-play-btn {
+  min-width: 42px;
+  height: 34px;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-play-btn.active {
+  background: #ffd060;
+  color: #0f1b28;
+  border-color: #ffd060;
+}
+
+.icon-play-btn.stop-mode {
+  font-size: 0;
+}
+
+.icon-play-btn.stop-mode::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  border-radius: 2px;
+  display: block;
+}
+
+.ghost {
+  background: transparent;
+  border-style: dashed;
+}
+
+.mode-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.menu-card {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 18px;
+  background: linear-gradient(165deg, #394453, #2e3948);
+  border: 2px solid #4f5c70;
+}
+
+.menu-card .icon {
+  font-size: 34px;
+  color: #6fd7ff;
+}
+
+.menu-card .title {
+  font-weight: 700;
+}
+
+.mode-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#modeSelect {
+  min-width: 280px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .topbar-center {
+    order: 2;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .topbar-controls {
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.inst-btn.active {
+  background: #ffd060;
+  color: #0f1b28;
+  border-color: #ffd060;
+}
+
+.mode-layout {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(340px, 42%);
+  grid-template-areas:
+    "staff sidebar"
+    "instrument instrument";
+  gap: 12px;
+  min-height: calc(100vh - 190px);
+  align-content: start;
+}
+
+.staff-panel,
+.sidebar,
+.instrument-panel {
+  background: linear-gradient(170deg, #313c4c, #273140);
+  border: 1px solid #56627a;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.staff-panel {
+  grid-area: staff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staff-header {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#staffCanvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: 1px solid #3a4558;
+  background: #0f1621;
+  min-height: 360px;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-top {
+  flex: 1;
+  min-height: 220px;
+}
+
+.instrument-panel {
+  grid-area: instrument;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  align-self: start;
+}
+
+.instrument-panel.with-inst-dock {
+  padding-right: 108px;
+}
+
+.instrument-panel:not(.with-inst-dock) .instrument-dock {
+  display: none;
+}
+
+.instrument-panel.guitar-active {
+  min-height: 320px;
+}
+
+.instrument-dock {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+}
+
+.instrument-dock .inst-btn {
+  min-width: 86px;
+}
+
+.instrument-dock #guitarHandedness {
+  min-width: 86px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #4a6180;
+  background: #17273a;
+  color: #e8effa;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+.mode-screen.mode-generation .staff-panel {
+  max-height: 340px;
+}
+
+.mode-screen.mode-generation #staffCanvas {
+  min-height: 300px;
+}
+
+.mode-screen.mode-generation .sidebar-top {
+  max-height: 340px;
+  overflow: auto;
+}
+
+.mode-screen.mode-generation .instrument-panel {
+  min-height: 0;
+}
+
+.mode-screen.mode-generation .instrument-panel.guitar-active {
+  min-height: 340px;
+}
+
+.mode-screen.mode-generation .guitar-canvas {
+  height: 280px;
+}
+
+#guitarVariationBar {
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.guitar-var-btn {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid #8a92a3;
+  background: #6a7283;
+  color: #000;
+  font-weight: 700;
+}
+
+.guitar-var-btn.active {
+  background: #ff9f1a;
+  border-color: #ffbf66;
+}
+
+.mode-panel h3 {
+  margin: 0 0 8px 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.scale-mode-group {
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.scale-mode-btn {
+  min-width: 42px;
+}
+
+.scale-mode-btn.active {
+  background: #ffd060;
+  color: #0f1b28;
+  border-color: #ffd060;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.row select,
+.row input[type="range"] {
+  flex: 1;
+}
+
+#panelMetronome .row {
+  display: grid;
+  grid-template-columns: 120px auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+#panelMetronome .row input[type="number"] {
+  width: 66px;
+}
+
+.metro-timer-row {
+  grid-template-columns: 120px auto auto auto auto !important;
+  justify-content: start;
+}
+
+.metro-bpm-meta {
+  margin: -2px 0 8px 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+}
+
+#bpmValue {
+  color: #ff9f1a;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+#metroPresetValue {
+  margin-top: 2px;
+  color: #ffb17a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metro-meter-meta {
+  margin: -2px 0 8px 120px;
+  display: flex;
+  justify-content: center;
+  min-height: 24px;
+}
+
+#metroMeterValue {
+  color: #dfe3ea;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+#metroFigures {
+  gap: 6px;
+}
+
+.metro-figure {
+  min-width: 38px;
+  height: 32px;
+  padding: 0 8px;
+  font-weight: 700;
+}
+
+.metro-figure.triplet {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.metro-figure.triplet .triplet-num {
+  font-size: 10px;
+  margin-bottom: 1px;
+}
+
+.metro-figure.triplet .triplet-glyph {
+  font-size: 14px;
+}
+
+.metro-figure.active {
+  background: #ff9f1a;
+  color: #111822;
+  border-color: #ffbf66;
+}
+
+.metro-motion {
+  position: relative;
+  height: 34px;
+  margin-top: 8px;
+}
+
+.metro-motion .rail {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 16px;
+  height: 2px;
+  background: #8ea0b7;
+}
+
+.metro-motion .dot {
+  position: absolute;
+  top: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff5a2f;
+  border: 1px solid #ffd9c9;
+  transform: translateX(-50%);
+}
+
+.result-block {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(10, 18, 30, 0.45);
+  border: 1px dashed #73829a;
+}
+
+.label {
+  color: var(--muted);
+}
+
+.piano {
+  --white-key-w: clamp(28px, 2.4vw, 34px);
+  --black-key-w: calc(var(--white-key-w) * 0.64);
+  user-select: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 2px 6px 2px;
+  max-width: 100%;
+  min-height: 188px;
+  border: 1px solid #3a4558;
+  border-radius: 10px;
+  background: #e8ecf2;
+}
+
+.key {
+  width: var(--white-key-w);
+  height: 150px;
+  border-radius: 0 0 8px 8px;
+  border: 1px solid #7b8798;
+  background: #f7f7f4;
+  color: #10243a;
+  position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.key.black {
+  width: var(--black-key-w);
+  height: 87px;
+  margin: 0 calc(var(--black-key-w) / -2);
+  z-index: 2;
+  background: #101822;
+  border-color: #000;
+  color: #dce7f4;
+}
+
+.key.active {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: #ffe2a6;
+}
+
+.key.black.active {
+  background: #7f5711;
+}
+
+.key.rh {
+  background: #4da3ea;
+  border-color: #2b6da6;
+}
+
+.key.black.rh {
+  background: #0078d7;
+  border-color: #005ca6;
+}
+
+.key.lh {
+  background: #ff8a2b;
+  border-color: #c8772f;
+}
+
+.key.black.lh {
+  background: #ff8a2b;
+  border-color: #7a3d00;
+}
+
+.key.extra {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+  background: #ffc1c1;
+}
+
+.key.black.extra {
+  background: #8b1f1f;
+}
+
+.key.tonic {
+  box-shadow: inset 0 0 0 2px var(--good);
+}
+
+.key span {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 4px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.key.forbidden-flash::after {
+  content: "🚫";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.finger-badge {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f6b60b;
+  border: 1px solid #8d6b00;
+  color: #101010;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.finger-badge.white-key {
+  top: calc(100% - 46px);
+}
+
+.finger-badge.black-key {
+  top: calc(60% - 9px);
+}
+
+.scale-badge {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f6b60b;
+  border: 1px solid #8d6b00;
+  color: #101010;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.scale-badge.tonic {
+  background: #32d74b;
+  border-color: #1e8c38;
+}
+
+.scale-badge.current {
+  background: #2fb8ff;
+  border-color: #1f7fb2;
+  color: #071926;
+}
+
+.scale-badge.white-key {
+  top: calc(100% - 44px);
+}
+
+.scale-badge.black-key {
+  top: calc(60% - 10px);
+}
+
+.scale-badge.center-indicator {
+  top: 12px;
+}
+
+.guitar-canvas {
+  width: 100%;
+  height: 220px;
+  border-radius: 10px;
+  border: 1px solid #3a4558;
+  background: #f7f7f7;
+}
+
+.tuner-spectrum-canvas {
+  width: 100%;
+  height: 240px;
+  border-radius: 10px;
+  border: 1px solid #3a4558;
+  background: #0f1621;
+}
+
+.guitar-table {
+  border-collapse: separate;
+  border-spacing: 4px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.guitar-table th {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.fret-note {
+  width: 42px;
+  height: 30px;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid #7a8aa0;
+  background: #e9eef5;
+  color: #19283a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fret-note.active {
+  background: #ffd46a;
+  border-color: #c69928;
+}
+
+.fret-note.root {
+  background: #52d16f;
+  border-color: #1e8c38;
+}
+
+.fret-note.extra {
+  background: #f48f8f;
+  border-color: #a13737;
+}
+
+.dot-row {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #a4adbc;
+  color: #1f2e3e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.dot.active {
+  background: #5ec7ff;
+  color: #08233a;
+}
+
+.dot.accent.active {
+  background: #ffb35a;
+}
+
+#panelTuner .row input[type="number"] {
+  width: 86px;
+}
+
+.tuner-meta {
+  margin: -2px 0 8px 120px;
+  display: flex;
+  justify-content: center;
+  min-height: 22px;
+}
+
+#tunerGainValue {
+  color: #ff9f1a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+  .mode-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "staff"
+      "sidebar"
+      "instrument";
+    min-height: initial;
+  }
+
+  #staffCanvas {
+    min-height: 280px;
+  }
+
+  .instrument-panel.with-inst-dock {
+    padding-right: 12px;
+  }
+
+  .instrument-dock {
+    position: static;
+    flex-direction: row;
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 1100px) {
+  .mode-layout {
+    grid-template-columns: 1fr;
+  }
+  .mode-menu {
+    grid-template-columns: 1fr;
+  }
+}

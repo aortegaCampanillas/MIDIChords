@@ -6,6 +6,96 @@ from midichords.ui.widgets import GrayRoundedButton
 
 
 class GenerationMixin:
+    @staticmethod
+    def _generation_interval_degree(interval: int, suffix: str) -> int:
+        value = int(interval)
+        suffix_text = str(suffix)
+        if value in {0, 12}:
+            return 0
+        if value in {1, 2, 13, 14}:
+            return 1
+        if value in {3, 4, 15}:
+            return 2
+        if value in {5, 17}:
+            return 3
+        if value in {6, 18}:
+            if ("b5" in suffix_text) or ("dim" in suffix_text):
+                return 4
+            return 3
+        if value == 7:
+            return 4
+        if value == 8:
+            if ("#5" in suffix_text) or ("aug" in suffix_text):
+                return 4
+            return 5
+        if value in {9, 21}:
+            return 5
+        if value in {10, 11}:
+            return 6
+        return max(0, min(6, value % 7))
+
+    def _spelled_generation_note_names(
+        self,
+        root_midi: int,
+        voiced_intervals: list[int],
+        suffix: str,
+        with_octave: bool = True,
+    ) -> list[str]:
+        language = str(self.config_data.get("language", "es"))
+        letter_names = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"] if language == "es" else ["C", "D", "E", "F", "G", "A", "B"]
+        base_pcs = [0, 2, 4, 5, 7, 9, 11]
+        prefer_flats = self.note_accidental == "flat"
+        tonic_letter = self._tonic_letter_index(self.generation_root_pc, prefer_flats)
+
+        names: list[str] = []
+        for interval in voiced_intervals:
+            midi_note = int(root_midi + int(interval))
+            target_pc = midi_note % 12
+            degree = self._generation_interval_degree(int(interval), str(suffix))
+            letter_idx = (tonic_letter + degree) % 7
+            base_pc = base_pcs[letter_idx]
+            diff = (target_pc - base_pc) % 12
+            if diff > 6:
+                diff -= 12
+            if diff == 0:
+                accidental = ""
+            elif diff == 1:
+                accidental = "#"
+            elif diff == -1:
+                accidental = "♭"
+            elif diff == 2:
+                accidental = "##"
+            elif diff == -2:
+                accidental = "♭♭"
+            else:
+                names.append(self.note_name(midi_note, with_octave=with_octave))
+                continue
+            name = f"{letter_names[letter_idx]}{accidental}"
+            if with_octave:
+                octave = midi_note // 12 - 1
+                name = f"{name}{octave}"
+            names.append(name)
+        return names
+
+    def _generation_note_name_map(self, with_octave: bool = False) -> dict[int, str]:
+        pattern = self._resolve_generation_pattern()
+        intervals = list(pattern.intervals)
+        if not intervals:
+            return {}
+        max_inversion = len(intervals) - 1
+        inversion = min(max(0, self.generation_inversion), max_inversion)
+        voiced_intervals = [(interval + (12 if idx < inversion else 0)) for idx, interval in enumerate(intervals)]
+        voiced_intervals.sort()
+        root_midi = 60 + self.generation_root_pc
+        voiced_notes = [root_midi + interval for interval in voiced_intervals]
+        labels = self._spelled_generation_note_names(
+            root_midi=root_midi,
+            voiced_intervals=voiced_intervals,
+            suffix=str(pattern.suffix),
+            with_octave=with_octave,
+        )
+        return {int(note): str(label) for note, label in zip(voiced_notes, labels)}
+
     def _refresh_generation_controls(self) -> None:
         if self.generation_pattern_suffix not in {p.suffix for p in CHORD_PATTERNS}:
             self.generation_pattern_suffix = ""
@@ -75,15 +165,15 @@ class GenerationMixin:
 
         overlay = tk.Frame(
             self.chord_panel,
-            bg="#2b2d38",
+            bg="#2a2f36",
             highlightthickness=1,
-            highlightbackground="#4a4f5f",
+            highlightbackground="#505864",
             bd=0,
         )
         overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
         self.generation_selection_overlay = overlay
 
-        header = tk.Frame(overlay, bg="#2b2d38")
+        header = tk.Frame(overlay, bg="#2a2f36")
         header.pack(fill=tk.X, padx=10, pady=(10, 4))
         if kind == "root":
             title = self.tr("label_root_note")
@@ -91,14 +181,26 @@ class GenerationMixin:
             title = self.tr("label_variant")
         else:
             title = self.tr("label_inversion")
-        tk.Label(header, text=title, bg="#2b2d38", fg="#f0f0f0", font=("Helvetica", 13, "bold")).pack(side=tk.LEFT)
+        tk.Label(
+            header,
+            text=title,
+            bg="#2a2f36",
+            fg="#f0f0f0",
+            font=(self.ui_font_family, 15, "bold"),
+        ).pack(side=tk.LEFT)
 
         if kind == "root":
-            buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+            buttons_frame = self._build_scrollable_area(overlay, bg="#2a2f36", padx=8, pady=(2, 10))
             columns = 3
             options: list[tuple[str, int, bool]] = []
             for pc in range(12):
-                options.append((self.note_name(pc, with_octave=False), pc, pc == self.generation_root_pc))
+                options.append(
+                    (
+                        self.note_name(pc, with_octave=False),
+                        pc,
+                        pc == self.generation_root_pc,
+                    )
+                )
             for col in range(columns):
                 buttons_frame.columnconfigure(col, weight=1)
 
@@ -117,11 +219,11 @@ class GenerationMixin:
             return
 
         if kind == "variant":
-            body = tk.Frame(overlay, bg="#2b2d38")
+            body = tk.Frame(overlay, bg="#2a2f36")
             body.pack(fill=tk.BOTH, expand=True, padx=10, pady=(2, 10))
             search_var, entry = self._build_rounded_search_entry(body, self.tr("label_search_variant"))
 
-            buttons_frame = self._build_scrollable_area(body, bg="#2b2d38", padx=0, pady=(0, 0))
+            buttons_frame = self._build_scrollable_area(body, bg="#2a2f36", padx=0, pady=(0, 0))
             columns = 3
             for col in range(columns):
                 buttons_frame.columnconfigure(col, weight=1)
@@ -155,7 +257,7 @@ class GenerationMixin:
             return
 
         # inversion
-        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2a2f36", padx=8, pady=(2, 10))
         if kind == "inversion":
             columns = 3
             options: list[tuple[str, int, bool]] = []
@@ -226,16 +328,18 @@ class GenerationMixin:
         voiced_intervals.sort()
         voiced_notes = [root_midi + interval for interval in voiced_intervals]
         self.generated_preview_notes = set(voiced_notes)
+        spelled_map = self._generation_note_name_map(with_octave=False)
+        spelled_map_oct = self._generation_note_name_map(with_octave=True)
 
         shown_suffix = pattern.suffix if pattern.suffix else ""
         chord_name = f"{self.note_name(self.generation_root_pc, with_octave=False)}{shown_suffix}"
         if inversion > 0 and voiced_notes:
-            bass_pc = voiced_notes[0] % 12
-            chord_name = f"{chord_name}/{self.note_name(bass_pc, with_octave=False)}"
+            bass_name = spelled_map.get(int(voiced_notes[0]), self.note_name(voiced_notes[0], with_octave=False))
+            chord_name = f"{chord_name}/{bass_name}"
         self.generated_chord_var.set(chord_name)
         if self.generated_preview_notes:
             ordered = sorted(self.generated_preview_notes)
-            self.generated_notes_var.set(" - ".join(self.note_name(note) for note in ordered))
+            self.generated_notes_var.set(" - ".join(spelled_map_oct.get(int(note), self.note_name(note)) for note in ordered))
         else:
             self.generated_notes_var.set("-")
 
@@ -365,7 +469,7 @@ class GenerationMixin:
             self.generation_play_button_pressed = True
         else:
             self.generation_play_space_pressed = True
-        self.generation_play_btn.state(["pressed"])
+        self.generation_play_btn.set_playing(True)
         self._play_generated_chord()
     def _stop_generated_hold(self, source: str) -> None:
         if source == "button":
@@ -374,7 +478,7 @@ class GenerationMixin:
             self.generation_play_space_pressed = False
         if self.generation_play_button_pressed or self.generation_play_space_pressed:
             return
-        self.generation_play_btn.state(["!pressed"])
+        self.generation_play_btn.set_playing(False)
         self._stop_generated_playback()
     def _on_generation_play_press(self, _event: tk.Event) -> str:
         self._start_generated_hold(source="button")

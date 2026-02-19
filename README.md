@@ -9,6 +9,9 @@ Author: Antonio Ortega González
 - Real-time chord detection from currently active notes.
 - Configurable MIDI input (external keyboard/controller).
 - Built-in audio synthesis with an acoustic-piano-like timbre.
+- Additional sampled presets:
+  - `Grand piano (sample)`
+  - `Nylon guitar (sample)`
 - Interactive visual keyboard:
   - Active note highlighting.
   - Mouse input support.
@@ -22,6 +25,10 @@ Author: Antonio Ortega González
 
 - Application logo: `assets/app_logo.png`
 - Staff brace image: `assets/brace_left.png`
+- Instrument samples:
+  - `assets/samples/grand_piano/*.mp3`
+  - `assets/samples/guitar_nylon/*.mp3`
+  - Attribution: `assets/samples/ATTRIBUTION.md`
 
 ## Requirements
 

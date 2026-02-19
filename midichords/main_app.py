@@ -69,6 +69,8 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
 
         self.active_notes: set[int] = set()
         self.generated_preview_notes: set[int] = set()
+        self.detection_extra_notes: set[int] = set()
+        self.detection_overlay_note_names: dict[int, str] = {}
         self.midi_held_notes: set[int] = set()
         self.mouse_held_notes: set[int] = set()
         self.sustain_latched_notes: set[int] = set()
@@ -109,6 +111,8 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.metronome_tab_active = False
         self.tuner_tab_active = False
         self.mode_var = tk.StringVar()
+        loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
+        self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
         self.generation_root_pc = 0
         self.generation_pattern_suffix = ""
         self.generation_inversion = 0

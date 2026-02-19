@@ -97,7 +97,7 @@ class MetronomeMixin:
         self.metronome_timer_minutes_var.set(str(self.metronome_timer_minutes))
         self.metronome_timer_seconds_var.set(str(self.metronome_timer_seconds))
         self.metronome_bar_accent_var.set(self.metronome_bar_accent_enabled)
-        self.metronome_play_btn.configure(text="■" if self.metronome_running else "▶")
+        self.metronome_play_btn.set_playing(self.metronome_running)
         self._draw_metronome_bpm_slider()
         self._draw_metronome_meter_slider()
         self._refresh_metronome_figure_buttons()

@@ -70,6 +70,7 @@ DEFAULT_CONFIG = {
     "metronome_bar_accent_enabled": True,
     "scale_play_mode": "piano",
     "mode": "detection",
+    "note_accidental": "sharp",
     "instrument_view": "piano",
     "generation_instrument_view": "piano",
     "guitar_handedness": "right",

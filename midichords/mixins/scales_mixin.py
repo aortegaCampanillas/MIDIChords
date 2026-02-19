@@ -7,6 +7,88 @@ from midichords.ui.widgets import GrayRoundedButton
 
 
 class ScalesMixin:
+    def _spelled_scale_note_names(
+        self,
+        root_midi: int,
+        intervals: list[int],
+        tonic_pc: int,
+        with_octave: bool = True,
+        prefer_flats_override: bool | None = None,
+    ) -> list[str]:
+        language = str(self.config_data.get("language", "es"))
+        letter_names = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"] if language == "es" else ["C", "D", "E", "F", "G", "A", "B"]
+        base_pcs = [0, 2, 4, 5, 7, 9, 11]
+
+        pattern = self._resolve_scale_pattern()
+        is_minor = self._scale_prefers_minor_signature(str(pattern.name))
+        _count, prefer_flats = self._key_signature_count_for_tonic(tonic_pc, is_minor)
+        if prefer_flats_override is not None:
+            prefer_flats = bool(prefer_flats_override)
+
+        if prefer_flats:
+            tonic_letter_map = {
+                0: 0,   # C
+                1: 1,   # Db
+                2: 1,   # D
+                3: 2,   # Eb
+                4: 2,   # E
+                5: 3,   # F
+                6: 4,   # Gb
+                7: 4,   # G
+                8: 5,   # Ab
+                9: 5,   # A
+                10: 6,  # Bb
+                11: 6,  # B
+            }
+        else:
+            tonic_letter_map = {
+                0: 0,   # C
+                1: 0,   # C#
+                2: 1,   # D
+                3: 1,   # D#
+                4: 2,   # E
+                5: 3,   # F
+                6: 3,   # F#
+                7: 4,   # G
+                8: 4,   # G#
+                9: 5,   # A
+                10: 5,  # A#
+                11: 6,  # B
+            }
+        tonic_letter = tonic_letter_map.get(int(tonic_pc) % 12, 0)
+
+        names: list[str] = []
+        for idx, interval in enumerate(intervals):
+            midi_note = int(root_midi + interval)
+            target_pc = midi_note % 12
+            letter_idx = (tonic_letter + idx) % 7
+            base_pc = base_pcs[letter_idx]
+            diff = (target_pc - base_pc) % 12
+            if diff > 6:
+                diff -= 12
+
+            if diff == 0:
+                accidental = ""
+            elif diff == 1:
+                accidental = "#"
+            elif diff == -1:
+                accidental = "♭"
+            elif diff == 2:
+                accidental = "##"
+            elif diff == -2:
+                accidental = "♭♭"
+            else:
+                # Fallback for unusual cases.
+                names.append(self.note_name(midi_note, with_octave=with_octave))
+                continue
+
+            name = f"{letter_names[letter_idx]}{accidental}"
+            if with_octave:
+                octave = midi_note // 12 - 1
+                name = f"{name}{octave}"
+            names.append(name)
+        return names
+
     def _set_scale_play_mode(self, mode: str) -> None:
         if mode in {"piano", "guitar", "metronome"}:
             self.scale_play_mode = mode
@@ -24,11 +106,11 @@ class ScalesMixin:
     def _refresh_scale_transport_styles(self) -> None:
         if self.scale_transport_buttons_are_images:
             panel_bg = self.cget("background")
-            selected_hl = "#f39c12"
+            selected_hl = "#f3bf2f"
             normal_hl = panel_bg
             if self.scale_play_mode == "piano":
                 self.scale_mode_piano_btn.configure(
-                    bg="#8a4f10",
+                    bg="#343a44",
                     relief=tk.SUNKEN,
                     bd=3,
                     padx=7,
@@ -79,7 +161,7 @@ class ScalesMixin:
                     pady=4,
                 )
                 self.scale_mode_guitar_btn.configure(
-                    bg="#8a4f10",
+                    bg="#343a44",
                     relief=tk.SUNKEN,
                     bd=3,
                     padx=7,
@@ -100,7 +182,7 @@ class ScalesMixin:
                     pady=4,
                 )
                 self.scale_mode_metronome_btn.configure(
-                    bg="#8a4f10",
+                    bg="#343a44",
                     relief=tk.SUNKEN,
                     bd=3,
                     padx=7,
@@ -134,13 +216,13 @@ class ScalesMixin:
             widget = self.scale_mode_metronome_btn
         if pressed:
             widget.configure(
-                bg="#b86b14",
+                bg="#3b424d",
                 relief=tk.SUNKEN,
                 bd=4,
                 padx=7,
                 pady=5,
-                highlightbackground="#f39c12",
-                highlightcolor="#f39c12",
+                highlightbackground="#f3bf2f",
+                highlightcolor="#f3bf2f",
                 highlightthickness=1,
             )
         else:
@@ -201,7 +283,14 @@ class ScalesMixin:
         root_midi = self.scale_guitar_start_note if self.scale_play_mode == "guitar" else default_root_midi
         self.scale_preview_notes = [root_midi + interval for interval in pattern.intervals]
         if self.scale_preview_notes:
-            self.scale_notes_var.set(" - ".join(self.note_name(note) for note in self.scale_preview_notes))
+            spelled = self._spelled_scale_note_names(
+                root_midi=root_midi,
+                intervals=list(pattern.intervals),
+                tonic_pc=self.scale_tonic_pc,
+                with_octave=True,
+                prefer_flats_override=(self.note_accidental == "flat"),
+            )
+            self.scale_notes_var.set(" - ".join(spelled))
             self.scale_intervals_var.set(self.format_intervals(set(self.scale_preview_notes)))
         else:
             self.scale_notes_var.set("-")
@@ -213,25 +302,25 @@ class ScalesMixin:
 
         overlay = tk.Frame(
             self.chord_panel,
-            bg="#2b2d38",
+            bg="#2a2f36",
             highlightthickness=1,
-            highlightbackground="#4a4f5f",
+            highlightbackground="#505864",
             bd=0,
         )
         overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
         self.scale_tonic_overlay = overlay
 
-        header = tk.Frame(overlay, bg="#2b2d38")
+        header = tk.Frame(overlay, bg="#2a2f36")
         header.pack(fill=tk.X, padx=10, pady=(10, 4))
         tk.Label(
             header,
             text=self.tr("label_scale_tonic"),
-            bg="#2b2d38",
+            bg="#2a2f36",
             fg="#f0f0f0",
-            font=("Helvetica", 13, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         ).pack(side=tk.LEFT)
 
-        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2a2f36", padx=8, pady=(2, 10))
         for col in range(3):
             buttons_frame.columnconfigure(col, weight=1)
         for pc in range(12):
@@ -264,29 +353,29 @@ class ScalesMixin:
 
         overlay = tk.Frame(
             self.chord_panel,
-            bg="#2b2d38",
+            bg="#2a2f36",
             highlightthickness=1,
-            highlightbackground="#4a4f5f",
+            highlightbackground="#505864",
             bd=0,
         )
         overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
         self.scale_type_overlay = overlay
 
-        header = tk.Frame(overlay, bg="#2b2d38")
+        header = tk.Frame(overlay, bg="#2a2f36")
         header.pack(fill=tk.X, padx=10, pady=(10, 4))
         tk.Label(
             header,
             text=self.tr("label_scale_type"),
-            bg="#2b2d38",
+            bg="#2a2f36",
             fg="#f0f0f0",
-            font=("Helvetica", 13, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         ).pack(side=tk.LEFT)
 
-        body = tk.Frame(overlay, bg="#2b2d38")
+        body = tk.Frame(overlay, bg="#2a2f36")
         body.pack(fill=tk.BOTH, expand=True, padx=10, pady=(2, 10))
         search_var, entry = self._build_rounded_search_entry(body, self.tr("label_search_scale"))
 
-        buttons_frame = self._build_scrollable_area(body, bg="#2b2d38", padx=0, pady=(0, 0))
+        buttons_frame = self._build_scrollable_area(body, bg="#2a2f36", padx=0, pady=(0, 0))
         for col in range(2):
             buttons_frame.columnconfigure(col, weight=1)
 
@@ -348,7 +437,7 @@ class ScalesMixin:
         for note in list(self.scale_playing_notes):
             self.audio_engine.note_off(note)
         self.scale_playing_notes.clear()
-        self.scale_play_btn.configure(text="▶")
+        self.scale_play_btn.set_playing(False)
         if self.scale_tab_active:
             self.redraw_keyboard()
             self.redraw_staff()
@@ -422,7 +511,7 @@ class ScalesMixin:
         self.scale_loop_active = True
         self.scale_loop_index = 0
         self.scale_loop_direction = 1
-        self.scale_play_btn.configure(text="■")
+        self.scale_play_btn.set_playing(True)
         self._play_next_scale_step()
     def _scale_step_ms(self) -> int:
         bpm = int(self.config_data.get("metronome_bpm", 120))

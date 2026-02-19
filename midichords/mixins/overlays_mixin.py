@@ -17,23 +17,23 @@ class OverlaysMixin:
             return
         overlay = tk.Frame(
             self.chord_panel,
-            bg="#2b2d38",
+            bg="#2a2f36",
             highlightthickness=1,
-            highlightbackground="#4a4f5f",
+            highlightbackground="#505864",
             bd=0,
         )
         overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
         self.tuner_tuning_overlay = overlay
-        header = tk.Frame(overlay, bg="#2b2d38")
+        header = tk.Frame(overlay, bg="#2a2f36")
         header.pack(fill=tk.X, padx=10, pady=(10, 4))
         tk.Label(
             header,
             text=self.tr("label_tuner_tuning"),
-            bg="#2b2d38",
+            bg="#2a2f36",
             fg="#f0f0f0",
-            font=("Helvetica", 13, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         ).pack(side=tk.LEFT)
-        buttons_frame = self._build_scrollable_area(overlay, bg="#2b2d38", padx=8, pady=(2, 10))
+        buttons_frame = self._build_scrollable_area(overlay, bg="#2a2f36", padx=8, pady=(2, 10))
         for col in range(2):
             buttons_frame.columnconfigure(col, weight=1)
         for idx, tuning in enumerate(self.tuner_tuning_defs):
@@ -243,6 +243,7 @@ class OverlaysMixin:
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=4)
+
         language_options = [("es", "Español"), ("en", "English")]
         lang_id_to_label = {lang_id: label for lang_id, label in language_options}
         lang_label_to_id = {label: lang_id for lang_id, label in language_options}
@@ -276,6 +277,7 @@ class OverlaysMixin:
             ("warm", self.tr("sound_warm")),
             ("bright", self.tr("sound_bright")),
             ("soft", self.tr("sound_soft")),
+            ("grand_sample", self.tr("sound_grand_sample")),
         ]
         piano_sound_id_to_label = {sid: label for sid, label in piano_sound_options}
         piano_sound_label_to_id = {label: sid for sid, label in piano_sound_options}
@@ -288,6 +290,7 @@ class OverlaysMixin:
             ("steel_bright", self.tr("guitar_sound_steel_bright")),
             ("nylon_warm", self.tr("guitar_sound_nylon_warm")),
             ("muted_short", self.tr("guitar_sound_muted_short")),
+            ("nylon_sample", self.tr("guitar_sound_nylon_sample")),
         ]
         guitar_sound_id_to_label = {sid: label for sid, label in guitar_sound_options}
         guitar_sound_label_to_id = {label: sid for sid, label in guitar_sound_options}

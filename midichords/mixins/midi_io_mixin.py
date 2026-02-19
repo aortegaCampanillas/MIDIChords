@@ -18,10 +18,21 @@ class MidiIOMixin:
     def _is_frozen_app(self) -> bool:
         return bool(getattr(sys, "frozen", False))
 
+    def _is_debug_session(self) -> bool:
+        try:
+            return bool(sys.gettrace())
+        except Exception:
+            return False
+
+    def _use_inprocess_midi(self) -> bool:
+        # In frozen bundles and debugger sessions, avoid spawning python subprocesses
+        # for MIDI probing/bridge to prevent GUI recursion and debugpy SystemExit noise.
+        return self._is_frozen_app() or self._is_debug_session()
+
     def _scan_midi_inputs_isolated(self) -> tuple[list[str], Optional[str]]:
         # In frozen bundles (PyInstaller), sys.executable points to the app binary.
         # Spawning it with "-c" can relaunch GUI windows recursively.
-        if self._is_frozen_app():
+        if self._use_inprocess_midi():
             try:
                 return [str(x) for x in mido.get_input_names()], None
             except Exception as exc:
@@ -119,7 +130,7 @@ class MidiIOMixin:
 
         if input_name:
             if self.midi_backend_available and allow_midi_open:
-                if self.input_names and input_name not in self.input_names:
+                if not self.input_names or input_name not in self.input_names:
                     self.midi_bridge_connected = False
                     self.midi_backend_warning = (
                         f"{self.tr('error_open_input')}: "
@@ -176,8 +187,8 @@ class MidiIOMixin:
     def _start_midi_bridge(self, input_name: str) -> bool:
         self._stop_midi_bridge()
 
-        # In packaged apps, avoid subprocess bridge to prevent recursive app launches.
-        if self._is_frozen_app():
+        # In packaged apps and debugger sessions, avoid subprocess bridge.
+        if self._use_inprocess_midi():
             try:
                 self.input_port = mido.open_input(input_name, callback=self._on_midi_message)
                 self.midi_bridge_proc = None

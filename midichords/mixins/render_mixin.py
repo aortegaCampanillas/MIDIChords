@@ -2,10 +2,105 @@ from __future__ import annotations
 
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 from midichords.core.music_theory import WHITE_PCS
 
 
 class RenderMixin:
+    @staticmethod
+    def _is_minor_suffix(suffix: str) -> bool:
+        return suffix.startswith("m") and not suffix.startswith("maj")
+
+    @staticmethod
+    def _scale_prefers_minor_signature(scale_name: str) -> bool:
+        if "Minor" in scale_name:
+            return True
+        return scale_name in {
+            "Aeolian",
+            "Dorian",
+            "Phrygian",
+            "Locrian",
+            "Super Locrian",
+            "Half Diminished",
+            "Minor Pentatonic",
+            "Minor Blues",
+        }
+
+    @staticmethod
+    def _key_signature_count_for_tonic(tonic_pc: int, is_minor: bool) -> tuple[int, bool]:
+        # Returns (count, prefer_flats) choosing the most conventional enharmonic spelling:
+        # prefer the signature with fewer accidentals; on ties, default to sharps.
+        tonic_pc = int(tonic_pc) % 12
+        if is_minor:
+            sharp_map = {4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
+            flat_map = {2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6}
+        else:
+            sharp_map = {7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7}
+            flat_map = {5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6}
+        sharp_count = sharp_map.get(tonic_pc)
+        flat_count = flat_map.get(tonic_pc)
+        if sharp_count is None and flat_count is None:
+            return 0, False
+        if sharp_count is None:
+            return int(flat_count), True
+        if flat_count is None:
+            return int(sharp_count), False
+        if flat_count < sharp_count:
+            return int(flat_count), True
+        return int(sharp_count), False
+
+    @staticmethod
+    def _tonic_letter_index(tonic_pc: int, prefer_flats: bool) -> int:
+        tonic_pc = int(tonic_pc) % 12
+        if prefer_flats:
+            mapping = {
+                0: 0,   # C
+                1: 1,   # Db
+                2: 1,   # D
+                3: 2,   # Eb
+                4: 2,   # E
+                5: 3,   # F
+                6: 4,   # Gb
+                7: 4,   # G
+                8: 5,   # Ab
+                9: 5,   # A
+                10: 6,  # Bb
+                11: 6,  # B
+            }
+        else:
+            mapping = {
+                0: 0,   # C
+                1: 0,   # C#
+                2: 1,   # D
+                3: 1,   # D#
+                4: 2,   # E
+                5: 3,   # F
+                6: 3,   # F#
+                7: 4,   # G
+                8: 4,   # G#
+                9: 5,   # A
+                10: 5,  # A#
+                11: 6,  # B
+            }
+        return int(mapping.get(tonic_pc, 0))
+
+    def _staff_signature_context(self, display_notes: set[int]) -> tuple[int, bool]:
+        if self.scale_tab_active:
+            pattern = self._resolve_scale_pattern()
+            is_minor = self._scale_prefers_minor_signature(str(pattern.name))
+            return self._key_signature_count_for_tonic(self.scale_tonic_pc, is_minor)
+        if self.generation_tab_active:
+            pattern = self._resolve_generation_pattern()
+            is_minor = self._is_minor_suffix(str(pattern.suffix))
+            return self._key_signature_count_for_tonic(self.generation_root_pc, is_minor)
+        if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
+            return 0, False
+        root, pattern, _bass = self._analyze_chord_notes(display_notes)
+        if root is None or pattern is None:
+            return 0, False
+        is_minor = self._is_minor_suffix(str(pattern.suffix))
+        return self._key_signature_count_for_tonic(root, is_minor)
+
     def _instrument_display_notes(self) -> set[int]:
         if self.tuner_tab_active:
             notes: set[int] = set()
@@ -15,9 +110,9 @@ class RenderMixin:
                 notes.add(int(self.tuner_reference_note))
             if notes:
                 return notes
-        if self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
-            return set(self.guitar_selected_variation_notes)
         if self.generation_tab_active:
+            if self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
+                return set(self.guitar_selected_variation_notes)
             return set(self.generated_preview_notes)
         if self.scale_tab_active:
             notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
@@ -25,6 +120,52 @@ class RenderMixin:
                 notes.add(self.scale_current_note)
             return notes
         return self._current_detection_notes()
+
+    @staticmethod
+    def _piano_fingering_for_count(count: int, hand: str) -> list[int]:
+        n = max(1, int(count))
+        if hand == "right":
+            templates = {
+                1: [1],
+                2: [1, 3],
+                3: [1, 3, 5],
+                4: [1, 2, 4, 5],
+                5: [1, 2, 3, 4, 5],
+            }
+            if n in templates:
+                return templates[n]
+            return [min(5, i + 1) for i in range(n)]
+        templates = {
+            1: [5],
+            2: [5, 3],
+            3: [5, 3, 1],
+            4: [5, 3, 2, 1],
+            5: [5, 4, 3, 2, 1],
+        }
+        if n in templates:
+            return templates[n]
+        return [max(1, 5 - i) for i in range(n)]
+
+    def _scale_note_name_map(self) -> dict[int, str]:
+        if not self.scale_preview_notes:
+            return {}
+        ordered = [int(n) for n in self.scale_preview_notes]
+        if not ordered:
+            return {}
+        labels = self._spelled_scale_note_names(
+            root_midi=ordered[0],
+            intervals=[int(n - ordered[0]) for n in ordered],
+            tonic_pc=self.scale_tonic_pc,
+            with_octave=False,
+            prefer_flats_override=(self.note_accidental == "flat"),
+        )
+        name_map: dict[int, str] = {}
+        for note, label in zip(ordered, labels):
+            pc = int(note) % 12
+            if pc not in name_map:
+                name_map[pc] = str(label)
+        return name_map
+
     def redraw_guitar_fretboard(self) -> None:
         canvas = self.guitar_canvas
         canvas.delete("all")
@@ -96,6 +237,7 @@ class RenderMixin:
             scale_pcs = {n % 12 for n in self.scale_preview_notes}
             if not scale_pcs:
                 return
+            scale_name_map = self._scale_note_name_map()
             tonic_pc = self.scale_tonic_pc
             current_note = self.scale_current_note if self.scale_loop_active else None
             selected_start = self.scale_guitar_start_note
@@ -138,7 +280,7 @@ class RenderMixin:
                     canvas.create_text(
                         cx,
                         y,
-                        text=self.note_name(note, with_octave=False),
+                        text=scale_name_map.get(note % 12, self.note_name(note, with_octave=False)),
                         fill="#0f0f0f",
                         font=("Helvetica", 10, "bold"),
                     )
@@ -264,6 +406,7 @@ class RenderMixin:
         display_active_notes = self._instrument_display_notes()
         if self.generation_tab_active and self.instrument_view == "piano" and self.generated_playing_notes:
             display_active_notes = set(self.generated_playing_notes)
+        generated_sorted = sorted(self.generated_preview_notes) if self.generation_tab_active else []
         if self.scale_tab_active:
             name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
             if self.scale_loop_active and self.scale_current_note is not None:
@@ -279,16 +422,29 @@ class RenderMixin:
         else:
             name_overlay_notes = set(self._current_detection_notes())
         scale_pc_set = {note % 12 for note in self.scale_preview_notes} if self.scale_tab_active else set()
+        scale_name_map = self._scale_note_name_map() if self.scale_tab_active else {}
+        generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
+        detection_name_map = dict(getattr(self, "detection_overlay_note_names", {})) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else {}
         scale_tonic_pc = self.scale_tonic_pc
         current_scale_note = self.scale_current_note if (self.scale_tab_active and self.scale_loop_active) else None
+        detection_extra_notes = set(self.detection_extra_notes) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else set()
+        detection_mode = not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active)
         now = time.monotonic()
         self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
+        overlay_label_positions: dict[int, tuple[float, str, str]] = {}
 
         w = max(100, canvas.winfo_width())
         h = max(156, canvas.winfo_height())
 
         low_note, high_note = 21, 108
         notes = list(range(low_note, high_note + 1))
+        generation_lh_display_notes: set[int] = set()
+        if self.generation_tab_active and self.instrument_view == "piano":
+            generation_lh_display_notes = {
+                int(n - 24)
+                for n in set(display_active_notes)
+                if (low_note <= int(n - 24) <= high_note)
+            }
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
         white_w = w / len(white_notes)
         key_top = 28
@@ -313,9 +469,15 @@ class RenderMixin:
             x1 = i * white_w
             x2 = (i + 1) * white_w
 
-            if self.scale_tab_active and note == current_scale_note:
+            if note in detection_extra_notes:
+                top_fill = "#d64545"
+                base_fill = "#bf2f2f"
+            elif self.scale_tab_active and note == current_scale_note:
                 top_fill = "#65b7ff"
                 base_fill = "#65b7ff"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
+                top_fill = "#ffad66"
+                base_fill = "#ff8a2b"
             elif note in display_active_notes:
                 top_fill = "#4da3ea"
                 base_fill = "#4da3ea"
@@ -338,21 +500,23 @@ class RenderMixin:
                 )
             if self.scale_tab_active and (note % 12) in scale_pc_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
-                circle_text = self.note_name(note, with_octave=False)
+                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 cx = (x1 + x2) / 2
                 cy = key_bottom - 28
                 r = max(11, min(17, white_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
             if note in name_overlay_notes:
-                canvas.create_text(
-                    (x1 + x2) / 2,
-                    5,
-                    text=self.note_name(note, with_octave=False),
-                    fill="#ffffff",
-                    font=("Helvetica", 11, "bold"),
-                    anchor="n",
-                )
+                label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
+                if self.scale_tab_active:
+                    overlay_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
+                elif self.generation_tab_active:
+                    overlay_text = generation_name_map.get(note, self.note_name(note, with_octave=False))
+                elif detection_name_map:
+                    overlay_text = detection_name_map.get(note, self.note_name(note, with_octave=False))
+                else:
+                    overlay_text = self.note_name(note, with_octave=False)
+                overlay_label_positions[note] = ((x1 + x2) / 2, overlay_text, label_fill)
             if note in self.blocked_note_until:
                 self._draw_forbidden_icon(canvas, (x1 + x2) / 2, key_bottom - 22, 8)
             self.white_key_regions.append((note, x1, key_top, x2, key_bottom))
@@ -373,10 +537,18 @@ class RenderMixin:
             x1 = center_x - black_w / 2
             x2 = center_x + black_w / 2
 
-            if self.scale_tab_active and note == current_scale_note:
+            if note in detection_extra_notes:
+                top = "#f17c7c"
+                mid = "#bf2f2f"
+                low = "#7f1f1f"
+            elif self.scale_tab_active and note == current_scale_note:
                 top = "#72c1ff"
                 mid = "#388fdb"
                 low = "#1c5f99"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
+                top = "#ffad66"
+                mid = "#ff8a2b"
+                low = "#b45a00"
             elif note in display_active_notes:
                 top = "#0078d7"
                 mid = "#0078d7"
@@ -392,26 +564,97 @@ class RenderMixin:
             canvas.create_line(x1 + 1, key_top + black_h - 3, x2 - 1, key_top + black_h - 3, fill="#2a2a2a")
             if self.scale_tab_active and (note % 12) in scale_pc_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
-                circle_text = self.note_name(note, with_octave=False)
+                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 cx = (x1 + x2) / 2
                 cy = key_top + black_h - 22
                 r = max(9, min(13, black_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
             if note in name_overlay_notes:
-                canvas.create_text(
-                    (x1 + x2) / 2,
-                    5,
-                    text=self.note_name(note, with_octave=False),
-                    fill="#ffffff",
-                    font=("Helvetica", 10, "bold"),
-                    anchor="n",
-                )
+                label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
+                if self.scale_tab_active:
+                    overlay_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
+                elif self.generation_tab_active:
+                    overlay_text = generation_name_map.get(note, self.note_name(note, with_octave=False))
+                elif detection_name_map:
+                    overlay_text = detection_name_map.get(note, self.note_name(note, with_octave=False))
+                else:
+                    overlay_text = self.note_name(note, with_octave=False)
+                overlay_label_positions[note] = ((x1 + x2) / 2, overlay_text, label_fill)
             if note in self.blocked_note_until:
                 self._draw_forbidden_icon(canvas, (x1 + x2) / 2, key_top + black_h * 0.5, 7)
             self.black_key_regions.append((note, x1, key_top, x2, key_top + black_h))
 
+        if overlay_label_positions:
+            if detection_mode:
+                label_font = tkfont.Font(family="Helvetica", size=10, weight="bold")
+                lower_line_end: list[float] = []
+                upper_line_end: list[float] = []
+                upper_y = 1
+                lower_y = 12
+                for note, (cx, text, label_fill) in sorted(overlay_label_positions.items(), key=lambda item: item[1][0]):
+                    half_w = (float(label_font.measure(text)) / 2.0) + 3.0
+                    x_left = cx - half_w
+                    x_right = cx + half_w
+                    lower_overlap = any(x_left < end for end in lower_line_end)
+                    upper_overlap = any(x_left < end for end in upper_line_end)
+                    if not lower_overlap:
+                        y = lower_y
+                        lower_line_end.append(x_right + 2.0)
+                    elif not upper_overlap:
+                        y = upper_y
+                        upper_line_end.append(x_right + 2.0)
+                    else:
+                        if (upper_line_end[-1] if upper_line_end else -1.0) <= (lower_line_end[-1] if lower_line_end else -1.0):
+                            y = upper_y
+                            upper_line_end.append(x_right + 2.0)
+                        else:
+                            y = lower_y
+                            lower_line_end.append(x_right + 2.0)
+                    canvas.create_text(
+                        cx,
+                        y,
+                        text=text,
+                        fill=label_fill,
+                        font=("Helvetica", 10, "bold"),
+                        anchor="n",
+                    )
+            else:
+                for _note, (cx, text, label_fill) in overlay_label_positions.items():
+                    canvas.create_text(
+                        cx,
+                        5,
+                        text=text,
+                        fill=label_fill,
+                        font=("Helvetica", 10, "bold"),
+                        anchor="n",
+                    )
+
         # Franja inferior para dar profundidad y etiquetas de octava.
+        if self.generation_tab_active and self.instrument_view == "piano" and generated_sorted:
+            key_centers: dict[int, tuple[float, float, bool]] = {}
+            for note, x1, y1, x2, y2 in self.white_key_regions:
+                key_centers[int(note)] = ((x1 + x2) * 0.5, y2 - 34.0, False)
+            for note, x1, y1, x2, y2 in self.black_key_regions:
+                key_centers[int(note)] = ((x1 + x2) * 0.5, y1 + (y2 - y1) * 0.60, True)
+
+            rh_notes = [int(n) for n in generated_sorted if int(n) in key_centers]
+            lh_notes = [int(n - 24) for n in generated_sorted if int(n - 24) in key_centers]
+            rh_fingers = self._piano_fingering_for_count(len(rh_notes), hand="right")
+            lh_fingers = self._piano_fingering_for_count(len(lh_notes), hand="left")
+
+            for note, finger in zip(rh_notes, rh_fingers):
+                cx, cy, is_black = key_centers[note]
+                r = 10.0 if is_black else 12.0
+                canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#ffd45a", outline="#8c6d00", width=1)
+                canvas.create_text(cx, cy, text=str(finger), fill="#101010", font=("Helvetica", 10, "bold"))
+
+            for note, finger in zip(lh_notes, lh_fingers):
+                cx, cy, is_black = key_centers[note]
+                r = 10.0 if is_black else 12.0
+                canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#ffd45a", outline="#8c6d00", width=1)
+                canvas.create_text(cx, cy, text=str(finger), fill="#101010", font=("Helvetica", 10, "bold"))
+
         canvas.create_rectangle(0, key_bottom, w, h, fill="#101010", outline="")
         if not self.config_data.get("show_keyboard_note_labels", False) and not self.scale_tab_active:
             for note in white_notes:
@@ -535,6 +778,7 @@ class RenderMixin:
         else:
             display_notes_list = []
             display_notes = self.generated_preview_notes if self.generation_tab_active else self._current_detection_notes()
+        generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
 
         w = max(300, canvas.winfo_width())
         h = max(260, canvas.winfo_height())
@@ -595,6 +839,43 @@ class RenderMixin:
         canvas.create_text(108, treble_top + line_space * 1.65, text="𝄞", font=("Times New Roman", 64), fill="#ffffff")
         canvas.create_text(108, bass_top + line_space * 1.65, text="𝄢", font=("Times New Roman", 58), fill="#ffffff")
 
+        signature_count, prefer_flat_signature = self._staff_signature_context(display_notes)
+        sharp_order_pcs = [6, 1, 8, 3, 10, 5, 0]  # F# C# G# D# A# E# B#
+        sharp_order_naturals = [5, 0, 7, 2, 9, 4, 11]  # F C G D A E B
+        flat_order_pcs = [10, 3, 8, 1, 6, 11, 4]   # Bb Eb Ab Db Gb Cb Fb
+        flat_order_naturals = [11, 4, 9, 2, 7, 0, 5]  # B E A D G C F
+        if signature_count > 0:
+            if prefer_flat_signature:
+                signature_pcs = flat_order_pcs[:signature_count]
+                signature_base_naturals = set(flat_order_naturals[:signature_count])
+            else:
+                signature_pcs = sharp_order_pcs[:signature_count]
+                signature_base_naturals = set(sharp_order_naturals[:signature_count])
+        else:
+            signature_pcs = []
+            signature_base_naturals = set()
+        use_key_signature = signature_count > 0
+        signature_pc_set = set(signature_pcs)
+        signature_end_x = 132.0
+        if use_key_signature:
+            accidental_text = "♭" if prefer_flat_signature else "#"
+            accidental_font = ("Helvetica", 21 if prefer_flat_signature else 19, "bold")
+            sig_x_start = 138
+            sig_step_x = 12
+            signature_end_x = sig_x_start + ((max(1, min(7, len(signature_pcs))) - 1) * sig_step_x)
+            if prefer_flat_signature:
+                treble_offsets = [2.0, 0.5, 2.5, 1.0, 3.0, 1.5, 3.5]
+                bass_offsets = [3.0, 1.5, 3.5, 2.0, 4.0, 2.5, 4.5]
+            else:
+                treble_offsets = [0.0, 1.5, -0.5, 1.0, 2.5, 0.5, 2.0]
+                bass_offsets = [1.0, 2.5, 0.5, 2.0, 3.5, 1.5, 3.0]
+            for idx in range(min(7, len(signature_pcs))):
+                x = sig_x_start + (idx * sig_step_x)
+                y_treble = treble_top + (treble_offsets[idx] * line_space)
+                y_bass = bass_top + (bass_offsets[idx] * line_space)
+                canvas.create_text(x, y_treble, text=accidental_text, fill="#ffffff", font=accidental_font)
+                canvas.create_text(x, y_bass, text=accidental_text, fill="#ffffff", font=accidental_font)
+
         if not display_notes:
             canvas.create_text(
                 w / 2,
@@ -606,9 +887,41 @@ class RenderMixin:
         else:
             if self.scale_tab_active:
                 ordered = display_notes_list
-                left_x = margin_x + 88
+                left_x = max(margin_x + 88, signature_end_x + 34.0)
                 right_limit = max(left_x + 1, right_x - 40)
                 step_x = max(18.0, (right_limit - left_x) / max(1, len(ordered) - 1))
+                scale_label_names = self._spelled_scale_note_names(
+                    root_midi=ordered[0] if ordered else 60,
+                    intervals=[int(n - ordered[0]) for n in ordered] if ordered else [0],
+                    tonic_pc=self.scale_tonic_pc,
+                    with_octave=False,
+                ) if ordered else []
+                language = str(self.config_data.get("language", "es"))
+                if language == "es":
+                    label_prefixes = [("Do", 0), ("Re", 1), ("Mi", 2), ("Fa", 3), ("Sol", 4), ("La", 5), ("Si", 6)]
+                else:
+                    label_prefixes = [("C", 0), ("D", 1), ("E", 2), ("F", 3), ("G", 4), ("A", 5), ("B", 6)]
+                tonic_letter = self._tonic_letter_index(self.scale_tonic_pc, prefer_flat_signature)
+                scale_letter_indices: list[int] = []
+                for idx, label in enumerate(scale_label_names):
+                    text = str(label)
+                    parsed_idx = None
+                    for prefix, letter_idx in label_prefixes:
+                        if text.startswith(prefix):
+                            parsed_idx = letter_idx
+                            break
+                    scale_letter_indices.append(parsed_idx if parsed_idx is not None else ((tonic_letter + idx) % 7))
+                scale_diatonic_indices: list[int] = []
+                if ordered:
+                    first_letter_idx = scale_letter_indices[0] if scale_letter_indices else tonic_letter
+                    scale_diatonic_indices.append((ordered[0] // 12 - 1) * 7 + first_letter_idx)
+                    for idx in range(1, len(ordered)):
+                        prev_letter = scale_letter_indices[idx - 1] if idx - 1 < len(scale_letter_indices) else ((tonic_letter + idx - 1) % 7)
+                        curr_letter = scale_letter_indices[idx] if idx < len(scale_letter_indices) else ((tonic_letter + idx) % 7)
+                        delta = (curr_letter - prev_letter) % 7
+                        if delta == 0 and ordered[idx] > ordered[idx - 1]:
+                            delta = 7
+                        scale_diatonic_indices.append(scale_diatonic_indices[-1] + delta)
             else:
                 ordered = sorted(display_notes)
                 chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
@@ -629,7 +942,10 @@ class RenderMixin:
             for note_idx, note in enumerate(ordered):
                 if note >= 60:
                     placed_cols = placed_treble_cols
-                    diatonic_idx = self._diatonic_index(note)
+                    if self.scale_tab_active:
+                        diatonic_idx = scale_diatonic_indices[note_idx]
+                    else:
+                        diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
                     y = treble_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28
@@ -638,7 +954,10 @@ class RenderMixin:
                     staff_base_y = treble_top + 4 * line_space
                 else:
                     placed_cols = placed_bass_cols
-                    diatonic_idx = self._diatonic_index(note)
+                    if self.scale_tab_active:
+                        diatonic_idx = scale_diatonic_indices[note_idx]
+                    else:
+                        diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28
@@ -674,15 +993,33 @@ class RenderMixin:
                         ledger_y = staff_base_y - (ledger_idx - low_bound) * staff_step
                         ledger_lines_y.append(ledger_y)
 
-                # Sostenidos: misma altura que la nota natural + simbolo #.
-                if (note % 12) not in WHITE_PCS:
-                    sharp_x = (x - 24) if self.scale_tab_active else ((chord_x - 34) if col > 0 else (x - 34))
+                # Alteraciones: misma altura que la nota natural + simbolo.
+                note_pc = note % 12
+                natural_pc_by_letter = [0, 2, 4, 5, 7, 9, 11]
+                if self.scale_tab_active:
+                    letter_idx = scale_letter_indices[note_idx] if note_idx < len(scale_letter_indices) else (diatonic_idx % 7)
+                else:
+                    letter_idx = diatonic_idx % 7
+                natural_base_pc = natural_pc_by_letter[letter_idx]
+                if use_key_signature and natural_base_pc in signature_base_naturals and note_pc == natural_base_pc:
+                    accidental_x = (x - 24) if self.scale_tab_active else ((chord_x - 34) if col > 0 else (x - 34))
                     canvas.create_text(
-                        sharp_x,
+                        accidental_x,
                         y,
-                        text="#",
+                        text="♮",
                         fill="#ffffff",
-                        font=("Helvetica", 18, "bold"),
+                        font=("Helvetica", 19, "bold"),
+                    )
+                elif note_pc not in WHITE_PCS and (not use_key_signature or note_pc not in signature_pc_set):
+                    accidental_x = (x - 24) if self.scale_tab_active else ((chord_x - 34) if col > 0 else (x - 34))
+                    accidental_text = "♭" if prefer_flat_signature else "#"
+                    accidental_font = ("Helvetica", 20 if prefer_flat_signature else 18, "bold")
+                    canvas.create_text(
+                        accidental_x,
+                        y,
+                        text=accidental_text,
+                        fill="#ffffff",
+                        font=accidental_font,
                     )
                 if self.scale_tab_active:
                     is_hovered = self.staff_hover_note == note
@@ -707,6 +1044,9 @@ class RenderMixin:
                 elif self.generation_tab_active and note in self.generated_playing_notes:
                     note_fill = "#2faeff"
                     note_outline = "#ffffff"
+                elif note in self.detection_extra_notes:
+                    note_fill = "#bf2f2f"
+                    note_outline = "#ff9a9a"
                 else:
                     note_fill = "#000000"
                     note_outline = "#ffffff"
@@ -722,17 +1062,21 @@ class RenderMixin:
                 if self.generation_tab_active:
                     self.staff_generation_note_regions.append((note, x, y, note_rx, note_ry))
                     if generation_single_note is not None and note == generation_single_note:
+                        generation_note_label = generation_name_map.get(note, self.note_name(note, with_octave=False))
                         canvas.create_text(
                             x,
                             generation_note_label_y,
-                            text=self.note_name(note, with_octave=False),
+                            text=generation_note_label,
                             fill="#6fe0ff",
                             font=("Helvetica", 15, "bold"),
                         )
                 for ledger_y in ledger_lines_y:
                     canvas.create_line(x - ledger_half, ledger_y, x + ledger_half, ledger_y, fill="#bfbfbf", width=1)
                 if self.scale_tab_active:
-                    label_text = self.note_name(note, with_octave=False)
+                    if note_idx < len(scale_label_names):
+                        label_text = str(scale_label_names[note_idx])
+                    else:
+                        label_text = self.note_name(note, with_octave=False)
                     label_y = label_y_base
                     is_label_hl = (
                         (self.staff_hover_note == note)

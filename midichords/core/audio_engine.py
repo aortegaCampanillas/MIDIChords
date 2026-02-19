@@ -41,6 +41,19 @@ class GuitarVoice:
     remaining_samples: int
 
 
+@dataclass
+class SampleVoice:
+    note: int
+    buffer: np.ndarray
+    pos: float
+    step: float
+    gain: float
+    decay: float
+    release: float = 1.0
+    rendered_samples: int = 0
+    max_samples: int = 0
+
+
 class PianoAudioEngine:
     def __init__(self, sample_rate: int = 48000) -> None:
         self.sample_rate = sample_rate
@@ -53,18 +66,46 @@ class PianoAudioEngine:
         self.voices: dict[int, Voice] = {}
         self.click_voices: list[ClickVoice] = []
         self.guitar_voices: list[GuitarVoice] = []
+        self.sample_voices: list[SampleVoice] = []
         self.metronome_sample: Optional[np.ndarray] = self._load_default_metronome_sample()
         self.metronome_sample_accent: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample)
         self.metronome_sample_bar: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample, ratio=1.34)
         self.rng = np.random.default_rng()
+        project_root = Path(__file__).resolve().parent.parent.parent
+        self.piano_sample_map = self._load_sample_bank(
+            project_root / "assets" / "samples" / "grand_piano",
+            {
+                48: "C3.mp3",
+                52: "E3.mp3",
+                55: "G3.mp3",
+                60: "C4.mp3",
+                64: "E4.mp3",
+                67: "G4.mp3",
+                72: "C5.mp3",
+            },
+            max_seconds=7.0,
+        )
+        self.guitar_sample_map = self._load_sample_bank(
+            project_root / "assets" / "samples" / "guitar_nylon",
+            {
+                40: "E2.mp3",
+                45: "A2.mp3",
+                50: "D3.mp3",
+                52: "E3.mp3",
+                55: "G3.mp3",
+                59: "B3.mp3",
+                64: "E4.mp3",
+            },
+            max_seconds=4.0,
+        )
 
     def set_preset(self, preset: str) -> None:
-        if preset not in {"acoustic", "warm", "bright", "soft"}:
+        if preset not in {"acoustic", "warm", "bright", "soft", "grand_sample"}:
             preset = "acoustic"
         self.preset = preset
 
     def set_guitar_preset(self, preset: str) -> None:
-        if preset not in {"steel_clean", "steel_bright", "nylon_warm", "muted_short"}:
+        if preset not in {"steel_clean", "steel_bright", "nylon_warm", "muted_short", "nylon_sample"}:
             preset = "steel_clean"
         self.guitar_preset = preset
 
@@ -90,6 +131,7 @@ class PianoAudioEngine:
             self.voices.clear()
             self.click_voices.clear()
             self.guitar_voices.clear()
+            self.sample_voices.clear()
 
         if self.stream is not None:
             try:
@@ -105,6 +147,16 @@ class PianoAudioEngine:
     def note_on(self, note: int, velocity: int) -> None:
         if velocity <= 0:
             self.note_off(note)
+            return
+        if self.preset == "grand_sample" and self.piano_sample_map:
+            self._trigger_sample_voice(
+                note=note,
+                velocity=velocity,
+                sample_bank=self.piano_sample_map,
+                gain_mul=0.92,
+                decay=0.999985,
+                max_seconds=7.0,
+            )
             return
 
         gain = max(0.05, min(1.0, velocity / 127.0))
@@ -139,6 +191,9 @@ class PianoAudioEngine:
             if voice is not None:
                 voice.released = True
                 voice.release_samples = 0
+            for sample_voice in self.sample_voices:
+                if sample_voice.note == note:
+                    sample_voice.decay = min(sample_voice.decay, 0.9993)
 
     def metronome_click(self, accent: bool = False, bar: bool = False) -> None:
         with self.lock:
@@ -166,6 +221,16 @@ class PianoAudioEngine:
                 self.click_voices.append(ClickVoice(accent_level=level, age_samples=0))
 
     def pluck_guitar_note(self, note: int, velocity: int = 100, duration_seconds: float = 1.6) -> None:
+        if self.guitar_preset == "nylon_sample" and self.guitar_sample_map:
+            self._trigger_sample_voice(
+                note=note,
+                velocity=velocity,
+                sample_bank=self.guitar_sample_map,
+                gain_mul=0.96,
+                decay=0.99994,
+                max_seconds=max(0.3, min(4.0, duration_seconds * 1.45)),
+            )
+            return
         freq = self.midi_note_to_freq(note)
         period = max(8, int(round(self.sample_rate / max(40.0, freq))))
         noise = self.rng.uniform(-1.0, 1.0, period).astype(np.float32)
@@ -198,6 +263,80 @@ class PianoAudioEngine:
                     gain=gain,
                     decay=decay,
                     remaining_samples=remaining,
+                )
+            )
+
+    def _load_sample_bank(self, directory: Path, note_to_filename: dict[int, str], max_seconds: float) -> dict[int, np.ndarray]:
+        bank: dict[int, np.ndarray] = {}
+        for note, filename in sorted(note_to_filename.items()):
+            data = self._load_audio_sample(directory / filename, max_seconds=max_seconds)
+            if data is not None and data.size > 0:
+                bank[note] = data
+        return bank
+
+    def _load_audio_sample(self, path: Path, max_seconds: float) -> Optional[np.ndarray]:
+        if not path.exists():
+            return None
+        try:
+            out = subprocess.check_output(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-i",
+                    str(path),
+                    "-f",
+                    "f32le",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    str(self.sample_rate),
+                    "-",
+                ]
+            )
+        except Exception:
+            return None
+        if not out:
+            return None
+        data = np.frombuffer(out, dtype=np.float32).copy()
+        if data.size == 0:
+            return None
+        peak = float(np.max(np.abs(data)))
+        if peak > 0.0001:
+            data = data / peak
+        max_len = int(self.sample_rate * max_seconds)
+        if data.size > max_len:
+            data = data[:max_len]
+        return data
+
+    def _trigger_sample_voice(
+        self,
+        note: int,
+        velocity: int,
+        sample_bank: dict[int, np.ndarray],
+        gain_mul: float,
+        decay: float,
+        max_seconds: float,
+    ) -> None:
+        if not sample_bank:
+            return
+        root_note = min(sample_bank.keys(), key=lambda candidate: abs(candidate - note))
+        sample = sample_bank.get(root_note)
+        if sample is None or sample.size < 2:
+            return
+        rate = float(2.0 ** ((note - root_note) / 12.0))
+        gain = max(0.05, min(1.0, velocity / 127.0)) * gain_mul
+        max_samples = max(1, int(max_seconds * self.sample_rate))
+        with self.lock:
+            self.sample_voices.append(
+                SampleVoice(
+                    note=note,
+                    buffer=sample,
+                    pos=0.0,
+                    step=rate,
+                    gain=gain,
+                    decay=decay,
+                    max_samples=max_samples,
                 )
             )
 
@@ -260,7 +399,7 @@ class PianoAudioEngine:
         signal = np.zeros(frames, dtype=np.float32)
 
         with self.lock:
-            if not self.voices and not self.click_voices and not self.guitar_voices:
+            if not self.voices and not self.click_voices and not self.guitar_voices and not self.sample_voices:
                 outdata.fill(0)
                 return
 
@@ -386,6 +525,36 @@ class PianoAudioEngine:
                 if gvoice.remaining_samples > 0:
                     remaining_guitars.append(gvoice)
             self.guitar_voices = remaining_guitars
+
+            remaining_samples: list[SampleVoice] = []
+            for sample_voice in self.sample_voices:
+                if sample_voice.buffer.size < 2:
+                    continue
+                local = np.zeros(frames, dtype=np.float32)
+                buf = sample_voice.buffer
+                buf_len = buf.size
+                pos = sample_voice.pos
+                release = sample_voice.release
+                rendered = sample_voice.rendered_samples
+                for i in range(frames):
+                    if pos >= (buf_len - 1):
+                        break
+                    if sample_voice.max_samples > 0 and rendered >= sample_voice.max_samples:
+                        break
+                    idx = int(pos)
+                    frac = float(pos - idx)
+                    raw = (float(buf[idx]) * (1.0 - frac)) + (float(buf[idx + 1]) * frac)
+                    local[i] = np.float32(raw * release)
+                    release *= sample_voice.decay
+                    pos += sample_voice.step
+                    rendered += 1
+                sample_voice.pos = pos
+                sample_voice.release = release
+                sample_voice.rendered_samples = rendered
+                signal += local * sample_voice.gain
+                if pos < (buf_len - 1) and (sample_voice.max_samples <= 0 or rendered < sample_voice.max_samples) and release > 0.00015:
+                    remaining_samples.append(sample_voice)
+            self.sample_voices = remaining_samples
 
             remaining_clicks: list[ClickVoice] = []
             for click in self.click_voices:

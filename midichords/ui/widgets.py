@@ -4,6 +4,23 @@ import tkinter as tk
 from typing import Callable, Optional
 
 
+def _resolve_canvas_bg(master: tk.Misc, fallback: str) -> str:
+    current: Optional[tk.Misc] = master
+    while isinstance(current, tk.Misc):
+        try:
+            value = str(current.cget("background"))
+            if value:
+                current.winfo_rgb(value)
+                return value
+        except Exception:
+            pass
+        parent = getattr(current, "master", None)
+        if not isinstance(parent, tk.Misc):
+            break
+        current = parent
+    return fallback
+
+
 class RoundedChoiceButton(tk.Canvas):
     def __init__(
         self,
@@ -14,10 +31,7 @@ class RoundedChoiceButton(tk.Canvas):
         height: int = 30,
         radius: int = 12,
     ) -> None:
-        try:
-            parent_bg = str(master.cget("background"))
-        except tk.TclError:
-            parent_bg = "#f0f0f0"
+        parent_bg = _resolve_canvas_bg(master, "#f0f0f0")
         super().__init__(
             master,
             width=width,
@@ -25,6 +39,8 @@ class RoundedChoiceButton(tk.Canvas):
             highlightthickness=0,
             bd=0,
             bg=parent_bg,
+            highlightbackground=parent_bg,
+            highlightcolor=parent_bg,
             cursor="hand2",
         )
         self._text = text
@@ -80,6 +96,9 @@ class RoundedChoiceButton(tk.Canvas):
         ]
 
     def _redraw(self) -> None:
+        parent_bg = _resolve_canvas_bg(self.master, str(self.cget("bg")))
+        if parent_bg != str(self.cget("bg")):
+            self.configure(bg=parent_bg, highlightbackground=parent_bg, highlightcolor=parent_bg)
         self.delete("all")
         w = max(4, int(self.winfo_width()))
         h = max(4, int(self.winfo_height()))
@@ -123,10 +142,7 @@ class GreenRoundedButton(tk.Canvas):
         height: int = 52,
         radius: int = 24,
     ) -> None:
-        try:
-            parent_bg = str(master.cget("background"))
-        except tk.TclError:
-            parent_bg = "#1f1f1f"
+        parent_bg = _resolve_canvas_bg(master, "#25272f")
         super().__init__(
             master,
             width=width,
@@ -134,6 +150,8 @@ class GreenRoundedButton(tk.Canvas):
             highlightthickness=0,
             bd=0,
             bg=parent_bg,
+            highlightbackground=parent_bg,
+            highlightcolor=parent_bg,
             cursor="hand2",
         )
         self._text = text
@@ -186,6 +204,9 @@ class GreenRoundedButton(tk.Canvas):
         ]
 
     def _redraw(self) -> None:
+        parent_bg = _resolve_canvas_bg(self.master, str(self.cget("bg")))
+        if parent_bg != str(self.cget("bg")):
+            self.configure(bg=parent_bg, highlightbackground=parent_bg, highlightcolor=parent_bg)
         self.delete("all")
         w = max(8, int(self.winfo_width()))
         h = max(8, int(self.winfo_height()))
@@ -228,10 +249,7 @@ class GrayRoundedButton(tk.Canvas):
         text_color: str = "#f2f2f2",
         selected_text_color: str = "#ffffff",
     ) -> None:
-        try:
-            parent_bg = str(master.cget("background"))
-        except tk.TclError:
-            parent_bg = "#2b2d38"
+        parent_bg = _resolve_canvas_bg(master, "#2b2d38")
         super().__init__(
             master,
             width=width,
@@ -239,6 +257,8 @@ class GrayRoundedButton(tk.Canvas):
             highlightthickness=0,
             bd=0,
             bg=parent_bg,
+            highlightbackground=parent_bg,
+            highlightcolor=parent_bg,
             cursor="hand2",
         )
         self._text = text
@@ -292,6 +312,9 @@ class GrayRoundedButton(tk.Canvas):
         ]
 
     def _redraw(self) -> None:
+        parent_bg = _resolve_canvas_bg(self.master, str(self.cget("bg")))
+        if parent_bg != str(self.cget("bg")):
+            self.configure(bg=parent_bg, highlightbackground=parent_bg, highlightcolor=parent_bg)
         self.delete("all")
         w = max(8, int(self.winfo_width()))
         h = max(8, int(self.winfo_height()))

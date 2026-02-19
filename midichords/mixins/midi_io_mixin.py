@@ -1,0 +1,245 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+
+import mido
+import sounddevice as sd
+
+from midichords.core.app_constants import DISABLE_RTMIDI_SCAN_ENV, FORCE_MIDI_OPEN_ENV, FORCE_RTMIDI_SCAN_ENV
+
+
+class MidiIOMixin:
+    def _scan_midi_inputs_isolated(self) -> tuple[list[str], Optional[str]]:
+        probe_code = (
+            "import json, mido; "
+            "print(json.dumps(mido.get_input_names(), ensure_ascii=False))"
+        )
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-c", probe_code],
+                capture_output=True,
+                text=True,
+                timeout=4,
+            )
+        except Exception as exc:
+            return [], str(exc)
+        if proc.returncode != 0:
+            err = (proc.stderr or proc.stdout).strip()
+            if not err:
+                err = f"midi probe failed with exit code {proc.returncode}"
+            return [], err
+        out = proc.stdout.strip()
+        if not out:
+            return [], None
+        try:
+            raw = json.loads(out.splitlines()[-1])
+        except Exception as exc:
+            return [], f"invalid midi probe response: {exc}"
+        if not isinstance(raw, list):
+            return [], "invalid midi probe response type"
+        names = [str(x) for x in raw]
+        return names, None
+    def refresh_devices(self) -> None:
+        force_scan = os.environ.get(FORCE_RTMIDI_SCAN_ENV, "").strip() == "1"
+        disable_scan = os.environ.get(DISABLE_RTMIDI_SCAN_ENV, "").strip() == "1"
+        self.midi_backend_available = force_scan or not disable_scan
+        self.midi_backend_warning = ""
+        if self.midi_backend_available:
+            self.input_names, probe_error = self._scan_midi_inputs_isolated()
+            if probe_error:
+                self.midi_backend_available = False
+                self.midi_backend_warning = (
+                    "MIDI scan crashed in backend. "
+                    "Reconnect device and relaunch app. "
+                    f"Details: {probe_error}"
+                )
+                self.status_var.set(self.midi_backend_warning)
+        else:
+            self.input_names = []
+            self.midi_backend_warning = (
+                "MIDI scan disabled by environment. "
+                "Unset MIDICHORDS_DISABLE_RTMIDI_SCAN or set MIDICHORDS_FORCE_RTMIDI_SCAN=1."
+            )
+            self.status_var.set(self.midi_backend_warning)
+
+        self.audio_output_map = {}
+        self.audio_output_names = []
+        self.audio_input_map = {}
+        self.audio_input_names = []
+        try:
+            devices = sd.query_devices()
+            for idx, device in enumerate(devices):
+                if int(device.get("max_input_channels", 0)) > 0:
+                    in_name = f"{idx}: {device.get('name', 'Input')}"
+                    self.audio_input_map[in_name] = idx
+                    self.audio_input_names.append(in_name)
+                if int(device.get("max_output_channels", 0)) <= 0:
+                    continue
+                name = f"{idx}: {device.get('name', 'Output')}"
+                self.audio_output_map[name] = idx
+                self.audio_output_names.append(name)
+        except Exception as exc:
+            self.status_var.set(f"{self.tr('error_list_outputs')}: {exc}")
+            self.audio_output_names = []
+            self.audio_output_map = {}
+            self.audio_input_names = []
+            self.audio_input_map = {}
+        if hasattr(self, "tuner_input_combo"):
+            self.tuner_input_combo["values"] = [""] + self.audio_input_names
+            if self.tuner_input_name in self.tuner_input_combo["values"]:
+                self.tuner_input_var.set(self.tuner_input_name)
+            elif self.tuner_input_var.get() not in self.tuner_input_combo["values"]:
+                self.tuner_input_var.set("")
+    def connect_ports(self) -> None:
+        self.disconnect_ports()
+        self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
+        self.audio_engine.set_guitar_preset(str(self.config_data.get("guitar_sound_preset", "steel_clean")))
+
+        input_name = self.config_data.get("midi_input", "")
+        audio_name = self.config_data.get("audio_output", "")
+        audio_error: Optional[str] = None
+        allow_midi_open = os.environ.get(FORCE_MIDI_OPEN_ENV, "").strip() == "1"
+
+        if input_name:
+            if self.midi_backend_available and allow_midi_open:
+                if self.input_names and input_name not in self.input_names:
+                    self.midi_bridge_connected = False
+                    self.midi_backend_warning = (
+                        f"{self.tr('error_open_input')}: "
+                        f"{self.tr('status_unavailable')} ({input_name})"
+                    )
+                else:
+                    try:
+                        self.midi_bridge_connected = self._start_midi_bridge(input_name)
+                    except Exception as exc:
+                        self.status_var.set(f"{self.tr('error_open_input')}: {exc}")
+                        self.input_port = None
+            else:
+                self.input_port = None
+                self.midi_bridge_connected = False
+                if not allow_midi_open:
+                    self.midi_backend_warning = (
+                        "MIDI input open disabled by default for stability. "
+                        "Set MIDICHORDS_FORCE_MIDI_OPEN=1 to enable."
+                    )
+
+        audio_device_index = self.audio_output_map.get(audio_name)
+        try:
+            self.audio_engine.start(audio_device_index)
+        except Exception as exc:
+            audio_error = str(exc)
+
+        in_state = input_name if self.midi_bridge_connected else self.tr("status_no_input")
+        if self.audio_engine.stream is None:
+            out_state = self.tr("status_unavailable")
+        elif audio_name and audio_name in self.audio_output_map:
+            out_state = audio_name
+        else:
+            out_state = self.tr("status_default_output")
+
+        status = f"{self.tr('status_input')}: {in_state}\n{self.tr('status_output')}: {out_state}"
+        if audio_error:
+            status += f"\n{self.tr('status_audio_error')}: {audio_error}"
+        if self.midi_backend_warning:
+            status += f"\n{self.midi_backend_warning}"
+        self.status_var.set(status)
+    def disconnect_ports(self) -> None:
+        if self.input_port is not None:
+            try:
+                self.input_port.close()
+            except Exception:
+                pass
+            self.input_port = None
+        self._stop_midi_bridge()
+        self.midi_bridge_connected = False
+
+        self.audio_engine.stop()
+    def _on_midi_message(self, message: mido.Message) -> None:
+        self.message_queue.put(message)
+    def _start_midi_bridge(self, input_name: str) -> bool:
+        self._stop_midi_bridge()
+        bridge_code = """
+import json
+import sys
+import time
+import mido
+
+def emit(payload):
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+name = sys.argv[1]
+try:
+    port = mido.open_input(name)
+except Exception as exc:
+    emit({"event": "error", "error": str(exc)})
+    sys.exit(2)
+
+emit({"event": "ready", "name": name})
+while True:
+    for msg in port.iter_pending():
+        if msg.type == "note_on":
+            emit({"event": "midi", "type": "note_on", "note": int(msg.note), "velocity": int(msg.velocity)})
+        elif msg.type == "note_off":
+            emit({"event": "midi", "type": "note_off", "note": int(msg.note), "velocity": int(msg.velocity)})
+    time.sleep(0.01)
+"""
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, "-u", "-c", bridge_code, input_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except Exception:
+            return False
+        self.midi_bridge_proc = proc
+        self.midi_bridge_thread = threading.Thread(target=self._read_midi_bridge_output, daemon=True)
+        self.midi_bridge_thread.start()
+        time.sleep(0.1)
+        if proc.poll() is not None:
+            self._stop_midi_bridge()
+            return False
+        return True
+    def _read_midi_bridge_output(self) -> None:
+        proc = self.midi_bridge_proc
+        if proc is None or proc.stdout is None:
+            return
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                payload = json.loads(line)
+            except Exception:
+                continue
+            if payload.get("event") != "midi":
+                continue
+            msg_type = str(payload.get("type", ""))
+            note = int(payload.get("note", -1))
+            velocity = int(payload.get("velocity", 0))
+            if msg_type not in {"note_on", "note_off"} or not (0 <= note <= 127):
+                continue
+            try:
+                message = mido.Message(msg_type, note=note, velocity=max(0, min(127, velocity)))
+            except Exception:
+                continue
+            self.message_queue.put(message)
+    def _stop_midi_bridge(self) -> None:
+        proc = self.midi_bridge_proc
+        self.midi_bridge_proc = None
+        self.midi_bridge_thread = None
+        if proc is None:
+            return
+        try:
+            proc.terminate()
+            proc.wait(timeout=0.5)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass

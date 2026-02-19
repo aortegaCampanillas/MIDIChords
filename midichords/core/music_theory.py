@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from i18n import NOTE_NAMES
+from midichords.core.i18n import NOTE_NAMES
 
 
 WHITE_PCS = {0, 2, 4, 5, 7, 9, 11}

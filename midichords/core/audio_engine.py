@@ -202,10 +202,10 @@ class PianoAudioEngine:
             )
 
     def _load_default_metronome_sample(self) -> Optional[np.ndarray]:
-        base = Path(__file__).resolve().parent
+        project_root = Path(__file__).resolve().parent.parent.parent
         candidates = [
-            base / "assets" / "methronome.mp3",
-            base / "assets" / "metronome.mp3",
+            project_root / "assets" / "methronome.mp3",
+            project_root / "assets" / "metronome.mp3",
         ]
         sample_path = next((p for p in candidates if p.exists()), None)
         if sample_path is None:

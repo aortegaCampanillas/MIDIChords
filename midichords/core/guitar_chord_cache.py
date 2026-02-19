@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-CACHE_PATH = Path(__file__).resolve().parent / "assets" / "guitar_chord_cache.json"
+CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "assets" / "guitar_chord_cache.json"
 APP_SUFFIX_TO_SITE_TYPE = {
     "": "major",
     "5": "5",

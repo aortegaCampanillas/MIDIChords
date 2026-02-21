@@ -855,15 +855,24 @@ class UiMixin:
         )
         self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 8))
 
-        self.scale_result_canvas = tk.Canvas(
+        self.scale_result_row = tk.Frame(
             self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_result_row.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(2, 2))
+        self.scale_result_row.columnconfigure(0, weight=1)
+        self.scale_result_row.rowconfigure(0, weight=1)
+        self.scale_result_canvas = tk.Canvas(
+            self.scale_result_row,
             bg=self.color_surface_alt,
             height=220,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
         )
-        self.scale_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(2, 2))
+        self.scale_result_canvas.grid(row=0, column=0, sticky="nsew")
         self.scale_result_inner = tk.Frame(
             self.scale_result_canvas,
             bg="#17273a",
@@ -875,6 +884,10 @@ class UiMixin:
             0,
             anchor="nw",
             window=self.scale_result_inner,
+        )
+        self.scale_result_inner.bind(
+            "<Configure>",
+            lambda _e: self.scale_result_canvas.configure(scrollregion=self.scale_result_canvas.bbox("all")),
         )
 
         def redraw_scale_result_block(_event: Optional[tk.Event] = None) -> None:
@@ -897,7 +910,6 @@ class UiMixin:
             self.scale_result_canvas.itemconfigure(
                 self._scale_result_window_id,
                 width=max(1, w - (pad * 2)),
-                height=max(1, h - (pad * 2)),
             )
             self.scale_result_canvas.tag_lower("result_block_bg")
 
@@ -910,7 +922,7 @@ class UiMixin:
             textvariable=self.scale_name_var,
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 34, "bold"),
+            font=(self.ui_font_family, 24, "bold"),
         )
         self.scale_name_label.pack(anchor="w", pady=(0, 8))
 
@@ -954,6 +966,7 @@ class UiMixin:
 
         self.tab_scale_frame.columnconfigure(0, weight=0)
         self.tab_scale_frame.columnconfigure(1, weight=1)
+        self.tab_scale_frame.rowconfigure(5, weight=1)
 
         self.metronome_title_row = ttk.Frame(self.tab_metronome_frame)
         self.metronome_title_row.grid(row=0, column=0, sticky="w", pady=(4, 10))

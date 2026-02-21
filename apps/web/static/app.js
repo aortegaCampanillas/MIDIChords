@@ -708,6 +708,43 @@ function getActiveMidiForMode() {
   return new Set();
 }
 
+function getScaleBaseNotes() {
+  if (!state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return [];
+  return Array.from(new Set(state.generatedScale.notes_midi.map((n) => Number(n))))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
+}
+
+function getScaleRhLhDisplayNotes() {
+  const rh = getScaleBaseNotes();
+  if (state.scalePlayMode !== "piano") {
+    return { rh, lh: [], display: [...rh] };
+  }
+  const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
+  const display = [];
+  const pairCount = Math.min(rh.length, lh.length);
+  for (let i = 0; i < pairCount; i += 1) {
+    display.push(lh[i], rh[i]);
+  }
+  for (let i = pairCount; i < rh.length; i += 1) display.push(rh[i]);
+  return { rh, lh, display };
+}
+
+function mapScaleInputToDisplayMidi(note) {
+  const target = Number(note);
+  if (!Number.isFinite(target)) return null;
+  const { rh, lh } = getScaleRhLhDisplayNotes();
+  const candidates = state.scalePlayMode === "piano" ? [...rh, ...lh] : [...rh];
+  if (!candidates.length) return null;
+  if (candidates.includes(target)) return target;
+  const targetPc = ((target % 12) + 12) % 12;
+  const samePc = candidates.filter((n) => (((n % 12) + 12) % 12) === targetPc);
+  if (!samePc.length) return null;
+  return samePc.reduce((best, n) => (
+    Math.abs(n - target) < Math.abs(best - target) ? n : best
+  ), samePc[0]);
+}
+
 function getExtraMidiForMode() {
   if (state.mode === "detection" && state.detectionResult) {
     return new Set((state.detectionResult.extras_midi || []).map((n) => Number(n)));
@@ -790,6 +827,7 @@ function renderPiano() {
     ? Number(state.scaleCurrentNote)
     : null;
   const generationPianoMode = state.mode === "generation" && state.instrument === "piano" && state.generatedChord;
+  const scalePianoMode = state.mode === "scales" && state.scalePlayMode === "piano";
   const rhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
     : [];
@@ -801,6 +839,9 @@ function renderPiano() {
   const rhFingerByNote = new Map(rhNotes.map((n, i) => [n, rhFingers[Math.min(i, rhFingers.length - 1)]]));
   const lhFingerByNote = new Map(lhNotes.map((n, i) => [n, lhFingers[Math.min(i, lhFingers.length - 1)]]));
   const allActiveMidi = generationPianoMode ? new Set([...activeMidi, ...lhNotes]) : activeMidi;
+  const scaleRhLh = scalePianoMode ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
+  const scaleRhSet = new Set(scaleRhLh.rh);
+  const scaleLhSet = new Set(scaleRhLh.lh);
   const scaleCentralOnly = state.mode === "scales" && state.scaleLoop.active;
   const scaleCentralMin = 60; // C4
   const scaleCentralMax = 72; // C5
@@ -825,6 +866,12 @@ function renderPiano() {
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
     } else if (state.mode === "detection") {
       if (activeMidi.has(midi)) key.classList.add("active");
+    } else if (scalePianoMode) {
+      const currentOnKey = scaleCurrentExactMidi !== null && midi === scaleCurrentExactMidi;
+      if (currentOnKey) {
+        if (scaleLhSet.has(midi) && !scaleRhSet.has(midi)) key.classList.add("lh");
+        else key.classList.add("rh");
+      }
     } else if (state.mode !== "scales" && allActiveMidi.has(midi)) {
       key.classList.add("active");
     }
@@ -1290,7 +1337,8 @@ function handleInstrumentNote(note, options = {}) {
           clearTimeout(state.scaleCurrentClearTimer);
           state.scaleCurrentClearTimer = null;
         }
-        state.scaleCurrentNote = note;
+        const mapped = mapScaleInputToDisplayMidi(note);
+        state.scaleCurrentNote = mapped == null ? Number(note) : Number(mapped);
         renderInstrument();
         renderStaff();
         state.scaleCurrentClearTimer = setTimeout(() => {
@@ -1515,8 +1563,8 @@ function drawLedgerLines(ctx, x, y, staffTop, gap) {
   }
 }
 
-function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, current = false) {
-  const stroke = current ? "#6fe0ff" : (extra ? "#ff9a9a" : "#f1f1f1");
+function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, current = false, currentStroke = null) {
+  const stroke = current ? (currentStroke || "#6fe0ff") : (extra ? "#ff9a9a" : "#d7dde7");
   ctx.beginPath();
   ctx.ellipse(x, y, 9, 6.5, -0.35, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(0,0,0,0)";
@@ -1861,7 +1909,9 @@ function getStaffNotes() {
     const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
     return Array.from(new Set([...rh, ...lh])).sort((a, b) => a - b);
   }
-  if (state.mode === "scales" && state.generatedScale) return (state.generatedScale.notes_midi || []).map((n) => Number(n));
+  if (state.mode === "scales" && state.generatedScale) {
+    return getScaleRhLhDisplayNotes().display;
+  }
   return [];
 }
 
@@ -1953,6 +2003,20 @@ function renderStaff() {
   const xByLine = new Map();
   const placedTrebleCols = new Map();
   const placedBassCols = new Map();
+  const scaleRhLh = scaleStaff ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
+  const scaleRhSet = new Set(scaleRhLh.rh);
+  const scaleLhSet = new Set(scaleRhLh.lh);
+  const scaleDegreeByMidi = new Map();
+  if (scaleStaff) {
+    scaleRhLh.rh.forEach((midi, idx) => {
+      scaleDegreeByMidi.set(Number(midi), idx);
+      const bass = Number(midi) - 12;
+      if (scaleLhSet.has(bass)) scaleDegreeByMidi.set(bass, idx);
+    });
+  }
+  const scaleLabels = scaleStaff && Array.isArray(state.generatedScale?.notes)
+    ? state.generatedScale.notes.map((label) => String(label || "").replace(/\d+/g, ""))
+    : [];
   notes.forEach((midi, idx) => {
     const useTreble = Number(midi) >= 60;
     const y = useTreble ? midiToTrebleY(midi, trebleTop, gap) : midiToBassY(midi, bassTop, gap);
@@ -1962,13 +2026,16 @@ function renderStaff() {
     xByLine.set(key, used + 1);
 
     const col = Math.floor(idx / 7);
+    const degreeIdx = scaleStaff && scaleDegreeByMidi.has(Number(midi))
+      ? Number(scaleDegreeByMidi.get(Number(midi)))
+      : idx;
     const noteRx = Math.max(8, gap * 0.72);
     const overlapThreshold = Math.max(1, gap - 1);
     const detectionBaseX = startX + 62;
     const x = compactChordStaff
       ? (startX + 62)
       : scaleStaff
-        ? (startX + 46 + idx * 44 + used * 18)
+        ? (startX + 46 + degreeIdx * 44 + (useTreble ? used * 16 : 0))
         : detectionStaff
           ? (() => {
               const placedCols = useTreble ? placedTrebleCols : placedBassCols;
@@ -1988,17 +2055,28 @@ function renderStaff() {
     const tonic = ((midi % 12) + 12) % 12 === tonicPc;
     const current = (scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi))
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi));
-    drawNote(ctx, x, y, staffTop, gap, extra, tonic, current);
+    const currentStroke = current
+      ? (
+          (scaleStaff && state.scalePlayMode === "piano" && scaleLhSet.has(Number(midi)) && !scaleRhSet.has(Number(midi)))
+            ? "#ff8a3d"
+            : "#6fe0ff"
+        )
+      : null;
+    drawNote(ctx, x, y, staffTop, gap, extra, tonic, current, currentStroke);
 
     if (!compactChordStaff && !detectionStaff) {
-      ctx.fillStyle = current ? "#6fe0ff" : "#b5c0cf";
+      ctx.fillStyle = current ? (currentStroke || "#6fe0ff") : "#b5c0cf";
       ctx.font = scaleStaff ? "bold 13px sans-serif" : "11px sans-serif";
-      const label = noteNameFromPcStaff(midi % 12, staffCtx.signature.preferFlats);
       if (scaleStaff) {
+        if (Number(midi) < 60) return;
+        const label = degreeIdx >= 0 && degreeIdx < scaleLabels.length && scaleLabels[degreeIdx]
+          ? scaleLabels[degreeIdx]
+          : noteNameFromPcStaff(midi % 12, staffCtx.signature.preferFlats);
         ctx.textAlign = "center";
         ctx.fillText(label, x, trebleTop - 16);
         ctx.textAlign = "start";
       } else {
+        const label = noteNameFromPcStaff(midi % 12, staffCtx.signature.preferFlats);
         ctx.fillText(label, x - 10, Math.min(height - 8, y + 18));
       }
     }

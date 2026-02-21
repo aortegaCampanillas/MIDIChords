@@ -430,9 +430,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ]).toSet();
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
-      return _extractMidiList(_generatedScaleJson!, <String>[
-        'notes_midi',
-      ]).toSet();
+      final rh = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+      if (_instrumentView == 'guitar') {
+        return rh.toSet();
+      }
+      final lh = rh.map((n) => n - 12).where((n) => n >= 0);
+      return <int>{...rh, ...lh};
     }
     return <int>{};
   }
@@ -454,15 +457,39 @@ class _HomeScreenState extends State<HomeScreen> {
       ]).toSet();
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
-      final notes = _extractMidiList(_generatedScaleJson!, <String>[
-        'notes_midi',
-      ]).toSet();
-      if (_scaleCurrentNote != null) {
+      final rh = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+      final notes = <int>{...rh};
+      if (_instrumentView == 'piano') {
+        notes.addAll(rh.map((n) => n - 12).where((n) => n >= 0));
+      }
+      if (_scaleCurrentNote != null && _instrumentView == 'piano') {
         notes.add(_scaleCurrentNote!);
       }
       return notes;
     }
     return <int>{};
+  }
+
+  List<int> _scaleRhNotes() {
+    if (_generatedScaleJson == null) return <int>[];
+    return _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+  }
+
+  List<int> _scaleLhNotes(List<int> rh) =>
+      rh.map((n) => n - 12).where((n) => n >= 0).toList();
+
+  int? _scaleStaffNoteForPitch(int note) {
+    if (_generatedScaleJson == null) return null;
+    final target = note;
+    final rh = _scaleRhNotes();
+    final lh = _instrumentView == 'piano' ? _scaleLhNotes(rh) : <int>[];
+    final candidates = <int>[...rh, ...lh];
+    if (candidates.contains(target)) return target;
+    final pc = ((target % 12) + 12) % 12;
+    final samePc = candidates.where((n) => ((n % 12) + 12) % 12 == pc).toList();
+    if (samePc.isEmpty) return null;
+    samePc.sort((a, b) => (a - target).abs().compareTo((b - target).abs()));
+    return samePc.first;
   }
 
   int _safeMidi(int midi) => midi.clamp(21, 108);
@@ -659,7 +686,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showForbiddenOnPiano(midi);
         return;
       }
-      _scaleCurrentNote = midi;
+      _scaleCurrentNote = _scaleStaffNoteForPitch(midi) ?? midi;
       setState(() {});
       if (pressed) {
         await _startHeldInputNote(
@@ -1552,6 +1579,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   painter: _MiniStaffPainter(
                     notes: notes.toList()..sort(),
                     extras: extras,
+                    scaleRhNotes: _tabIndex == 2
+                        ? _scaleRhNotes()
+                        : const <int>[],
+                    scaleLhNotes: (_tabIndex == 2 && _instrumentView == 'piano')
+                        ? _scaleLhNotes(_scaleRhNotes())
+                        : const <int>[],
+                    scaleCurrentNote: _tabIndex == 2 ? _scaleCurrentNote : null,
+                    scaleGuitarMode:
+                        _tabIndex == 2 && _instrumentView == 'guitar',
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -1644,6 +1680,10 @@ class _HomeScreenState extends State<HomeScreen> {
     const whiteH = 130.0;
     const blackH = 84.0;
     final active = activeMidi.toSet();
+    final scaleRh = _tabIndex == 2 ? _scaleRhNotes().toSet() : <int>{};
+    final scaleLh = (_tabIndex == 2 && _instrumentView == 'piano')
+        ? _scaleLhNotes(_scaleRhNotes()).toSet()
+        : <int>{};
 
     double xForMidi(int midi) {
       final idx = whiteMidi.indexWhere((m) => m >= midi);
@@ -1662,6 +1702,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 children: whiteMidi.map((midi) {
                   final isActive = active.contains(midi);
+                  final isScaleCurrent =
+                      _tabIndex == 2 &&
+                      _scaleCurrentNote != null &&
+                      _scaleCurrentNote == midi;
+                  final currentIsLeft =
+                      isScaleCurrent &&
+                      _instrumentView == 'piano' &&
+                      scaleLh.contains(midi) &&
+                      !scaleRh.contains(midi);
                   return Listener(
                     onPointerDown: (event) => unawaited(
                       _beginInputDrag(midi, event.pointer, event.position),
@@ -1676,9 +1725,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: whiteH,
                       margin: EdgeInsets.zero,
                       decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFFF3C64F)
-                            : const Color(0xFFF5F4EF),
+                        color: isScaleCurrent
+                            ? (currentIsLeft
+                                  ? const Color(0xFFFF8A2B)
+                                  : const Color(0xFF4DA3EA))
+                            : (isActive
+                                  ? const Color(0xFFF3C64F)
+                                  : const Color(0xFFF5F4EF)),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: const Color(0xFFAEB8C5)),
                       ),
@@ -1700,6 +1753,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   .where((m) => const <int>{1, 3, 6, 8, 10}.contains(m % 12))
                   .map((midi) {
                     final isActive = active.contains(midi);
+                    final isScaleCurrent =
+                        _tabIndex == 2 &&
+                        _scaleCurrentNote != null &&
+                        _scaleCurrentNote == midi;
+                    final currentIsLeft =
+                        isScaleCurrent &&
+                        _instrumentView == 'piano' &&
+                        scaleLh.contains(midi) &&
+                        !scaleRh.contains(midi);
                     return Positioned(
                       left: xForMidi(midi) - (blackW / 2),
                       top: 0,
@@ -1717,9 +1779,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: blackW,
                           height: blackH,
                           decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFFC37B00)
-                                : const Color(0xFF101822),
+                            color: isScaleCurrent
+                                ? (currentIsLeft
+                                      ? const Color(0xFFB35F00)
+                                      : const Color(0xFF0078D7))
+                                : (isActive
+                                      ? const Color(0xFFC37B00)
+                                      : const Color(0xFF101822)),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0xFF6F7F96)),
                           ),
@@ -2066,7 +2132,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  key: ValueKey<String>('inv_$_chordInversion/$_chordMaxInversion'),
+                  key: ValueKey<String>(
+                    'inv_$_chordInversion/$_chordMaxInversion',
+                  ),
                   initialValue: _chordInversion.clamp(0, _chordMaxInversion),
                   dropdownColor: _surfaceDark,
                   style: const TextStyle(color: _text),
@@ -2076,7 +2144,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     (i) => DropdownMenuItem<int>(
                       value: i,
                       child: Text(
-                        i == 0 ? 'Posición fundamental' : '${i}ª inversión',
+                        i == 0 ? 'Posición fundamental' : '$iª inversión',
                       ),
                     ),
                   ),
@@ -2807,10 +2875,21 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _MiniStaffPainter extends CustomPainter {
-  _MiniStaffPainter({required this.notes, required this.extras});
+  _MiniStaffPainter({
+    required this.notes,
+    required this.extras,
+    this.scaleRhNotes = const <int>[],
+    this.scaleLhNotes = const <int>[],
+    this.scaleCurrentNote,
+    this.scaleGuitarMode = false,
+  });
 
   final List<int> notes;
   final Set<int> extras;
+  final List<int> scaleRhNotes;
+  final List<int> scaleLhNotes;
+  final int? scaleCurrentNote;
+  final bool scaleGuitarMode;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2860,18 +2939,53 @@ class _MiniStaffPainter extends CustomPainter {
     )..layout();
     tpBass.paint(canvas, Offset(left + 14, bassTop + gap * 0.5));
 
-    final list = notes.toList()..sort();
-    for (int i = 0; i < list.length; i += 1) {
-      final midi = list[i];
-      final x = left + 110 + (i * 32.0);
-      final y = midi >= 60
-          ? _midiToTrebleY(midi.toDouble(), trebleTop, gap)
-          : _midiToBassY(midi.toDouble(), bassTop, gap);
-      noteOutline.color = extras.contains(midi)
-          ? const Color(0xFFF48F8F)
-          : const Color(0xFFE9EDF2);
-      final oval = Rect.fromCenter(center: Offset(x, y), width: 16, height: 12);
-      canvas.drawOval(oval, noteOutline);
+    if (scaleRhNotes.isNotEmpty) {
+      final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
+      for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
+        final x = left + 110 + (degree * 32.0);
+        if (!scaleGuitarMode && degree < pairCount) {
+          final bassMidi = scaleLhNotes[degree];
+          final yBass = _midiToBassY(bassMidi.toDouble(), bassTop, gap);
+          final currentBass =
+              scaleCurrentNote != null && scaleCurrentNote == bassMidi;
+          noteOutline.color = currentBass
+              ? const Color(0xFFFF8A2B)
+              : const Color(0xFFE9EDF2);
+          canvas.drawOval(
+            Rect.fromCenter(center: Offset(x, yBass), width: 16, height: 12),
+            noteOutline,
+          );
+        }
+        final trebleMidi = scaleRhNotes[degree];
+        final yTreble = _midiToTrebleY(trebleMidi.toDouble(), trebleTop, gap);
+        final currentTreble =
+            scaleCurrentNote != null && scaleCurrentNote == trebleMidi;
+        noteOutline.color = currentTreble
+            ? const Color(0xFF4DA3EA)
+            : const Color(0xFFE9EDF2);
+        canvas.drawOval(
+          Rect.fromCenter(center: Offset(x, yTreble), width: 16, height: 12),
+          noteOutline,
+        );
+      }
+    } else {
+      final list = notes.toList()..sort();
+      for (int i = 0; i < list.length; i += 1) {
+        final midi = list[i];
+        final x = left + 110 + (i * 32.0);
+        final y = midi >= 60
+            ? _midiToTrebleY(midi.toDouble(), trebleTop, gap)
+            : _midiToBassY(midi.toDouble(), bassTop, gap);
+        noteOutline.color = extras.contains(midi)
+            ? const Color(0xFFF48F8F)
+            : const Color(0xFFE9EDF2);
+        final oval = Rect.fromCenter(
+          center: Offset(x, y),
+          width: 16,
+          height: 12,
+        );
+        canvas.drawOval(oval, noteOutline);
+      }
     }
   }
 
@@ -2901,8 +3015,18 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.notes.length != notes.length) return true;
     if (oldDelegate.extras.length != extras.length) return true;
+    if (oldDelegate.scaleRhNotes.length != scaleRhNotes.length) return true;
+    if (oldDelegate.scaleLhNotes.length != scaleLhNotes.length) return true;
+    if (oldDelegate.scaleCurrentNote != scaleCurrentNote) return true;
+    if (oldDelegate.scaleGuitarMode != scaleGuitarMode) return true;
     for (int i = 0; i < notes.length; i += 1) {
       if (oldDelegate.notes[i] != notes[i]) return true;
+    }
+    for (int i = 0; i < scaleRhNotes.length; i += 1) {
+      if (oldDelegate.scaleRhNotes[i] != scaleRhNotes[i]) return true;
+    }
+    for (int i = 0; i < scaleLhNotes.length; i += 1) {
+      if (oldDelegate.scaleLhNotes[i] != scaleLhNotes[i]) return true;
     }
     return false;
   }

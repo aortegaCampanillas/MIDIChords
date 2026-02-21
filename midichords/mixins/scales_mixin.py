@@ -412,8 +412,12 @@ class ScalesMixin:
         target = int(note)
         if target in self.scale_preview_notes:
             return target
+        lh_notes = [int(n - 12) for n in self.scale_preview_notes if int(n - 12) >= 0]
+        if target in lh_notes:
+            return target
         pc = int(note) % 12
         candidates = [n for n in self.scale_preview_notes if (n % 12) == pc]
+        candidates.extend([n for n in lh_notes if (n % 12) == pc])
         if candidates:
             return min(candidates, key=lambda n: abs(int(n) - target))
         return None

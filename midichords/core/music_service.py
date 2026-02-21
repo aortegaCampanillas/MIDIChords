@@ -146,6 +146,22 @@ def _chord_interval_degree(interval: int, suffix: str) -> int:
     return max(0, min(6, value % 7))
 
 
+def _voiced_intervals_for_inversion(intervals: list[int], inversion: int) -> list[int]:
+    if not intervals:
+        return []
+    total = len(intervals)
+    inversion_idx = max(0, min(int(inversion), total - 1))
+    rotated = [int(intervals[(inversion_idx + i) % total]) for i in range(total)]
+    voiced: list[int] = []
+    for raw in rotated:
+        value = int(raw)
+        if voiced:
+            while value <= voiced[-1]:
+                value += 12
+        voiced.append(value)
+    return voiced
+
+
 def list_chord_patterns() -> list[dict[str, Any]]:
     return [asdict(pattern) for pattern in chord_patterns_for_ui()]
 
@@ -184,7 +200,7 @@ def generate_chord(
         }
     inversion = max(0, min(int(inversion), len(intervals) - 1))
     root_midi = 60 + (int(root_pc) % 12)
-    voiced_intervals = sorted(interval + (12 if idx < inversion else 0) for idx, interval in enumerate(intervals))
+    voiced_intervals = _voiced_intervals_for_inversion(intervals, inversion)
     notes_midi = [root_midi + interval for interval in voiced_intervals]
 
     note_labels: list[str] = []

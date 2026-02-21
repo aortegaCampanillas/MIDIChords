@@ -7,6 +7,22 @@ from midichords.ui.widgets import GrayRoundedButton
 
 class GenerationMixin:
     @staticmethod
+    def _voiced_intervals_for_inversion(intervals: list[int], inversion: int) -> list[int]:
+        if not intervals:
+            return []
+        total = len(intervals)
+        inversion_idx = max(0, min(int(inversion), total - 1))
+        rotated = [int(intervals[(inversion_idx + i) % total]) for i in range(total)]
+        voiced: list[int] = []
+        for raw in rotated:
+            value = int(raw)
+            if voiced:
+                while value <= voiced[-1]:
+                    value += 12
+            voiced.append(value)
+        return voiced
+
+    @staticmethod
     def _generation_interval_degree(interval: int, suffix: str) -> int:
         value = int(interval)
         suffix_text = str(suffix)
@@ -84,8 +100,7 @@ class GenerationMixin:
             return {}
         max_inversion = len(intervals) - 1
         inversion = min(max(0, self.generation_inversion), max_inversion)
-        voiced_intervals = [(interval + (12 if idx < inversion else 0)) for idx, interval in enumerate(intervals)]
-        voiced_intervals.sort()
+        voiced_intervals = self._voiced_intervals_for_inversion(intervals, inversion)
         root_midi = 60 + self.generation_root_pc
         voiced_notes = [root_midi + interval for interval in voiced_intervals]
         labels = self._spelled_generation_note_names(
@@ -387,8 +402,7 @@ class GenerationMixin:
             self.generation_inversion = inversion
             self._refresh_generation_selection_buttons()
 
-        voiced_intervals = [(interval + (12 if idx < inversion else 0)) for idx, interval in enumerate(intervals)]
-        voiced_intervals.sort()
+        voiced_intervals = self._voiced_intervals_for_inversion(intervals, inversion)
         voiced_notes = [root_midi + interval for interval in voiced_intervals]
         self.generated_preview_notes = set(voiced_notes)
         spelled_map = self._generation_note_name_map(with_octave=False)

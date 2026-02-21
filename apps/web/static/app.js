@@ -15,6 +15,7 @@ const state = {
   generatedScale: null,
   scaleCurrentNote: null,
   generationCurrentNote: null,
+  generationPlayingNotes: new Set(),
   guitarChordCache: null,
   guitarVariations: [],
   guitarSelectedVariationIdx: null,
@@ -27,6 +28,7 @@ const state = {
   },
   scaleCurrentClearTimer: null,
   generationCurrentClearTimer: null,
+  generationPlayClearTimer: null,
   metronomeRunning: false,
   metronomeTimer: null,
   metronomeAnimRaf: null,
@@ -566,6 +568,11 @@ function setMode(mode) {
     state.generationCurrentClearTimer = null;
   }
   state.generationCurrentNote = null;
+  if (state.generationPlayClearTimer != null) {
+    clearTimeout(state.generationPlayClearTimer);
+    state.generationPlayClearTimer = null;
+  }
+  state.generationPlayingNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
@@ -1720,9 +1727,10 @@ function drawLedgerLines(ctx, x, y, staffTop, gap) {
 
 function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, current = false, currentStroke = null) {
   const stroke = current ? (currentStroke || "#6fe0ff") : (extra ? "#ff9a9a" : "#d7dde7");
+  const fill = current ? (currentStroke || "#6fe0ff") : "rgba(0,0,0,0)";
   ctx.beginPath();
   ctx.ellipse(x, y, 9, 6.5, -0.35, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(0,0,0,0)";
+  ctx.fillStyle = fill;
   ctx.fill();
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 2;
@@ -2060,7 +2068,10 @@ function drawTunerCanvas(ctx, width, height) {
 function getStaffNotes() {
   if (state.mode === "detection") return Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
   if (state.mode === "generation" && state.generatedChord) {
-    const rh = (state.generatedChord.notes_midi || []).map((n) => Number(n));
+    const rh = getGenerationBaseNotes();
+    if (state.instrument === "guitar") {
+      return Array.from(new Set(rh)).sort((a, b) => a - b);
+    }
     const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
     return Array.from(new Set([...rh, ...lh])).sort((a, b) => a - b);
   }
@@ -2068,6 +2079,37 @@ function getStaffNotes() {
     return getScaleRhLhDisplayNotes().display;
   }
   return [];
+}
+
+function getSelectedGuitarVariation() {
+  if (!(state.mode === "generation" && state.instrument === "guitar")) return null;
+  const idx = Number(state.guitarSelectedVariationIdx);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= state.guitarVariations.length) return null;
+  return state.guitarVariations[idx] || null;
+}
+
+function getVariationNotes(variation) {
+  if (!variation || typeof variation !== "object") return [];
+  const fromStrings = Array.isArray(variation.string_notes)
+    ? variation.string_notes.filter((n) => n != null).map((n) => Number(n)).filter((n) => Number.isFinite(n))
+    : [];
+  if (fromStrings.length) return Array.from(new Set(fromStrings)).sort((a, b) => a - b);
+  const fromNotes = Array.isArray(variation.notes)
+    ? variation.notes.map((n) => Number(n)).filter((n) => Number.isFinite(n))
+    : [];
+  if (fromNotes.length) return Array.from(new Set(fromNotes)).sort((a, b) => a - b);
+  return [];
+}
+
+function getGenerationBaseNotes() {
+  if (!(state.mode === "generation" && state.generatedChord)) return [];
+  const selectedVariation = getSelectedGuitarVariation();
+  const variationNotes = getVariationNotes(selectedVariation);
+  if (variationNotes.length) return variationNotes;
+  return (state.generatedChord.notes_midi || [])
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
 }
 
 function renderStaff() {
@@ -2161,6 +2203,14 @@ function renderStaff() {
     }
   }
   const generationCurrentMidi = state.mode === "generation" ? state.generationCurrentNote : null;
+  const generationPlaying = state.mode === "generation" ? state.generationPlayingNotes : new Set();
+  const generationPlayingDisplay = new Set(Array.from(generationPlaying).map((n) => Number(n)));
+  const generationRhDisplayNotes = state.mode === "generation" && state.generatedChord
+    ? new Set(getGenerationBaseNotes())
+    : new Set();
+  const generationLhDisplayNotes = state.mode === "generation" && state.generatedChord
+    ? new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) - 12).filter((n) => n >= 0))
+    : new Set();
   let generationCurrentDisplayMidi = generationCurrentMidi;
   if (state.mode === "generation" && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
     const staffSet = new Set(notes.map((n) => Number(n)));
@@ -2168,6 +2218,13 @@ function renderStaff() {
     if (!staffSet.has(Number(generationCurrentDisplayMidi)) && staffSet.has(Number(generationCurrentDisplayMidi) + 12)) {
       generationCurrentDisplayMidi = Number(generationCurrentDisplayMidi) + 12;
     }
+  }
+  if (state.mode === "generation" && state.instrument === "piano" && generationPlayingDisplay.size) {
+    const staffSet = new Set(notes.map((n) => Number(n)));
+    Array.from(generationPlayingDisplay).forEach((note) => {
+      const lhNote = Number(note) - 12;
+      if (staffSet.has(lhNote)) generationPlayingDisplay.add(lhNote);
+    });
   }
 
   const xByLine = new Map();
@@ -2202,32 +2259,48 @@ function renderStaff() {
     const noteRx = Math.max(8, gap * 0.72);
     const overlapThreshold = Math.max(1, gap - 1);
     const detectionBaseX = startX + 62;
-    const x = compactChordStaff
-      ? (startX + 62)
-      : scaleStaff
-        ? (startX + 46 + degreeIdx * 44 + (useTreble ? used * 16 : 0))
-        : detectionStaff
-          ? (() => {
-              const placedCols = useTreble ? placedTrebleCols : placedBassCols;
-              let c = 0;
-              while (true) {
-                const ys = placedCols.get(c) || [];
-                if (!ys.some((prevY) => Math.abs(y - prevY) < overlapThreshold)) break;
-                c += 1;
-              }
-              const ys = placedCols.get(c) || [];
-              ys.push(y);
-              placedCols.set(c, ys);
-              return detectionBaseX + (c * noteRx * 1.8);
-            })()
-          : (startX + 34 + col * 110 + (idx % 7) * 18 + used * 14);
+    let x;
+    if (compactChordStaff) {
+      const placedCols = useTreble ? placedTrebleCols : placedBassCols;
+      let c = 0;
+      while (true) {
+        const ys = placedCols.get(c) || [];
+        if (!ys.some((prevY) => Math.abs(y - prevY) < overlapThreshold)) break;
+        c += 1;
+      }
+      const ys = placedCols.get(c) || [];
+      ys.push(y);
+      placedCols.set(c, ys);
+      x = startX + 62 + (c * noteRx * 1.8);
+    } else if (scaleStaff) {
+      x = startX + 46 + degreeIdx * 44 + (useTreble ? used * 16 : 0);
+    } else if (detectionStaff) {
+      const placedCols = useTreble ? placedTrebleCols : placedBassCols;
+      let c = 0;
+      while (true) {
+        const ys = placedCols.get(c) || [];
+        if (!ys.some((prevY) => Math.abs(y - prevY) < overlapThreshold)) break;
+        c += 1;
+      }
+      const ys = placedCols.get(c) || [];
+      ys.push(y);
+      placedCols.set(c, ys);
+      x = detectionBaseX + (c * noteRx * 1.8);
+    } else {
+      x = startX + 34 + col * 110 + (idx % 7) * 18 + used * 14;
+    }
     const extra = extras.has(midi);
     const tonic = ((midi % 12) + 12) % 12 === tonicPc;
     const current = (scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi))
-      || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi));
+      || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
+      || (state.mode === "generation" && generationPlayingDisplay.has(Number(midi)));
     const currentStroke = current
       ? (
-          (scaleStaff && state.scalePlayMode === "piano" && scaleLhSet.has(Number(midi)) && !scaleRhSet.has(Number(midi)))
+          ((state.mode === "generation"
+            && state.instrument === "piano"
+            && generationLhDisplayNotes.has(Number(midi))
+            && !generationRhDisplayNotes.has(Number(midi)))
+            || (scaleStaff && state.scalePlayMode === "piano" && scaleLhSet.has(Number(midi)) && !scaleRhSet.has(Number(midi))))
             ? "#ff8a3d"
             : "#6fe0ff"
         )
@@ -2582,15 +2655,41 @@ function playNotesMidi(notes, stepMs = 120) {
 function playChordMidi(notes, options = {}) {
   const ctx = ensureAudioCtx();
   const instrument = options.instrument === "guitar" ? "guitar" : "piano";
+  const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
+    .filter((midi) => Number.isFinite(midi));
+  if (state.mode === "generation") {
+    if (state.generationPlayClearTimer != null) {
+      clearTimeout(state.generationPlayClearTimer);
+      state.generationPlayClearTimer = null;
+    }
+    state.generationPlayingNotes = new Set(normalizedNotes);
+    renderStaff();
+  }
   const t = ctx.currentTime + 0.005;
   if (instrument === "guitar") {
-    notes.forEach((midi, idx) => playSingleAt(Number(midi), t + (idx * 0.018), 1.05, "guitar"));
+    normalizedNotes.forEach((midi, idx) => playSingleAt(Number(midi), t + (idx * 0.018), 1.05, "guitar"));
   } else {
-    notes.forEach((midi) => playSingleAt(Number(midi), t, 1.25, "piano"));
+    normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.25, "piano"));
+  }
+  if (state.mode === "generation" && normalizedNotes.length) {
+    const clearMs = instrument === "guitar" ? 1250 : 980;
+    state.generationPlayClearTimer = setTimeout(() => {
+      state.generationPlayingNotes.clear();
+      state.generationPlayClearTimer = null;
+      if (state.mode === "generation") renderStaff();
+    }, clearMs);
   }
 }
 
 function stopHeldChord() {
+  if (state.generationPlayClearTimer != null) {
+    clearTimeout(state.generationPlayClearTimer);
+    state.generationPlayClearTimer = null;
+  }
+  if (state.generationPlayingNotes.size) {
+    state.generationPlayingNotes.clear();
+    if (state.mode === "generation") renderStaff();
+  }
   if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
@@ -2996,7 +3095,13 @@ function startHeldVoice(midi, instrument = "piano") {
 
 function startHeldChord(notes, instrument = "piano") {
   stopHeldChord();
-  (notes || []).forEach((midi) => startHeldVoice(midi, instrument));
+  const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
+    .filter((midi) => Number.isFinite(midi));
+  normalizedNotes.forEach((midi) => startHeldVoice(midi, instrument));
+  if (state.mode === "generation" && normalizedNotes.length) {
+    state.generationPlayingNotes = new Set(normalizedNotes);
+    renderStaff();
+  }
 }
 
 function scaleStepMs() {
@@ -3719,13 +3824,17 @@ function bindEvents() {
     runGenerateChord();
   });
   bindImmediatePress(el("genPlay"), () => {
-    if (!state.generatedChord || !state.generatedChord.notes_midi) return;
-    playChordMidi(state.generatedChord.notes_midi, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
+    if (!state.generatedChord) return;
+    const notes = getGenerationBaseNotes();
+    if (!notes.length) return;
+    playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
   }, {
     highlightWhilePressed: true,
     onPress: () => {
-      if (!state.generatedChord || !state.generatedChord.notes_midi) return;
-      startHeldChord(state.generatedChord.notes_midi, state.instrument === "guitar" ? "guitar" : "piano");
+      if (!state.generatedChord) return;
+      const notes = getGenerationBaseNotes();
+      if (!notes.length) return;
+      startHeldChord(notes, state.instrument === "guitar" ? "guitar" : "piano");
     },
     onRelease: () => {
       stopHeldChord();

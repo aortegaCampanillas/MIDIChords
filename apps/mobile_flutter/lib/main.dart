@@ -536,9 +536,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return _activeDetectionNotes;
     }
     if (_tabIndex == 1 && _generatedChordJson != null) {
-      return _extractMidiList(_generatedChordJson!, <String>[
+      final rh = _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
-      ]).toSet();
+      ]);
+      if (_instrumentView == 'guitar') {
+        return rh.toSet();
+      }
+      final lh = rh.map((n) => n - 12).where((n) => n >= 0);
+      return <int>{...rh, ...lh};
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
       final rh = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
@@ -549,6 +554,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return <int>{...rh, ...lh};
     }
     return <int>{};
+  }
+
+  Set<int> _generationPlayingNotesForStaff() {
+    if (_tabIndex != 1) return <int>{};
+    final rh = _heldChordPlayers.keys.toSet();
+    if (_instrumentView == 'guitar') return rh;
+    final lh = rh.map((n) => n - 12).where((n) => n >= 0);
+    return <int>{...rh, ...lh};
   }
 
   bool _isShiftPressed() {
@@ -1760,6 +1773,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   painter: _MiniStaffPainter(
                     notes: notes.toList()..sort(),
                     extras: extras,
+                    generationRhNotes: (_tabIndex == 1 && _generatedChordJson != null)
+                        ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
+                        : const <int>[],
+                    generationLhNotes: (_tabIndex == 1 && _instrumentView == 'piano' && _generatedChordJson != null)
+                        ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
+                            .map((n) => n - 12)
+                            .where((n) => n >= 0)
+                            .toList()
+                        : const <int>[],
+                    generationPlayingNotes: _tabIndex == 1
+                        ? _generationPlayingNotesForStaff()
+                        : const <int>{},
+                    generationGuitarMode:
+                        _tabIndex == 1 && _instrumentView == 'guitar',
                     scaleRhNotes: _tabIndex == 2
                         ? _scaleRhNotes()
                         : const <int>[],
@@ -3106,6 +3133,10 @@ class _MiniStaffPainter extends CustomPainter {
   _MiniStaffPainter({
     required this.notes,
     required this.extras,
+    this.generationRhNotes = const <int>[],
+    this.generationLhNotes = const <int>[],
+    this.generationPlayingNotes = const <int>{},
+    this.generationGuitarMode = false,
     this.scaleRhNotes = const <int>[],
     this.scaleLhNotes = const <int>[],
     this.scaleCurrentNote,
@@ -3114,6 +3145,10 @@ class _MiniStaffPainter extends CustomPainter {
 
   final List<int> notes;
   final Set<int> extras;
+  final List<int> generationRhNotes;
+  final List<int> generationLhNotes;
+  final Set<int> generationPlayingNotes;
+  final bool generationGuitarMode;
   final List<int> scaleRhNotes;
   final List<int> scaleLhNotes;
   final int? scaleCurrentNote;
@@ -3198,20 +3233,53 @@ class _MiniStaffPainter extends CustomPainter {
       }
     } else {
       final list = notes.toList()..sort();
+      final placedTrebleCols = <int, List<double>>{};
+      final placedBassCols = <int, List<double>>{};
+      final rhSet = generationRhNotes.toSet();
+      final lhSet = generationLhNotes.toSet();
+      const noteW = 16.0;
+      const noteH = 12.0;
+      final overlapThreshold = math.max(1.0, noteH - 1.0);
       for (int i = 0; i < list.length; i += 1) {
         final midi = list[i];
-        final x = left + 110 + (i * 32.0);
         final y = midi >= 60
             ? _midiToTrebleY(midi.toDouble(), trebleTop, gap)
             : _midiToBassY(midi.toDouble(), bassTop, gap);
-        noteOutline.color = extras.contains(midi)
-            ? const Color(0xFFF48F8F)
-            : const Color(0xFFE9EDF2);
+        final placedCols = midi >= 60 ? placedTrebleCols : placedBassCols;
+        var col = 0;
+        while (true) {
+          final ys = placedCols[col] ?? const <double>[];
+          final overlaps = ys.any((prevY) => (y - prevY).abs() < overlapThreshold);
+          if (!overlaps) break;
+          col += 1;
+        }
+        final x = left + 110 + (col * noteW * 1.8);
+        final ys = List<double>.from(placedCols[col] ?? const <double>[])..add(y);
+        placedCols[col] = ys;
+        Color? fillColor;
+        if (generationPlayingNotes.contains(midi)) {
+          if (!generationGuitarMode && lhSet.contains(midi) && !rhSet.contains(midi)) {
+            fillColor = const Color(0xFFFF8A2B);
+            noteOutline.color = const Color(0xFFFFD2A7);
+          } else {
+            fillColor = const Color(0xFF4DA3EA);
+            noteOutline.color = const Color(0xFFE9EDF2);
+          }
+        } else if (extras.contains(midi)) {
+          fillColor = const Color(0xFFBF2F2F);
+          noteOutline.color = const Color(0xFFF48F8F);
+        } else {
+          fillColor = null;
+          noteOutline.color = const Color(0xFFE9EDF2);
+        }
         final oval = Rect.fromCenter(
           center: Offset(x, y),
-          width: 16,
-          height: 12,
+          width: noteW,
+          height: noteH,
         );
+        if (fillColor != null) {
+          canvas.drawOval(oval, Paint()..color = fillColor);
+        }
         canvas.drawOval(oval, noteOutline);
       }
     }
@@ -3243,6 +3311,10 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.notes.length != notes.length) return true;
     if (oldDelegate.extras.length != extras.length) return true;
+    if (oldDelegate.generationRhNotes.length != generationRhNotes.length) return true;
+    if (oldDelegate.generationLhNotes.length != generationLhNotes.length) return true;
+    if (oldDelegate.generationPlayingNotes.length != generationPlayingNotes.length) return true;
+    if (oldDelegate.generationGuitarMode != generationGuitarMode) return true;
     if (oldDelegate.scaleRhNotes.length != scaleRhNotes.length) return true;
     if (oldDelegate.scaleLhNotes.length != scaleLhNotes.length) return true;
     if (oldDelegate.scaleCurrentNote != scaleCurrentNote) return true;
@@ -3255,6 +3327,15 @@ class _MiniStaffPainter extends CustomPainter {
     }
     for (int i = 0; i < scaleLhNotes.length; i += 1) {
       if (oldDelegate.scaleLhNotes[i] != scaleLhNotes[i]) return true;
+    }
+    for (int i = 0; i < generationRhNotes.length; i += 1) {
+      if (oldDelegate.generationRhNotes[i] != generationRhNotes[i]) return true;
+    }
+    for (int i = 0; i < generationLhNotes.length; i += 1) {
+      if (oldDelegate.generationLhNotes[i] != generationLhNotes[i]) return true;
+    }
+    for (final note in generationPlayingNotes) {
+      if (!oldDelegate.generationPlayingNotes.contains(note)) return true;
     }
     return false;
   }

@@ -133,18 +133,9 @@ class InputDetectionMixin:
             chord = f"{chord}/{bass_name}"
 
         expected_pcs = {(int(root) + int(interval)) % 12 for interval in pattern.intervals}
-        extras: set[int] = set()
-        notes_by_pc: dict[int, list[int]] = {}
-        for note in sorted(chord_notes):
-            note_int = int(note)
-            notes_by_pc.setdefault(note_int % 12, []).append(note_int)
-        for pc, grouped_notes in notes_by_pc.items():
-            if pc not in expected_pcs:
-                extras.update(grouped_notes)
-                continue
-            if len(grouped_notes) > 1:
-                # Keep one representative tone per pitch class in the detected chord.
-                extras.update(grouped_notes[1:])
+        # Treat as extra only notes outside the detected chord pitch classes.
+        # Duplicates across octaves are valid (e.g., left-hand reinforcement).
+        extras: set[int] = {int(note) for note in chord_notes if (int(note) % 12) not in expected_pcs}
 
         map_oct: dict[int, str] = {}
         map_no_oct: dict[int, str] = {}
@@ -175,12 +166,14 @@ class InputDetectionMixin:
         return chord, extras, map_oct, map_no_oct
 
     def _clear_live_input_state(self) -> None:
-        for note in list(self.active_notes):
+        for note in list(self.sounding_notes):
             self.audio_engine.note_off(note)
+        self.sounding_notes.clear()
         self.active_notes.clear()
         self.midi_held_notes.clear()
         self.mouse_held_notes.clear()
         self.sustain_latched_notes.clear()
+        self.midi_latched_notes.clear()
         self.note_velocity.clear()
         self.mouse_current_note = None
         self._clear_detection_hold()
@@ -202,13 +195,24 @@ class InputDetectionMixin:
         canvas.create_line(cx - radius * 0.65, cy + radius * 0.65, cx + radius * 0.65, cy - radius * 0.65, fill="#d32f2f", width=2)
     def _refresh_sounding_notes(self) -> None:
         next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
-        to_start = next_active - self.active_notes
-        to_stop = self.active_notes - next_active
+        if self.midi_input_sound_enabled:
+            next_sounding = set(next_active)
+        else:
+            blocked_midi_notes = set(self.midi_held_notes) | set(self.midi_latched_notes)
+            # Keep mouse-triggered notes audible even if MIDI sound is muted.
+            next_sounding = {
+                int(note)
+                for note in next_active
+                if (note not in blocked_midi_notes) or (note in self.mouse_held_notes)
+            }
+        to_start = next_sounding - self.sounding_notes
+        to_stop = self.sounding_notes - next_sounding
 
         for note in to_start:
             self.audio_engine.note_on(note, int(self.note_velocity.get(note, 100)))
         for note in to_stop:
             self.audio_engine.note_off(note)
+        self.sounding_notes = next_sounding
 
         if next_active != self.active_notes:
             self.active_notes = next_active
@@ -221,8 +225,10 @@ class InputDetectionMixin:
         self.sustain_latched_notes.discard(note)
         if source == "midi":
             self.midi_held_notes.add(note)
+            self.midi_latched_notes.discard(note)
         else:
             self.mouse_held_notes.add(note)
+            self.midi_latched_notes.discard(note)
     def _note_off_from_source(self, note: int, source: str) -> None:
         if source == "midi":
             self.midi_held_notes.discard(note)
@@ -232,8 +238,11 @@ class InputDetectionMixin:
         if self.pedal_active:
             if note not in self.midi_held_notes and note not in self.mouse_held_notes:
                 self.sustain_latched_notes.add(note)
+                if source == "midi":
+                    self.midi_latched_notes.add(note)
         else:
             self.sustain_latched_notes.discard(note)
+            self.midi_latched_notes.discard(note)
     def _note_at_position(self, x: float, y: float) -> Optional[int]:
         for note, x1, y1, x2, y2 in self.black_key_regions:
             if x1 <= x <= x2 and y1 <= y <= y2:
@@ -355,6 +364,7 @@ class InputDetectionMixin:
         prev_active = set(self.active_notes)
         self.pedal_active = False
         self.sustain_latched_notes.clear()
+        self.midi_latched_notes.clear()
         self._refresh_sounding_notes()
         if self.current_mode == "detection" and prev_active and not self.active_notes:
             self.detect_hold_notes = prev_active

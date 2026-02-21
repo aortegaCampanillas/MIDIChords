@@ -377,6 +377,14 @@ class UiMixin:
         self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
         self.detection_controls_row.pack(anchor="w", pady=(0, 8))
+        self.detection_play_btn = PlayTransportButton(
+            self.detection_controls_row,
+            command=self._play_detection_panel,
+            width=58,
+            height=34,
+        )
+        self.detection_play_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.detection_play_btn.bind("<ButtonPress-1>", self._on_detection_play_press)
         self.detection_clear_btn = GrayRoundedButton(
             self.detection_controls_row,
             text="",
@@ -387,13 +395,21 @@ class UiMixin:
             font_size=14,
         )
         self.detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self.detection_play_btn = PlayTransportButton(
+        self.detection_midi_sound_toggle_btn = GrayRoundedButton(
             self.detection_controls_row,
-            command=self._play_detection_panel,
-            width=58,
+            text="",
+            command=self._toggle_midi_input_sound,
+            width=154,
             height=34,
+            radius=14,
+            font_size=12,
+            text_color="#e6edf7",
+            selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
+            selected_border_width=2.0,
         )
-        self.detection_play_btn.pack(side=tk.LEFT)
+        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT)
 
         self.chord_var = tk.StringVar(value="-")
         self.detection_result_canvas = tk.Canvas(
@@ -1500,6 +1516,7 @@ class UiMixin:
         self.chord_title_label.configure(text=self.tr("detection_title"))
         self.detection_help_label.configure(text=self.tr("detection_help"))
         self.detection_clear_btn.set_text(self.tr("button_clear"))
+        self._refresh_midi_input_sound_toggle_button()
         self.notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes"))
         self.intervals_caption_label.configure(text=self.tr("label_intervals"))
@@ -1565,6 +1582,21 @@ class UiMixin:
             self._refresh_generation_controls()
         if self.scale_tab_active:
             self._refresh_scale_preview()
+    def _refresh_midi_input_sound_toggle_button(self) -> None:
+        if not hasattr(self, "detection_midi_sound_toggle_btn"):
+            return
+        if self.midi_input_sound_enabled:
+            label = self.tr("button_midi_sound_on")
+        else:
+            label = self.tr("button_midi_sound_off")
+        self.detection_midi_sound_toggle_btn.set_text(label)
+        self.detection_midi_sound_toggle_btn.set_selected(self.midi_input_sound_enabled)
+    def _toggle_midi_input_sound(self) -> None:
+        self.midi_input_sound_enabled = not self.midi_input_sound_enabled
+        self.config_data["midi_input_sound_enabled"] = self.midi_input_sound_enabled
+        self.save_config()
+        self._refresh_midi_input_sound_toggle_button()
+        self._refresh_sounding_notes()
     def _fit_instrument_panel_height(self) -> None:
         if not hasattr(self, "instrument_panel") or not hasattr(self, "instrument_body_row"):
             return
@@ -1616,6 +1648,9 @@ class UiMixin:
         self._clear_live_input_state()
         self.update_music_views()
     def _play_detection_panel(self) -> None:
+        self._start_detection_hold()
+    def _start_detection_hold(self) -> None:
+        self.detection_play_button_pressed = True
         detection_notes = sorted(self._current_detection_notes())
         if not detection_notes or self.active_notes:
             return
@@ -1624,7 +1659,12 @@ class UiMixin:
         for note in detection_notes:
             self.audio_engine.note_on(int(note), 108)
         self.detection_play_btn.set_playing(True)
-        self._detection_preview_after_id = self.after(650, self._stop_detection_preview)
+    def _stop_detection_hold(self) -> None:
+        self.detection_play_button_pressed = False
+        self._stop_detection_preview()
+    def _on_detection_play_press(self, _event: tk.Event) -> str:
+        self._start_detection_hold()
+        return "break"
     def _stop_detection_preview(self) -> None:
         after_id = getattr(self, "_detection_preview_after_id", None)
         if after_id is not None:

@@ -77,11 +77,14 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.note_velocity: dict[int, int] = {}
         self.pedal_active = False
         self.mouse_current_note: Optional[int] = None
+        self.sounding_notes: set[int] = set()
+        self.midi_latched_notes: set[int] = set()
         self.generated_playing_notes: set[int] = set()
         self.generated_note_highlight_after: dict[int, str] = {}
         self.generated_play_after_id: Optional[str] = None
         self.generation_play_button_pressed = False
         self.generation_play_space_pressed = False
+        self.detection_play_button_pressed = False
         self.generation_space_release_after_id: Optional[str] = None
         self.white_key_regions: list[tuple[int, float, float, float, float]] = []
         self.black_key_regions: list[tuple[int, float, float, float, float]] = []
@@ -113,6 +116,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.mode_var = tk.StringVar()
         loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
+        self.midi_input_sound_enabled = bool(self.config_data.get("midi_input_sound_enabled", True))
         self.generation_root_pc = 0
         self.generation_pattern_suffix = ""
         self.generation_inversion = 0
@@ -1031,6 +1035,8 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         if self.scale_transport_buttons_are_images and self.scale_transport_pressed_mode is not None:
             self._set_scale_transport_icon_pressed(self.scale_transport_pressed_mode, False)
             self.scale_transport_pressed_mode = None
+        if self.detection_play_button_pressed:
+            self._stop_detection_hold()
         if self.generation_play_button_pressed:
             self._stop_generated_hold(source="button")
 

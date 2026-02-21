@@ -379,6 +379,7 @@ class ScalesMixin:
         if self.scale_current_note is not None:
             self.audio_engine.note_off(self.scale_current_note)
             self.scale_current_note = None
+        self.scale_input_raw_note = None
         for note in list(self.scale_playing_notes):
             self.audio_engine.note_off(note)
         self.scale_playing_notes.clear()
@@ -389,19 +390,24 @@ class ScalesMixin:
     def _stop_staff_scale_note_playback(self) -> None:
         if (
             not self.staff_pressed_scale_notes
+            and not self.staff_pressed_scale_degrees
             and not self.scale_guitar_click_highlight_notes
             and not self.scale_guitar_drag_exact_notes
             and self.staff_hover_note is None
+            and self.staff_hover_scale_degree is None
         ):
             return
         self.scale_staff_drag_active = False
         for note in list(self.staff_pressed_scale_notes):
             self.audio_engine.note_off(note)
         self.staff_pressed_scale_notes.clear()
+        self.staff_pressed_scale_degrees.clear()
         self.scale_guitar_click_highlight_notes.clear()
         self.scale_guitar_drag_exact_notes.clear()
         self.scale_guitar_drag_staff_notes.clear()
         self.staff_hover_note = None
+        self.staff_hover_scale_degree = None
+        self.scale_input_raw_note = None
         self.staff_scale_note_regions.clear()
         self.redraw_guitar_fretboard()
         self.redraw_keyboard()
@@ -412,7 +418,12 @@ class ScalesMixin:
         target = int(note)
         if target in self.scale_preview_notes:
             return target
-        lh_notes = [int(n - 12) for n in self.scale_preview_notes if int(n - 12) >= 0]
+        first_rh = int(self.scale_preview_notes[0]) if self.scale_preview_notes else None
+        lh_notes = [
+            int(n - 12)
+            for n in self.scale_preview_notes
+            if int(n - 12) >= 0 and (first_rh is None or int(n - 12) < first_rh)
+        ]
         if target in lh_notes:
             return target
         pc = int(note) % 12
@@ -436,12 +447,13 @@ class ScalesMixin:
             self.scale_guitar_click_highlight_pcs.discard(pc)
             if self.scale_tab_active and self.scale_play_mode == "guitar":
                 self.redraw_guitar_fretboard()
-    def _staff_scale_note_at_position(self, x: float, y: float) -> Optional[int]:
+    def _staff_scale_hit_at_position(self, x: float, y: float) -> Optional[tuple[int, int]]:
         if not self.scale_tab_active:
             return None
         best_note: Optional[int] = None
+        best_degree: Optional[int] = None
         best_dist = 10_000.0
-        for note, cx, cy, rx, ry, label_y, label_half_w in self.staff_scale_note_regions:
+        for note, cx, cy, rx, ry, label_y, label_half_w, degree_idx in self.staff_scale_note_regions:
             nx = (x - cx) / max(1.0, rx + 4.0)
             ny = (y - cy) / max(1.0, ry + 3.0)
             in_head = (nx * nx + ny * ny) <= 1.0
@@ -452,7 +464,14 @@ class ScalesMixin:
             if dist < best_dist:
                 best_dist = dist
                 best_note = note
-        return best_note
+                best_degree = int(degree_idx)
+        if best_note is None or best_degree is None:
+            return None
+        return int(best_note), int(best_degree)
+
+    def _staff_scale_note_at_position(self, x: float, y: float) -> Optional[int]:
+        hit = self._staff_scale_hit_at_position(x, y)
+        return int(hit[0]) if hit is not None else None
     def _play_scale(self) -> None:
         self._stop_scale_playback()
         if not self.scale_preview_notes:
@@ -481,6 +500,7 @@ class ScalesMixin:
                 self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
         self.scale_current_note = note
+        self.scale_input_raw_note = None
         if play_piano:
             self.audio_engine.note_on(note, 104)
             self.scale_playing_notes.add(note)

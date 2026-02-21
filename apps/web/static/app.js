@@ -14,6 +14,8 @@ const state = {
   generatedChord: null,
   generatedScale: null,
   scaleCurrentNote: null,
+  scaleInputRawNote: null,
+  scaleGuitarStartNote: null,
   generationCurrentNote: null,
   generationPlayingNotes: new Set(),
   guitarChordCache: null,
@@ -72,6 +74,12 @@ const state = {
   staff: {
     braceImage: null,
     tunerStringRegions: [],
+    scaleRegions: [],
+    scaleHoverNote: null,
+    scaleHoverDegree: null,
+    scalePressedNote: null,
+    scalePressedDegree: null,
+    scaleSuppressNextClick: false,
   },
   heldChordVoices: new Map(),
   heldInputVoices: new Map(),
@@ -79,6 +87,7 @@ const state = {
   inputDragNote: null,
   inputDragInstrument: null,
   detectionShiftPressed: false,
+  shiftPressed: false,
   detectionMouseChordNotes: new Set(),
   detectionMidiHeldNotes: new Set(),
   midiInputSoundEnabled: true,
@@ -160,6 +169,7 @@ const UI_TEXTS = {
     donation_text: "Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.",
     donation_button: "Donar",
     detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
+    scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
     staff_no_active_notes: "Sin notas activas",
   },
   en: {
@@ -236,6 +246,7 @@ const UI_TEXTS = {
     donation_text: "This project is designed to stay free forever and ad-free. Your support helps cover development, maintenance, infrastructure, and support time so we can keep improving it.",
     donation_button: "Donate",
     detection_staff_shift_hint: "Hold Shift to sustain notes",
+    scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
     staff_no_active_notes: "No active notes",
   },
 };
@@ -271,7 +282,8 @@ function el(id) {
 }
 
 function noteNameFromPc(pc) {
-  return NOTE_LABELS[state.language][state.accidental][((pc % 12) + 12) % 12];
+  const preferFlat = !!getStaffContext().signature.preferFlats;
+  return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
 }
 
 function noteNameFromPcStaff(pc, preferFlat) {
@@ -825,17 +837,54 @@ function getActiveMidiForMode() {
 
 function getScaleBaseNotes() {
   if (!state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return [];
-  return Array.from(new Set(state.generatedScale.notes_midi.map((n) => Number(n))))
+  const base = Array.from(new Set(state.generatedScale.notes_midi.map((n) => Number(n))))
     .filter((n) => Number.isFinite(n))
     .sort((a, b) => a - b);
+  const guitarScaleMode = state.mode === "scales" && getScalePlaybackInstrument() === "guitar";
+  if (!guitarScaleMode || !base.length || state.scaleGuitarStartNote == null) return base;
+  const start = Number(state.scaleGuitarStartNote);
+  if (!Number.isFinite(start)) return base;
+  const first = Number(base[0]);
+  if ((((start % 12) + 12) % 12) !== (((first % 12) + 12) % 12)) return base;
+  const delta = start - first;
+  return base.map((n) => Number(n) + delta).filter((n) => Number.isFinite(n));
 }
 
-function getScaleRhLhDisplayNotes() {
+function setScaleGuitarStartNote(note) {
+  const target = Number(note);
+  if (!Number.isFinite(target) || !state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return;
+  const base = state.generatedScale.notes_midi.map((n) => Number(n)).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  if (!base.length) return;
+  const first = Number(base[0]);
+  if ((((target % 12) + 12) % 12) !== (((first % 12) + 12) % 12)) return;
+  state.scaleGuitarStartNote = target;
+  if (state.scaleLoop.active) stopScaleLoop();
+  state.scaleCurrentNote = null;
+  state.scaleInputRawNote = null;
+  renderInstrument();
+  renderStaff();
+}
+
+function getScalePlaybackInstrument() {
+  if (state.mode === "scales" && (state.instrument === "piano" || state.instrument === "guitar")) {
+    if (state.scalePlayMode !== state.instrument) {
+      state.scalePlayMode = state.instrument;
+      renderScaleModeButtons();
+    }
+    return state.instrument;
+  }
+  return state.scalePlayMode === "guitar" ? "guitar" : "piano";
+}
+
+function getScaleRhLhDisplayNotes(includeBass = true) {
   const rh = getScaleBaseNotes();
-  if (state.scalePlayMode !== "piano") {
+  if (!includeBass) {
     return { rh, lh: [], display: [...rh] };
   }
-  const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
+  const firstRh = rh.length ? Number(rh[0]) : null;
+  const lh = rh
+    .map((n) => n - 12)
+    .filter((n) => n >= 0 && (firstRh == null || n < firstRh));
   const display = [];
   const pairCount = Math.min(rh.length, lh.length);
   for (let i = 0; i < pairCount; i += 1) {
@@ -845,11 +894,12 @@ function getScaleRhLhDisplayNotes() {
   return { rh, lh, display };
 }
 
-function mapScaleInputToDisplayMidi(note) {
+function mapScaleInputToDisplayMidi(note, options = {}) {
   const target = Number(note);
   if (!Number.isFinite(target)) return null;
-  const { rh, lh } = getScaleRhLhDisplayNotes();
-  const candidates = state.scalePlayMode === "piano" ? [...rh, ...lh] : [...rh];
+  const includeBass = options.includeBass != null ? !!options.includeBass : (getScalePlaybackInstrument() === "piano");
+  const { rh, lh } = getScaleRhLhDisplayNotes(includeBass);
+  const candidates = includeBass ? [...rh, ...lh] : [...rh];
   if (!candidates.length) return null;
   if (candidates.includes(target)) return target;
   const targetPc = ((target % 12) + 12) % 12;
@@ -941,8 +991,11 @@ function renderPiano() {
   const scaleCurrentExactMidi = state.mode === "scales" && state.scaleCurrentNote != null
     ? Number(state.scaleCurrentNote)
     : null;
+  const scaleInputRawMidi = state.mode === "scales" && state.scaleInputRawNote != null
+    ? Number(state.scaleInputRawNote)
+    : null;
   const generationPianoMode = state.mode === "generation" && state.instrument === "piano" && state.generatedChord;
-  const scalePianoMode = state.mode === "scales" && state.scalePlayMode === "piano";
+  const scalePianoMode = state.mode === "scales" && getScalePlaybackInstrument() === "piano";
   const rhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
     : [];
@@ -957,6 +1010,10 @@ function renderPiano() {
   const scaleRhLh = scalePianoMode ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
   const scaleRhSet = new Set(scaleRhLh.rh);
   const scaleLhSet = new Set(scaleRhLh.lh);
+  const scaleDisplaySet = new Set(scaleRhLh.display.map((n) => Number(n)));
+  const scaleRawOutsideDisplay = scalePianoMode
+    && scaleInputRawMidi != null
+    && !scaleDisplaySet.has(scaleInputRawMidi);
   const scaleCentralOnly = state.mode === "scales" && state.scaleLoop.active;
   const scaleCentralMin = 60; // C4
   const scaleCentralMax = 72; // C5
@@ -971,7 +1028,7 @@ function renderPiano() {
         ? (scaleCurrentDisplayMidi !== null && midi === scaleCurrentDisplayMidi)
         : (
           (scaleCurrentExactMidi !== null && midi === scaleCurrentExactMidi)
-          || (scaleCurrentDisplayMidi !== null && midi === scaleCurrentDisplayMidi)
+          || (scaleInputRawMidi == null && scaleCurrentDisplayMidi !== null && midi === scaleCurrentDisplayMidi)
         )
     );
     const key = document.createElement("button");
@@ -982,19 +1039,24 @@ function renderPiano() {
     } else if (state.mode === "detection") {
       if (activeMidi.has(midi)) key.classList.add("active");
     } else if (scalePianoMode) {
-      const currentOnKey = scaleCurrentExactMidi !== null && midi === scaleCurrentExactMidi;
-      if (currentOnKey) {
+      const mappedOnKey = scaleCurrentExactMidi !== null && midi === scaleCurrentExactMidi;
+      const rawOnKey = scaleInputRawMidi !== null && midi === scaleInputRawMidi;
+      if (mappedOnKey) {
         if (scaleLhSet.has(midi) && !scaleRhSet.has(midi)) key.classList.add("lh");
         else key.classList.add("rh");
       }
+      if (rawOnKey && scaleRawOutsideDisplay) key.classList.add("active");
     } else if (state.mode !== "scales" && allActiveMidi.has(midi)) {
       key.classList.add("active");
     }
     if (extraMidi.has(midi)) key.classList.add("extra");
-    if (state.mode === "scales" && scaleCurrent) key.classList.add("active");
+    if (state.mode === "scales" && scaleCurrent) {
+      const keepYellow = !scalePianoMode || (scaleRawOutsideDisplay && scaleInputRawMidi === midi);
+      if (keepYellow) key.classList.add("active");
+    }
     if (state.mode !== "scales" && tonicPc !== null && pc === tonicPc) key.classList.add("tonic");
     key.dataset.midi = String(midi);
-    key.innerHTML = `<span>${noteNameFromPc(pc)}</span>`;
+    key.innerHTML = `<span class="key-label">${noteNameFromPc(pc)}</span>`;
 
     if (generationPianoMode) {
       const rhFinger = rhFingerByNote.get(midi);
@@ -1275,7 +1337,7 @@ function renderGuitar() {
         const isRoot = chordRootPc !== null && pc === chordRootPc;
         const finger = Number(displayFingers[i] || 0);
         const coveredByBarre = fret > 0 && barreCovered.has(i);
-        state.guitarHitRegions.push({ note, x: cx, y, r: 12 });
+        state.guitarHitRegions.push({ note, x: cx, y, r: 12, tonic: false });
         if (coveredByBarre) continue;
         ctx.fillStyle = isRoot ? "#b35f00" : "#f4a742";
         ctx.strokeStyle = "#f1c27d";
@@ -1330,7 +1392,8 @@ function renderGuitar() {
       }
 
       if (detectionMode || inSet) {
-        state.guitarHitRegions.push({ note, x: cx, y, r: 12 });
+        const isScaleTonic = state.mode === "scales" && tonicPc !== null && ((note % 12 + 12) % 12) === ((tonicPc % 12 + 12) % 12);
+        state.guitarHitRegions.push({ note, x: cx, y, r: 12, tonic: isScaleTonic });
       }
     }
   });
@@ -1342,16 +1405,18 @@ function renderGuitar() {
     const point = event.touches && event.touches.length ? event.touches[0] : event;
     const x = ((point.clientX - rect.left) / rect.width) * canvas.width;
     const y = ((point.clientY - rect.top) / rect.height) * canvas.height;
-    const hit = state.guitarHitRegions.find((h) => ((x - h.x) ** 2) + ((y - h.y) ** 2) <= (h.r ** 2));
-    return hit ? hit.note : null;
+    return state.guitarHitRegions.find((h) => ((x - h.x) ** 2) + ((y - h.y) ** 2) <= (h.r ** 2)) || null;
   };
   canvas.onmousedown = (event) => {
     if (Number(event.button) !== 0) return;
     suppressCanvasClick = true;
     event.preventDefault();
-    const hitNote = triggerGuitarPress(event);
-    if (hitNote != null) {
-      beginInputDrag(hitNote, "guitar");
+    const hit = triggerGuitarPress(event);
+    if (hit && state.mode === "scales" && getScalePlaybackInstrument() === "guitar" && state.shiftPressed && hit.tonic) {
+      setScaleGuitarStartNote(Number(hit.note));
+    }
+    if (hit) {
+      beginInputDrag(Number(hit.note), "guitar");
       const onReleaseDoc = () => releaseCanvasPress();
       document.addEventListener("mouseup", onReleaseDoc, { once: true });
       document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
@@ -1361,9 +1426,9 @@ function renderGuitar() {
   canvas.ontouchstart = (event) => {
     suppressCanvasClick = true;
     event.preventDefault();
-    const hitNote = triggerGuitarPress(event);
-    if (hitNote != null) {
-      beginInputDrag(hitNote, "guitar");
+    const hit = triggerGuitarPress(event);
+    if (hit) {
+      beginInputDrag(Number(hit.note), "guitar");
       const onReleaseDoc = () => releaseCanvasPress();
       document.addEventListener("mouseup", onReleaseDoc, { once: true });
       document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
@@ -1373,14 +1438,14 @@ function renderGuitar() {
   canvas.onmousemove = (event) => {
     if (!state.inputDragActive) return;
     if ((Number(event.buttons) & 1) === 0) return;
-    const hitNote = triggerGuitarPress(event);
-    if (hitNote != null) updateInputDrag(hitNote, "guitar");
+    const hit = triggerGuitarPress(event);
+    if (hit) updateInputDrag(Number(hit.note), "guitar");
   };
   canvas.ontouchmove = (event) => {
     if (!state.inputDragActive) return;
     event.preventDefault();
-    const hitNote = triggerGuitarPress(event);
-    if (hitNote != null) updateInputDrag(hitNote, "guitar");
+    const hit = triggerGuitarPress(event);
+    if (hit) updateInputDrag(Number(hit.note), "guitar");
   };
   canvas.onmouseup = releaseCanvasPress;
   canvas.onmouseleave = releaseCanvasPress;
@@ -1392,8 +1457,8 @@ function renderGuitar() {
       event.preventDefault();
       return;
     }
-    const hitNote = triggerGuitarPress(event);
-    if (hitNote != null) handleInstrumentNote(hitNote);
+    const hit = triggerGuitarPress(event);
+    if (hit) handleInstrumentNote(Number(hit.note));
   };
 }
 
@@ -1448,19 +1513,24 @@ function handleInstrumentNote(note, options = {}) {
   if (state.mode === "scales" && state.generatedScale) {
     const pcs = new Set((state.generatedScale.notes_midi || []).map((n) => Number(n) % 12));
     if (pcs.has(note % 12)) {
-      if (pressed) startHeldInputNote(note, state.scalePlayMode === "guitar" ? "guitar" : "piano");
-      else playSingle(note, state.scalePlayMode === "guitar" ? "guitar" : "piano");
+      const scaleInstrument = getScalePlaybackInstrument();
+      if (pressed) startHeldInputNote(note, scaleInstrument);
+      else playSingle(note, scaleInstrument);
       if (!state.scaleLoop.active) {
         if (state.scaleCurrentClearTimer != null) {
           clearTimeout(state.scaleCurrentClearTimer);
           state.scaleCurrentClearTimer = null;
         }
-        const mapped = mapScaleInputToDisplayMidi(note);
+        const mapped = mapScaleInputToDisplayMidi(note, {
+          includeBass: scaleInstrument === "guitar" ? true : undefined,
+        });
         state.scaleCurrentNote = mapped == null ? Number(note) : Number(mapped);
+        state.scaleInputRawNote = Number(note);
         renderInstrument();
         renderStaff();
         state.scaleCurrentClearTimer = setTimeout(() => {
           state.scaleCurrentNote = null;
+          state.scaleInputRawNote = null;
           state.scaleCurrentClearTimer = null;
           if (state.mode === "scales") {
             renderInstrument();
@@ -2125,11 +2195,19 @@ function renderStaff() {
   if (state.mode === "metronome") {
     drawMetronomeCanvas(ctx, width, height);
     canvas.onclick = null;
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onmousedown = null;
+    canvas.onmouseup = null;
     return;
   }
 
   if (state.mode === "tuner") {
     drawTunerCanvas(ctx, width, height);
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onmousedown = null;
+    canvas.onmouseup = null;
     canvas.onclick = (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
@@ -2172,6 +2250,7 @@ function renderStaff() {
   const compactChordStaff = state.mode === "generation";
   const detectionStaff = state.mode === "detection";
   const scaleStaff = state.mode === "scales";
+  state.staff.scaleRegions = [];
   if (detectionStaff && notes.length === 0) {
     ctx.fillStyle = "#cfcfcf";
     ctx.font = "italic 13px sans-serif";
@@ -2230,20 +2309,34 @@ function renderStaff() {
   const xByLine = new Map();
   const placedTrebleCols = new Map();
   const placedBassCols = new Map();
+  const scalePlaybackInstrument = scaleStaff ? getScalePlaybackInstrument() : null;
   const scaleRhLh = scaleStaff ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
   const scaleRhSet = new Set(scaleRhLh.rh);
   const scaleLhSet = new Set(scaleRhLh.lh);
-  const scaleDegreeByMidi = new Map();
+  const scaleStaffEntries = [];
   if (scaleStaff) {
-    scaleRhLh.rh.forEach((midi, idx) => {
-      scaleDegreeByMidi.set(Number(midi), idx);
-      const bass = Number(midi) - 12;
-      if (scaleLhSet.has(bass)) scaleDegreeByMidi.set(bass, idx);
-    });
+    const pairCount = Math.min(scaleRhLh.rh.length, scaleRhLh.lh.length);
+    for (let idx = 0; idx < pairCount; idx += 1) {
+      const bass = Number(scaleRhLh.rh[idx]) - 12;
+      if (scaleLhSet.has(bass)) scaleStaffEntries.push({ midi: bass, degree: idx });
+      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
+    }
+    for (let idx = pairCount; idx < scaleRhLh.rh.length; idx += 1) {
+      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
+    }
   }
   const scaleLabels = scaleStaff && Array.isArray(state.generatedScale?.notes)
     ? state.generatedScale.notes.map((label) => String(label || "").replace(/\d+/g, ""))
     : [];
+  const scaleHoveredNote = scaleStaff ? state.staff.scaleHoverNote : null;
+  const scaleHoveredDegree = scaleStaff ? state.staff.scaleHoverDegree : null;
+  const scalePressedNote = scaleStaff ? state.staff.scalePressedNote : null;
+  const scalePressedDegree = scaleStaff ? state.staff.scalePressedDegree : null;
+  let scaleCurrentDegree = null;
+  if (scaleStaff && scaleCurrentDisplayMidi != null) {
+    const currentEntry = scaleStaffEntries.find((entry) => Number(entry.midi) === Number(scaleCurrentDisplayMidi));
+    if (currentEntry) scaleCurrentDegree = Number(currentEntry.degree);
+  }
   notes.forEach((midi, idx) => {
     const useTreble = Number(midi) >= 60;
     const y = useTreble ? midiToTrebleY(midi, trebleTop, gap) : midiToBassY(midi, bassTop, gap);
@@ -2253,8 +2346,8 @@ function renderStaff() {
     xByLine.set(key, used + 1);
 
     const col = Math.floor(idx / 7);
-    const degreeIdx = scaleStaff && scaleDegreeByMidi.has(Number(midi))
-      ? Number(scaleDegreeByMidi.get(Number(midi)))
+    const degreeIdx = scaleStaff && idx < scaleStaffEntries.length
+      ? Number(scaleStaffEntries[idx].degree)
       : idx;
     const noteRx = Math.max(8, gap * 0.72);
     const overlapThreshold = Math.max(1, gap - 1);
@@ -2273,7 +2366,7 @@ function renderStaff() {
       placedCols.set(c, ys);
       x = startX + 62 + (c * noteRx * 1.8);
     } else if (scaleStaff) {
-      x = startX + 46 + degreeIdx * 44 + (useTreble ? used * 16 : 0);
+      x = startX + 46 + degreeIdx * 44;
     } else if (detectionStaff) {
       const placedCols = useTreble ? placedTrebleCols : placedBassCols;
       let c = 0;
@@ -2291,7 +2384,12 @@ function renderStaff() {
     }
     const extra = extras.has(midi);
     const tonic = ((midi % 12) + 12) % 12 === tonicPc;
+    const scaleNoteCurrent = scaleStaff && scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi);
+    const scaleNoteHovered = scaleStaff && scaleHoveredNote != null && Number(midi) === Number(scaleHoveredNote);
+    const scaleNotePressed = scaleStaff && scalePressedNote != null && Number(midi) === Number(scalePressedNote);
     const current = (scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi))
+      || scaleNoteHovered
+      || scaleNotePressed
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
       || (state.mode === "generation" && generationPlayingDisplay.has(Number(midi)));
     const currentStroke = current
@@ -2300,15 +2398,39 @@ function renderStaff() {
             && state.instrument === "piano"
             && generationLhDisplayNotes.has(Number(midi))
             && !generationRhDisplayNotes.has(Number(midi)))
-            || (scaleStaff && state.scalePlayMode === "piano" && scaleLhSet.has(Number(midi)) && !scaleRhSet.has(Number(midi))))
+            || (scaleStaff && scalePlaybackInstrument === "piano" && scaleLhSet.has(Number(midi)) && !scaleRhSet.has(Number(midi))))
             ? "#ff8a3d"
             : "#6fe0ff"
         )
       : null;
     drawNote(ctx, x, y, staffTop, gap, extra, tonic, current, currentStroke);
 
+    if (scaleStaff) {
+      state.staff.scaleRegions.push({
+        note: Number(midi),
+        degree: Number(degreeIdx),
+        x,
+        y,
+        rx: noteRx,
+        ry: noteRx * 0.72,
+        labelY: trebleTop - 16,
+        labelHalfW: Number(midi) >= 60 ? Math.max(12, (scaleLabels[degreeIdx] || "").length * 4 + 8) : 0,
+      });
+    }
+
     if (!compactChordStaff && !detectionStaff) {
-      ctx.fillStyle = current ? (currentStroke || "#6fe0ff") : "#b5c0cf";
+      const labelCurrent = scaleStaff
+        ? (
+            scaleNoteCurrent
+            || scaleNotePressed
+            || (scaleCurrentDegree != null && degreeIdx === Number(scaleCurrentDegree))
+            || (scalePressedDegree != null && degreeIdx === Number(scalePressedDegree))
+          )
+        : current;
+      const labelHovered = scaleStaff
+        ? (scaleNoteHovered || (scaleHoveredDegree != null && degreeIdx === Number(scaleHoveredDegree)))
+        : false;
+      ctx.fillStyle = labelCurrent ? (currentStroke || "#6fe0ff") : (labelHovered ? "#7ed1ff" : "#b5c0cf");
       ctx.font = scaleStaff ? "bold 13px sans-serif" : "11px sans-serif";
       if (scaleStaff) {
         if (Number(midi) < 60) return;
@@ -2324,6 +2446,108 @@ function renderStaff() {
       }
     }
   });
+
+  if (scaleStaff && scalePlaybackInstrument === "guitar") {
+    ctx.fillStyle = "#8fa1b7";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(tr("scale_staff_guitar_shift_hint"), width / 2, height - 10);
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  if (scaleStaff) {
+    const getScaleHit = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+      const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+      let best = null;
+      let bestDist = Infinity;
+      state.staff.scaleRegions.forEach((r) => {
+        const nx = (x - r.x) / Math.max(1, r.rx + 4);
+        const ny = (y - r.y) / Math.max(1, r.ry + 3);
+        const inHead = ((nx * nx) + (ny * ny)) <= 1;
+        const inLabel = Math.abs(x - r.x) <= (r.labelHalfW || 0) && Math.abs(y - r.labelY) <= 10;
+        if (!inHead && !inLabel) return;
+        const dist = Math.abs(x - r.x) + Math.abs(y - r.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = r;
+        }
+      });
+      return best;
+    };
+    canvas.onmousemove = (event) => {
+      const hit = getScaleHit(event);
+      const hoverNote = hit ? Number(hit.note) : null;
+      const hoverDegree = hit ? Number(hit.degree) : null;
+      if (
+        state.staff.scalePressedNote != null
+        && (Number(event.buttons) & 1) !== 0
+        && hit
+        && Number(hit.note) !== Number(state.staff.scalePressedNote)
+      ) {
+        state.staff.scalePressedNote = Number(hit.note);
+        state.staff.scalePressedDegree = Number(hit.degree);
+        handleInstrumentNote(Number(hit.note));
+      }
+      if (state.staff.scaleHoverNote !== hoverNote || state.staff.scaleHoverDegree !== hoverDegree) {
+        state.staff.scaleHoverNote = hoverNote;
+        state.staff.scaleHoverDegree = hoverDegree;
+        renderStaff();
+      }
+      canvas.style.cursor = hit ? "pointer" : "";
+    };
+    canvas.onmouseleave = () => {
+      if (state.staff.scaleHoverNote != null || state.staff.scaleHoverDegree != null) {
+        state.staff.scaleHoverNote = null;
+        state.staff.scaleHoverDegree = null;
+        renderStaff();
+      }
+      state.staff.scalePressedNote = null;
+      state.staff.scalePressedDegree = null;
+      canvas.style.cursor = "";
+    };
+    canvas.onmousedown = (event) => {
+      if (Number(event.button) !== 0) return;
+      const hit = getScaleHit(event);
+      if (!hit) return;
+      state.staff.scaleSuppressNextClick = true;
+      state.staff.scalePressedNote = Number(hit.note);
+      state.staff.scalePressedDegree = Number(hit.degree);
+      handleInstrumentNote(Number(hit.note));
+      renderStaff();
+    };
+    canvas.onmouseup = () => {
+      if (state.staff.scalePressedNote != null || state.staff.scalePressedDegree != null) {
+        state.staff.scalePressedNote = null;
+        state.staff.scalePressedDegree = null;
+        renderStaff();
+      }
+    };
+    canvas.onclick = (event) => {
+      if (state.staff.scaleSuppressNextClick) {
+        state.staff.scaleSuppressNextClick = false;
+        event.preventDefault();
+        return;
+      }
+      const hit = getScaleHit(event);
+      if (!hit) return;
+      handleInstrumentNote(Number(hit.note));
+    };
+  } else {
+    state.staff.scaleHoverNote = null;
+    state.staff.scaleHoverDegree = null;
+    state.staff.scalePressedNote = null;
+    state.staff.scalePressedDegree = null;
+    state.staff.scaleSuppressNextClick = false;
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onmousedown = null;
+    canvas.onmouseup = null;
+    canvas.style.cursor = "";
+  }
 }
 
 async function loadMeta() {
@@ -2465,6 +2689,7 @@ async function runGenerateScale() {
     body: JSON.stringify(payload),
   });
   state.generatedScale = out;
+  state.scaleGuitarStartNote = Array.isArray(out.notes_midi) && out.notes_midi.length ? Number(out.notes_midi[0]) : null;
   const tonic = noteNameFromPc(out.tonic_pc || 0);
   el("scaleName").textContent = `${tonic} ${out.pattern_localized_name || out.pattern_name || ""}`.trim();
   el("scaleNotes").textContent = (out.notes || []).join(" - ") || "-";
@@ -2553,16 +2778,19 @@ function playPianoAt(midi, startTime = null, durationSeconds = 0.46) {
   const t = startTime == null ? ctx.currentTime : Number(startTime);
   const dur = Math.max(0.12, Number(durationSeconds) || 0.46);
   const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
-  const attack = Math.min(0.012, dur * 0.16);
+  const attack = Math.min(0.014, dur * 0.18);
+  const decayPoint = t + Math.max(0.14, Math.min(0.32, dur * 0.44));
+  const releaseEnd = t + dur + Math.max(0.48, dur * 0.95);
   const env = ctx.createGain();
   env.gain.setValueAtTime(0.0001, t);
   env.gain.linearRampToValueAtTime(0.16, t + attack);
-  env.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(attack + 0.05, dur));
+  env.gain.exponentialRampToValueAtTime(0.078, decayPoint);
+  env.gain.exponentialRampToValueAtTime(0.0001, releaseEnd);
 
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.setValueAtTime(5600, t);
-  filter.frequency.exponentialRampToValueAtTime(1700, t + Math.max(0.1, dur * 0.85));
+  filter.frequency.setValueAtTime(6200, t);
+  filter.frequency.exponentialRampToValueAtTime(1900, t + Math.max(0.2, dur * 1.05));
   filter.Q.value = 0.6;
 
   env.connect(filter);
@@ -2582,7 +2810,7 @@ function playPianoAt(midi, startTime = null, durationSeconds = 0.46) {
     osc.connect(og);
     og.connect(env);
     osc.start(t);
-    osc.stop(t + dur + 0.05);
+    osc.stop(releaseEnd + 0.08);
   });
 }
 
@@ -3158,6 +3386,7 @@ function stopScaleLoop() {
     state.scaleCurrentClearTimer = null;
   }
   state.scaleCurrentNote = null;
+  state.scaleInputRawNote = null;
   setScalePlayButtonState(false);
   if (state.mode === "scales") {
     renderInstrument();
@@ -3174,7 +3403,7 @@ function stepScaleLoop() {
     clearTimeout(state.scaleCurrentClearTimer);
     state.scaleCurrentClearTimer = null;
   }
-  const notes = state.generatedScale.notes_midi.map((n) => Number(n));
+  const notes = getScaleBaseNotes();
   if (!notes.length) {
     stopScaleLoop();
     return;
@@ -3182,10 +3411,11 @@ function stepScaleLoop() {
   const idx = Math.max(0, Math.min(state.scaleLoop.index, notes.length - 1));
   const note = notes[idx];
   state.scaleCurrentNote = note;
+  state.scaleInputRawNote = null;
   if (state.scaleMetronomeEnabled) {
     beep((idx === 0 && state.scaleLoop.direction > 0) ? 1600 : 1050, 55, 0.09);
   } else {
-    const scaleInstrument = state.scalePlayMode === "guitar" ? "guitar" : "piano";
+    const scaleInstrument = getScalePlaybackInstrument();
     const stepSeconds = Math.max(0.08, scaleStepMs() / 1000);
     const noteDur = scaleInstrument === "guitar"
       ? Math.max(0.62, Math.min(1.10, stepSeconds * 1.12))
@@ -3806,12 +4036,18 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Shift") return;
     if (event.repeat) return;
+    state.shiftPressed = true;
     if (state.mode !== "detection") return;
     state.detectionShiftPressed = true;
   });
   document.addEventListener("keyup", (event) => {
     if (event.key !== "Shift") return;
+    state.shiftPressed = false;
     if (state.mode !== "detection") return;
+    state.detectionShiftPressed = false;
+  });
+  window.addEventListener("blur", () => {
+    state.shiftPressed = false;
     state.detectionShiftPressed = false;
   });
 

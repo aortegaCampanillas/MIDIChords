@@ -130,6 +130,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.scale_loop_index = 0
         self.scale_loop_direction = 1
         self.scale_current_note: Optional[int] = None
+        self.scale_input_raw_note: Optional[int] = None
         self.scale_space_pressed = False
         self.scale_space_release_after_id: Optional[str] = None
         self.metronome_space_pressed = False
@@ -137,8 +138,10 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.tuner_space_pressed = False
         self.tuner_space_release_after_id: Optional[str] = None
         self.staff_hover_note: Optional[int] = None
+        self.staff_hover_scale_degree: Optional[int] = None
         self.staff_pressed_scale_notes: set[int] = set()
-        self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float]] = []
+        self.staff_pressed_scale_degrees: set[int] = set()
+        self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float, int]] = []
         self.staff_generation_note_regions: list[tuple[int, float, float, float, float]] = []
         self.scale_tonic_overlay: Optional[tk.Frame] = None
         self.scale_type_overlay: Optional[tk.Frame] = None
@@ -904,12 +907,15 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             return
         if not self.scale_tab_active:
             return
-        note = self._staff_scale_note_at_position(float(event.x), float(event.y))
+        hit = self._staff_scale_hit_at_position(float(event.x), float(event.y))
+        note = hit[0] if hit is not None else None
+        degree = int(hit[1]) if hit is not None else None
         if self.scale_staff_drag_active and note is not None:
-            if self.staff_pressed_scale_notes == {note}:
+            if self.staff_pressed_scale_notes == {note} and self.staff_pressed_scale_degrees == {int(degree)}:
                 self.staff_canvas.configure(cursor="hand2")
                 return
             self.staff_pressed_scale_notes = {note}
+            self.staff_pressed_scale_degrees = {int(degree)}
             if self.scale_play_mode == "guitar":
                 self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.1)
                 self.scale_guitar_drag_exact_notes = {int(note)}
@@ -921,8 +927,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             self.redraw_staff()
             self.staff_canvas.configure(cursor="hand2")
             return
-        if note != self.staff_hover_note:
+        if note != self.staff_hover_note or degree != self.staff_hover_scale_degree:
             self.staff_hover_note = note
+            self.staff_hover_scale_degree = degree
             self.redraw_staff()
         self.staff_canvas.configure(cursor="hand2" if note is not None else "")
 
@@ -932,8 +939,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             return
         if not self.scale_tab_active:
             return
-        if self.staff_hover_note is not None:
+        if self.staff_hover_note is not None or self.staff_hover_scale_degree is not None:
             self.staff_hover_note = None
+            self.staff_hover_scale_degree = None
             self.redraw_staff()
         self.staff_canvas.configure(cursor="")
 
@@ -959,13 +967,16 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             return
         if not self.scale_tab_active:
             return
-        note = self._staff_scale_note_at_position(float(event.x), float(event.y))
-        if note is None:
+        hit = self._staff_scale_hit_at_position(float(event.x), float(event.y))
+        if hit is None:
             return
+        note, degree = hit
         self.scale_staff_drag_active = True
         self.staff_hover_note = note
+        self.staff_hover_scale_degree = int(degree)
         if self.scale_play_mode == "guitar":
             self.staff_pressed_scale_notes = {note}
+            self.staff_pressed_scale_degrees = {int(degree)}
             self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.1)
             self.scale_guitar_drag_exact_notes = {int(note)}
             self.redraw_guitar_fretboard()
@@ -974,6 +985,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
                 if prev != note:
                     self.audio_engine.note_off(prev)
             self.staff_pressed_scale_notes = {note}
+            self.staff_pressed_scale_degrees = {int(degree)}
             self.audio_engine.note_on(note, 106)
         self.redraw_staff()
         self.redraw_keyboard()
@@ -992,11 +1004,14 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             for note in list(self.staff_pressed_scale_notes):
                 self.audio_engine.note_off(note)
             self.staff_pressed_scale_notes.clear()
+            self.staff_pressed_scale_degrees.clear()
         if self.scale_play_mode == "guitar" and self.scale_guitar_drag_exact_notes:
             self.scale_guitar_drag_exact_notes.clear()
             self.scale_guitar_drag_staff_notes.clear()
             self.redraw_guitar_fretboard()
-        self.staff_hover_note = self._staff_scale_note_at_position(float(event.x), float(event.y))
+        hit = self._staff_scale_hit_at_position(float(event.x), float(event.y))
+        self.staff_hover_note = hit[0] if hit is not None else None
+        self.staff_hover_scale_degree = int(hit[1]) if hit is not None else None
         self.redraw_staff()
         self.redraw_keyboard()
 

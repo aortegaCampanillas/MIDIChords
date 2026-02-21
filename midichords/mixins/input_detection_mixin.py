@@ -300,6 +300,7 @@ class InputDetectionMixin:
                 self._note_off_from_source(self.mouse_current_note, source="mouse")
             self.mouse_current_note = note
             self._note_on_from_source(note, velocity=100, source="mouse")
+            self.scale_input_raw_note = int(note)
             self.staff_pressed_scale_notes.clear()
             staff_note = self._scale_staff_note_for_pitch(note)
             if staff_note is not None:
@@ -359,9 +360,11 @@ class InputDetectionMixin:
                 self._note_off_from_source(self.mouse_current_note, source="mouse")
                 self.mouse_current_note = None
             self.staff_pressed_scale_notes.clear()
+            self.scale_input_raw_note = None
             if note is not None:
                 self.mouse_current_note = note
                 self._note_on_from_source(note, velocity=100, source="mouse")
+                self.scale_input_raw_note = int(note)
                 staff_note = self._scale_staff_note_for_pitch(note)
                 if staff_note is not None:
                     self.staff_pressed_scale_notes.add(staff_note)
@@ -386,6 +389,7 @@ class InputDetectionMixin:
             self.mouse_current_note = None
             if self.scale_tab_active and self.scale_play_mode == "piano":
                 self.staff_pressed_scale_notes.clear()
+                self.scale_input_raw_note = None
                 self.redraw_staff()
             self._refresh_sounding_notes()
     def _on_shift_press(self, _event: tk.Event) -> None:

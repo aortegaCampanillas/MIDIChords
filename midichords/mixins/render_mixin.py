@@ -441,6 +441,7 @@ class RenderMixin:
         detection_name_map = dict(getattr(self, "detection_overlay_note_names", {})) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else {}
         scale_tonic_pc = self.scale_tonic_pc
         current_scale_note = self.scale_current_note if (self.scale_tab_active and self.scale_loop_active) else None
+        scale_input_raw_note = int(self.scale_input_raw_note) if (self.scale_tab_active and self.scale_input_raw_note is not None) else None
         detection_extra_notes = set(self.detection_extra_notes) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else set()
         detection_mode = not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active)
         now = time.monotonic()
@@ -462,11 +463,19 @@ class RenderMixin:
         generation_active_lh_notes: set[int] = set()
         if self.scale_tab_active and self.scale_play_mode == "piano":
             scale_rh_display_notes = {int(n) for n in set(self.scale_preview_notes)}
+            first_rh = min(scale_rh_display_notes) if scale_rh_display_notes else None
             scale_lh_display_notes = {
                 int(n - 12)
                 for n in set(self.scale_preview_notes)
-                if (low_note <= int(n - 12) <= high_note)
+                if (low_note <= int(n - 12) <= high_note) and (first_rh is None or int(n - 12) < first_rh)
             }
+        scale_display_notes = set(scale_rh_display_notes) | set(scale_lh_display_notes)
+        scale_raw_outside_display = (
+            self.scale_tab_active
+            and self.scale_play_mode == "piano"
+            and scale_input_raw_note is not None
+            and scale_input_raw_note not in scale_display_notes
+        )
         if self.generation_tab_active and self.instrument_view == "piano":
             generation_rh_display_notes = {int(n) for n in set(self.generated_preview_notes)}
             # Mano izquierda del acorde (una octava abajo): siempre desde el acorde, no desde la nota pulsada.
@@ -563,6 +572,13 @@ class RenderMixin:
             elif (
                 self.scale_tab_active
                 and self.scale_play_mode == "piano"
+                and scale_raw_outside_display
+                and note == scale_input_raw_note
+            ):
+                fill_color = "#ffe2a6"
+            elif (
+                self.scale_tab_active
+                and self.scale_play_mode == "piano"
                 and note in display_active_notes
                 and note in scale_lh_display_notes
                 and note not in scale_rh_display_notes
@@ -650,6 +666,13 @@ class RenderMixin:
 
             if note in detection_extra_notes:
                 fill_color = "#bf2f2f"
+            elif (
+                self.scale_tab_active
+                and self.scale_play_mode == "piano"
+                and scale_raw_outside_display
+                and note == scale_input_raw_note
+            ):
+                fill_color = "#7f5711"
             elif (
                 self.scale_tab_active
                 and self.scale_play_mode == "piano"
@@ -897,7 +920,12 @@ class RenderMixin:
             display_notes = set(self.guitar_selected_variation_notes)
         elif self.scale_tab_active:
             display_notes_list = list(self.scale_preview_notes)
-            scale_bass_display_notes = {int(n - 12) for n in display_notes_list if int(n - 12) >= 0}
+            first_treble = int(display_notes_list[0]) if display_notes_list else None
+            scale_bass_display_notes = {
+                int(n - 12)
+                for n in display_notes_list
+                if int(n - 12) >= 0 and (first_treble is None or int(n - 12) < first_treble)
+            }
             display_notes = set(display_notes_list)
         else:
             display_notes_list = []
@@ -1015,18 +1043,23 @@ class RenderMixin:
                 font=("Helvetica", 13, "italic"),
             )
         else:
-            scale_staff_entries: list[tuple[int, int]] = []  # (midi_note, degree_index)
+            scale_staff_entries: list[tuple[int, int, bool]] = []  # (midi_note, degree_index, is_bass_clef)
             if self.scale_tab_active:
                 treble_ordered = [int(n) for n in display_notes_list]
-                bass_ordered = [int(n - 12) for n in display_notes_list if int(n - 12) >= 0]
+                first_treble = int(treble_ordered[0]) if treble_ordered else None
+                bass_ordered = [
+                    int(n - 12)
+                    for n in display_notes_list
+                    if int(n - 12) >= 0 and (first_treble is None or int(n - 12) < first_treble)
+                ]
                 pair_count = min(len(treble_ordered), len(bass_ordered))
                 for idx in range(pair_count):
-                    scale_staff_entries.append((bass_ordered[idx], idx))
-                    scale_staff_entries.append((treble_ordered[idx], idx))
+                    scale_staff_entries.append((bass_ordered[idx], idx, True))
+                    scale_staff_entries.append((treble_ordered[idx], idx, False))
                 if len(treble_ordered) > pair_count:
                     for idx in range(pair_count, len(treble_ordered)):
-                        scale_staff_entries.append((treble_ordered[idx], idx))
-                ordered = [int(note) for note, _degree in scale_staff_entries]
+                        scale_staff_entries.append((treble_ordered[idx], idx, False))
+                ordered = [int(note) for note, _degree, _is_bass in scale_staff_entries]
                 left_x = max(margin_x + 88, signature_end_x + 34.0)
                 right_limit = max(left_x + 1, right_x - 40)
                 step_x = max(18.0, (right_limit - left_x) / max(1, len(display_notes_list) - 1))
@@ -1063,6 +1096,20 @@ class RenderMixin:
                         if delta == 0 and base_scale_ordered[idx] > base_scale_ordered[idx - 1]:
                             delta = 7
                         scale_diatonic_indices.append(scale_diatonic_indices[-1] + delta)
+                note_degree_map: dict[int, set[int]] = {}
+                for mapped_note, mapped_degree, _mapped_is_bass in scale_staff_entries:
+                    note_degree_map.setdefault(int(mapped_note), set()).add(int(mapped_degree))
+                highlighted_scale_degrees: set[int] = set(self.staff_pressed_scale_degrees)
+                if self.staff_hover_scale_degree is not None:
+                    highlighted_scale_degrees.add(int(self.staff_hover_scale_degree))
+                current_scale_degrees: set[int] = set()
+                for active_note in set(self.scale_guitar_click_highlight_notes) | set(self.scale_guitar_drag_staff_notes):
+                    highlighted_scale_degrees |= note_degree_map.get(int(active_note), set())
+                if self.scale_loop_active and self.scale_current_note is not None:
+                    current_note = int(self.scale_current_note)
+                    for idx, scale_note in enumerate(base_scale_ordered):
+                        if int(scale_note) == current_note:
+                            current_scale_degrees.add(int(idx))
             else:
                 ordered = sorted(display_notes)
                 chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
@@ -1117,9 +1164,11 @@ class RenderMixin:
             staff_step = line_space / 2.0
             for note_idx, note in enumerate(ordered):
                 degree_idx = int(note_idx)
+                scale_is_bass = False
                 if self.scale_tab_active and note_idx < len(scale_staff_entries):
                     degree_idx = int(scale_staff_entries[note_idx][1])
-                if note >= 60:
+                    scale_is_bass = bool(scale_staff_entries[note_idx][2])
+                if (not self.scale_tab_active and note >= 60) or (self.scale_tab_active and not scale_is_bass):
                     placed_cols = placed_treble_cols
                     if self.scale_tab_active:
                         if degree_idx < len(scale_diatonic_indices):
@@ -1266,35 +1315,30 @@ class RenderMixin:
                 for ledger_y in ledger_lines_y:
                     canvas.create_line(x - ledger_half, ledger_y, x + ledger_half, ledger_y, fill="#bfbfbf", width=1)
                 if self.scale_tab_active:
-                    if note < 60:
-                        continue
-                    if degree_idx < len(scale_label_names):
-                        label_text = str(scale_label_names[degree_idx])
-                    else:
-                        label_text = self.note_name(note, with_octave=False)
                     label_y = label_y_base
-                    is_label_hl = (
-                        (self.staff_hover_note == note)
-                        or (note in self.staff_pressed_scale_notes)
-                        or (note in self.scale_guitar_click_highlight_notes)
-                        or (note in self.scale_guitar_drag_staff_notes)
-                    )
-                    is_current_label = self.scale_loop_active and self.scale_current_note == note
-                    if is_current_label:
-                        label_fill = "#6fe0ff"
-                    elif is_label_hl:
-                        label_fill = "#7ed1ff"
-                    else:
-                        label_fill = "#d4d8df"
-                    canvas.create_text(
-                        x,
-                        label_y,
-                        text=label_text,
-                        fill=label_fill,
-                        font=("Helvetica", 14, "bold" if (is_label_hl or is_current_label) else "normal"),
-                    )
-                    label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
-                    self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w))
+                    label_half_w = 0.0
+                    if note >= 60:
+                        if degree_idx < len(scale_label_names):
+                            label_text = str(scale_label_names[degree_idx])
+                        else:
+                            label_text = self.note_name(note, with_octave=False)
+                        is_label_hl = degree_idx in highlighted_scale_degrees
+                        is_current_label = degree_idx in current_scale_degrees
+                        if is_current_label:
+                            label_fill = "#6fe0ff"
+                        elif is_label_hl:
+                            label_fill = "#7ed1ff"
+                        else:
+                            label_fill = "#d4d8df"
+                        canvas.create_text(
+                            x,
+                            label_y,
+                            text=label_text,
+                            fill=label_fill,
+                            font=("Helvetica", 14, "bold" if (is_label_hl or is_current_label) else "normal"),
+                        )
+                        label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
+                    self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w, degree_idx))
 
         if not self.generation_tab_active and not self.scale_tab_active:
             canvas.create_text(

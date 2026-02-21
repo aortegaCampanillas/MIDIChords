@@ -76,6 +76,33 @@ CHORD_PATTERNS = [
     ChordPattern("m7b5", (0, 3, 6, 10)),
 ]
 
+# Preferred UI order: common/popular variants first, then extended/altered ones.
+COMMON_CHORD_SUFFIX_ORDER = (
+    "",
+    "m",
+    "7",
+    "maj7",
+    "m7",
+    "sus4",
+    "sus2",
+    "dim",
+    "aug",
+    "5",
+    "6",
+    "m6",
+    "add9",
+    "madd9",
+    "9",
+    "maj9",
+    "m9",
+    "11",
+    "m11",
+    "13",
+    "m13",
+    "dim7",
+    "m7b5",
+)
+
 SCALE_PATTERNS = [
     ScalePattern("Ionian", (0, 2, 4, 5, 7, 9, 11, 12)),
     ScalePattern("Dorian", (0, 2, 3, 5, 7, 9, 10, 12)),
@@ -182,3 +209,17 @@ def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordP
 
     bass_pc = min(notes) % 12 if notes else None
     return best_root, best_pattern, bass_pc
+
+
+def chord_patterns_for_ui() -> tuple[ChordPattern, ...]:
+    priority = {suffix: idx for idx, suffix in enumerate(COMMON_CHORD_SUFFIX_ORDER)}
+    return tuple(
+        sorted(
+            CHORD_PATTERNS,
+            key=lambda pattern: (
+                priority.get(pattern.suffix, len(COMMON_CHORD_SUFFIX_ORDER)),
+                len(pattern.intervals),
+                pattern.suffix,
+            ),
+        )
+    )

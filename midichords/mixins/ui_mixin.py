@@ -282,7 +282,9 @@ class UiMixin:
             gap = 12
             usable_w = max(1, w - gap)
             left_w = max(1, int(usable_w * 0.58))
-            right_w = max(1, usable_w - left_w)
+            # Ancho mínimo panel derecho para que no se corten Notas ni Intervalos en Escalas.
+            right_w = max(580, usable_w - left_w)
+            left_w = max(1, usable_w - gap - right_w)
             self.left_panel.place(x=0, y=0, width=left_w, height=h)
             self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
 
@@ -448,7 +450,7 @@ class UiMixin:
             textvariable=self.chord_var,
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 52, "bold"),
+            font=(self.ui_font_family, 34, "bold"),
         )
         self.chord_label.pack(anchor="w", pady=(0, 12))
 
@@ -457,7 +459,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 13, "bold"),
         )
         self.notes_caption_label.pack(anchor="w")
         self.notes_var = tk.StringVar(value="-")
@@ -467,7 +469,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 13),
         )
         self.notes_label.pack(anchor="w", pady=(6, 6))
         self.intervals_caption_label = tk.Label(
@@ -475,7 +477,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 13, "bold"),
         )
         self.intervals_caption_label.pack(anchor="w")
         self.intervals_var = tk.StringVar(value="-")
@@ -485,7 +487,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 13),
         )
         self.intervals_label.pack(anchor="w", pady=(6, 10))
         self.extra_notes_caption_label = tk.Label(
@@ -503,7 +505,7 @@ class UiMixin:
             bg="#17273a",
             fg="#ff5a5f",
             wraplength=420,
-            font=(self.ui_mono_font_family, 14, "bold"),
+            font=(self.ui_mono_font_family, 13, "bold"),
         )
         self.extra_notes_label.pack(anchor="w", pady=(0, 8))
 
@@ -840,7 +842,7 @@ class UiMixin:
         self.scale_result_canvas = tk.Canvas(
             self.tab_scale_frame,
             bg=self.color_surface_alt,
-            height=150,
+            height=220,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
@@ -1587,7 +1589,7 @@ class UiMixin:
             return
 
         help_wrap = max(220, panel_width - 56)
-        result_wrap = max(180, panel_width - 84)
+        result_wrap = max(480, panel_width - 84)
 
         try:
             self.detection_help_label.configure(wraplength=help_wrap)

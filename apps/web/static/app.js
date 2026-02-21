@@ -14,6 +14,7 @@ const state = {
   generatedChord: null,
   generatedScale: null,
   scaleCurrentNote: null,
+  generationCurrentNote: null,
   guitarChordCache: null,
   guitarVariations: [],
   guitarSelectedVariationIdx: null,
@@ -25,6 +26,7 @@ const state = {
     direction: 1,
   },
   scaleCurrentClearTimer: null,
+  generationCurrentClearTimer: null,
   metronomeRunning: false,
   metronomeTimer: null,
   metronomeAnimRaf: null,
@@ -69,6 +71,10 @@ const state = {
     braceImage: null,
     tunerStringRegions: [],
   },
+  heldChordVoices: new Map(),
+  heldInputVoices: new Map(),
+  inputDragActive: false,
+  inputDragNote: null,
 };
 
 const UI_TEXTS = {
@@ -445,6 +451,14 @@ function setScalePlayMode(mode) {
 }
 
 function setMode(mode) {
+  stopHeldChord();
+  stopAllHeldInputNotes();
+  endInputDrag();
+  if (state.generationCurrentClearTimer != null) {
+    clearTimeout(state.generationCurrentClearTimer);
+    state.generationCurrentClearTimer = null;
+  }
+  state.generationCurrentNote = null;
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
@@ -770,12 +784,15 @@ function renderPiano() {
     while (scaleCurrentDisplayMidi < 60) scaleCurrentDisplayMidi += 12;
     while (scaleCurrentDisplayMidi > 72) scaleCurrentDisplayMidi -= 12;
   }
+  const scaleCurrentExactMidi = state.mode === "scales" && state.scaleCurrentNote != null
+    ? Number(state.scaleCurrentNote)
+    : null;
   const generationPianoMode = state.mode === "generation" && state.instrument === "piano" && state.generatedChord;
   const rhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
     : [];
   const lhNotes = generationPianoMode
-    ? rhNotes.map((n) => n - 24).filter((n) => n >= low && n <= high)
+    ? rhNotes.map((n) => n - 12).filter((n) => n >= low && n <= high)
     : [];
   const rhFingers = pianoFingeringForCount(rhNotes.length, "right");
   const lhFingers = pianoFingeringForCount(lhNotes.length, "left");
@@ -794,7 +811,10 @@ function renderPiano() {
     const scaleCurrent = scaleMarked && (
       scaleCentralOnly
         ? (scaleCurrentDisplayMidi !== null && midi === scaleCurrentDisplayMidi)
-        : (scaleCurrentPc !== null && pc === scaleCurrentPc)
+        : (
+          (scaleCurrentExactMidi !== null && midi === scaleCurrentExactMidi)
+          || (scaleCurrentDisplayMidi !== null && midi === scaleCurrentDisplayMidi)
+        )
     );
     const key = document.createElement("button");
     key.className = `key ${black ? "black" : ""}`;
@@ -807,6 +827,7 @@ function renderPiano() {
       key.classList.add("active");
     }
     if (extraMidi.has(midi)) key.classList.add("extra");
+    if (state.mode === "scales" && scaleCurrent) key.classList.add("active");
     if (state.mode !== "scales" && tonicPc !== null && pc === tonicPc) key.classList.add("tonic");
     key.dataset.midi = String(midi);
     key.innerHTML = `<span>${noteNameFromPc(pc)}</span>`;
@@ -832,7 +853,44 @@ function renderPiano() {
       key.appendChild(badge);
     }
 
-    key.addEventListener("click", () => handleInstrumentNote(midi));
+    let suppressNextClick = false;
+    const releasePressed = () => endInputDrag();
+    const triggerKeyPress = () => handleInstrumentNote(midi);
+    key.addEventListener("mousedown", (event) => {
+      if (Number(event.button) !== 0) return;
+      suppressNextClick = true;
+      event.preventDefault();
+      beginInputDrag(midi, "piano");
+      const onReleaseDoc = () => releasePressed();
+      document.addEventListener("mouseup", onReleaseDoc, { once: true });
+      document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
+      document.addEventListener("touchcancel", onReleaseDoc, { once: true, passive: true });
+    });
+    key.addEventListener("touchstart", (event) => {
+      suppressNextClick = true;
+      event.preventDefault();
+      beginInputDrag(midi, "piano");
+      const onReleaseDoc = () => releasePressed();
+      document.addEventListener("mouseup", onReleaseDoc, { once: true });
+      document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
+      document.addEventListener("touchcancel", onReleaseDoc, { once: true, passive: true });
+    }, { passive: false });
+    key.addEventListener("mouseenter", (event) => {
+      if (!state.inputDragActive) return;
+      if ((Number(event.buttons) & 1) === 0) return;
+      updateInputDrag(midi, "piano");
+    });
+    key.addEventListener("mouseup", releasePressed);
+    key.addEventListener("touchend", releasePressed, { passive: true });
+    key.addEventListener("touchcancel", releasePressed, { passive: true });
+    key.addEventListener("click", (event) => {
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        event.preventDefault();
+        return;
+      }
+      triggerKeyPress();
+    });
     container.appendChild(key);
   }
 }
@@ -870,8 +928,9 @@ function renderGuitar() {
 
   const boardPad = 20;
   const nutMargin = 72;
-  const top = 54;
-  const bottom = height - 44;
+  const stringBand = Math.max(116, Math.min(148, height * 0.56));
+  const top = Math.round((height - stringBand) / 2);
+  const bottom = Math.round(top + stringBand);
   const nutX = leftHanded ? width - nutMargin : nutMargin;
   const boardEdgeX = leftHanded ? boardPad : width - boardPad;
   const step = Math.abs(boardEdgeX - nutX) / frets;
@@ -1112,18 +1171,74 @@ function renderGuitar() {
     }
   });
 
-  canvas.onclick = (event) => {
+  let suppressCanvasClick = false;
+  const releaseCanvasPress = () => endInputDrag();
+  const triggerGuitarPress = (event) => {
     const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+    const point = event.touches && event.touches.length ? event.touches[0] : event;
+    const x = ((point.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((point.clientY - rect.top) / rect.height) * canvas.height;
     const hit = state.guitarHitRegions.find((h) => ((x - h.x) ** 2) + ((y - h.y) ** 2) <= (h.r ** 2));
-    if (hit) handleInstrumentNote(hit.note);
+    return hit ? hit.note : null;
+  };
+  canvas.onmousedown = (event) => {
+    if (Number(event.button) !== 0) return;
+    suppressCanvasClick = true;
+    event.preventDefault();
+    const hitNote = triggerGuitarPress(event);
+    if (hitNote != null) {
+      beginInputDrag(hitNote, "guitar");
+      const onReleaseDoc = () => releaseCanvasPress();
+      document.addEventListener("mouseup", onReleaseDoc, { once: true });
+      document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
+      document.addEventListener("touchcancel", onReleaseDoc, { once: true, passive: true });
+    }
+  };
+  canvas.ontouchstart = (event) => {
+    suppressCanvasClick = true;
+    event.preventDefault();
+    const hitNote = triggerGuitarPress(event);
+    if (hitNote != null) {
+      beginInputDrag(hitNote, "guitar");
+      const onReleaseDoc = () => releaseCanvasPress();
+      document.addEventListener("mouseup", onReleaseDoc, { once: true });
+      document.addEventListener("touchend", onReleaseDoc, { once: true, passive: true });
+      document.addEventListener("touchcancel", onReleaseDoc, { once: true, passive: true });
+    }
+  };
+  canvas.onmousemove = (event) => {
+    if (!state.inputDragActive) return;
+    if ((Number(event.buttons) & 1) === 0) return;
+    const hitNote = triggerGuitarPress(event);
+    if (hitNote != null) updateInputDrag(hitNote, "guitar");
+  };
+  canvas.ontouchmove = (event) => {
+    if (!state.inputDragActive) return;
+    event.preventDefault();
+    const hitNote = triggerGuitarPress(event);
+    if (hitNote != null) updateInputDrag(hitNote, "guitar");
+  };
+  canvas.onmouseup = releaseCanvasPress;
+  canvas.onmouseleave = releaseCanvasPress;
+  canvas.ontouchend = releaseCanvasPress;
+  canvas.ontouchcancel = releaseCanvasPress;
+  canvas.onclick = (event) => {
+    if (suppressCanvasClick) {
+      suppressCanvasClick = false;
+      event.preventDefault();
+      return;
+    }
+    const hitNote = triggerGuitarPress(event);
+    if (hitNote != null) handleInstrumentNote(hitNote);
   };
 }
 
-function handleInstrumentNote(note) {
+function handleInstrumentNote(note, options = {}) {
+  const pressed = !!options.pressed;
+  const instrumentHint = options.instrumentHint || null;
   if (state.mode === "detection") {
-    playSingle(note);
+    if (pressed) startHeldInputNote(note, instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
+    else playSingle(note);
     if (state.activeDetectionNotes.has(note)) state.activeDetectionNotes.delete(note);
     else state.activeDetectionNotes.add(note);
     renderInstrument();
@@ -1131,21 +1246,43 @@ function handleInstrumentNote(note) {
     return;
   }
   if (state.mode === "generation" && state.generatedChord) {
+    const setGenerationCurrent = (midi) => {
+      if (state.generationCurrentClearTimer != null) {
+        clearTimeout(state.generationCurrentClearTimer);
+        state.generationCurrentClearTimer = null;
+      }
+      state.generationCurrentNote = Number(midi);
+      renderStaff();
+      state.generationCurrentClearTimer = setTimeout(() => {
+        state.generationCurrentNote = null;
+        state.generationCurrentClearTimer = null;
+        if (state.mode === "generation") renderStaff();
+      }, 720);
+    };
     if (state.instrument === "piano") {
       const rh = (state.generatedChord.notes_midi || []).map((n) => Number(n));
-      const lh = rh.map((n) => n - 24);
+      const lh = rh.map((n) => n - 12);
       const allowed = new Set([...rh, ...lh]);
-      if (allowed.has(note)) playSingle(note);
+      if (allowed.has(note)) {
+        if (pressed) startHeldInputNote(note, "piano");
+        else playSingleAt(note, null, 0.95, "piano");
+        setGenerationCurrent(note);
+      }
       return;
     }
     const pcs = new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) % 12));
-    if (pcs.has(note % 12)) playSingle(note);
+    if (pcs.has(note % 12)) {
+      if (pressed) startHeldInputNote(note, "guitar");
+      else playSingleAt(note, null, 1.05, "guitar");
+      setGenerationCurrent(note);
+    }
     return;
   }
   if (state.mode === "scales" && state.generatedScale) {
     const pcs = new Set((state.generatedScale.notes_midi || []).map((n) => Number(n) % 12));
     if (pcs.has(note % 12)) {
-      playSingle(note);
+      if (pressed) startHeldInputNote(note, state.scalePlayMode === "guitar" ? "guitar" : "piano");
+      else playSingle(note, state.scalePlayMode === "guitar" ? "guitar" : "piano");
       if (!state.scaleLoop.active) {
         if (state.scaleCurrentClearTimer != null) {
           clearTimeout(state.scaleCurrentClearTimer);
@@ -1717,7 +1854,11 @@ function drawTunerCanvas(ctx, width, height) {
 
 function getStaffNotes() {
   if (state.mode === "detection") return Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
-  if (state.mode === "generation" && state.generatedChord) return (state.generatedChord.notes_midi || []).map((n) => Number(n));
+  if (state.mode === "generation" && state.generatedChord) {
+    const rh = (state.generatedChord.notes_midi || []).map((n) => Number(n));
+    const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
+    return Array.from(new Set([...rh, ...lh])).sort((a, b) => a - b);
+  }
   if (state.mode === "scales" && state.generatedScale) return (state.generatedScale.notes_midi || []).map((n) => Number(n));
   return [];
 }
@@ -1756,9 +1897,11 @@ function renderStaff() {
 
   const marginX = 72;
   const rightX = width - 20;
-  const trebleTop = 64;
-  const bassTop = 220;
-  const gap = 18;
+  const gap = Math.max(14, Math.min(20, Math.round(height / 26)));
+  const grandGap = Math.max(Math.round(gap * 6.8), 124);
+  const systemHeight = grandGap + (4 * gap);
+  const trebleTop = Math.round((height - systemHeight) / 2);
+  const bassTop = trebleTop + grandGap;
   drawGrandBrace(ctx, marginX, trebleTop, bassTop, gap);
   drawStaffLines(ctx, marginX, rightX, trebleTop, gap);
   drawStaffLines(ctx, marginX, rightX, bassTop, gap);
@@ -1781,6 +1924,29 @@ function renderStaff() {
   const detectionStaff = state.mode === "detection";
   const scaleStaff = state.mode === "scales";
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
+  let scaleCurrentDisplayMidi = scaleCurrentMidi;
+  if (state.mode === "scales" && scaleCurrentDisplayMidi != null) {
+    const current = Number(scaleCurrentDisplayMidi);
+    const samePc = notes
+      .map((n) => Number(n))
+      .filter((n) => ((n % 12) + 12) % 12 === ((current % 12) + 12) % 12);
+    if (samePc.length) {
+      scaleCurrentDisplayMidi = samePc.reduce((best, n) => (
+        Math.abs(n - current) < Math.abs(best - current) ? n : best
+      ), samePc[0]);
+    } else {
+      scaleCurrentDisplayMidi = current;
+    }
+  }
+  const generationCurrentMidi = state.mode === "generation" ? state.generationCurrentNote : null;
+  let generationCurrentDisplayMidi = generationCurrentMidi;
+  if (state.mode === "generation" && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
+    const staffSet = new Set(notes.map((n) => Number(n)));
+    // Keyboard LH taps are an octave lower than the LH voice drawn in staff.
+    if (!staffSet.has(Number(generationCurrentDisplayMidi)) && staffSet.has(Number(generationCurrentDisplayMidi) + 12)) {
+      generationCurrentDisplayMidi = Number(generationCurrentDisplayMidi) + 12;
+    }
+  }
 
   const xByLine = new Map();
   const placedTrebleCols = new Map();
@@ -1818,7 +1984,8 @@ function renderStaff() {
           : (startX + 34 + col * 110 + (idx % 7) * 18 + used * 14);
     const extra = extras.has(midi);
     const tonic = ((midi % 12) + 12) % 12 === tonicPc;
-    const current = scaleCurrentMidi != null && Number(midi) === Number(scaleCurrentMidi);
+    const current = (scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi))
+      || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi));
     drawNote(ctx, x, y, staffTop, gap, extra, tonic, current);
 
     if (!compactChordStaff && !detectionStaff) {
@@ -1984,40 +2151,169 @@ function ensureAudioCtx() {
   return state.metronomeCtx;
 }
 
-function beep(freq = 1000, durationMs = 70, gain = 0.1) {
-  const ctx = ensureAudioCtx();
-  const osc = ctx.createOscillator();
-  const amp = ctx.createGain();
-  osc.type = "square";
-  osc.frequency.value = freq;
-  amp.gain.value = gain;
-  osc.connect(amp);
-  amp.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + durationMs / 1000);
+function ensureNoiseBuffer(ctx) {
+  if (state.audioNoiseBuffer && state.audioNoiseBuffer.sampleRate === ctx.sampleRate) {
+    return state.audioNoiseBuffer;
+  }
+  const size = Math.max(2048, Math.floor(ctx.sampleRate * 0.09));
+  const buf = ctx.createBuffer(1, size, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < size; i += 1) data[i] = (Math.random() * 2) - 1;
+  state.audioNoiseBuffer = buf;
+  return buf;
 }
 
-function playSingleAt(midi, startTime = null, durationSeconds = 0.46) {
+function ensureAudioBus(ctx) {
+  if (state.audioBus && state.audioBus.context === ctx) return state.audioBus;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -22;
+  comp.knee.value = 20;
+  comp.ratio.value = 2.6;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.18;
+  const out = ctx.createGain();
+  out.gain.value = 0.92;
+  comp.connect(out);
+  out.connect(ctx.destination);
+  state.audioBus = comp;
+  return state.audioBus;
+}
+
+function beep(freq = 1000, durationMs = 70, gain = 0.1) {
   const ctx = ensureAudioCtx();
-  const t = startTime == null ? ctx.currentTime : Number(startTime);
-  const dur = Math.max(0.12, Number(durationSeconds) || 0.46);
-  const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
+  const t = ctx.currentTime;
+  const dur = Math.max(0.02, Number(durationMs || 70) / 1000);
+  const amp = Math.max(0.005, Number(gain) || 0.1);
+  const isAccent = freq >= 1500;
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = ensureNoiseBuffer(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = isAccent ? 1800 : 1300;
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = isAccent ? 7600 : 6200;
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(0.0001, t);
+  nGain.gain.exponentialRampToValueAtTime(amp * (isAccent ? 0.95 : 0.72), t + 0.002);
+  nGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  noise.connect(hp);
+  hp.connect(lp);
+  lp.connect(nGain);
+  nGain.connect(ensureAudioBus(ctx));
+  noise.start(t);
+  noise.stop(t + dur + 0.01);
+
   const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  const oGain = ctx.createGain();
   osc.type = "triangle";
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.0, t);
-  const attack = Math.min(0.02, dur * 0.18);
-  gain.gain.linearRampToValueAtTime(0.14, t + attack);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(attack + 0.02, dur - 0.01));
-  osc.connect(gain);
-  gain.connect(ctx.destination);
+  osc.frequency.value = Number(freq) || 1000;
+  oGain.gain.setValueAtTime(0.0001, t);
+  oGain.gain.exponentialRampToValueAtTime(amp * (isAccent ? 0.7 : 0.42), t + 0.0015);
+  oGain.gain.exponentialRampToValueAtTime(0.0001, t + (dur * 0.82));
+  osc.connect(oGain);
+  oGain.connect(ensureAudioBus(ctx));
   osc.start(t);
   osc.stop(t + dur);
 }
 
-function playSingle(midi) {
-  playSingleAt(midi, null, 0.46);
+function playPianoAt(midi, startTime = null, durationSeconds = 0.46) {
+  const ctx = ensureAudioCtx();
+  const t = startTime == null ? ctx.currentTime : Number(startTime);
+  const dur = Math.max(0.12, Number(durationSeconds) || 0.46);
+  const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
+  const attack = Math.min(0.012, dur * 0.16);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.linearRampToValueAtTime(0.16, t + attack);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(attack + 0.05, dur));
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(5600, t);
+  filter.frequency.exponentialRampToValueAtTime(1700, t + Math.max(0.1, dur * 0.85));
+  filter.Q.value = 0.6;
+
+  env.connect(filter);
+  filter.connect(ensureAudioBus(ctx));
+
+  const partials = [
+    { ratio: 1.0, gain: 0.78, type: "sine" },
+    { ratio: 2.0, gain: 0.26, type: "triangle" },
+    { ratio: 3.0, gain: 0.12, type: "triangle" },
+  ];
+  partials.forEach((p) => {
+    const osc = ctx.createOscillator();
+    const og = ctx.createGain();
+    osc.type = p.type;
+    osc.frequency.setValueAtTime(freq * p.ratio, t);
+    og.gain.value = p.gain;
+    osc.connect(og);
+    og.connect(env);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  });
+}
+
+function playGuitarAt(midi, startTime = null, durationSeconds = 0.9) {
+  const ctx = ensureAudioCtx();
+  const t = startTime == null ? ctx.currentTime : Number(startTime);
+  const dur = Math.max(0.18, Number(durationSeconds) || 0.9);
+  const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
+
+  const body = ctx.createBiquadFilter();
+  body.type = "bandpass";
+  body.frequency.value = Math.min(2800, Math.max(170, freq * 2.4));
+  body.Q.value = 0.9;
+  const low = ctx.createBiquadFilter();
+  low.type = "lowpass";
+  low.frequency.value = Math.min(4200, Math.max(900, freq * 5.2));
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(0.17, t + 0.006);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  body.connect(low);
+  low.connect(env);
+  env.connect(ensureAudioBus(ctx));
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = ensureNoiseBuffer(ctx);
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(0.0001, t);
+  nGain.gain.exponentialRampToValueAtTime(0.42, t + 0.001);
+  nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+  noise.connect(nGain);
+  nGain.connect(body);
+  noise.start(t);
+  noise.stop(t + 0.05);
+
+  const osc = ctx.createOscillator();
+  const oGain = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(freq, t);
+  oGain.gain.setValueAtTime(0.0001, t);
+  oGain.gain.exponentialRampToValueAtTime(0.22, t + 0.005);
+  oGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(oGain);
+  oGain.connect(body);
+  osc.start(t);
+  osc.stop(t + dur + 0.04);
+}
+
+function playSingleAt(midi, startTime = null, durationSeconds = 0.46, instrument = "piano") {
+  if (instrument === "guitar") {
+    playGuitarAt(midi, startTime, Math.max(0.24, Number(durationSeconds) || 0.46));
+    return;
+  }
+  playPianoAt(midi, startTime, durationSeconds);
+}
+
+function playSingle(midi, instrument = null) {
+  const inst = instrument || (state.instrument === "guitar" ? "guitar" : "piano");
+  playSingleAt(midi, null, 0.46, inst);
 }
 
 function playNotesMidi(notes, stepMs = 120) {
@@ -2026,10 +2322,271 @@ function playNotesMidi(notes, stepMs = 120) {
   });
 }
 
-function playChordMidi(notes) {
+function playChordMidi(notes, options = {}) {
   const ctx = ensureAudioCtx();
+  const instrument = options.instrument === "guitar" ? "guitar" : "piano";
   const t = ctx.currentTime + 0.005;
-  notes.forEach((midi) => playSingleAt(Number(midi), t, 1.25));
+  if (instrument === "guitar") {
+    notes.forEach((midi, idx) => playSingleAt(Number(midi), t + (idx * 0.018), 1.05, "guitar"));
+  } else {
+    notes.forEach((midi) => playSingleAt(Number(midi), t, 1.25, "piano"));
+  }
+}
+
+function stopHeldChord() {
+  if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  state.heldChordVoices.forEach((voice) => {
+    try {
+      const gain = voice?.gain;
+      if (gain?.gain) {
+        const now = t;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || 0.001), now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      }
+      (voice?.oscs || []).forEach((osc) => {
+        try { osc.stop(t + 0.11); } catch (_e) {}
+      });
+      if (voice?.noise) {
+        try { voice.noise.stop(t + 0.04); } catch (_e) {}
+      }
+    } catch (_e) {}
+  });
+  state.heldChordVoices.clear();
+}
+
+function stopHeldInputNote(midi) {
+  if (!(state.heldInputVoices instanceof Map)) return;
+  const note = Number(midi);
+  const voice = state.heldInputVoices.get(note);
+  if (!voice) return;
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  try {
+    if (voice.gain?.gain) {
+      voice.gain.gain.cancelScheduledValues(t);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    }
+    (voice.oscs || []).forEach((osc) => {
+      try { osc.stop(t + 0.20); } catch (_e) {}
+    });
+    if (voice.noise) {
+      try { voice.noise.stop(t + 0.05); } catch (_e) {}
+    }
+  } catch (_e) {}
+  state.heldInputVoices.delete(note);
+}
+
+function stopAllHeldInputNotes() {
+  if (!(state.heldInputVoices instanceof Map) || !state.heldInputVoices.size) return;
+  Array.from(state.heldInputVoices.keys()).forEach((note) => stopHeldInputNote(note));
+}
+
+function beginInputDrag(note, instrumentHint) {
+  const midi = Number(note);
+  if (!Number.isFinite(midi)) return;
+  state.inputDragActive = true;
+  if (state.inputDragNote != null && Number(state.inputDragNote) !== midi) {
+    stopHeldInputNote(state.inputDragNote);
+  }
+  state.inputDragNote = midi;
+  handleInstrumentNote(midi, { pressed: true, instrumentHint });
+}
+
+function updateInputDrag(note, instrumentHint) {
+  if (!state.inputDragActive) return;
+  const midi = Number(note);
+  if (!Number.isFinite(midi)) return;
+  if (state.inputDragNote != null && Number(state.inputDragNote) === midi) return;
+  if (state.inputDragNote != null) stopHeldInputNote(state.inputDragNote);
+  state.inputDragNote = midi;
+  handleInstrumentNote(midi, { pressed: true, instrumentHint });
+}
+
+function endInputDrag() {
+  if (state.inputDragNote != null) stopHeldInputNote(state.inputDragNote);
+  state.inputDragNote = null;
+  state.inputDragActive = false;
+}
+
+function startHeldInputNote(midi, instrument = "piano") {
+  const note = Number(midi);
+  if (!Number.isFinite(note)) return;
+  if (!(state.heldInputVoices instanceof Map)) state.heldInputVoices = new Map();
+  if (state.heldInputVoices.has(note)) return;
+
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  const freq = 440 * (2 ** ((note - 69) / 12));
+  const bus = ensureAudioBus(ctx);
+  const gain = ctx.createGain();
+  const voice = { gain, oscs: [], noise: null };
+
+  if (instrument === "guitar") {
+    const body = ctx.createBiquadFilter();
+    body.type = "bandpass";
+    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.2));
+    body.Q.value = 0.9;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = Math.min(4300, Math.max(900, freq * 5.1));
+    body.connect(low);
+    low.connect(gain);
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = ensureNoiseBuffer(ctx);
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.0001, t);
+    nGain.gain.exponentialRampToValueAtTime(0.38, t + 0.001);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    noise.connect(nGain);
+    nGain.connect(body);
+    noise.start(t);
+    voice.noise = noise;
+
+    const osc = ctx.createOscillator();
+    const oGain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, t);
+    oGain.gain.value = 0.28;
+    osc.connect(oGain);
+    oGain.connect(body);
+    osc.start(t);
+    voice.oscs.push(osc);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.06, t + 0.22);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.10);
+  } else {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(5400, t);
+    filter.frequency.exponentialRampToValueAtTime(2200, t + 0.22);
+    filter.Q.value = 0.62;
+    filter.connect(gain);
+
+    const p1 = ctx.createOscillator();
+    const p1g = ctx.createGain();
+    p1.type = "sine";
+    p1.frequency.setValueAtTime(freq, t);
+    p1g.gain.value = 0.78;
+    p1.connect(p1g);
+    p1g.connect(filter);
+    p1.start(t);
+
+    const p2 = ctx.createOscillator();
+    const p2g = ctx.createGain();
+    p2.type = "triangle";
+    p2.frequency.setValueAtTime(freq * 2, t);
+    p2g.gain.value = 0.22;
+    p2.connect(p2g);
+    p2g.connect(filter);
+    p2.start(t);
+
+    voice.oscs.push(p1, p2);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.16, t + 0.014);
+    gain.gain.exponentialRampToValueAtTime(0.065, t + 0.24);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
+  }
+
+  gain.connect(bus);
+  state.heldInputVoices.set(note, voice);
+}
+
+function startHeldVoice(midi, instrument = "piano") {
+  const note = Number(midi);
+  if (!Number.isFinite(note)) return;
+  if (!(state.heldChordVoices instanceof Map)) state.heldChordVoices = new Map();
+  if (state.heldChordVoices.has(note)) return;
+
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  const freq = 440 * (2 ** ((note - 69) / 12));
+  const gain = ctx.createGain();
+  const bus = ensureAudioBus(ctx);
+  const voice = { gain, oscs: [], noise: null };
+
+  if (instrument === "guitar") {
+    const body = ctx.createBiquadFilter();
+    body.type = "bandpass";
+    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.1));
+    body.Q.value = 0.9;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = Math.min(4200, Math.max(900, freq * 5.0));
+    body.connect(low);
+    low.connect(gain);
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = ensureNoiseBuffer(ctx);
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.0001, t);
+    nGain.gain.exponentialRampToValueAtTime(0.33, t + 0.001);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    noise.connect(nGain);
+    nGain.connect(body);
+    noise.start(t);
+    voice.noise = noise;
+
+    const osc = ctx.createOscillator();
+    const oGain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, t);
+    oGain.gain.value = 0.28;
+    osc.connect(oGain);
+    oGain.connect(body);
+    osc.start(t);
+    voice.oscs.push(osc);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.095, t + 0.13);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.65);
+  } else {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(5200, t);
+    filter.frequency.exponentialRampToValueAtTime(2400, t + 0.25);
+    filter.Q.value = 0.65;
+    filter.connect(gain);
+
+    const p1 = ctx.createOscillator();
+    const p1g = ctx.createGain();
+    p1.type = "sine";
+    p1.frequency.setValueAtTime(freq, t);
+    p1g.gain.value = 0.8;
+    p1.connect(p1g);
+    p1g.connect(filter);
+    p1.start(t);
+
+    const p2 = ctx.createOscillator();
+    const p2g = ctx.createGain();
+    p2.type = "triangle";
+    p2.frequency.setValueAtTime(freq * 2, t);
+    p2g.gain.value = 0.22;
+    p2.connect(p2g);
+    p2g.connect(filter);
+    p2.start(t);
+
+    voice.oscs.push(p1, p2);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.15, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.085, t + 0.14);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.95);
+  }
+
+  gain.connect(bus);
+  state.heldChordVoices.set(note, voice);
+}
+
+function startHeldChord(notes, instrument = "piano") {
+  stopHeldChord();
+  (notes || []).forEach((midi) => startHeldVoice(midi, instrument));
 }
 
 function scaleStepMs() {
@@ -2113,7 +2670,12 @@ function stepScaleLoop() {
   if (state.scaleMetronomeEnabled) {
     beep((idx === 0 && state.scaleLoop.direction > 0) ? 1600 : 1050, 55, 0.09);
   } else {
-    playSingle(note);
+    const scaleInstrument = state.scalePlayMode === "guitar" ? "guitar" : "piano";
+    const stepSeconds = Math.max(0.08, scaleStepMs() / 1000);
+    const noteDur = scaleInstrument === "guitar"
+      ? Math.max(0.62, Math.min(1.10, stepSeconds * 1.12))
+      : Math.max(0.56, Math.min(1.00, stepSeconds * 1.02));
+    playSingleAt(note, null, noteDur, scaleInstrument);
   }
   if (state.mode === "scales") {
     renderInstrument();
@@ -2540,6 +3102,61 @@ async function toggleMidi() {
 }
 
 function bindEvents() {
+  const bindImmediatePress = (button, action, options = {}) => {
+    if (!button || typeof action !== "function") return;
+    const highlightWhilePressed = !!options.highlightWhilePressed;
+    const onPress = typeof options.onPress === "function" ? options.onPress : null;
+    const onRelease = typeof options.onRelease === "function" ? options.onRelease : null;
+    let suppressNextClick = false;
+    let pointerPressed = false;
+
+    const setPressedVisual = (pressed) => {
+      if (!highlightWhilePressed) return;
+      button.classList.toggle("active", !!pressed);
+      if (pressed) button.classList.remove("stop-mode");
+    };
+
+    const onPointerStart = (event) => {
+      if (event.type === "mousedown" && Number(event.button) !== 0) return;
+      event.preventDefault();
+      suppressNextClick = true;
+      pointerPressed = true;
+      setPressedVisual(true);
+      if (onPress) onPress();
+      else action();
+    };
+
+    const onPointerEnd = () => {
+      if (!pointerPressed) return;
+      pointerPressed = false;
+      setPressedVisual(false);
+      if (onRelease) onRelease();
+    };
+
+    button.addEventListener("mousedown", onPointerStart);
+    button.addEventListener("touchstart", onPointerStart, { passive: false });
+    document.addEventListener("mouseup", onPointerEnd);
+    document.addEventListener("touchend", onPointerEnd, { passive: true });
+    document.addEventListener("touchcancel", onPointerEnd, { passive: true });
+    button.addEventListener("click", (event) => {
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        event.preventDefault();
+        return;
+      }
+      if (onPress) {
+        onPress();
+        if (onRelease) setTimeout(() => onRelease(), 140);
+      } else {
+        action();
+      }
+      if (highlightWhilePressed) {
+        setPressedVisual(true);
+        setTimeout(() => setPressedVisual(false), 140);
+      }
+    });
+  };
+
   const modeSelect = el("modeSelect");
   if (modeSelect) {
     modeSelect.addEventListener("change", (e) => setMode(e.target.value));
@@ -2583,9 +3200,9 @@ function bindEvents() {
     runDetection();
   });
 
-  el("detectPlay").addEventListener("click", () => {
-    playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b));
-  });
+  bindImmediatePress(el("detectPlay"), () => {
+    playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b), { instrument: "piano" });
+  }, { highlightWhilePressed: true });
 
   el("genRoot").addEventListener("change", runGenerateChord);
   el("genVariant").addEventListener("change", () => {
@@ -2595,9 +3212,18 @@ function bindEvents() {
   el("genInversion").addEventListener("change", () => {
     runGenerateChord();
   });
-  el("genPlay").addEventListener("click", () => {
+  bindImmediatePress(el("genPlay"), () => {
     if (!state.generatedChord || !state.generatedChord.notes_midi) return;
-    playChordMidi(state.generatedChord.notes_midi);
+    playChordMidi(state.generatedChord.notes_midi, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
+  }, {
+    highlightWhilePressed: true,
+    onPress: () => {
+      if (!state.generatedChord || !state.generatedChord.notes_midi) return;
+      startHeldChord(state.generatedChord.notes_midi, state.instrument === "guitar" ? "guitar" : "piano");
+    },
+    onRelease: () => {
+      stopHeldChord();
+    },
   });
 
   const scaleModeMetronome = el("scaleModeMetronome");
@@ -2617,7 +3243,7 @@ function bindEvents() {
     if (metroBpm) metroBpm.value = v;
     refreshMetronomeTempoInfo();
   });
-  el("scalePlay").addEventListener("click", () => {
+  bindImmediatePress(el("scalePlay"), () => {
     toggleScaleLoop();
   });
 
@@ -2734,6 +3360,10 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     if (activeModeSupportsStaff()) renderStaff();
     if (state.mode === "tuner") renderTunerSpectrumPanel();
+  });
+  window.addEventListener("blur", () => {
+    stopHeldChord();
+    stopAllHeldInputNotes();
   });
 
   el("metroToggle").addEventListener("click", toggleMetronome);

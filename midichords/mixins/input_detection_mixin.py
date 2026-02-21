@@ -248,7 +248,10 @@ class InputDetectionMixin:
             return
         if self.generation_tab_active:
             if self.instrument_view == "piano":
-                if note in self.generated_preview_notes:
+                # Permitir teclas mano derecha (preview) y mano izquierda (una octava abajo, clave de fa).
+                allowed_piano = set(self.generated_preview_notes)
+                allowed_piano |= {int(n - 12) for n in self.generated_preview_notes if int(n - 12) >= 0}
+                if note in allowed_piano:
                     self._trigger_generated_single_note(note)
                 else:
                     self._show_forbidden_note_feedback(note)
@@ -292,7 +295,9 @@ class InputDetectionMixin:
         note = self._note_at_position(float(event.x), float(event.y))
         if self.generation_tab_active:
             if self.instrument_view == "piano":
-                if note is not None and note in self.generated_preview_notes:
+                allowed_piano = set(self.generated_preview_notes)
+                allowed_piano |= {int(n - 12) for n in self.generated_preview_notes if int(n - 12) >= 0}
+                if note is not None and note in allowed_piano:
                     if (
                         len(self.generated_playing_notes) == 1
                         and note in self.generated_playing_notes

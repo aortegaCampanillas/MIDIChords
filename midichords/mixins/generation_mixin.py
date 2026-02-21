@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from midichords.core.music_theory import CHORD_PATTERNS, ChordPattern
+from midichords.core.music_theory import CHORD_PATTERNS, ChordPattern, chord_patterns_for_ui
 from midichords.ui.widgets import GrayRoundedButton
 
 
@@ -122,7 +122,7 @@ class GenerationMixin:
         if hasattr(self, "generation_variant_combo") and hasattr(self, "generation_variant_var"):
             variant_options: list[tuple[str, str]] = []
             seen: set[str] = set()
-            for pattern in CHORD_PATTERNS:
+            for pattern in chord_patterns_for_ui():
                 label = pattern.suffix if pattern.suffix else "maj"
                 if label in seen:
                     continue
@@ -285,7 +285,7 @@ class GenerationMixin:
                     w.destroy()
                 term = search_var.get().strip().lower()
                 options: list[tuple[str, str, bool]] = []
-                for pattern in CHORD_PATTERNS:
+                for pattern in chord_patterns_for_ui():
                     label = pattern.suffix if pattern.suffix else "maj"
                     if term and term not in label.lower():
                         continue
@@ -475,6 +475,9 @@ class GenerationMixin:
             allowed_notes = set(self.guitar_selected_variation_notes)
         else:
             allowed_notes = set(self.generated_preview_notes)
+            if self.generation_tab_active:
+                # Permitir notas mano izquierda (clave de fa): una octava abajo.
+                allowed_notes |= {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
         if note not in allowed_notes:
             return
         for after_id in list(self.generated_note_highlight_after.values()):

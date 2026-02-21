@@ -445,8 +445,8 @@ class RenderMixin:
         now = time.monotonic()
         self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
         overlay_label_positions: dict[int, tuple[float, str, str]] = {}
-        # In generation mode, note names are already conveyed on-key; avoid duplicate labels on top.
-        show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active)
+        # In generation/scale modes, note names are already conveyed on-key/staff; avoid duplicate labels on top.
+        show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active) and (not self.scale_tab_active)
 
         w = max(100, canvas.winfo_width())
         h = max(156, canvas.winfo_height())
@@ -455,10 +455,11 @@ class RenderMixin:
         notes = list(range(low_note, high_note + 1))
         generation_lh_display_notes: set[int] = set()
         if self.generation_tab_active and self.instrument_view == "piano":
+            # Mano izquierda del acorde (una octava abajo): siempre desde el acorde, no desde la nota pulsada.
             generation_lh_display_notes = {
-                int(n - 24)
-                for n in set(display_active_notes)
-                if (low_note <= int(n - 24) <= high_note)
+                int(n - 12)
+                for n in set(self.generated_preview_notes)
+                if (low_note <= int(n - 12) <= high_note)
             }
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
         white_w = w / len(white_notes)
@@ -537,10 +538,10 @@ class RenderMixin:
                 fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#65b7ff"
-            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
-                fill_color = "#ff8a2b"
             elif note in display_active_notes:
                 fill_color = "#4da3ea"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
+                fill_color = "#ff8a2b"
             else:
                 fill_color = "#f7f7f4"
 
@@ -612,10 +613,10 @@ class RenderMixin:
                 fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#388fdb"
-            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
-                fill_color = "#ff8a2b"
             elif note in display_active_notes:
                 fill_color = "#0078d7"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
+                fill_color = "#ff8a2b"
             else:
                 fill_color = "#101822"
 
@@ -707,7 +708,7 @@ class RenderMixin:
                 key_centers[int(note)] = ((x1 + x2) * 0.5, y1 + (y2 - y1) * 0.60, True)
 
             rh_notes = [int(n) for n in generated_sorted if int(n) in key_centers]
-            lh_notes = [int(n - 24) for n in generated_sorted if int(n - 24) in key_centers]
+            lh_notes = [int(n - 12) for n in generated_sorted if int(n - 12) in key_centers]
             rh_fingers = self._piano_fingering_for_count(len(rh_notes), hand="right")
             lh_fingers = self._piano_fingering_for_count(len(lh_notes), hand="left")
 
@@ -846,6 +847,12 @@ class RenderMixin:
         else:
             display_notes_list = []
             display_notes = self.generated_preview_notes if self.generation_tab_active else self._current_detection_notes()
+            if self.generation_tab_active:
+                # Show LH voicing in bass clef (same pitch classes, one octave lower) for piano and guitar views.
+                lh_notes = {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
+                display_notes = set(display_notes) | lh_notes
+                # Incluir notas actualmente pulsadas en el piano (LH) para que se marquen en el pentagrama.
+                display_notes = display_notes | set(self.generated_playing_notes)
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
 
         w = max(300, canvas.winfo_width())

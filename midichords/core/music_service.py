@@ -4,7 +4,7 @@ from dataclasses import asdict
 from typing import Any, Optional
 
 from midichords.core.i18n import NOTE_NAMES, SCALE_NAME_TEXTS
-from midichords.core.music_theory import CHORD_PATTERNS, SCALE_PATTERNS, analyze_chord_notes
+from midichords.core.music_theory import CHORD_PATTERNS, SCALE_PATTERNS, analyze_chord_notes, chord_patterns_for_ui
 
 
 FLAT_ALIASES = {
@@ -147,7 +147,7 @@ def _chord_interval_degree(interval: int, suffix: str) -> int:
 
 
 def list_chord_patterns() -> list[dict[str, Any]]:
-    return [asdict(pattern) for pattern in CHORD_PATTERNS]
+    return [asdict(pattern) for pattern in chord_patterns_for_ui()]
 
 
 def list_scale_patterns(language: str = "es") -> list[dict[str, Any]]:
@@ -335,4 +335,3 @@ def generate_scale(
         "notes": names,
         "intervals": intervals,
     }
-

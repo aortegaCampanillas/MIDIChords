@@ -268,7 +268,7 @@ button:hover {
   border-radius: 10px;
   border: 1px solid #3a4558;
   background: #0f1621;
-  min-height: 360px;
+  min-height: 460px;
 }
 
 .sidebar {
@@ -302,7 +302,7 @@ button:hover {
 }
 
 .instrument-panel.guitar-active {
-  min-height: 320px;
+  min-height: 300px;
 }
 
 .instrument-dock {
@@ -330,16 +330,19 @@ button:hover {
   padding: 0 8px;
 }
 
-.mode-screen.mode-generation .staff-panel {
-  max-height: 340px;
+.mode-screen.mode-generation .staff-panel,
+.mode-screen.mode-scales .staff-panel {
+  max-height: min(50vh, 500px);
 }
 
-.mode-screen.mode-generation #staffCanvas {
-  min-height: 300px;
+.mode-screen.mode-generation #staffCanvas,
+.mode-screen.mode-scales #staffCanvas {
+  min-height: clamp(360px, 40vh, 440px);
 }
 
-.mode-screen.mode-generation .sidebar-top {
-  max-height: 340px;
+.mode-screen.mode-generation .sidebar-top,
+.mode-screen.mode-scales .sidebar-top {
+  max-height: min(50vh, 500px);
   overflow: auto;
 }
 
@@ -348,11 +351,11 @@ button:hover {
 }
 
 .mode-screen.mode-generation .instrument-panel.guitar-active {
-  min-height: 340px;
+  min-height: 300px;
 }
 
 .mode-screen.mode-generation .guitar-canvas {
-  height: 280px;
+  height: 230px;
 }
 
 #guitarVariationBar {
@@ -634,12 +637,19 @@ button:hover {
   content: "🚫";
   position: absolute;
   left: 50%;
-  top: 8px;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   font-size: 16px;
   line-height: 1;
   pointer-events: none;
   z-index: 6;
+}
+
+.key.forbidden-flash:not(.black)::after {
+  top: calc(100% - 44px);
+}
+
+.key.black.forbidden-flash::after {
+  top: calc(60% - 10px);
 }
 
 .finger-badge {
@@ -822,7 +832,7 @@ button:hover {
   }
 
   #staffCanvas {
-    min-height: 280px;
+    min-height: 340px;
   }
 
   .instrument-panel.with-inst-dock {

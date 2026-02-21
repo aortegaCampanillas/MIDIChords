@@ -25,6 +25,18 @@ Base Flutter para tablets iOS/Android del proyecto MIDIChords.
 python launch.py mobile
 ```
 
+Para ejecutar directamente en iPad (arranca backend web en LAN y configura la app móvil con la URL automática):
+
+```bash
+python launch.py mobile-ipad --device "<ID_O_NOMBRE_IPAD>"
+```
+
+Puedes listar dispositivos con:
+
+```bash
+flutter devices
+```
+
 También puedes ejecutar Flutter directamente:
 
 ```bash

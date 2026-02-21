@@ -10,6 +10,7 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
       "env": {
         "MIDICHORDS_FORCE_MIDI_OPEN": "1"
       }
@@ -19,10 +20,71 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
-      "args": ["web", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+      "args": ["web", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python"
+    },
+    {
+      "name": "API: MIDIChords",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
+      "args": ["web", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python"
+    },
+    {
+      "name": "Mobile iPad: MIDIChords (auto API)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
+      "args": [
+        "mobile-ipad",
+        "--device",
+        "${input:ipadDeviceId}",
+        "--port",
+        "8000"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python"
+    },
+    {
+      "name": "Mobile iPad: MIDIChords (API separada)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
+      "args": [
+        "mobile-ipad",
+        "--device",
+        "${input:ipadDeviceId}",
+        "--no-backend",
+        "--api-base",
+        "${input:apiBaseUrl}"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "ipadDeviceId",
+      "type": "promptString",
+      "description": "ID o nombre del iPad (usa `flutter devices` para verlo)",
+      "default": "iPad"
+    },
+    {
+      "id": "apiBaseUrl",
+      "type": "promptString",
+      "description": "URL de la API ya arrancada (ej: http://192.168.1.137:8000)",
+      "default": "http://127.0.0.1:8000"
     }
   ]
 }

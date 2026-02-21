@@ -69,6 +69,7 @@ const state = {
     detectedMidi: null,
     buttonActiveUntil: {},
     referenceNote: null,
+    inputDeviceId: "",
     tuningKey: "standard_e",
     raf: null,
   },
@@ -143,6 +144,7 @@ const UI_TEXTS = {
     tuner_no_permission: "Sin permiso",
     tuner_cents_suffix: "cents",
     label_tuner_tuning: "Afinación",
+    label_tuner_input: "Entrada",
     label_tuner_gain: "Ganancia de entrada",
     label_tuner_spectrum_range: "Rango del espectro",
     midi_off: "MIDI: Off",
@@ -223,6 +225,7 @@ const UI_TEXTS = {
     tuner_no_permission: "No permission",
     tuner_cents_suffix: "cents",
     label_tuner_tuning: "Tuning",
+    label_tuner_input: "Input",
     label_tuner_gain: "Input gain",
     label_tuner_spectrum_range: "Spectrum range",
     midi_off: "MIDI: Off",
@@ -512,6 +515,7 @@ function applyTranslations() {
   setText("labelTunerCents", "label_cents");
   setText("labelTunerFreq", "label_freq");
   setText("labelTunerTuning", "label_tuner_tuning");
+  setText("labelTunerInput", "label_tuner_input");
   setText("labelTunerGain", "label_tuner_gain");
   setText("labelTunerSpectrumRange", "label_tuner_spectrum_range");
   setText("instPianoBtn", "inst_piano");
@@ -575,6 +579,7 @@ function applyTranslations() {
     });
     tunerSel.value = TUNER_TUNINGS.some((t) => t.key === prev) ? prev : TUNER_TUNINGS[0].key;
   }
+  void refreshTunerInputs();
   syncLeftPanelHeader();
 }
 
@@ -1981,17 +1986,6 @@ function renderTunerSpectrumPanel() {
   ctx.fillRect(0, 0, width, height);
   drawRoundedRect(ctx, 10, 10, width - 20, height - 20, 10, "#0b1018", "#2f3743", 1.2);
 
-  const bins = state.tuner.freqData;
-  const audioCtx = state.tuner.audioCtx;
-  if (!bins || !audioCtx) {
-    ctx.fillStyle = "#8796ab";
-    ctx.font = "bold 16px Helvetica";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("-", width / 2, height / 2);
-    return;
-  }
-
   const x1 = 42;
   const y1 = 12;
   const x2 = width - 14;
@@ -2002,7 +1996,10 @@ function renderTunerSpectrumPanel() {
   const fminLog = Math.max(1, fmin);
   const logMin = Math.log10(fminLog);
   const logMax = Math.log10(fmax);
-  const nyq = (audioCtx.sampleRate || 44100) / 2;
+
+  const bins = state.tuner.freqData;
+  const audioCtx = state.tuner.audioCtx;
+  const nyq = (audioCtx?.sampleRate || 44100) / 2;
 
   drawRoundedRect(ctx, x1, y1, x2 - x1, y2 - y1, 0, "#10131a", "#465062", 1);
 
@@ -2055,19 +2052,27 @@ function renderTunerSpectrumPanel() {
     ctx.fillText(noteNameFromPc(midi % 12), x, labelY);
   }
 
-  let bar = 0;
-  const step = Math.max(1, Math.floor(bins.length / Math.max(80, Math.floor((x2 - x1) / 2))));
-  for (let i = 0; i < bins.length; i += step) {
-    const hz = (i / bins.length) * nyq;
-    if (hz < fmin || hz > fmax) continue;
-    const mag = bins[i] / 255;
-    const x = fx(hz);
-    const w = Math.max(1.3, ((x2 - x1) / 170));
-    const h = mag * (y2 - y1 - 6);
-    ctx.fillStyle = "#49b5ff";
-    ctx.fillRect(x, y2 - h, w, h);
-    bar += 1;
-    if (bar > 260) break;
+  if (bins && audioCtx) {
+    let bar = 0;
+    const step = Math.max(1, Math.floor(bins.length / Math.max(80, Math.floor((x2 - x1) / 2))));
+    for (let i = 0; i < bins.length; i += step) {
+      const hz = (i / bins.length) * nyq;
+      if (hz < fmin || hz > fmax) continue;
+      const mag = bins[i] / 255;
+      const x = fx(hz);
+      const w = Math.max(1.3, ((x2 - x1) / 170));
+      const h = mag * (y2 - y1 - 6);
+      ctx.fillStyle = "#49b5ff";
+      ctx.fillRect(x, y2 - h, w, h);
+      bar += 1;
+      if (bar > 260) break;
+    }
+  } else {
+    ctx.fillStyle = "#8796ab";
+    ctx.font = "bold 14px Helvetica";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("-", (x1 + x2) / 2, (y1 + y2) / 2);
   }
 
   ctx.fillStyle = "#a0a8b7";
@@ -3714,6 +3719,54 @@ function updateTunerGainValue() {
   if (out) out.textContent = `${Math.round(state.tuner.inputGain)}%`;
 }
 
+async function refreshTunerInputs() {
+  const select = el("tunerInput");
+  if (!select) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+    select.innerHTML = "";
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = tr("tuner_no_permission");
+    select.appendChild(opt);
+    select.disabled = true;
+    return;
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devices.filter((d) => d.kind === "audioinput");
+    const previous = state.tuner.inputDeviceId || select.value || "";
+    select.innerHTML = "";
+    if (!inputs.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = tr("tuner_no_permission");
+      select.appendChild(opt);
+      select.disabled = true;
+      state.tuner.inputDeviceId = "";
+      return;
+    }
+    inputs.forEach((d, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(d.deviceId || "");
+      opt.textContent = d.label || `${tr("label_tuner_input")} ${idx + 1}`;
+      select.appendChild(opt);
+    });
+    const resolved = inputs.some((d) => String(d.deviceId || "") === previous)
+      ? previous
+      : String(inputs[0].deviceId || "");
+    select.value = resolved;
+    state.tuner.inputDeviceId = resolved;
+    select.disabled = false;
+  } catch (_e) {
+    select.innerHTML = "";
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = tr("tuner_no_permission");
+    select.appendChild(opt);
+    select.disabled = true;
+  }
+}
+
 function clampTunerRange(minHz, maxHz) {
   let minVal = Math.max(0, Math.min(2990, Number(minHz) || 0));
   let maxVal = Math.max(10, Math.min(3000, Number(maxHz) || 500));
@@ -3798,7 +3851,17 @@ async function toggleTuner() {
     return;
   }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const requestedDevice = String(state.tuner.inputDeviceId || "").trim();
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(
+        requestedDevice
+          ? { audio: { deviceId: { exact: requestedDevice } } }
+          : { audio: true },
+      );
+    } catch (_deviceErr) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
     const audioCtx = new AudioContext();
     const src = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
@@ -3809,6 +3872,7 @@ async function toggleTuner() {
     state.tuner.audioCtx = audioCtx;
     state.tuner.analyser = analyser;
     state.tuner.freqData = new Uint8Array(analyser.frequencyBinCount);
+    await refreshTunerInputs();
     setTunerButtonState(true);
 
     const data = new Float32Array(analyser.fftSize);
@@ -4252,6 +4316,16 @@ function bindEvents() {
       if (state.mode === "tuner") renderStaff();
     });
   }
+  const tunerInput = el("tunerInput");
+  if (tunerInput) {
+    tunerInput.addEventListener("change", async (e) => {
+      state.tuner.inputDeviceId = String(e.target.value || "");
+      if (state.tuner.running) {
+        await toggleTuner();
+        await toggleTuner();
+      }
+    });
+  }
   const syncTunerGain = () => {
     state.tuner.inputGain = Math.max(0, Math.min(200, Number(el("tunerGain").value) || 100));
     el("tunerGain").value = String(state.tuner.inputGain);
@@ -4302,6 +4376,7 @@ async function main() {
   if (el("metroMotionDot")) updateMetronomeMotion();
   renderMetronomeTimerDisplay();
   await loadMeta();
+  await refreshTunerInputs();
   applyTranslations();
   await runGenerateChord();
   await runGenerateScale();

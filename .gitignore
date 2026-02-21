@@ -1,5 +1,49 @@
+# OS / filesystem
+.DS_Store
+Thumbs.db
+
+# Local app config / secrets
+config.json
+.env
+.env.*
+.certs/
+
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
-config.json
-.DS_Store
+*.pyo
+*.pyd
+*.py[cod]
+*.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs
+*.log
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Node / frontend tooling
+node_modules/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+**/android/.gradle/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/

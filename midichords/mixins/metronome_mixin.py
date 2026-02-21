@@ -7,6 +7,9 @@ from tkinter import ttk
 
 
 class MetronomeMixin:
+    def _metronome_volume_gain(self) -> float:
+        return max(0.0, min(1.0, float(self.metronome_volume) / 100.0))
+
     def _draw_scale_bpm_step_button(self, canvas: tk.Canvas, symbol: str) -> None:
         canvas.delete("all")
         w = max(2, int(canvas.winfo_width()))
@@ -90,6 +93,10 @@ class MetronomeMixin:
     def _refresh_metronome_ui(self) -> None:
         bpm = max(1, min(300, int(self.metronome_bpm)))
         self.metronome_bpm = bpm
+        self.metronome_volume = max(0, min(100, int(self.metronome_volume)))
+        self.metronome_volume_var.set(f"{self.metronome_volume}%")
+        if hasattr(self, "scale_metronome_volume_var"):
+            self.scale_metronome_volume_var.set(f"{self.metronome_volume}%")
         self.metronome_bpm_var.set(f"{bpm} {self.tr('scale_bpm_short')}")
         self.metronome_preset_var.set(self._metronome_preset_text(bpm, str(self.config_data.get("language", "es"))))
         self.metronome_meter_var.set(str(self.metronome_beats_per_bar))
@@ -98,6 +105,8 @@ class MetronomeMixin:
         self.metronome_timer_seconds_var.set(str(self.metronome_timer_seconds))
         self.metronome_bar_accent_var.set(self.metronome_bar_accent_enabled)
         self.metronome_play_btn.set_playing(self.metronome_running)
+        self._draw_metronome_volume_slider()
+        self._draw_scale_metronome_volume_slider()
         self._draw_metronome_bpm_slider()
         self._draw_metronome_meter_slider()
         self._refresh_metronome_figure_buttons()
@@ -154,6 +163,26 @@ class MetronomeMixin:
         x2 = w - 12
         canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
         ratio = (self.metronome_bpm - self.scale_bpm_min) / max(1, (self.scale_bpm_max - self.scale_bpm_min))
+        knob_x = x1 + ratio * (x2 - x1)
+        r = 10
+        canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
+    def _draw_metronome_volume_slider(self) -> None:
+        canvas = self.metronome_volume_slider_canvas
+        self._draw_volume_slider(canvas)
+    def _draw_scale_metronome_volume_slider(self) -> None:
+        if not hasattr(self, "scale_metronome_volume_slider"):
+            return
+        canvas = self.scale_metronome_volume_slider
+        self._draw_volume_slider(canvas)
+    def _draw_volume_slider(self, canvas: tk.Canvas) -> None:
+        canvas.delete("all")
+        w = max(120, int(canvas.winfo_width()))
+        h = max(24, int(canvas.winfo_height()))
+        y = h / 2
+        x1 = 12
+        x2 = w - 12
+        canvas.create_line(x1, y, x2, y, fill="#9aa6b2", width=4)
+        ratio = self.metronome_volume / 100.0
         knob_x = x1 + ratio * (x2 - x1)
         r = 10
         canvas.create_oval(knob_x - r, y - r, knob_x + r, y + r, fill="#ff533d", outline="")
@@ -218,6 +247,37 @@ class MetronomeMixin:
         if hasattr(self, "scale_bpm_slider"):
             self._draw_scale_bpm_slider()
         self._refresh_metronome_ui()
+    def _set_metronome_volume(self, value: int) -> None:
+        self.metronome_volume = max(0, min(100, int(value)))
+        self.config_data["metronome_volume"] = self.metronome_volume
+        self.save_config()
+        self._refresh_metronome_ui()
+    def _on_metronome_volume_minus(self, _event: tk.Event) -> str:
+        self._set_metronome_volume(self.metronome_volume - 1)
+        return "break"
+    def _on_metronome_volume_plus(self, _event: tk.Event) -> str:
+        self._set_metronome_volume(self.metronome_volume + 1)
+        return "break"
+    def _on_metronome_volume_slider_interact(self, event: tk.Event) -> str:
+        w = max(120, int(self.metronome_volume_slider_canvas.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        value = int(round(ratio * 100.0))
+        self._set_metronome_volume(value)
+        return "break"
+    def _on_scale_metronome_volume_slider_interact(self, event: tk.Event) -> str:
+        if not hasattr(self, "scale_metronome_volume_slider"):
+            return "break"
+        w = max(120, int(self.scale_metronome_volume_slider.winfo_width()))
+        x1 = 12
+        x2 = w - 12
+        x = min(max(float(event.x), x1), x2)
+        ratio = (x - x1) / max(1.0, (x2 - x1))
+        value = int(round(ratio * 100.0))
+        self._set_metronome_volume(value)
+        return "break"
     def _on_metronome_bpm_minus(self, _event: tk.Event) -> str:
         self._set_metronome_bpm(self.metronome_bpm - 1)
         return "break"
@@ -320,7 +380,11 @@ class MetronomeMixin:
 
         accent = self.metronome_current_subclick == 0
         bar_accent = accent and (self.metronome_current_beat == 0) and self.metronome_bar_accent_enabled
-        self.audio_engine.metronome_click(accent=accent, bar=bar_accent)
+        self.audio_engine.metronome_click(
+            accent=accent,
+            bar=bar_accent,
+            volume_scale=self._metronome_volume_gain(),
+        )
         self.redraw_staff()
 
         self.metronome_current_subclick = (self.metronome_current_subclick + 1) % max(1, self.metronome_clicks_per_beat)
@@ -347,7 +411,11 @@ class MetronomeMixin:
     def _play_metronome_click(self, accent: bool) -> None:
         if not self.scale_metronome_only:
             return
-        self.audio_engine.metronome_click(accent=accent, bar=False)
+        self.audio_engine.metronome_click(
+            accent=accent,
+            bar=False,
+            volume_scale=self._metronome_volume_gain(),
+        )
     def _draw_metronome_panel(self, canvas: tk.Canvas) -> None:
         w = max(300, canvas.winfo_width())
         h = max(220, canvas.winfo_height())

@@ -43,6 +43,7 @@ const state = {
   metronomeTimerSeconds: 0,
   metronomeTimerRemaining: 120,
   metronomeTimerLastTs: 0,
+  metronomeVolume: 100,
   currentBeat: -1,
   currentSubclick: 0,
   metronomeTickCount: 0,
@@ -126,6 +127,7 @@ const UI_TEXTS = {
     label_freq: "Frecuencia:",
     label_bpm: "PPM",
     label_metronome_tempo: "Tempo",
+    label_metronome_volume: "Volumen",
     label_beats: "Pulsos por compás",
     label_subdivision: "Subdivisión",
     label_bar_accent: "Acento de compás",
@@ -205,6 +207,7 @@ const UI_TEXTS = {
     label_freq: "Frequency:",
     label_bpm: "BPM",
     label_metronome_tempo: "Tempo",
+    label_metronome_volume: "Volume",
     label_beats: "Beats per bar",
     label_subdivision: "Subdivision",
     label_bar_accent: "Bar accent",
@@ -353,6 +356,35 @@ function refreshMetronomeTempoInfo() {
   if (presetNode) presetNode.textContent = metronomePresetText(bpm);
 }
 
+function refreshMetronomeVolumeInfo() {
+  const mainSlider = el("metroVolume");
+  const scaleSlider = el("scaleMetroVolume");
+  const active = document.activeElement;
+  const preferredValue = active === scaleSlider
+    ? Number(scaleSlider?.value)
+    : (active === mainSlider ? Number(mainSlider?.value) : Number(mainSlider?.value) || Number(scaleSlider?.value));
+  const vol = Math.max(
+    0,
+    Math.min(
+      100,
+      preferredValue || Number(state.metronomeVolume) || 100,
+    ),
+  );
+  state.metronomeVolume = vol;
+  if (mainSlider && Number(mainSlider.value) !== vol) mainSlider.value = String(vol);
+  if (scaleSlider && Number(scaleSlider.value) !== vol) scaleSlider.value = String(vol);
+  const text = `${Math.round(vol)}%`;
+  const node = el("metroVolumeValue");
+  if (node) node.textContent = text;
+  const scaleNode = el("scaleMetroVolumeValue");
+  if (scaleNode) scaleNode.textContent = text;
+}
+
+function metronomeVolumeGain() {
+  const vol = Math.max(0, Math.min(100, Number(state.metronomeVolume) || 100));
+  return vol / 100;
+}
+
 function tr(key) {
   const lang = UI_TEXTS[state.language] || UI_TEXTS.es;
   return lang[key] || UI_TEXTS.es[key] || key;
@@ -367,10 +399,13 @@ function midiButtonTooltipForState(status = null) {
 }
 
 function refreshMidiInputSoundToggleButton() {
-  const btn = el("detectMidiSoundToggle");
-  if (!btn) return;
-  btn.textContent = state.midiInputSoundEnabled ? tr("midi_input_sound_on") : tr("midi_input_sound_off");
-  btn.classList.toggle("active", !!state.midiInputSoundEnabled);
+  const label = state.midiInputSoundEnabled ? tr("midi_input_sound_on") : tr("midi_input_sound_off");
+  ["detectMidiSoundToggle", "metroMidiSoundToggle"].forEach((id) => {
+    const btn = el(id);
+    if (!btn) return;
+    btn.textContent = label;
+    btn.classList.toggle("active", !!state.midiInputSoundEnabled);
+  });
 }
 
 function refreshMidiToggleButtonState() {
@@ -461,11 +496,13 @@ function applyTranslations() {
   setText("labelGenIntervals", "label_intervals");
   setText("labelScaleRoot", "label_tonic");
   setText("labelScaleType", "label_type");
+  setText("labelScaleMetronomeVolume", "label_metronome_volume");
   setText("labelScaleBpm", "label_speed");
   setText("labelScaleName", "label_scale");
   setText("labelScaleNotes", "label_notes");
   setText("labelScaleIntervals", "label_intervals");
   setText("labelMetronomeBpm", "label_metronome_tempo");
+  setText("labelMetronomeVolume", "label_metronome_volume");
   setText("labelMetronomeBeats", "label_beats");
   setText("labelMetronomeSubdivision", "label_subdivision");
   setText("labelMetronomeBarAccent", "label_bar_accent");
@@ -521,6 +558,7 @@ function applyTranslations() {
     el("scaleBpmValue").textContent = `${el("scaleBpm").value} ${tempoUnitLabel()}`;
   }
   refreshMetronomeTempoInfo();
+  refreshMetronomeVolumeInfo();
   updateInversionMax();
   setScalePlayButtonState(!!state.scaleLoop.active);
   setMetronomeToggleButtonState(!!state.metronomeRunning);
@@ -565,6 +603,8 @@ function syncLeftPanelHeader() {
 function renderScaleModeButtons() {
   const metroBtn = el("scaleModeMetronome");
   if (metroBtn) metroBtn.classList.toggle("active", !!state.scaleMetronomeEnabled);
+  const metroVolWrap = el("scaleMetronomeVolumeWrap");
+  if (metroVolWrap) metroVolWrap.classList.toggle("hidden", !state.scaleMetronomeEnabled);
 }
 
 function setScalePlayMode(mode) {
@@ -2742,7 +2782,8 @@ function beep(freq = 1000, durationMs = 70, gain = 0.1) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
   const dur = Math.max(0.02, Number(durationMs || 70) / 1000);
-  const amp = Math.max(0.005, Number(gain) || 0.1);
+  const amp = Math.max(0, Number(gain) || 0.1);
+  if (amp <= 0) return;
   const isAccent = freq >= 1500;
 
   const noise = ctx.createBufferSource();
@@ -3417,7 +3458,7 @@ function stepScaleLoop() {
   state.scaleCurrentNote = note;
   state.scaleInputRawNote = null;
   if (state.scaleMetronomeEnabled) {
-    beep((idx === 0 && state.scaleLoop.direction > 0) ? 1600 : 1050, 55, 0.09);
+    beep((idx === 0 && state.scaleLoop.direction > 0) ? 1600 : 1050, 55, 0.09 * metronomeVolumeGain());
   } else {
     const scaleInstrument = getScalePlaybackInstrument();
     const stepSeconds = Math.max(0.08, scaleStepMs() / 1000);
@@ -3562,7 +3603,11 @@ function metronomeTick() {
 
   const accent = state.currentSubclick === 0;
   const barAccent = accent && state.currentBeat === 0 && state.metronomeBarAccentEnabled;
-  beep(barAccent ? 1700 : (accent ? 1300 : 950), 55, barAccent ? 0.12 : 0.09);
+  beep(
+    barAccent ? 1700 : (accent ? 1300 : 950),
+    55,
+    (barAccent ? 0.12 : 0.09) * metronomeVolumeGain(),
+  );
 
   renderMetronomeDots();
   updateMetronomeMotion();
@@ -3579,6 +3624,10 @@ function syncMetronomeInputsToState() {
   state.metronomeTimerEnabled = !!el("metroTimerEnabled").checked;
   state.metronomeTimerMinutes = Math.max(0, Math.min(99, Number(el("metroTimerMinutes").value) || 0));
   state.metronomeTimerSeconds = Math.max(0, Math.min(59, Number(el("metroTimerSeconds").value) || 0));
+  state.metronomeVolume = Math.max(
+    0,
+    Math.min(100, Number(el("metroVolume")?.value) || Number(el("scaleMetroVolume")?.value) || 100),
+  );
 }
 
 function toggleMetronome() {
@@ -3820,8 +3869,13 @@ function handleMidiMessage(event) {
   }
 
   if (state.mode === "metronome") {
-    if (isNoteOn) state.activeMidiLiveNotes.add(note);
-    else state.activeMidiLiveNotes.delete(note);
+    if (isNoteOn) {
+      state.activeMidiLiveNotes.add(note);
+      if (state.midiInputSoundEnabled) startHeldMidiInputNote(note, "piano");
+    } else {
+      state.activeMidiLiveNotes.delete(note);
+      stopHeldMidiInputNote(note);
+    }
     renderInstrument();
   }
 }
@@ -4009,19 +4063,20 @@ function bindEvents() {
     runDetection();
   });
   const detectMidiSoundToggle = el("detectMidiSoundToggle");
-  if (detectMidiSoundToggle) {
-    detectMidiSoundToggle.addEventListener("click", async () => {
-      state.midiInputSoundEnabled = !state.midiInputSoundEnabled;
-      if (state.midiInputSoundEnabled) {
-        try {
-          const ctx = ensureAudioCtx();
-          if (ctx.state !== "running") await ctx.resume();
-        } catch (_e) {}
-      }
-      if (!state.midiInputSoundEnabled) stopAllHeldMidiInputNotes();
-      refreshMidiInputSoundToggleButton();
-    });
-  }
+  const toggleMidiInputSound = async () => {
+    state.midiInputSoundEnabled = !state.midiInputSoundEnabled;
+    if (state.midiInputSoundEnabled) {
+      try {
+        const ctx = ensureAudioCtx();
+        if (ctx.state !== "running") await ctx.resume();
+      } catch (_e) {}
+    }
+    if (!state.midiInputSoundEnabled) stopAllHeldMidiInputNotes();
+    refreshMidiInputSoundToggleButton();
+  };
+  if (detectMidiSoundToggle) detectMidiSoundToggle.addEventListener("click", toggleMidiInputSound);
+  const metroMidiSoundToggle = el("metroMidiSoundToggle");
+  if (metroMidiSoundToggle) metroMidiSoundToggle.addEventListener("click", toggleMidiInputSound);
 
   bindImmediatePress(el("detectPlay"), () => {
     playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b), { instrument: "piano" });
@@ -4118,6 +4173,15 @@ function bindEvents() {
       el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;
     }
   });
+  el("metroVolume").addEventListener("input", () => {
+    refreshMetronomeVolumeInfo();
+  });
+  const scaleMetroVolume = el("scaleMetroVolume");
+  if (scaleMetroVolume) {
+    scaleMetroVolume.addEventListener("input", () => {
+      refreshMetronomeVolumeInfo();
+    });
+  }
 
   el("metroBpmMinus").addEventListener("click", () => {
     const bpm = Math.max(1, Math.min(300, Number(el("bpm").value) || 120) - 1);

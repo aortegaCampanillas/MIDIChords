@@ -114,6 +114,7 @@ class ScalesMixin:
             self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
     def _refresh_scale_transport_styles(self) -> None:
+        self._refresh_scale_metronome_volume_visibility()
         if self.scale_transport_buttons_are_images:
             panel_bg = self.cget("background")
             selected_hl = "#f3bf2f"
@@ -149,6 +150,13 @@ class ScalesMixin:
         self.scale_mode_piano_btn.set_selected(self.scale_play_mode == "piano")
         self.scale_mode_guitar_btn.set_selected(self.scale_play_mode == "guitar")
         self.scale_mode_metronome_btn.set_selected(self.scale_metronome_only)
+    def _refresh_scale_metronome_volume_visibility(self) -> None:
+        if not hasattr(self, "scale_metronome_volume_frame"):
+            return
+        if self.scale_metronome_only:
+            self.scale_metronome_volume_frame.grid(row=0, column=2, sticky="ew", padx=(8, 0))
+        else:
+            self.scale_metronome_volume_frame.grid_remove()
     def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
         if not self.scale_transport_buttons_are_images:
             return

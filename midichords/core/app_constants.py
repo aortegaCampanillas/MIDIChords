@@ -63,6 +63,7 @@ DEFAULT_CONFIG = {
     "guitar_sound_preset": "steel_clean",
     "show_keyboard_note_labels": False,
     "metronome_bpm": 120,
+    "metronome_volume": 100,
     "metronome_beats_per_bar": 4,
     "metronome_clicks_per_beat": 1,
     "metronome_timer_enabled": False,

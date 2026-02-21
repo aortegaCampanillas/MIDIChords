@@ -195,8 +195,11 @@ class PianoAudioEngine:
                 if sample_voice.note == note:
                     sample_voice.decay = min(sample_voice.decay, 0.9993)
 
-    def metronome_click(self, accent: bool = False, bar: bool = False) -> None:
+    def metronome_click(self, accent: bool = False, bar: bool = False, volume_scale: float = 1.0) -> None:
         with self.lock:
+            level_gain = max(0.0, min(1.0, float(volume_scale)))
+            if level_gain <= 0.0:
+                return
             level = 2 if bar else (1 if accent else 0)
             if self.metronome_sample is not None and len(self.metronome_sample) > 0:
                 if level >= 2 and self.metronome_sample_bar is not None:
@@ -213,12 +216,12 @@ class PianoAudioEngine:
                         accent_level=level,
                         sample=sample,
                         sample_pos=0,
-                        sample_gain=gain,
+                        sample_gain=gain * level_gain,
                         age_samples=0,
                     )
                 )
             else:
-                self.click_voices.append(ClickVoice(accent_level=level, age_samples=0))
+                self.click_voices.append(ClickVoice(accent_level=level, sample_gain=level_gain, age_samples=0))
 
     def pluck_guitar_note(self, note: int, velocity: int = 100, duration_seconds: float = 1.6) -> None:
         if self.guitar_preset == "nylon_sample" and self.guitar_sample_map:
@@ -588,7 +591,7 @@ class PianoAudioEngine:
                         np.sin(2.0 * math.pi * freq * age) +
                         0.35 * np.sin(2.0 * math.pi * (freq * 2.3) * age)
                     )
-                    signal += (gain * burst).astype(np.float32)
+                    signal += (gain * click.sample_gain * burst).astype(np.float32)
 
                     click.age_samples += frames
                     if (click.age_samples / self.sample_rate) < 0.06:

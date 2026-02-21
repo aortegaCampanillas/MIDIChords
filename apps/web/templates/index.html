@@ -50,7 +50,7 @@
                 <div class="controls-inline">
                   <button id="detectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
                   <button id="detectClear">Limpiar</button>
-                  <button id="detectMidiSoundToggle">Reproducir entrada MIDI</button>
+                  <button id="detectMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="result-block">
                   <div><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
@@ -94,9 +94,14 @@
                   <label id="labelScaleType" for="scaleType">Tipo</label>
                   <select id="scaleType"></select>
                 </div>
-                <div class="controls-inline">
+                <div class="controls-inline scale-controls-inline">
                   <button id="scalePlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
                   <button id="scaleModeMetronome" class="icon-play-btn scale-mode-btn" type="button" aria-label="Modo metrónomo" title="Modo metrónomo">⏱</button>
+                  <div id="scaleMetronomeVolumeWrap" class="scale-metronome-volume hidden">
+                    <label id="labelScaleMetronomeVolume" for="scaleMetroVolume">Volumen</label>
+                    <input id="scaleMetroVolume" type="range" min="0" max="100" value="100" />
+                    <span id="scaleMetroVolumeValue">100%</span>
+                  </div>
                 </div>
                 <div class="row">
                   <label id="labelScaleBpm" for="scaleBpm">Velocidad</label>
@@ -112,6 +117,17 @@
 
               <section id="panelMetronome" class="mode-panel hidden">
                 <h3 id="headingMetronome">Configuración de Metrónomo</h3>
+                <div class="controls-inline">
+                  <button id="metroToggle" class="icon-play-btn" aria-label="Iniciar metrónomo" title="Iniciar metrónomo">▶</button>
+                  <button id="metroMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
+                </div>
+                <div class="row metronome-volume-row">
+                  <label id="labelMetronomeVolume" for="metroVolume">Volumen</label>
+                  <span></span>
+                  <input id="metroVolume" type="range" min="0" max="100" value="100" />
+                  <span id="metroVolumeValue">100%</span>
+                  <span></span>
+                </div>
                 <div class="row">
                   <label id="labelMetronomeBpm" for="bpm">BPM</label>
                   <button id="metroBpmMinus" type="button">−</button>
@@ -163,9 +179,6 @@
                   <span>:</span>
                   <input id="metroTimerSeconds" type="number" min="0" max="59" value="0" />
                   <span id="metroTimerDisplay">00:00</span>
-                </div>
-                <div class="controls-inline">
-                  <button id="metroToggle" class="icon-play-btn" aria-label="Iniciar metrónomo" title="Iniciar metrónomo">▶</button>
                 </div>
               </section>
 

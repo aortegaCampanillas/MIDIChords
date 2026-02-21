@@ -154,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _scaleGuitarStartNote;
   final Set<int> _detectionSelectedNotes = <int>{};
   int _metroBpm = 120;
+  int _metroVolume = 100;
   int _metroBeatsPerBar = 4;
   int _metroClicksPerBeat = 1;
   bool _metroBarAccent = true;
@@ -710,9 +711,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required String instrument,
     double durationSeconds = 0.6,
     bool lowVolume = false,
+    double volumeScale = 1.0,
   }) async {
+    final gain = volumeScale.clamp(0.0, 1.0);
+    if (gain <= 0.0) {
+      return null;
+    }
     if (!_audioPlaybackAvailable) {
-      SystemSound.play(SystemSoundType.click);
+      if (gain > 0.02) {
+        SystemSound.play(SystemSoundType.click);
+      }
       return null;
     }
     final player = AudioPlayer();
@@ -725,6 +733,7 @@ class _HomeScreenState extends State<HomeScreen> {
         seconds: seconds,
         instrument: instrument,
       );
+      final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
       if (Platform.isIOS) {
         final key =
             '${_safeMidi(midi)}|$instrument|${(seconds * 1000).round()}';
@@ -738,14 +747,11 @@ class _HomeScreenState extends State<HomeScreen> {
           filePath = file.path;
           _toneFileCache[key] = filePath;
         }
-        await player.play(
-          DeviceFileSource(filePath),
-          volume: lowVolume ? 0.68 : 1.0,
-        );
+        await player.play(DeviceFileSource(filePath), volume: targetVolume);
       } else {
         await player.play(
           BytesSource(wavBytes, mimeType: 'audio/wav'),
-          volume: lowVolume ? 0.68 : 1.0,
+          volume: targetVolume,
         );
       }
       return player;
@@ -1101,6 +1107,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return math.max(60, (60000 / bpm).floor());
   }
 
+  double _metronomeVolumeGain() => (_metroVolume.clamp(0, 100)) / 100.0;
+
   void _stopScaleLoop() {
     _scaleLoopTimer?.cancel();
     _scaleLoopTimer = null;
@@ -1126,7 +1134,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _scaleCurrentNote = note;
     _scaleInputRawNote = null;
     if (_scaleMetronomeOnly) {
-      SystemSound.play(SystemSoundType.click);
+      final accent = idx == 0 && _scaleLoopDirection > 0;
+      final clickMidi = accent ? 96 : 86;
+      unawaited(
+        _playTone(
+          midi: clickMidi,
+          instrument: 'piano',
+          durationSeconds: 0.12,
+          volumeScale: _metronomeVolumeGain(),
+        ),
+      );
       HapticFeedback.selectionClick();
     } else {
       unawaited(
@@ -1279,11 +1296,19 @@ class _HomeScreenState extends State<HomeScreen> {
       _metroMotionStartAt = DateTime.now();
       final nextBeat = (_metroCurrentBeat + 1) % _metroBeatsPerBar;
       _metroCurrentBeat = nextBeat;
-      if (_metroBarAccent && nextBeat == 0) {
-        SystemSound.play(SystemSoundType.click);
+      final isBarAccent = _metroBarAccent && nextBeat == 0;
+      final clickMidi = isBarAccent ? 98 : 88;
+      unawaited(
+        _playTone(
+          midi: clickMidi,
+          instrument: 'piano',
+          durationSeconds: 0.12,
+          volumeScale: _metronomeVolumeGain(),
+        ),
+      );
+      if (isBarAccent) {
         HapticFeedback.mediumImpact();
       } else {
-        SystemSound.play(SystemSoundType.click);
         HapticFeedback.selectionClick();
       }
     } else {
@@ -2622,6 +2647,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+                if (_scaleMetronomeOnly) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 74,
+                        child: Text('Volumen', style: TextStyle(color: _muted)),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          min: 0,
+                          max: 100,
+                          divisions: 100,
+                          value: _metroVolume.toDouble(),
+                          onChanged: (value) {
+                            setState(() => _metroVolume = value.round());
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 64, child: Text('$_metroVolume%')),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: <Widget>[
@@ -2665,6 +2713,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Text(
                   'Configuración de Metrónomo',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Volumen',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: _muted),
+                ),
+                Row(
+                  children: <Widget>[
+                    const SizedBox(width: 52),
+                    Expanded(
+                      child: Slider(
+                        min: 0,
+                        max: 100,
+                        divisions: 100,
+                        value: _metroVolume.toDouble(),
+                        onChanged: (value) {
+                          setState(() => _metroVolume = value.round());
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 56, child: Text('$_metroVolume%')),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 const Text(

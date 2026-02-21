@@ -119,6 +119,8 @@ class RenderMixin:
             if self.scale_loop_active and self.scale_current_note is not None:
                 notes.add(self.scale_current_note)
             return notes
+        if self.metronome_tab_active:
+            return set(self.active_notes)
         return self._current_detection_notes()
 
     @staticmethod

@@ -178,7 +178,8 @@ button:disabled {
   border-color: #ffd060;
 }
 
-#detectMidiSoundToggle.active {
+#detectMidiSoundToggle.active,
+#metroMidiSoundToggle.active {
   background-color: #ffd060 !important;
   color: #0f1b28 !important;
   border-color: #ffd060 !important;
@@ -468,6 +469,34 @@ button:disabled {
   border-color: #ffd060;
 }
 
+.scale-controls-inline {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.scale-metronome-volume {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#scaleMetroVolume {
+  width: 100%;
+  padding: 0;
+}
+
+#scaleMetroVolumeValue {
+  color: #ff9f1a;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 72px;
+  text-align: right;
+}
+
 .row {
   display: flex;
   align-items: center;
@@ -517,6 +546,14 @@ button:disabled {
   color: #ffb17a;
   font-size: 13px;
   font-weight: 700;
+}
+
+#metroVolumeValue {
+  color: #ff9f1a;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 52px;
+  text-align: right;
 }
 
 .metro-meter-meta {

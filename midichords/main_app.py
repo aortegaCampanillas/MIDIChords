@@ -188,6 +188,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
         self.guitar_chord_cache = load_guitar_chord_cache()
         self.metronome_bpm = max(1, min(300, int(self.config_data.get("metronome_bpm", 120))))
+        self.metronome_volume = max(0, min(100, int(self.config_data.get("metronome_volume", 100))))
         self.metronome_beats_per_bar = max(1, min(16, int(self.config_data.get("metronome_beats_per_bar", 4))))
         self.metronome_clicks_per_beat = max(1, min(16, int(self.config_data.get("metronome_clicks_per_beat", 1))))
         self.metronome_timer_enabled = bool(self.config_data.get("metronome_timer_enabled", False))

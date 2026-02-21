@@ -150,6 +150,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _scaleLoopDirection = 1;
   Timer? _scaleLoopTimer;
   int? _scaleCurrentNote;
+  int? _scaleInputRawNote;
+  int? _scaleGuitarStartNote;
   final Set<int> _detectionSelectedNotes = <int>{};
   int _metroBpm = 120;
   int _metroBeatsPerBar = 4;
@@ -536,9 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return _activeDetectionNotes;
     }
     if (_tabIndex == 1 && _generatedChordJson != null) {
-      final rh = _extractMidiList(_generatedChordJson!, <String>[
-        'notes_midi',
-      ]);
+      final rh = _extractMidiList(_generatedChordJson!, <String>['notes_midi']);
       if (_instrumentView == 'guitar') {
         return rh.toSet();
       }
@@ -546,11 +546,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return <int>{...rh, ...lh};
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
-      final rh = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
-      if (_instrumentView == 'guitar') {
-        return rh.toSet();
-      }
-      final lh = rh.map((n) => n - 12).where((n) => n >= 0);
+      final rh = _scaleRhNotes();
+      final lh = _scaleLhNotes(rh);
       return <int>{...rh, ...lh};
     }
     return <int>{};
@@ -589,33 +586,54 @@ class _HomeScreenState extends State<HomeScreen> {
       ]).toSet();
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
-      final rh = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+      final rh = _scaleRhNotes();
+      final lh = _scaleLhNotes(rh);
       final notes = <int>{...rh};
-      if (_instrumentView == 'piano') {
-        notes.addAll(rh.map((n) => n - 12).where((n) => n >= 0));
-      }
-      if (_scaleCurrentNote != null && _instrumentView == 'piano') {
+      notes.addAll(lh);
+      if (_scaleCurrentNote != null) {
         notes.add(_scaleCurrentNote!);
+      }
+      if (_instrumentView == 'piano' && _scaleInputRawNote != null) {
+        notes.add(_scaleInputRawNote!);
       }
       return notes;
     }
     return <int>{};
   }
 
-  List<int> _scaleRhNotes() {
+  List<int> _scaleBaseNotes() {
     if (_generatedScaleJson == null) return <int>[];
-    return _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+    final base = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+    if (base.isEmpty) return <int>[];
+    if (_tabIndex != 2 ||
+        _instrumentView != 'guitar' ||
+        _scaleGuitarStartNote == null) {
+      return base;
+    }
+    final start = _scaleGuitarStartNote!;
+    final first = base.first;
+    if ((start % 12) != (first % 12)) {
+      return base;
+    }
+    final delta = start - first;
+    return base.map((n) => n + delta).toList();
   }
 
-  List<int> _scaleLhNotes(List<int> rh) =>
-      rh.map((n) => n - 12).where((n) => n >= 0).toList();
+  List<int> _scaleRhNotes() {
+    return _scaleBaseNotes();
+  }
 
-  int? _scaleStaffNoteForPitch(int note) {
+  List<int> _scaleLhNotes(List<int> rh) => rh
+      .map((n) => n - 12)
+      .where((n) => n >= 0 && (rh.isEmpty || n < rh.first))
+      .toList();
+
+  int? _scaleStaffNoteForPitch(int note, {bool includeBass = true}) {
     if (_generatedScaleJson == null) return null;
     final target = note;
     final rh = _scaleRhNotes();
-    final lh = _instrumentView == 'piano' ? _scaleLhNotes(rh) : <int>[];
-    final candidates = <int>[...rh, ...lh];
+    final lh = includeBass ? _scaleLhNotes(rh) : <int>[];
+    final candidates = includeBass ? <int>[...rh, ...lh] : <int>[...rh];
     if (candidates.contains(target)) return target;
     final pc = ((target % 12) + 12) % 12;
     final samePc = candidates.where((n) => ((n % 12) + 12) % 12 == pc).toList();
@@ -822,15 +840,32 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
-      final scaleNotes = _extractMidiList(_generatedScaleJson!, <String>[
-        'notes_midi',
-      ]);
+      final scaleNotes = _scaleRhNotes();
+      if (pressed &&
+          _instrumentView == 'guitar' &&
+          _isShiftPressed() &&
+          scaleNotes.isNotEmpty) {
+        final tonicPc = scaleNotes.first % 12;
+        if ((midi % 12) == tonicPc) {
+          setState(() {
+            _scaleGuitarStartNote = midi;
+            _scaleCurrentNote = null;
+            _scaleInputRawNote = null;
+          });
+          if (_scaleLoopRunning) {
+            _stopScaleLoop();
+          }
+          return;
+        }
+      }
       final allowed = scaleNotes.map((n) => n % 12).toSet().contains(midi % 12);
       if (!allowed) {
         _showForbiddenOnPiano(midi);
         return;
       }
-      _scaleCurrentNote = _scaleStaffNoteForPitch(midi) ?? midi;
+      _scaleCurrentNote =
+          _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+      _scaleInputRawNote = _instrumentView == 'piano' ? midi : null;
       setState(() {});
       if (pressed) {
         await _startHeldInputNote(
@@ -888,6 +923,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _dragCurrentNote = null;
     _dragLastGlobalPos = null;
     _stopHeldInputs();
+    if (_tabIndex == 2 && _scaleInputRawNote != null) {
+      setState(() => _scaleInputRawNote = null);
+    }
   }
 
   void _stopHeldChord() {
@@ -1042,6 +1080,9 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       _generatedScaleJson = json;
       final scaleMidi = _extractMidiList(json, <String>['notes_midi']);
+      _scaleGuitarStartNote = scaleMidi.isNotEmpty ? scaleMidi.first : null;
+      _scaleInputRawNote = null;
+      _scaleCurrentNote = null;
       _scaleOutputController.text =
           'Escala: ${json['pattern_localized_name'] ?? json['pattern_name']}\n'
           'Notas: ${(json['notes'] as List<dynamic>? ?? <dynamic>[]).join(' - ')}\n'
@@ -1065,6 +1106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scaleLoopTimer = null;
     _scaleLoopRunning = false;
     _scaleCurrentNote = null;
+    _scaleInputRawNote = null;
     if (mounted) {
       setState(() {});
     }
@@ -1074,9 +1116,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_scaleLoopRunning) {
       return;
     }
-    final notes = _generatedScaleJson == null
-        ? <int>[]
-        : _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+    final notes = _scaleRhNotes();
     if (notes.isEmpty) {
       _stopScaleLoop();
       return;
@@ -1084,6 +1124,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final idx = _scaleLoopIndex.clamp(0, notes.length - 1);
     final note = notes[idx];
     _scaleCurrentNote = note;
+    _scaleInputRawNote = null;
     if (_scaleMetronomeOnly) {
       SystemSound.play(SystemSoundType.click);
       HapticFeedback.selectionClick();
@@ -1124,17 +1165,44 @@ class _HomeScreenState extends State<HomeScreen> {
       _stopScaleLoop();
       return;
     }
-    final notes = _generatedScaleJson == null
-        ? <int>[]
-        : _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
+    final notes = _scaleRhNotes();
     if (notes.isEmpty) return;
     _scaleLoopRunning = true;
     _scaleLoopIndex = 0;
     _scaleLoopDirection = 1;
+    _scaleInputRawNote = null;
     _stepScaleLoop();
   }
 
+  Map<int, String> _scalePcNameMap() {
+    if (_generatedScaleJson == null) return const <int, String>{};
+    final rawNotes =
+        (_generatedScaleJson!['notes'] as List<dynamic>? ?? <dynamic>[])
+            .map((n) => n.toString())
+            .toList();
+    final midi = _scaleRhNotes();
+    if (rawNotes.isEmpty || midi.isEmpty) return const <int, String>{};
+    final count = math.min(rawNotes.length, midi.length);
+    final out = <int, String>{};
+    for (int i = 0; i < count; i += 1) {
+      final label = rawNotes[i]
+          .replaceAll(RegExp(r'-?\d+'), '')
+          .replaceAll(' ', '')
+          .trim();
+      if (label.isEmpty) continue;
+      out[midi[i] % 12] = label;
+    }
+    return out;
+  }
+
   String _pcLabel(int pc) {
+    if (_tabIndex == 2) {
+      final byScale = _scalePcNameMap();
+      final scaleLabel = byScale[pc % 12];
+      if (scaleLabel != null && scaleLabel.isNotEmpty) {
+        return scaleLabel;
+      }
+    }
     const labelsSharpEs = <String>[
       'Do',
       'Do#',
@@ -1773,14 +1841,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   painter: _MiniStaffPainter(
                     notes: notes.toList()..sort(),
                     extras: extras,
-                    generationRhNotes: (_tabIndex == 1 && _generatedChordJson != null)
-                        ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
+                    generationRhNotes:
+                        (_tabIndex == 1 && _generatedChordJson != null)
+                        ? _extractMidiList(_generatedChordJson!, <String>[
+                            'notes_midi',
+                          ])
                         : const <int>[],
-                    generationLhNotes: (_tabIndex == 1 && _instrumentView == 'piano' && _generatedChordJson != null)
-                        ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
-                            .map((n) => n - 12)
-                            .where((n) => n >= 0)
-                            .toList()
+                    generationLhNotes:
+                        (_tabIndex == 1 &&
+                            _instrumentView == 'piano' &&
+                            _generatedChordJson != null)
+                        ? _extractMidiList(_generatedChordJson!, <String>[
+                            'notes_midi',
+                          ]).map((n) => n - 12).where((n) => n >= 0).toList()
                         : const <int>[],
                     generationPlayingNotes: _tabIndex == 1
                         ? _generationPlayingNotesForStaff()
@@ -3206,7 +3279,7 @@ class _MiniStaffPainter extends CustomPainter {
       final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
       for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
         final x = left + 110 + (degree * 32.0);
-        if (!scaleGuitarMode && degree < pairCount) {
+        if (degree < pairCount) {
           final bassMidi = scaleLhNotes[degree];
           final yBass = _midiToBassY(bassMidi.toDouble(), bassTop, gap);
           final currentBass =
@@ -3249,16 +3322,21 @@ class _MiniStaffPainter extends CustomPainter {
         var col = 0;
         while (true) {
           final ys = placedCols[col] ?? const <double>[];
-          final overlaps = ys.any((prevY) => (y - prevY).abs() < overlapThreshold);
+          final overlaps = ys.any(
+            (prevY) => (y - prevY).abs() < overlapThreshold,
+          );
           if (!overlaps) break;
           col += 1;
         }
         final x = left + 110 + (col * noteW * 1.8);
-        final ys = List<double>.from(placedCols[col] ?? const <double>[])..add(y);
+        final ys = List<double>.from(placedCols[col] ?? const <double>[])
+          ..add(y);
         placedCols[col] = ys;
         Color? fillColor;
         if (generationPlayingNotes.contains(midi)) {
-          if (!generationGuitarMode && lhSet.contains(midi) && !rhSet.contains(midi)) {
+          if (!generationGuitarMode &&
+              lhSet.contains(midi) &&
+              !rhSet.contains(midi)) {
             fillColor = const Color(0xFFFF8A2B);
             noteOutline.color = const Color(0xFFFFD2A7);
           } else {
@@ -3311,9 +3389,16 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.notes.length != notes.length) return true;
     if (oldDelegate.extras.length != extras.length) return true;
-    if (oldDelegate.generationRhNotes.length != generationRhNotes.length) return true;
-    if (oldDelegate.generationLhNotes.length != generationLhNotes.length) return true;
-    if (oldDelegate.generationPlayingNotes.length != generationPlayingNotes.length) return true;
+    if (oldDelegate.generationRhNotes.length != generationRhNotes.length) {
+      return true;
+    }
+    if (oldDelegate.generationLhNotes.length != generationLhNotes.length) {
+      return true;
+    }
+    if (oldDelegate.generationPlayingNotes.length !=
+        generationPlayingNotes.length) {
+      return true;
+    }
     if (oldDelegate.generationGuitarMode != generationGuitarMode) return true;
     if (oldDelegate.scaleRhNotes.length != scaleRhNotes.length) return true;
     if (oldDelegate.scaleLhNotes.length != scaleLhNotes.length) return true;

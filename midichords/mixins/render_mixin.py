@@ -417,8 +417,9 @@ class RenderMixin:
         self.white_key_regions = []
         self.black_key_regions = []
         display_active_notes = self._instrument_display_notes()
-        if self.generation_tab_active and self.instrument_view == "piano" and self.generated_playing_notes:
-            display_active_notes = set(self.generated_playing_notes)
+        if self.generation_tab_active and self.instrument_view == "piano":
+            # Keep the generated right-hand chord visible while any key is pressed.
+            display_active_notes = set(self.generated_preview_notes) | set(self.generated_playing_notes)
         generated_sorted = sorted(self.generated_preview_notes) if self.generation_tab_active else []
         if self.scale_tab_active:
             name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
@@ -453,14 +454,28 @@ class RenderMixin:
 
         low_note, high_note = 21, 108
         notes = list(range(low_note, high_note + 1))
+        generation_rh_display_notes: set[int] = set()
         generation_lh_display_notes: set[int] = set()
+        generation_active_rh_notes: set[int] = set()
+        generation_active_lh_notes: set[int] = set()
         if self.generation_tab_active and self.instrument_view == "piano":
+            generation_rh_display_notes = {int(n) for n in set(self.generated_preview_notes)}
             # Mano izquierda del acorde (una octava abajo): siempre desde el acorde, no desde la nota pulsada.
             generation_lh_display_notes = {
                 int(n - 12)
                 for n in set(self.generated_preview_notes)
                 if (low_note <= int(n - 12) <= high_note)
             }
+            for note in set(self.generated_playing_notes):
+                note_int = int(note)
+                if note_int in generation_lh_display_notes and note_int not in generation_rh_display_notes:
+                    generation_active_lh_notes.add(note_int)
+                elif note_int in generation_rh_display_notes:
+                    generation_active_rh_notes.add(note_int)
+                elif note_int in generation_lh_display_notes:
+                    generation_active_lh_notes.add(note_int)
+                else:
+                    generation_active_rh_notes.add(note_int)
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
         white_w = w / len(white_notes)
         key_top = 8
@@ -538,6 +553,10 @@ class RenderMixin:
                 fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#65b7ff"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_lh_notes:
+                fill_color = "#ff6a00"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_rh_notes:
+                fill_color = "#39c5ff"
             elif note in display_active_notes:
                 fill_color = "#4da3ea"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
@@ -557,7 +576,8 @@ class RenderMixin:
             )
             show_label = self.config_data.get("show_keyboard_note_labels", False) and not self.scale_tab_active
             if show_label:
-                label_color = "#0b2540" if note in display_active_notes else "#5f5f5f"
+                is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
+                label_color = "#0b2540" if (note in display_active_notes or is_generation_active) else "#5f5f5f"
                 canvas.create_text(
                     (x1 + x2) / 2,
                     key_bottom - 16,
@@ -613,6 +633,10 @@ class RenderMixin:
                 fill_color = "#bf2f2f"
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#388fdb"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_lh_notes:
+                fill_color = "#d45a00"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_rh_notes:
+                fill_color = "#1089d8"
             elif note in display_active_notes:
                 fill_color = "#0078d7"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
@@ -1003,6 +1027,41 @@ class RenderMixin:
             generation_single_note: Optional[int] = None
             if self.generation_tab_active and len(self.generated_playing_notes) == 1:
                 generation_single_note = next(iter(self.generated_playing_notes))
+            generation_rh_staff_notes: set[int] = {int(note) for note in set(self.generated_preview_notes)}
+            generation_lh_staff_notes: set[int] = {
+                int(note - 12)
+                for note in set(self.generated_preview_notes)
+                if int(note - 12) >= 0
+            }
+            generation_staff_playing_rh_notes: set[int] = set()
+            generation_staff_playing_lh_notes: set[int] = set()
+            if self.generation_tab_active:
+                for note in set(self.generated_playing_notes):
+                    note_int = int(note)
+                    if note_int in generation_lh_staff_notes and note_int not in generation_rh_staff_notes:
+                        generation_staff_playing_lh_notes.add(note_int)
+                    elif note_int in generation_rh_staff_notes:
+                        generation_staff_playing_rh_notes.add(note_int)
+                    elif note_int in generation_lh_staff_notes:
+                        generation_staff_playing_lh_notes.add(note_int)
+                    else:
+                        generation_staff_playing_rh_notes.add(note_int)
+            if self.generation_tab_active and self.instrument_view == "piano":
+                hold_active = bool(self.generation_play_button_pressed or self.generation_play_space_pressed)
+                if hold_active:
+                    generation_staff_playing_lh_notes |= {
+                        int(note - 12)
+                        for note in set(generation_staff_playing_rh_notes)
+                        if int(note - 12) in generation_lh_staff_notes
+                    }
+            elif self.generation_tab_active and self.instrument_view == "guitar":
+                hold_active = bool(self.generation_play_button_pressed or self.generation_play_space_pressed)
+                if hold_active:
+                    generation_staff_playing_rh_notes |= set(generation_rh_staff_notes)
+                    generation_staff_playing_lh_notes |= set(generation_lh_staff_notes)
+            generation_staff_playing_notes: set[int] = (
+                set(generation_staff_playing_rh_notes) | set(generation_staff_playing_lh_notes)
+            )
             generation_note_label_y = treble_top - 30
             placed_treble_cols: dict[int, list[float]] = {}
             placed_bass_cols: dict[int, list[float]] = {}
@@ -1116,8 +1175,15 @@ class RenderMixin:
                     else:
                         note_fill = "#000000"
                         note_outline = "#ffffff"
-                elif self.generation_tab_active and note in self.generated_playing_notes:
-                    note_fill = "#2faeff"
+                elif self.generation_tab_active and note in generation_staff_playing_lh_notes:
+                    if self.instrument_view == "guitar":
+                        note_fill = "#39c5ff"
+                        note_outline = "#ffffff"
+                    else:
+                        note_fill = "#ff6a00"
+                        note_outline = "#ffd2a7"
+                elif self.generation_tab_active and note in generation_staff_playing_notes:
+                    note_fill = "#39c5ff"
                     note_outline = "#ffffff"
                 elif note in self.detection_extra_notes:
                     note_fill = "#bf2f2f"

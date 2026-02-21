@@ -352,6 +352,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._fit_instrument_panel_height()
         self._refresh_instrument_toggle_styles()
         self._refresh_handedness_toggle_styles()
+        self._refresh_generation_selection_buttons()
         self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()
@@ -772,19 +773,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
 
     def _on_guitar_canvas_release(self, _event: tk.Event) -> None:
         if self.generation_tab_active and self.instrument_view == "guitar" and self.generation_guitar_drag_active:
-            if self.generation_drag_moved:
-                self._clear_generation_drag_state()
-            else:
-                notes = list(self.generation_drag_notes)
-                self.generation_guitar_drag_active = False
-                self.generation_staff_drag_active = False
-                self.generation_drag_notes.clear()
-                self.generation_drag_moved = False
-                for n in notes:
-                    self.generated_note_highlight_after[n] = self.after(
-                        520,
-                        lambda nn=n: self._clear_generated_note_highlight(nn, stop_audio=False),
-                    )
+            self._clear_generation_drag_state()
             return
         if not (self.scale_tab_active and self.scale_play_mode == "guitar" and self.scale_guitar_drag_active):
             return
@@ -991,19 +980,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             self.generation_piano_staff_drag_active = False
             return
         if self.generation_tab_active and self.instrument_view == "guitar":
-            if self.generation_drag_moved:
-                self._clear_generation_drag_state()
-            else:
-                notes = list(self.generation_drag_notes)
-                self.generation_guitar_drag_active = False
-                self.generation_staff_drag_active = False
-                self.generation_drag_notes.clear()
-                self.generation_drag_moved = False
-                for n in notes:
-                    self.generated_note_highlight_after[n] = self.after(
-                        520,
-                        lambda nn=n: self._clear_generated_note_highlight(nn, stop_audio=False),
-                    )
+            self._clear_generation_drag_state()
             return
         if not self.scale_tab_active:
             return

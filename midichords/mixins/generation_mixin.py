@@ -137,6 +137,13 @@ class GenerationMixin:
             self._generation_inversion_label_to_value = {label: inv for label, inv in inversion_options}
             self.generation_inversion_combo.configure(values=[label for label, _ in inversion_options])
             self.generation_inversion_var.set(self._inversion_label(self.generation_inversion))
+        self._refresh_generation_inversion_control_state()
+    def _refresh_generation_inversion_control_state(self) -> None:
+        inversion_enabled = self.instrument_view != "guitar"
+        if hasattr(self, "generation_inversion_btn"):
+            self.generation_inversion_btn.set_enabled(inversion_enabled)
+        if hasattr(self, "generation_inversion_combo"):
+            self.generation_inversion_combo.configure(state=("readonly" if inversion_enabled else "disabled"))
 
     def _on_generation_root_combo_changed(self, _event: tk.Event) -> None:
         label = str(self.generation_root_var.get()).strip()
@@ -344,6 +351,8 @@ class GenerationMixin:
     def open_generation_variant_dialog(self) -> None:
         self._open_generation_selection_overlay("variant")
     def open_generation_inversion_dialog(self) -> None:
+        if self.instrument_view == "guitar":
+            return
         self._open_generation_selection_overlay("inversion")
     def _finalize_generation_space_release(self) -> None:
         self.generation_space_release_after_id = None

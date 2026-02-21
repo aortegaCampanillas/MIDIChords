@@ -399,6 +399,7 @@ class GrayRoundedButton(tk.Canvas):
         self._selected_border_width = float(selected_border_width)
         self._hover = False
         self._selected = False
+        self._enabled = True
         self._font_family = _pick_font_family(self, ["Avenir Next", "SF Pro Text", "Segoe UI", "Helvetica Neue"], "Helvetica")
 
         self.bind("<Button-1>", self._on_click)
@@ -414,11 +415,21 @@ class GrayRoundedButton(tk.Canvas):
     def set_selected(self, selected: bool) -> None:
         self._selected = selected
         self._redraw()
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled = bool(enabled)
+        self.configure(cursor="hand2" if self._enabled else "arrow")
+        if not self._enabled:
+            self._hover = False
+        self._redraw()
 
     def _on_click(self, _event: tk.Event) -> None:
+        if not self._enabled:
+            return
         self._command()
 
     def _on_enter(self, _event: tk.Event) -> None:
+        if not self._enabled:
+            return
         self._hover = True
         self._redraw()
 
@@ -451,7 +462,12 @@ class GrayRoundedButton(tk.Canvas):
         h = max(8, int(self.winfo_height()))
         r = max(6, min(self._radius, int(min(w, h) / 2) - 1))
 
-        if self._selected:
+        if not self._enabled:
+            outline = "#434a54"
+            fill = "#1f252d"
+            text_color = "#7f8894"
+            border_w = 1.4
+        elif self._selected:
             outline = self._selected_outline_color
             fill = self._selected_fill_color
             text_color = self._selected_text_color

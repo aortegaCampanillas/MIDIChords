@@ -297,15 +297,33 @@ class UiMixin:
             highlightthickness=1,
             highlightbackground="#3a4558",
         )
+        self.left_panel_title_label = tk.Label(
+            self.left_panel.content,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14, "bold"),
+            anchor="w",
+        )
+        self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
         self.staff_canvas.pack(fill=tk.BOTH, expand=True)
 
-        side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
-        side_panel.pack(fill=tk.BOTH, expand=True)
-        side_panel.columnconfigure(0, weight=1)
-        side_panel.rowconfigure(0, weight=1)
+        self.right_panel_title_label = tk.Label(
+            self.right_panel.content,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14, "bold"),
+            anchor="w",
+        )
+        self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
+        self.right_side_panel.pack(fill=tk.BOTH, expand=True)
+        self.right_side_panel.columnconfigure(0, weight=1)
+        self.right_side_panel.rowconfigure(0, weight=1)
 
         self.chord_panel = tk.Frame(
-            side_panel,
+            self.right_side_panel,
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
@@ -1523,6 +1541,33 @@ class UiMixin:
         self.chord_panel.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
         self._refresh_right_panel_wraplengths()
         self._set_instrument_view(self.instrument_view)
+        self._refresh_top_panel_titles()
+
+    def _set_panel_title(self, widget: tk.Label, text: str) -> None:
+        value = str(text or "").strip()
+        if value:
+            widget.configure(text=value)
+            if widget.winfo_manager() == "":
+                if widget is self.left_panel_title_label:
+                    widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.staff_canvas)
+                else:
+                    widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.right_side_panel)
+        elif widget.winfo_manager() != "":
+            widget.pack_forget()
+
+    def _refresh_top_panel_titles(self) -> None:
+        if self.metronome_tab_active:
+            left_title = self.tr("panel_metronome")
+            right_title = self.tr("panel_metronome_settings")
+        elif self.tuner_tab_active:
+            left_title = self.tr("panel_tuner")
+            right_title = self.tr("panel_tuner_settings")
+        else:
+            left_title = self.tr("panel_staff")
+            right_title = ""
+        self._set_panel_title(self.left_panel_title_label, left_title)
+        self._set_panel_title(self.right_panel_title_label, right_title)
+
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
         self.top_title_label.configure(text=self.tr("app_title"))
@@ -1569,6 +1614,7 @@ class UiMixin:
         self.scale_bpm_value_label.configure(text=f"{int(self.config_data.get('metronome_bpm', 120))} {self.tr('scale_bpm_short')}")
         self.mode_var.set(self._mode_label(self.current_mode))
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
+        self._refresh_top_panel_titles()
         self._refresh_note_accidental_toggle_styles()
         self._refresh_scale_transport_styles()
         self._refresh_generation_controls()
@@ -2130,5 +2176,6 @@ class UiMixin:
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
+        self._refresh_top_panel_titles()
         self._fit_instrument_panel_height()
         self.update_music_views()

@@ -107,6 +107,8 @@ const UI_TEXTS = {
     heading_scales: "Escalas",
     heading_metronome: "Metrónomo",
     heading_tuner: "Afinador",
+    heading_metronome_settings: "Configuración de Metrónomo",
+    heading_tuner_settings: "Configuración de Afinador",
     hint_detection: "Pulsa notas en piano/guitarra para detectar acordes o usa un dispositivo MIDI.",
     clear: "Limpiar",
     label_chord: "Acorde:",
@@ -184,6 +186,8 @@ const UI_TEXTS = {
     heading_scales: "Scales",
     heading_metronome: "Metronome",
     heading_tuner: "Tuner",
+    heading_metronome_settings: "Metronome Settings",
+    heading_tuner_settings: "Tuner Settings",
     hint_detection: "Press notes on piano/guitar to detect chords or use a MIDI device.",
     clear: "Clear",
     label_chord: "Chord:",
@@ -441,8 +445,8 @@ function applyTranslations() {
   setText("headingDetection", "heading_detection");
   setText("headingGeneration", "heading_generation");
   setText("headingScales", "heading_scales");
-  setText("headingMetronome", "heading_metronome");
-  setText("headingTuner", "heading_tuner");
+  setText("headingMetronome", "heading_metronome_settings");
+  setText("headingTuner", "heading_tuner_settings");
   setText("detectionHint", "hint_detection");
   setText("detectClear", "clear");
   setText("labelDetectChord", "label_chord");

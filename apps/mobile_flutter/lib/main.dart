@@ -2080,13 +2080,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _chordInversion = value);
-                    if (!_requestInFlight) {
-                      unawaited(_callGenerateChord());
-                    }
-                  },
+                  onChanged: _instrumentView == 'guitar'
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() => _chordInversion = value);
+                          if (!_requestInFlight) {
+                            unawaited(_callGenerateChord());
+                          }
+                        },
                 ),
               ),
               const SizedBox(width: 8),

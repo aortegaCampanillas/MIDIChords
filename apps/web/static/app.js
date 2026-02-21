@@ -523,6 +523,7 @@ function setMode(mode) {
   } else if (mode === "metronome") {
     renderMetronomeDots();
   }
+  refreshGenerationInversionControlState();
   renderScaleModeButtons();
 }
 
@@ -564,6 +565,7 @@ function setInstrument(inst) {
       renderStaff();
     }).catch(() => {});
   }
+  refreshGenerationInversionControlState();
   renderGuitarVariationButtons();
 }
 
@@ -2074,6 +2076,13 @@ function updateInversionMax() {
     select.appendChild(opt);
   }
   select.value = String(Math.min(max, Math.max(0, prev)));
+  refreshGenerationInversionControlState();
+}
+
+function refreshGenerationInversionControlState() {
+  const select = el("genInversion");
+  if (!select) return;
+  select.disabled = state.instrument === "guitar";
 }
 
 async function runDetection() {
@@ -3202,7 +3211,17 @@ function bindEvents() {
 
   bindImmediatePress(el("detectPlay"), () => {
     playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b), { instrument: "piano" });
-  }, { highlightWhilePressed: true });
+  }, {
+    highlightWhilePressed: true,
+    onPress: () => {
+      const notes = Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
+      if (!notes.length) return;
+      startHeldChord(notes, "piano");
+    },
+    onRelease: () => {
+      stopHeldChord();
+    },
+  });
 
   el("genRoot").addEventListener("change", runGenerateChord);
   el("genVariant").addEventListener("change", () => {

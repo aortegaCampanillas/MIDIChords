@@ -561,6 +561,7 @@ class PlayTransportButton(tk.Canvas):
         self._hover = False
         self._pressed = False
         self._playing = False
+        self._enabled = True
         self._font_family = _pick_font_family(self, ["Avenir Next", "SF Pro Text", "Segoe UI", "Helvetica Neue"], "Helvetica")
 
         self.bind("<ButtonPress-1>", self._on_press)
@@ -573,12 +574,24 @@ class PlayTransportButton(tk.Canvas):
     def set_playing(self, playing: bool) -> None:
         self._playing = bool(playing)
         self._redraw()
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled = bool(enabled)
+        self.configure(cursor="hand2" if self._enabled else "arrow")
+        if not self._enabled:
+            self._hover = False
+            self._pressed = False
+            self._playing = False
+        self._redraw()
 
     def _on_press(self, _event: tk.Event) -> None:
+        if not self._enabled:
+            return
         self._pressed = True
         self._redraw()
 
     def _on_release(self, event: tk.Event) -> None:
+        if not self._enabled:
+            return
         was_pressed = self._pressed
         self._pressed = False
         self._redraw()
@@ -590,6 +603,8 @@ class PlayTransportButton(tk.Canvas):
             self._command()
 
     def _on_enter(self, _event: tk.Event) -> None:
+        if not self._enabled:
+            return
         self._hover = True
         self._redraw()
 
@@ -623,7 +638,11 @@ class PlayTransportButton(tk.Canvas):
         h = max(12, int(self.winfo_height()))
         r = max(8, min(self._radius, int(min(w, h) / 2) - 1))
 
-        if self._playing:
+        if not self._enabled:
+            fill = "#1f252d"
+            outline = "#434a54"
+            icon_color = "#7f8894"
+        elif self._playing:
             fill = "#f3bf2f" if not self._pressed else "#d8a624"
             outline = "#c9961f"
             icon_color = "#111318"

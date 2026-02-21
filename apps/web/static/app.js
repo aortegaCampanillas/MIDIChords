@@ -8,7 +8,7 @@ const state = {
   accidental: "sharp",
   chordPatterns: [],
   scalePatterns: [],
-  activeDetectionNotes: new Set([60, 64, 67]),
+  activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
   detectionResult: null,
   generatedChord: null,
@@ -75,6 +75,12 @@ const state = {
   heldInputVoices: new Map(),
   inputDragActive: false,
   inputDragNote: null,
+  inputDragInstrument: null,
+  detectionShiftPressed: false,
+  detectionMouseChordNotes: new Set(),
+  detectionMidiHeldNotes: new Set(),
+  midiInputSoundEnabled: true,
+  heldMidiInputVoices: new Map(),
 };
 
 const UI_TEXTS = {
@@ -128,6 +134,18 @@ const UI_TEXTS = {
     midi_on: "MIDI: On",
     midi_unsupported: "MIDI no soportado",
     midi_denied: "MIDI denegado",
+    midi_requires_secure: "MIDI requiere HTTPS o localhost",
+    midi_try_chrome: "MIDI: usa Chrome/Edge",
+    midi_help_ready: "MIDI Web listo. Pulsa para activar/desactivar entradas MIDI.",
+    midi_help_denied: "Permiso MIDI denegado. Revisa permisos del navegador y vuelve a intentar.",
+    midi_input_sound_on: "Reproducir entrada MIDI",
+    midi_input_sound_off: "Silenciar entrada MIDI",
+    midi_startup_title: "Activar entrada MIDI",
+    midi_startup_text: "Para usar un teclado/controlador MIDI en detección, activa la entrada MIDI.",
+    midi_startup_enable: "Activar MIDI",
+    midi_startup_close: "Ahora no",
+    close: "Cerrar",
+    midi_startup_safari_warning: "En Safari no es posible usar MIDI en esta web. Usa Chrome o Edge.",
     guitar_right: "Diestro",
     guitar_left: "Zurdo",
     inst_piano: "Piano",
@@ -139,6 +157,8 @@ const UI_TEXTS = {
     donation_title: "Apoya MIDIChords",
     donation_text: "Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.",
     donation_button: "Donar",
+    detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
+    staff_no_active_notes: "Sin notas activas",
   },
   en: {
     mode_detection: "Chord Detection",
@@ -190,6 +210,18 @@ const UI_TEXTS = {
     midi_on: "MIDI: On",
     midi_unsupported: "MIDI unsupported",
     midi_denied: "MIDI denied",
+    midi_requires_secure: "MIDI requires HTTPS or localhost",
+    midi_try_chrome: "MIDI: use Chrome/Edge",
+    midi_help_ready: "Web MIDI ready. Click to enable/disable MIDI inputs.",
+    midi_help_denied: "MIDI permission denied. Check browser permissions and try again.",
+    midi_input_sound_on: "Play MIDI input",
+    midi_input_sound_off: "Mute MIDI input",
+    midi_startup_title: "Enable MIDI input",
+    midi_startup_text: "To use a MIDI keyboard/controller in detection, enable MIDI input.",
+    midi_startup_enable: "Enable MIDI",
+    midi_startup_close: "Not now",
+    close: "Close",
+    midi_startup_safari_warning: "MIDI is not available on this website in Safari. Use Chrome or Edge.",
     guitar_right: "Right-handed",
     guitar_left: "Left-handed",
     inst_piano: "Piano",
@@ -201,6 +233,8 @@ const UI_TEXTS = {
     donation_title: "Support MIDIChords",
     donation_text: "This project is designed to stay free forever and ad-free. Your support helps cover development, maintenance, infrastructure, and support time so we can keep improving it.",
     donation_button: "Donate",
+    detection_staff_shift_hint: "Hold Shift to sustain notes",
+    staff_no_active_notes: "No active notes",
   },
 };
 
@@ -306,6 +340,71 @@ function tr(key) {
   return lang[key] || UI_TEXTS.es[key] || key;
 }
 
+function midiButtonTooltipForState(status = null) {
+  const current = status || (state.midi.enabled ? "on" : "off");
+  if (current === "secure_required") return tr("midi_requires_secure");
+  if (current === "unsupported") return tr("midi_try_chrome");
+  if (current === "denied") return tr("midi_help_denied");
+  return tr("midi_help_ready");
+}
+
+function refreshMidiInputSoundToggleButton() {
+  const btn = el("detectMidiSoundToggle");
+  if (!btn) return;
+  btn.textContent = state.midiInputSoundEnabled ? tr("midi_input_sound_on") : tr("midi_input_sound_off");
+  btn.classList.toggle("active", !!state.midiInputSoundEnabled);
+}
+
+function refreshMidiToggleButtonState() {
+  const btn = el("midiToggle");
+  if (!btn) return;
+  btn.classList.toggle("active", !!state.midi.enabled);
+}
+
+function isSafariBrowser() {
+  const ua = String(navigator.userAgent || "");
+  const hasSafari = /Safari\//.test(ua);
+  const other = /(Chrome|CriOS|Edg|OPR|Firefox|FxiOS|SamsungBrowser|Android)/.test(ua);
+  return hasSafari && !other;
+}
+
+function refreshMidiStartupModalContent() {
+  const text = el("midiStartupText");
+  const enableBtn = el("midiStartupEnableBtn");
+  const closeBtn = el("midiStartupCloseBtn");
+  if (!text || !enableBtn || !closeBtn) return;
+  if (isSafariBrowser()) {
+    text.textContent = tr("midi_startup_safari_warning");
+    enableBtn.classList.add("hidden");
+    closeBtn.textContent = tr("close");
+  } else {
+    text.textContent = tr("midi_startup_text");
+    enableBtn.classList.remove("hidden");
+    closeBtn.textContent = tr("midi_startup_close");
+  }
+}
+
+function showMidiStartupModal() {
+  const modal = el("midiStartupModal");
+  if (!modal || state.midi.enabled) return;
+  refreshMidiStartupModalContent();
+  modal.classList.remove("hidden");
+}
+
+function hideMidiStartupModal() {
+  const modal = el("midiStartupModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function refreshDetectionButtonsState() {
+  const hasNotes = (state.activeDetectionNotes?.size || 0) > 0;
+  const playBtn = el("detectPlay");
+  const clearBtn = el("detectClear");
+  if (playBtn) playBtn.disabled = !hasNotes;
+  if (clearBtn) clearBtn.disabled = !hasNotes;
+}
+
 function applyTranslations() {
   const modeSelect = el("modeSelect");
   if (modeSelect) {
@@ -365,6 +464,11 @@ function applyTranslations() {
   setText("donationTitle", "donation_title");
   setText("donationText", "donation_text");
   setText("donateBtn", "donation_button");
+  setText("midiStartupTitle", "midi_startup_title");
+  setText("midiStartupText", "midi_startup_text");
+  setText("midiStartupEnableBtn", "midi_startup_enable");
+  setText("midiStartupCloseBtn", "midi_startup_close");
+  refreshMidiStartupModalContent();
   const donateBtn = el("donateBtn");
   if (donateBtn) donateBtn.setAttribute("href", DONATE_URL);
 
@@ -392,7 +496,9 @@ function applyTranslations() {
   }
   const midiBtn = el("midiToggle");
   if (midiBtn) midiBtn.textContent = state.midi.enabled ? tr("midi_on") : tr("midi_off");
-  if (midiBtn) midiBtn.setAttribute("title", "MIDI");
+  if (midiBtn) midiBtn.setAttribute("title", midiButtonTooltipForState());
+  refreshMidiToggleButtonState();
+  refreshMidiInputSoundToggleButton();
   if (el("scaleBpm") && el("scaleBpmValue")) {
     el("scaleBpmValue").textContent = `${el("scaleBpm").value} ${tempoUnitLabel()}`;
   }
@@ -453,6 +559,7 @@ function setScalePlayMode(mode) {
 function setMode(mode) {
   stopHeldChord();
   stopAllHeldInputNotes();
+  stopAllHeldMidiInputNotes();
   endInputDrag();
   if (state.generationCurrentClearTimer != null) {
     clearTimeout(state.generationCurrentClearTimer);
@@ -463,6 +570,7 @@ function setMode(mode) {
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
+  refreshDetectionButtonsState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
     modeScreen.classList.remove("mode-detection", "mode-generation", "mode-scales", "mode-metronome", "mode-tuner");
@@ -1285,13 +1393,16 @@ function renderGuitar() {
 function handleInstrumentNote(note, options = {}) {
   const pressed = !!options.pressed;
   const instrumentHint = options.instrumentHint || null;
+  const released = !!options.released;
   if (state.mode === "detection") {
-    if (pressed) startHeldInputNote(note, instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
-    else playSingle(note);
-    if (state.activeDetectionNotes.has(note)) state.activeDetectionNotes.delete(note);
-    else state.activeDetectionNotes.add(note);
-    renderInstrument();
-    runDetection();
+    if (pressed) {
+      detectionManualPress(note, { instrumentHint });
+    } else if (released) {
+      detectionManualRelease(note);
+    } else {
+      playSingle(Number(note), instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
+      return;
+    }
     return;
   }
   if (state.mode === "generation" && state.generatedChord) {
@@ -1364,6 +1475,50 @@ function showForbiddenOnPianoKey(note) {
   void key.offsetWidth;
   key.classList.add("forbidden-flash");
   setTimeout(() => key.classList.remove("forbidden-flash"), 420);
+}
+
+function refreshDetectionActiveNotes() {
+  if (state.detectionMidiHeldNotes.size > 0) {
+    state.activeDetectionNotes = new Set(state.detectionMidiHeldNotes);
+  } else {
+    state.activeDetectionNotes = new Set(state.detectionMouseChordNotes);
+  }
+  refreshDetectionButtonsState();
+  renderInstrument();
+  runDetection();
+}
+
+function detectionManualPress(note, options = {}) {
+  const noteInt = Number(note);
+  if (!Number.isFinite(noteInt)) return;
+  const instrumentHint = options.instrumentHint || null;
+  // Manual interaction takes control over the current chord selection.
+  if (state.detectionMidiHeldNotes.size > 0) {
+    state.detectionMidiHeldNotes.clear();
+  }
+
+  if (state.detectionShiftPressed) {
+    if (state.detectionMouseChordNotes.has(noteInt)) {
+      state.detectionMouseChordNotes.delete(noteInt);
+      stopHeldInputNote(noteInt);
+    } else {
+      state.detectionMouseChordNotes.add(noteInt);
+      startHeldInputNote(noteInt, instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
+    }
+  } else {
+    stopAllHeldInputNotes();
+    state.detectionMouseChordNotes.clear();
+    state.detectionMouseChordNotes.add(noteInt);
+    startHeldInputNote(noteInt, instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
+  }
+  refreshDetectionActiveNotes();
+}
+
+function detectionManualRelease(note) {
+  const noteInt = Number(note);
+  if (!Number.isFinite(noteInt)) return;
+  // Keep chord selection latched; just stop the held preview voice.
+  stopHeldInputNote(noteInt);
 }
 
 function keySignatureCountForTonic(tonicPc, isMinor) {
@@ -1975,6 +2130,21 @@ function renderStaff() {
   const compactChordStaff = state.mode === "generation";
   const detectionStaff = state.mode === "detection";
   const scaleStaff = state.mode === "scales";
+  if (detectionStaff && notes.length === 0) {
+    ctx.fillStyle = "#cfcfcf";
+    ctx.font = "italic 13px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    const emptyY = Math.min(height - 48, bassTop + (5.6 * gap));
+    ctx.fillText(tr("staff_no_active_notes"), width / 2, emptyY);
+  }
+  if (detectionStaff) {
+    ctx.fillStyle = "#8fa1b7";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(tr("detection_staff_shift_hint"), width / 2, height - 10);
+  }
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
   let scaleCurrentDisplayMidi = scaleCurrentMidi;
   if (state.mode === "scales" && scaleCurrentDisplayMidi != null) {
@@ -2451,17 +2621,21 @@ function stopHeldInputNote(midi) {
   if (!voice) return;
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
+  const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
+  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
+  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
+  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
   try {
     if (voice.gain?.gain) {
       voice.gain.gain.cancelScheduledValues(t);
       voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
-      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
     }
     (voice.oscs || []).forEach((osc) => {
-      try { osc.stop(t + 0.20); } catch (_e) {}
+      try { osc.stop(t + oscTail); } catch (_e) {}
     });
     if (voice.noise) {
-      try { voice.noise.stop(t + 0.05); } catch (_e) {}
+      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
     }
   } catch (_e) {}
   state.heldInputVoices.delete(note);
@@ -2472,12 +2646,139 @@ function stopAllHeldInputNotes() {
   Array.from(state.heldInputVoices.keys()).forEach((note) => stopHeldInputNote(note));
 }
 
+function startHeldMidiInputNote(midi, instrument = "piano") {
+  const note = Number(midi);
+  if (!Number.isFinite(note)) return;
+  if (!(state.heldMidiInputVoices instanceof Map)) state.heldMidiInputVoices = new Map();
+  if (state.heldMidiInputVoices.has(note)) return;
+
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  const freq = 440 * (2 ** ((note - 69) / 12));
+  const bus = ensureAudioBus(ctx);
+  const gain = ctx.createGain();
+  const voice = { gain, oscs: [], noise: null, instrument };
+
+  if (instrument === "guitar") {
+    const body = ctx.createBiquadFilter();
+    body.type = "bandpass";
+    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.2));
+    body.Q.value = 0.9;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = Math.min(4300, Math.max(900, freq * 5.1));
+    body.connect(low);
+    low.connect(gain);
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = ensureNoiseBuffer(ctx);
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.0001, t);
+    nGain.gain.exponentialRampToValueAtTime(0.38, t + 0.001);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    noise.connect(nGain);
+    nGain.connect(body);
+    noise.start(t);
+    voice.noise = noise;
+
+    const osc = ctx.createOscillator();
+    const oGain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, t);
+    oGain.gain.value = 0.28;
+    osc.connect(oGain);
+    oGain.connect(body);
+    osc.start(t);
+    voice.oscs.push(osc);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.06, t + 0.22);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.10);
+  } else {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(5400, t);
+    filter.frequency.exponentialRampToValueAtTime(2200, t + 0.22);
+    filter.Q.value = 0.62;
+    filter.connect(gain);
+
+    const p1 = ctx.createOscillator();
+    const p1g = ctx.createGain();
+    p1.type = "sine";
+    p1.frequency.setValueAtTime(freq, t);
+    p1g.gain.value = 0.78;
+    p1.connect(p1g);
+    p1g.connect(filter);
+    p1.start(t);
+
+    const p2 = ctx.createOscillator();
+    const p2g = ctx.createGain();
+    p2.type = "triangle";
+    p2.frequency.setValueAtTime(freq * 2, t);
+    p2g.gain.value = 0.22;
+    p2.connect(p2g);
+    p2g.connect(filter);
+    p2.start(t);
+
+    voice.oscs.push(p1, p2);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.16, t + 0.014);
+    gain.gain.exponentialRampToValueAtTime(0.065, t + 0.24);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
+  }
+
+  gain.connect(bus);
+  state.heldMidiInputVoices.set(note, voice);
+}
+
+function stopHeldMidiInputNote(midi) {
+  if (!(state.heldMidiInputVoices instanceof Map)) return;
+  const note = Number(midi);
+  const voice = state.heldMidiInputVoices.get(note);
+  if (!voice) return;
+  const ctx = ensureAudioCtx();
+  const t = ctx.currentTime;
+  const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
+  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
+  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
+  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
+  try {
+    if (voice.gain?.gain) {
+      voice.gain.gain.cancelScheduledValues(t);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
+    }
+    (voice.oscs || []).forEach((osc) => {
+      try { osc.stop(t + oscTail); } catch (_e) {}
+    });
+    if (voice.noise) {
+      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
+    }
+  } catch (_e) {}
+  state.heldMidiInputVoices.delete(note);
+}
+
+function stopAllHeldMidiInputNotes() {
+  if (!(state.heldMidiInputVoices instanceof Map) || !state.heldMidiInputVoices.size) return;
+  Array.from(state.heldMidiInputVoices.keys()).forEach((note) => stopHeldMidiInputNote(note));
+}
+
 function beginInputDrag(note, instrumentHint) {
   const midi = Number(note);
   if (!Number.isFinite(midi)) return;
   state.inputDragActive = true;
+  state.inputDragInstrument = instrumentHint || null;
   if (state.inputDragNote != null && Number(state.inputDragNote) !== midi) {
-    stopHeldInputNote(state.inputDragNote);
+    if (state.mode === "detection") {
+      handleInstrumentNote(state.inputDragNote, {
+        pressed: false,
+        released: true,
+        instrumentHint: state.inputDragInstrument,
+      });
+    } else {
+      stopHeldInputNote(state.inputDragNote);
+    }
   }
   state.inputDragNote = midi;
   handleInstrumentNote(midi, { pressed: true, instrumentHint });
@@ -2488,14 +2789,36 @@ function updateInputDrag(note, instrumentHint) {
   const midi = Number(note);
   if (!Number.isFinite(midi)) return;
   if (state.inputDragNote != null && Number(state.inputDragNote) === midi) return;
-  if (state.inputDragNote != null) stopHeldInputNote(state.inputDragNote);
+  if (state.inputDragNote != null) {
+    if (state.mode === "detection") {
+      handleInstrumentNote(state.inputDragNote, {
+        pressed: false,
+        released: true,
+        instrumentHint: state.inputDragInstrument || instrumentHint || null,
+      });
+    } else {
+      stopHeldInputNote(state.inputDragNote);
+    }
+  }
   state.inputDragNote = midi;
+  state.inputDragInstrument = instrumentHint || state.inputDragInstrument || null;
   handleInstrumentNote(midi, { pressed: true, instrumentHint });
 }
 
 function endInputDrag() {
-  if (state.inputDragNote != null) stopHeldInputNote(state.inputDragNote);
+  if (state.inputDragNote != null) {
+    if (state.mode === "detection") {
+      handleInstrumentNote(state.inputDragNote, {
+        pressed: false,
+        released: true,
+        instrumentHint: state.inputDragInstrument,
+      });
+    } else {
+      stopHeldInputNote(state.inputDragNote);
+    }
+  }
   state.inputDragNote = null;
+  state.inputDragInstrument = null;
   state.inputDragActive = false;
 }
 
@@ -2510,7 +2833,7 @@ function startHeldInputNote(midi, instrument = "piano") {
   const freq = 440 * (2 ** ((note - 69) / 12));
   const bus = ensureAudioBus(ctx);
   const gain = ctx.createGain();
-  const voice = { gain, oscs: [], noise: null };
+  const voice = { gain, oscs: [], noise: null, instrument };
 
   if (instrument === "guitar") {
     const body = ctx.createBiquadFilter();
@@ -3143,9 +3466,17 @@ function handleMidiMessage(event) {
   if (!isNoteOn && !isNoteOff) return;
 
   if (state.mode === "detection") {
-    if (isNoteOn) state.activeDetectionNotes.add(note);
-    else state.activeDetectionNotes.delete(note);
-    runDetection();
+    if (isNoteOn) {
+      if (state.detectionMidiHeldNotes.size === 0 && state.detectionMouseChordNotes.size > 0) {
+        state.detectionMouseChordNotes.clear();
+      }
+      state.detectionMidiHeldNotes.add(note);
+      if (state.midiInputSoundEnabled) startHeldMidiInputNote(note, "piano");
+    } else {
+      state.detectionMidiHeldNotes.delete(note);
+      stopHeldMidiInputNote(note);
+    }
+    refreshDetectionActiveNotes();
     return;
   }
 
@@ -3166,25 +3497,51 @@ async function toggleMidi() {
       });
     }
     state.activeMidiLiveNotes.clear();
+    stopAllHeldMidiInputNotes();
+    state.detectionMidiHeldNotes.clear();
+    if (state.mode === "detection") refreshDetectionActiveNotes();
     if (state.mode === "metronome") renderInstrument();
     btn.textContent = tr("midi_off");
+    btn.setAttribute("title", midiButtonTooltipForState("off"));
+    refreshMidiToggleButtonState();
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    btn.textContent = tr("midi_requires_secure");
+    btn.setAttribute("title", midiButtonTooltipForState("secure_required"));
+    refreshMidiToggleButtonState();
     return;
   }
 
   if (!navigator.requestMIDIAccess) {
-    btn.textContent = tr("midi_unsupported");
+    btn.textContent = tr("midi_try_chrome");
+    btn.setAttribute("title", midiButtonTooltipForState("unsupported"));
+    refreshMidiToggleButtonState();
     return;
   }
 
   try {
+    try {
+      const ctx = ensureAudioCtx();
+      if (ctx.state !== "running") {
+        await ctx.resume();
+      }
+    } catch (_e) {
+      // Audio resume may require user gesture; MIDI init should continue anyway.
+    }
     if (!state.midi.access) state.midi.access = await navigator.requestMIDIAccess();
     state.midi.enabled = true;
     state.midi.access.inputs.forEach((input) => {
       input.onmidimessage = handleMidiMessage;
     });
     btn.textContent = tr("midi_on");
+    btn.setAttribute("title", midiButtonTooltipForState("on"));
+    refreshMidiToggleButtonState();
   } catch (_err) {
     btn.textContent = tr("midi_denied");
+    btn.setAttribute("title", midiButtonTooltipForState("denied"));
+    refreshMidiToggleButtonState();
   }
 }
 
@@ -3204,6 +3561,7 @@ function bindEvents() {
     };
 
     const onPointerStart = (event) => {
+      if (button.disabled) return;
       if (event.type === "mousedown" && Number(event.button) !== 0) return;
       event.preventDefault();
       suppressNextClick = true;
@@ -3226,6 +3584,10 @@ function bindEvents() {
     document.addEventListener("touchend", onPointerEnd, { passive: true });
     document.addEventListener("touchcancel", onPointerEnd, { passive: true });
     button.addEventListener("click", (event) => {
+      if (button.disabled) {
+        event.preventDefault();
+        return;
+      }
       if (suppressNextClick) {
         suppressNextClick = false;
         event.preventDefault();
@@ -3256,6 +3618,19 @@ function bindEvents() {
   });
 
   el("midiToggle").addEventListener("click", toggleMidi);
+  const midiStartupEnableBtn = el("midiStartupEnableBtn");
+  if (midiStartupEnableBtn) {
+    midiStartupEnableBtn.addEventListener("click", async () => {
+      await toggleMidi();
+      if (state.midi.enabled) hideMidiStartupModal();
+    });
+  }
+  const midiStartupCloseBtn = el("midiStartupCloseBtn");
+  if (midiStartupCloseBtn) {
+    midiStartupCloseBtn.addEventListener("click", () => {
+      hideMidiStartupModal();
+    });
+  }
   el("guitarHandedness").addEventListener("change", (e) => {
     state.guitarHandedness = e.target.value;
     if (state.instrument === "guitar") renderInstrument();
@@ -3282,10 +3657,32 @@ function bindEvents() {
   });
 
   el("detectClear").addEventListener("click", () => {
+    stopHeldChord();
+    stopAllHeldInputNotes();
+    stopAllHeldMidiInputNotes();
+    endInputDrag();
+    state.detectionMouseChordNotes.clear();
+    state.detectionMidiHeldNotes.clear();
+    state.detectionShiftPressed = false;
     state.activeDetectionNotes.clear();
+    refreshDetectionButtonsState();
     renderInstrument();
     runDetection();
   });
+  const detectMidiSoundToggle = el("detectMidiSoundToggle");
+  if (detectMidiSoundToggle) {
+    detectMidiSoundToggle.addEventListener("click", async () => {
+      state.midiInputSoundEnabled = !state.midiInputSoundEnabled;
+      if (state.midiInputSoundEnabled) {
+        try {
+          const ctx = ensureAudioCtx();
+          if (ctx.state !== "running") await ctx.resume();
+        } catch (_e) {}
+      }
+      if (!state.midiInputSoundEnabled) stopAllHeldMidiInputNotes();
+      refreshMidiInputSoundToggleButton();
+    });
+  }
 
   bindImmediatePress(el("detectPlay"), () => {
     playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b), { instrument: "piano" });
@@ -3299,6 +3696,18 @@ function bindEvents() {
     onRelease: () => {
       stopHeldChord();
     },
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Shift") return;
+    if (event.repeat) return;
+    if (state.mode !== "detection") return;
+    state.detectionShiftPressed = true;
+  });
+  document.addEventListener("keyup", (event) => {
+    if (event.key !== "Shift") return;
+    if (state.mode !== "detection") return;
+    state.detectionShiftPressed = false;
   });
 
   el("genRoot").addEventListener("change", runGenerateChord);
@@ -3484,7 +3893,9 @@ async function main() {
   await runGenerateChord();
   await runGenerateScale();
   await runDetection();
+  refreshDetectionButtonsState();
   setMode("detection");
+  showMidiStartupModal();
   renderMetronomeDots();
   renderStaff();
 }

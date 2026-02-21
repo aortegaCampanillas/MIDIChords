@@ -48,8 +48,9 @@
                 <h3 id="headingDetection">Detección</h3>
                 <p id="detectionHint" class="muted">Pulsa notas en piano/guitarra para detectar acordes.</p>
                 <div class="controls-inline">
-                  <button id="detectClear">Limpiar</button>
                   <button id="detectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                  <button id="detectClear">Limpiar</button>
+                  <button id="detectMidiSoundToggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="result-block">
                   <div><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
@@ -227,6 +228,19 @@
         <a id="donateBtn" class="donate-btn" href="#" target="_blank" rel="noopener noreferrer">Donar</a>
       </section>
     </main>
+
+    <div id="midiStartupModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="midiStartupTitle">
+      <div class="modal-card">
+        <h3 id="midiStartupTitle">Activar entrada MIDI</h3>
+        <p id="midiStartupText">
+          Para usar un teclado/controlador MIDI en detección, activa la entrada MIDI.
+        </p>
+        <div class="controls-inline">
+          <button id="midiStartupEnableBtn">Activar MIDI</button>
+          <button id="midiStartupCloseBtn" class="ghost">Ahora no</button>
+        </div>
+      </div>
+    </div>
 
     <script src="/static/app.js"></script>
   </body>

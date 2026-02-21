@@ -179,6 +179,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False
+        self.detection_mouse_chord_notes: set[int] = set()
+        self.detection_midi_held_notes: set[int] = set()
+        self.detection_shift_pressed = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
         self.guitar_chord_cache = load_guitar_chord_cache()
         self.metronome_bpm = max(1, min(300, int(self.config_data.get("metronome_bpm", 120))))

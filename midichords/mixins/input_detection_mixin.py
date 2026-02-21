@@ -176,16 +176,17 @@ class InputDetectionMixin:
         self.midi_latched_notes.clear()
         self.note_velocity.clear()
         self.mouse_current_note = None
+        self.detection_mouse_chord_notes.clear()
+        self.detection_midi_held_notes.clear()
+        self.detection_shift_pressed = False
         self._clear_detection_hold()
     def _clear_detection_hold(self) -> None:
         self.detect_hold_active = False
         self.detect_hold_notes.clear()
     def _current_detection_notes(self) -> set[int]:
-        if self.active_notes:
-            return set(self.active_notes)
-        if self.detect_hold_active:
-            return set(self.detect_hold_notes)
-        return set()
+        if self.detection_midi_held_notes:
+            return set(self.detection_midi_held_notes)
+        return set(self.detection_mouse_chord_notes)
     def _show_forbidden_note_feedback(self, note: int) -> None:
         self.blocked_note_until[note] = time.monotonic() + 0.35
         self.redraw_keyboard()
@@ -194,17 +195,28 @@ class InputDetectionMixin:
         canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, outline="#d32f2f", width=2)
         canvas.create_line(cx - radius * 0.65, cy + radius * 0.65, cx + radius * 0.65, cy - radius * 0.65, fill="#d32f2f", width=2)
     def _refresh_sounding_notes(self) -> None:
-        next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
-        if self.midi_input_sound_enabled:
-            next_sounding = set(next_active)
+        if self.current_mode == "detection":
+            next_active = set(self._current_detection_notes())
+            if self.midi_input_sound_enabled:
+                next_sounding = set(next_active)
+            else:
+                next_sounding = {
+                    int(note)
+                    for note in next_active
+                    if note not in set(self.detection_midi_held_notes)
+                }
         else:
-            blocked_midi_notes = set(self.midi_held_notes) | set(self.midi_latched_notes)
-            # Keep mouse-triggered notes audible even if MIDI sound is muted.
-            next_sounding = {
-                int(note)
-                for note in next_active
-                if (note not in blocked_midi_notes) or (note in self.mouse_held_notes)
-            }
+            next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
+            if self.midi_input_sound_enabled:
+                next_sounding = set(next_active)
+            else:
+                blocked_midi_notes = set(self.midi_held_notes) | set(self.midi_latched_notes)
+                # Keep mouse-triggered notes audible even if MIDI sound is muted.
+                next_sounding = {
+                    int(note)
+                    for note in next_active
+                    if (note not in blocked_midi_notes) or (note in self.mouse_held_notes)
+                }
         to_start = next_sounding - self.sounding_notes
         to_stop = self.sounding_notes - next_sounding
 
@@ -218,8 +230,6 @@ class InputDetectionMixin:
             self.active_notes = next_active
             self.update_music_views()
     def _note_on_from_source(self, note: int, velocity: int, source: str) -> None:
-        if self.current_mode == "detection" and self.detect_hold_active:
-            self._clear_detection_hold()
         velocity = int(max(1, min(127, velocity)))
         self.note_velocity[note] = velocity
         self.sustain_latched_notes.discard(note)
@@ -255,6 +265,18 @@ class InputDetectionMixin:
         note = self._note_at_position(float(event.x), float(event.y))
         if note is None:
             return
+        if self.current_mode == "detection":
+            self.detection_midi_held_notes.clear()
+            if self.detection_shift_pressed:
+                if note in self.detection_mouse_chord_notes:
+                    self.detection_mouse_chord_notes.discard(note)
+                else:
+                    self.detection_mouse_chord_notes.add(note)
+            else:
+                self.detection_mouse_chord_notes = {int(note)}
+            self.mouse_current_note = note
+            self._refresh_sounding_notes()
+            return
         if self.generation_tab_active:
             if self.instrument_view == "piano":
                 # Permitir teclas mano derecha (preview) y mano izquierda (una octava abajo, clave de fa).
@@ -285,14 +307,6 @@ class InputDetectionMixin:
             self._refresh_sounding_notes()
             self.redraw_staff()
             return
-        if self.pedal_active and note in self.active_notes:
-            # Toggle con pedal: clic en nota activa la deselecciona.
-            self.mouse_held_notes.discard(note)
-            self.sustain_latched_notes.discard(note)
-            if self.mouse_current_note == note:
-                self.mouse_current_note = None
-            self._refresh_sounding_notes()
-            return
         if self.mouse_current_note == note:
             return
         if self.mouse_current_note is not None:
@@ -302,6 +316,22 @@ class InputDetectionMixin:
         self._refresh_sounding_notes()
     def _on_keyboard_drag(self, event: tk.Event) -> None:
         note = self._note_at_position(float(event.x), float(event.y))
+        if self.current_mode == "detection":
+            if note is None:
+                return
+            if note == self.mouse_current_note:
+                return
+            self.detection_midi_held_notes.clear()
+            if self.detection_shift_pressed:
+                if note in self.detection_mouse_chord_notes:
+                    self.detection_mouse_chord_notes.discard(note)
+                else:
+                    self.detection_mouse_chord_notes.add(note)
+            else:
+                self.detection_mouse_chord_notes = {int(note)}
+            self.mouse_current_note = note
+            self._refresh_sounding_notes()
+            return
         if self.generation_tab_active:
             if self.instrument_view == "piano":
                 allowed_piano = set(self.generated_preview_notes)
@@ -348,6 +378,9 @@ class InputDetectionMixin:
             self._note_on_from_source(note, velocity=100, source="mouse")
         self._refresh_sounding_notes()
     def _on_keyboard_release(self, _event: tk.Event) -> None:
+        if self.current_mode == "detection":
+            self.mouse_current_note = None
+            return
         if self.mouse_current_note is not None:
             self._note_off_from_source(self.mouse_current_note, source="mouse")
             self.mouse_current_note = None
@@ -356,20 +389,15 @@ class InputDetectionMixin:
                 self.redraw_staff()
             self._refresh_sounding_notes()
     def _on_shift_press(self, _event: tk.Event) -> None:
-        if self.current_mode == "detection" and self.detect_hold_active:
-            self._clear_detection_hold()
-            self.update_music_views()
+        self.detection_shift_pressed = True
         self.pedal_active = True
     def _on_shift_release(self, _event: tk.Event) -> None:
-        prev_active = set(self.active_notes)
+        self.detection_shift_pressed = False
         self.pedal_active = False
-        self.sustain_latched_notes.clear()
-        self.midi_latched_notes.clear()
-        self._refresh_sounding_notes()
-        if self.current_mode == "detection" and prev_active and not self.active_notes:
-            self.detect_hold_notes = prev_active
-            self.detect_hold_active = True
-            self.update_music_views()
+        if self.current_mode != "detection":
+            self.sustain_latched_notes.clear()
+            self.midi_latched_notes.clear()
+            self._refresh_sounding_notes()
     def _process_midi_queue(self) -> None:
         changed = False
         while True:
@@ -383,7 +411,16 @@ class InputDetectionMixin:
                     self._show_forbidden_note_feedback(message.note)
                 continue
 
-            if message.type == "note_on" and message.velocity > 0:
+            if self.current_mode == "detection":
+                if message.type == "note_on" and message.velocity > 0:
+                    if not self.detection_midi_held_notes and self.detection_mouse_chord_notes:
+                        self.detection_mouse_chord_notes.clear()
+                    self.detection_midi_held_notes.add(int(message.note))
+                    changed = True
+                elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
+                    self.detection_midi_held_notes.discard(int(message.note))
+                    changed = True
+            elif message.type == "note_on" and message.velocity > 0:
                 self._note_on_from_source(message.note, velocity=int(message.velocity), source="midi")
                 changed = True
             elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
@@ -455,6 +492,8 @@ class InputDetectionMixin:
     def update_music_views(self) -> None:
         self._refresh_scale_preview()
         self._refresh_guitar_variations()
+        if hasattr(self, "_refresh_detection_controls_state"):
+            self._refresh_detection_controls_state()
         active_set = self._current_detection_notes()
         generated_set = set(self.generated_preview_notes)
         detected_chord_name, detected_extras, detected_map_oct, detected_map_no_oct = self._detect_harmonic_spelling(active_set)

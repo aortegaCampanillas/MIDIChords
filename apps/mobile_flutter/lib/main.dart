@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_audio_capture/flutter_audio_capture.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_midi_command/flutter_midi_command.dart';
 
 void main() {
   runApp(const MidiChordsMobileApp());
@@ -129,8 +130,16 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _generationPlayPressed = false;
   final Map<int, AudioPlayer> _heldChordPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
+  final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
   final Map<String, String> _toneFileCache = <String, String>{};
   bool _audioPlaybackAvailable = true;
+  bool _midiInputSoundEnabled = true;
+  final MidiCommand _midiCommand = MidiCommand();
+  StreamSubscription<MidiPacket>? _midiDataSub;
+  StreamSubscription<dynamic>? _midiSetupSub;
+  final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
+  final Set<int> _detectionMidiHeldNotes = <int>{};
+  bool _midiInputEnabled = false;
 
   int _scaleTonicPc = 0;
   String _scalePatternName = 'Ionian';
@@ -141,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _scaleLoopDirection = 1;
   Timer? _scaleLoopTimer;
   int? _scaleCurrentNote;
-  final Set<int> _detectionSelectedNotes = <int>{60, 64, 67};
+  final Set<int> _detectionSelectedNotes = <int>{};
   int _metroBpm = 120;
   int _metroBeatsPerBar = 4;
   int _metroClicksPerBeat = 1;
@@ -283,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _initMidiInput();
     _loadMeta();
   }
 
@@ -293,6 +303,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _scaleLoopTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
+    _stopHeldMidiInputs();
+    unawaited(_disableMidiInput());
+    _midiDataSub?.cancel();
+    _midiSetupSub?.cancel();
     for (final t in _forbiddenFlashTimers.values) {
       t.cancel();
     }
@@ -414,6 +428,103 @@ class _HomeScreenState extends State<HomeScreen> {
     return sorted.map((n) => '+${n - root}').join(' - ');
   }
 
+  Set<int> get _activeDetectionNotes => _detectionMidiHeldNotes.isNotEmpty
+      ? _detectionMidiHeldNotes
+      : _detectionSelectedNotes;
+
+  void _initMidiInput() {
+    _midiDataSub = _midiCommand.onMidiDataReceived?.listen(_onMidiPacket);
+    _midiSetupSub = _midiCommand.onMidiSetupChanged?.listen((_) {
+      if (_midiInputEnabled) {
+        unawaited(_refreshMidiConnections());
+      }
+    });
+  }
+
+  void _onMidiPacket(MidiPacket packet) {
+    if (!_midiInputEnabled || _tabIndex != 0) return;
+    final bytes = packet.data;
+    for (var i = 0; i + 2 < bytes.length; i += 3) {
+      final status = bytes[i] & 0xF0;
+      final note = bytes[i + 1];
+      final velocity = bytes[i + 2];
+      final isNoteOn = status == 0x90 && velocity > 0;
+      final isNoteOff = status == 0x80 || (status == 0x90 && velocity == 0);
+      if (!isNoteOn && !isNoteOff) continue;
+      if (isNoteOn) {
+        if (_detectionMidiHeldNotes.isEmpty &&
+            _detectionSelectedNotes.isNotEmpty) {
+          _detectionSelectedNotes.clear();
+          _stopHeldInputs();
+        }
+        _detectionMidiHeldNotes.add(note);
+        if (_midiInputSoundEnabled) {
+          unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
+        }
+      } else {
+        _detectionMidiHeldNotes.remove(note);
+        _releaseHeldMidiInputNote(note);
+      }
+    }
+    if (mounted) setState(() {});
+    if (!_requestInFlight) {
+      unawaited(_callDetect());
+    }
+  }
+
+  Future<void> _refreshMidiConnections() async {
+    try {
+      final devices = await _midiCommand.devices;
+      final available = (devices ?? <MidiDevice>[])
+          .whereType<MidiDevice>()
+          .toList();
+      final availableIds = available.map((d) => d.id).toSet();
+
+      for (final entry in _midiConnectedDevices.entries.toList()) {
+        if (availableIds.contains(entry.key)) continue;
+        try {
+          _midiCommand.disconnectDevice(entry.value);
+        } catch (_) {}
+        _midiConnectedDevices.remove(entry.key);
+      }
+
+      for (final device in available) {
+        if (_midiConnectedDevices.containsKey(device.id)) continue;
+        try {
+          _midiCommand.connectToDevice(device);
+          _midiConnectedDevices[device.id] = device;
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _disableMidiInput() async {
+    _midiInputEnabled = false;
+    for (final device in _midiConnectedDevices.values.toList()) {
+      try {
+        _midiCommand.disconnectDevice(device);
+      } catch (_) {}
+    }
+    _midiConnectedDevices.clear();
+    _detectionMidiHeldNotes.clear();
+    _stopHeldMidiInputs();
+    if (mounted) setState(() {});
+    if (_tabIndex == 0 && !_requestInFlight) {
+      unawaited(_callDetect());
+    }
+  }
+
+  Future<void> _toggleMidiInput() async {
+    if (_midiInputEnabled) {
+      await _disableMidiInput();
+      return;
+    }
+    _midiInputEnabled = true;
+    if (mounted) setState(() {});
+    await _refreshMidiConnections();
+  }
+
   Set<int> _staffNotesForCurrentTab() {
     if (_tabIndex == 0) {
       if (_detectionResultJson != null) {
@@ -422,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ]);
         if (midi.isNotEmpty) return midi.toSet();
       }
-      return _detectionSelectedNotes;
+      return _activeDetectionNotes;
     }
     if (_tabIndex == 1 && _generatedChordJson != null) {
       return _extractMidiList(_generatedChordJson!, <String>[
@@ -440,6 +551,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return <int>{};
   }
 
+  bool _isShiftPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.shiftLeft) ||
+        keys.contains(LogicalKeyboardKey.shiftRight);
+  }
+
+  bool get _hasDetectionNotes => _activeDetectionNotes.isNotEmpty;
+
   Set<int> _staffExtrasForCurrentTab() {
     if (_tabIndex == 0 && _detectionResultJson != null) {
       return _extractMidiList(_detectionResultJson!, <String>[
@@ -450,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Set<int> _activeMidiForInstrument() {
-    if (_tabIndex == 0) return _detectionSelectedNotes;
+    if (_tabIndex == 0) return _activeDetectionNotes;
     if (_tabIndex == 1 && _generatedChordJson != null) {
       return _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
@@ -635,20 +754,32 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!pressed) {
         return;
       }
+      if (_detectionMidiHeldNotes.isNotEmpty) {
+        _detectionMidiHeldNotes.clear();
+        _stopHeldMidiInputs();
+      }
+      final shiftPressed = _isShiftPressed();
       setState(() {
-        if (_detectionSelectedNotes.contains(midi)) {
-          _detectionSelectedNotes.remove(midi);
+        if (shiftPressed) {
+          if (_detectionSelectedNotes.contains(midi)) {
+            _detectionSelectedNotes.remove(midi);
+          } else {
+            _detectionSelectedNotes.add(midi);
+          }
         } else {
+          _detectionSelectedNotes.clear();
           _detectionSelectedNotes.add(midi);
         }
       });
       if (!_requestInFlight) {
         unawaited(_callDetect());
       }
-      await _startHeldInputNote(
-        midi,
-        instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
-      );
+      if (_midiInputSoundEnabled) {
+        await _startHeldInputNote(
+          midi,
+          instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+        );
+      }
       return;
     }
     if (_tabIndex == 1 && _generatedChordJson != null) {
@@ -760,6 +891,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _heldInputPlayers.clear();
   }
 
+  void _stopHeldMidiInputs() {
+    for (final entry in _heldMidiInputPlayers.entries) {
+      unawaited(_safeStopDispose(entry.value));
+    }
+    _heldMidiInputPlayers.clear();
+  }
+
   Future<void> _startHeldChord(
     List<int> notes, {
     required String instrument,
@@ -792,8 +930,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _startHeldMidiInputNote(
+    int midi, {
+    required String instrument,
+  }) async {
+    _releaseHeldMidiInputNote(midi);
+    final player = await _playTone(
+      midi: midi,
+      instrument: instrument,
+      durationSeconds: instrument == 'guitar' ? 1.05 : 0.95,
+    );
+    if (player != null) {
+      _heldMidiInputPlayers[midi] = player;
+    }
+  }
+
   void _releaseHeldInputNote(int midi) {
     final player = _heldInputPlayers.remove(midi);
+    if (player != null) {
+      unawaited(_safeStopDispose(player));
+    }
+  }
+
+  void _releaseHeldMidiInputNote(int midi) {
+    final player = _heldMidiInputPlayers.remove(midi);
     if (player != null) {
       unawaited(_safeStopDispose(player));
     }
@@ -805,7 +965,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _requestInFlight = true);
     try {
-      final notes = _detectionSelectedNotes.toList()..sort();
+      final notes = _activeDetectionNotes.toList()..sort();
       final json = await _postJson('/api/detect', <String, dynamic>{
         'notes': notes,
         'language': _language,
@@ -1402,8 +1562,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       _stopHeldChord();
                       _stopHeldInputs();
+                      _stopHeldMidiInputs();
                       _detectionPlayPressed = false;
                       _generationPlayPressed = false;
+                      if (value != 0) {
+                        _detectionMidiHeldNotes.clear();
+                      }
                       if (value == 0 && !_requestInFlight) {
                         unawaited(_callDetect());
                       } else if (value == 1 && !_requestInFlight) {
@@ -1419,6 +1583,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: OutlinedButton(
+              onPressed: _toggleMidiInput,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: _midiInputEnabled ? _accent : _border,
+                  width: _midiInputEnabled ? 2 : 1,
+                ),
+                foregroundColor: _midiInputEnabled
+                    ? const Color(0xFF1A222D)
+                    : _text,
+                backgroundColor: _midiInputEnabled ? _accent : _surfaceDark,
+              ),
+              child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
+            ),
+          ),
           Container(
             constraints: const BoxConstraints(minWidth: 76),
             margin: const EdgeInsets.only(right: 8),
@@ -1988,6 +2169,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDetectionPage() {
+    final hasNotes = _hasDetectionNotes;
+    final midiSoundStyle = OutlinedButton.styleFrom(
+      side: BorderSide(
+        color: _midiInputSoundEnabled ? _accent : _border,
+        width: _midiInputSoundEnabled ? 2 : 1,
+      ),
+      foregroundColor: _midiInputSoundEnabled ? const Color(0xFF1A222D) : _text,
+      backgroundColor: _midiInputSoundEnabled ? _accent : null,
+    );
     return _buildModeScaffold(
       controls: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2006,14 +2196,38 @@ class _HomeScreenState extends State<HomeScreen> {
             spacing: 8,
             children: <Widget>[
               OutlinedButton.icon(
-                onPressed: () {
-                  setState(() => _detectionSelectedNotes.clear());
-                  if (!_requestInFlight) {
-                    unawaited(_callDetect());
-                  }
-                },
+                onPressed: !hasNotes
+                    ? null
+                    : () {
+                        setState(() => _detectionSelectedNotes.clear());
+                        _detectionMidiHeldNotes.clear();
+                        _stopHeldMidiInputs();
+                        if (!_requestInFlight) {
+                          unawaited(_callDetect());
+                        }
+                      },
                 icon: const Icon(Icons.clear_all),
                 label: const Text('Limpiar'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _midiInputSoundEnabled = !_midiInputSoundEnabled;
+                    if (!_midiInputSoundEnabled) {
+                      _stopHeldInputs();
+                      _stopHeldMidiInputs();
+                    }
+                  });
+                },
+                icon: Icon(
+                  _midiInputSoundEnabled ? Icons.volume_up : Icons.volume_off,
+                ),
+                label: Text(
+                  _midiInputSoundEnabled
+                      ? 'Reproducir entrada MIDI'
+                      : 'Silenciar entrada MIDI',
+                ),
+                style: midiSoundStyle,
               ),
               OutlinedButton.icon(
                 onPressed: null,
@@ -2021,9 +2235,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: const Text(''),
               ),
               _holdPlayButton(
+                enabled: hasNotes,
                 active: _detectionPlayPressed,
                 onDown: () async {
-                  final notes = _detectionSelectedNotes.toList()..sort();
+                  final notes = _activeDetectionNotes.toList()..sort();
                   if (notes.isEmpty) return;
                   setState(() => _detectionPlayPressed = true);
                   await _startHeldChord(notes, instrument: 'piano');
@@ -2161,6 +2376,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 8),
               _holdPlayButton(
+                enabled:
+                    _generatedChordJson != null &&
+                    _extractMidiList(_generatedChordJson!, <String>[
+                      'notes_midi',
+                    ]).isNotEmpty,
                 active: _generationPlayPressed,
                 onDown: () async {
                   final notes = _generatedChordJson == null
@@ -2828,6 +3048,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _holdPlayButton({
+    required bool enabled,
     required bool active,
     required Future<void> Function() onDown,
     required VoidCallback onUp,
@@ -2835,16 +3056,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Listener(
       onPointerDown: (_) {
+        if (!enabled) return;
         unawaited(onDown());
       },
-      onPointerUp: (_) => onUp(),
-      onPointerCancel: (_) => onUp(),
+      onPointerUp: (_) {
+        if (!enabled) return;
+        onUp();
+      },
+      onPointerCancel: (_) {
+        if (!enabled) return;
+        onUp();
+      },
       child: FilledButton.icon(
         style: FilledButton.styleFrom(
           backgroundColor: active ? _accent : null,
           foregroundColor: active ? const Color(0xFF1A222D) : null,
         ),
-        onPressed: () {},
+        onPressed: enabled ? () {} : null,
         icon: const Icon(Icons.play_arrow),
         label: Text(label),
       ),

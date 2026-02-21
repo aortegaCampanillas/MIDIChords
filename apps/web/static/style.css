@@ -67,6 +67,34 @@ body {
   padding: 14px;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 10, 16, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: min(520px, 96vw);
+  background: linear-gradient(170deg, #2f3a4b, #263041);
+  border: 1px solid #56627a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.modal-card h3 {
+  margin: 0 0 8px 0;
+}
+
+.modal-card p {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+}
+
 .donation-section h3 {
   margin: 0 0 8px 0;
 }
@@ -126,6 +154,12 @@ button:hover {
   border-color: var(--accent);
 }
 
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+  border-color: #4a5360;
+}
+
 .icon-play-btn {
   min-width: 42px;
   height: 34px;
@@ -144,6 +178,13 @@ button:hover {
   border-color: #ffd060;
 }
 
+#detectMidiSoundToggle.active {
+  background-color: #ffd060 !important;
+  color: #0f1b28 !important;
+  border-color: #ffd060 !important;
+  border-style: solid;
+}
+
 .icon-play-btn.stop-mode {
   font-size: 0;
 }
@@ -160,6 +201,13 @@ button:hover {
 .ghost {
   background: transparent;
   border-style: dashed;
+}
+
+#midiToggle.active {
+  background-color: #ffd060 !important;
+  color: #0f1b28 !important;
+  border-color: #ffd060 !important;
+  border-style: solid;
 }
 
 .mode-menu {
@@ -236,7 +284,7 @@ button:hover {
     "staff sidebar"
     "instrument instrument";
   gap: 12px;
-  min-height: calc(100vh - 190px);
+  min-height: calc(100vh - 170px);
   align-content: start;
 }
 
@@ -268,7 +316,7 @@ button:hover {
   border-radius: 10px;
   border: 1px solid #3a4558;
   background: #0f1621;
-  min-height: 460px;
+  min-height: 410px;
 }
 
 .sidebar {
@@ -280,7 +328,7 @@ button:hover {
 
 .sidebar-top {
   flex: 1;
-  min-height: 220px;
+  min-height: 200px;
 }
 
 .instrument-panel {
@@ -344,6 +392,23 @@ button:hover {
 .mode-screen.mode-scales .sidebar-top {
   max-height: min(50vh, 500px);
   overflow: auto;
+}
+
+.mode-screen.mode-detection .staff-panel {
+  max-height: min(49vh, 470px);
+}
+
+.mode-screen.mode-detection #staffCanvas {
+  min-height: clamp(340px, 40vh, 420px);
+}
+
+.mode-screen.mode-detection .sidebar-top {
+  max-height: min(49vh, 470px);
+  overflow: auto;
+}
+
+.mode-screen.mode-detection .mode-layout {
+  min-height: auto;
 }
 
 .mode-screen.mode-generation .instrument-panel {
@@ -550,9 +615,9 @@ button:hover {
   gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 2px 6px 2px;
+  padding: 6px 2px 4px 2px;
   max-width: 100%;
-  min-height: 188px;
+  min-height: 138px;
   border: 1px solid #3a4558;
   border-radius: 10px;
   background: #e8ecf2;
@@ -560,7 +625,7 @@ button:hover {
 
 .key {
   width: var(--white-key-w);
-  height: 150px;
+  height: 124px;
   border-radius: 0 0 8px 8px;
   border: 1px solid #7b8798;
   background: #f7f7f4;
@@ -572,7 +637,7 @@ button:hover {
 
 .key.black {
   width: var(--black-key-w);
-  height: 87px;
+  height: 72px;
   margin: 0 calc(var(--black-key-w) / -2);
   z-index: 2;
   background: #101822;

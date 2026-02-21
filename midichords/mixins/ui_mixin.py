@@ -399,7 +399,7 @@ class UiMixin:
             self.detection_controls_row,
             text="",
             command=self._toggle_midi_input_sound,
-            width=154,
+            width=220,
             height=34,
             radius=14,
             font_size=12,
@@ -1530,6 +1530,7 @@ class UiMixin:
         self.detection_help_label.configure(text=self.tr("detection_help"))
         self.detection_clear_btn.set_text(self.tr("button_clear"))
         self._refresh_midi_input_sound_toggle_button()
+        self._refresh_detection_controls_state()
         self.notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes"))
         self.intervals_caption_label.configure(text=self.tr("label_intervals"))
@@ -1663,10 +1664,11 @@ class UiMixin:
     def _play_detection_panel(self) -> None:
         self._start_detection_hold()
     def _start_detection_hold(self) -> None:
-        self.detection_play_button_pressed = True
         detection_notes = sorted(self._current_detection_notes())
-        if not detection_notes or self.active_notes:
+        if not detection_notes:
+            self.detection_play_button_pressed = False
             return
+        self.detection_play_button_pressed = True
         self._stop_detection_preview()
         self._detection_preview_notes = set(detection_notes)
         for note in detection_notes:
@@ -1678,6 +1680,18 @@ class UiMixin:
     def _on_detection_play_press(self, _event: tk.Event) -> str:
         self._start_detection_hold()
         return "break"
+    def _refresh_detection_controls_state(self) -> None:
+        has_notes = bool(self._current_detection_notes())
+        if hasattr(self, "detection_play_btn"):
+            try:
+                self.detection_play_btn.set_enabled(has_notes)
+            except Exception:
+                pass
+        if hasattr(self, "detection_clear_btn"):
+            try:
+                self.detection_clear_btn.set_enabled(has_notes)
+            except Exception:
+                pass
     def _stop_detection_preview(self) -> None:
         after_id = getattr(self, "_detection_preview_after_id", None)
         if after_id is not None:

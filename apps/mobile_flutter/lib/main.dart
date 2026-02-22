@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -7,12 +6,518 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_audio_capture/flutter_audio_capture.dart';
-import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 
 void main() {
   runApp(const MidiChordsMobileApp());
+}
+
+const List<Map<String, dynamic>> _kChordPatternDefs = <Map<String, dynamic>>[
+  <String, dynamic>{
+    'suffix': '',
+    'intervals': <int>[0, 4, 7],
+  },
+  <String, dynamic>{
+    'suffix': '5',
+    'intervals': <int>[0, 7],
+  },
+  <String, dynamic>{
+    'suffix': '-5',
+    'intervals': <int>[0, 4, 6],
+  },
+  <String, dynamic>{
+    'suffix': 'm',
+    'intervals': <int>[0, 3, 7],
+  },
+  <String, dynamic>{
+    'suffix': 'dim',
+    'intervals': <int>[0, 3, 6],
+  },
+  <String, dynamic>{
+    'suffix': 'aug',
+    'intervals': <int>[0, 4, 8],
+  },
+  <String, dynamic>{
+    'suffix': 'sus2',
+    'intervals': <int>[0, 2, 7],
+  },
+  <String, dynamic>{
+    'suffix': 'sus4',
+    'intervals': <int>[0, 5, 7],
+  },
+  <String, dynamic>{
+    'suffix': 'sus2sus4',
+    'intervals': <int>[0, 2, 5, 7],
+  },
+  <String, dynamic>{
+    'suffix': 'add9',
+    'intervals': <int>[0, 4, 7, 14],
+  },
+  <String, dynamic>{
+    'suffix': 'madd9',
+    'intervals': <int>[0, 3, 7, 14],
+  },
+  <String, dynamic>{
+    'suffix': '6',
+    'intervals': <int>[0, 4, 7, 9],
+  },
+  <String, dynamic>{
+    'suffix': '6add9',
+    'intervals': <int>[0, 4, 7, 9, 14],
+  },
+  <String, dynamic>{
+    'suffix': 'm6',
+    'intervals': <int>[0, 3, 7, 9],
+  },
+  <String, dynamic>{
+    'suffix': 'm6add9',
+    'intervals': <int>[0, 3, 7, 9, 14],
+  },
+  <String, dynamic>{
+    'suffix': '7',
+    'intervals': <int>[0, 4, 7, 10],
+  },
+  <String, dynamic>{
+    'suffix': '7sus4',
+    'intervals': <int>[0, 5, 7, 10],
+  },
+  <String, dynamic>{
+    'suffix': '7#5',
+    'intervals': <int>[0, 4, 8, 10],
+  },
+  <String, dynamic>{
+    'suffix': '7b5',
+    'intervals': <int>[0, 4, 6, 10],
+  },
+  <String, dynamic>{
+    'suffix': '7#9',
+    'intervals': <int>[0, 4, 7, 10, 15],
+  },
+  <String, dynamic>{
+    'suffix': '7b9',
+    'intervals': <int>[0, 4, 7, 10, 13],
+  },
+  <String, dynamic>{
+    'suffix': '7(#5,#9)',
+    'intervals': <int>[0, 4, 8, 10, 15],
+  },
+  <String, dynamic>{
+    'suffix': '7(#5,b9)',
+    'intervals': <int>[0, 4, 8, 10, 13],
+  },
+  <String, dynamic>{
+    'suffix': '7(b5,#9)',
+    'intervals': <int>[0, 4, 6, 10, 15],
+  },
+  <String, dynamic>{
+    'suffix': '7(b5,b9)',
+    'intervals': <int>[0, 4, 6, 10, 13],
+  },
+  <String, dynamic>{
+    'suffix': '9',
+    'intervals': <int>[0, 4, 7, 10, 14],
+  },
+  <String, dynamic>{
+    'suffix': '9#5',
+    'intervals': <int>[0, 4, 8, 10, 14],
+  },
+  <String, dynamic>{
+    'suffix': '9b5',
+    'intervals': <int>[0, 4, 6, 10, 14],
+  },
+  <String, dynamic>{
+    'suffix': '11',
+    'intervals': <int>[0, 4, 7, 10, 14, 17],
+  },
+  <String, dynamic>{
+    'suffix': '11b9',
+    'intervals': <int>[0, 4, 7, 10, 13, 17],
+  },
+  <String, dynamic>{
+    'suffix': '13',
+    'intervals': <int>[0, 4, 7, 10, 14, 21],
+  },
+  <String, dynamic>{
+    'suffix': '13b9',
+    'intervals': <int>[0, 4, 7, 10, 13, 21],
+  },
+  <String, dynamic>{
+    'suffix': '13#11',
+    'intervals': <int>[0, 4, 7, 10, 14, 18, 21],
+  },
+  <String, dynamic>{
+    'suffix': 'maj7',
+    'intervals': <int>[0, 4, 7, 11],
+  },
+  <String, dynamic>{
+    'suffix': 'maj7#5',
+    'intervals': <int>[0, 4, 8, 11],
+  },
+  <String, dynamic>{
+    'suffix': 'maj7b5',
+    'intervals': <int>[0, 4, 6, 11],
+  },
+  <String, dynamic>{
+    'suffix': 'maj9',
+    'intervals': <int>[0, 4, 7, 11, 14],
+  },
+  <String, dynamic>{
+    'suffix': 'maj11',
+    'intervals': <int>[0, 4, 7, 11, 14, 17],
+  },
+  <String, dynamic>{
+    'suffix': 'maj13',
+    'intervals': <int>[0, 4, 7, 11, 14, 21],
+  },
+  <String, dynamic>{
+    'suffix': 'maj9#11',
+    'intervals': <int>[0, 4, 7, 11, 14, 18],
+  },
+  <String, dynamic>{
+    'suffix': 'maj13#11',
+    'intervals': <int>[0, 4, 7, 11, 14, 18, 21],
+  },
+  <String, dynamic>{
+    'suffix': 'm7',
+    'intervals': <int>[0, 3, 7, 10],
+  },
+  <String, dynamic>{
+    'suffix': 'm7#5',
+    'intervals': <int>[0, 3, 8, 10],
+  },
+  <String, dynamic>{
+    'suffix': 'm9',
+    'intervals': <int>[0, 3, 7, 10, 14],
+  },
+  <String, dynamic>{
+    'suffix': 'm11',
+    'intervals': <int>[0, 3, 7, 10, 14, 17],
+  },
+  <String, dynamic>{
+    'suffix': 'm13',
+    'intervals': <int>[0, 3, 7, 10, 14, 21],
+  },
+  <String, dynamic>{
+    'suffix': 'mMaj7',
+    'intervals': <int>[0, 3, 7, 11],
+  },
+  <String, dynamic>{
+    'suffix': 'mMaj9',
+    'intervals': <int>[0, 3, 7, 11, 14],
+  },
+  <String, dynamic>{
+    'suffix': 'dim7',
+    'intervals': <int>[0, 3, 6, 9],
+  },
+  <String, dynamic>{
+    'suffix': 'm7b5',
+    'intervals': <int>[0, 3, 6, 10],
+  },
+];
+
+const List<Map<String, dynamic>> _kScalePatternDefs = <Map<String, dynamic>>[
+  <String, dynamic>{
+    'name': 'Ionian',
+    'intervals': <int>[0, 2, 4, 5, 7, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Dorian',
+    'intervals': <int>[0, 2, 3, 5, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Phrygian',
+    'intervals': <int>[0, 1, 3, 5, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Lydian',
+    'intervals': <int>[0, 2, 4, 6, 7, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Mixolydian',
+    'intervals': <int>[0, 2, 4, 5, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Aeolian',
+    'intervals': <int>[0, 2, 3, 5, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Locrian',
+    'intervals': <int>[0, 1, 3, 5, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Chromatic',
+    'intervals': <int>[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Locrian #2',
+    'intervals': <int>[0, 2, 3, 5, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Harmonic Minor',
+    'intervals': <int>[0, 2, 3, 5, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Melodic Minor',
+    'intervals': <int>[0, 2, 3, 5, 7, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Major Pentatonic',
+    'intervals': <int>[0, 2, 4, 7, 9, 12],
+  },
+  <String, dynamic>{
+    'name': 'Minor Pentatonic',
+    'intervals': <int>[0, 3, 5, 7, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Blues Pentatonic',
+    'intervals': <int>[0, 3, 5, 7, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Neutral Pentatonic',
+    'intervals': <int>[0, 2, 5, 7, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Bebop',
+    'intervals': <int>[0, 2, 4, 5, 7, 9, 10, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Bebop Major',
+    'intervals': <int>[0, 2, 4, 5, 7, 8, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Bebop Minor',
+    'intervals': <int>[0, 2, 3, 4, 5, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Half Diminished',
+    'intervals': <int>[0, 2, 3, 5, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Diminished',
+    'intervals': <int>[0, 2, 3, 5, 6, 8, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Whole Tone (WT)',
+    'intervals': <int>[0, 2, 4, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Diminished WT',
+    'intervals': <int>[0, 1, 3, 4, 6, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Minor Blues',
+    'intervals': <int>[0, 3, 5, 6, 7, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Super Locrian',
+    'intervals': <int>[0, 1, 3, 4, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Romanian Minor',
+    'intervals': <int>[0, 2, 3, 6, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Spanish Gypsy',
+    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Eight Tone Spanish',
+    'intervals': <int>[0, 1, 3, 4, 5, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Enigmatic',
+    'intervals': <int>[0, 1, 4, 6, 8, 10, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Neapolitan Major',
+    'intervals': <int>[0, 1, 3, 5, 7, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Neapolitan Minor',
+    'intervals': <int>[0, 1, 3, 5, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Pelog',
+    'intervals': <int>[0, 1, 3, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Prometheus',
+    'intervals': <int>[0, 2, 4, 6, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Prometheus Neapolitan',
+    'intervals': <int>[0, 1, 4, 6, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Six Tone Symmetric',
+    'intervals': <int>[0, 1, 4, 5, 8, 9, 12],
+  },
+  <String, dynamic>{
+    'name': 'Lydian Minor',
+    'intervals': <int>[0, 2, 3, 6, 7, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Lydian Augmented',
+    'intervals': <int>[0, 2, 4, 6, 8, 9, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Lydian Diminished',
+    'intervals': <int>[0, 2, 3, 6, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Lydian Augmented #6',
+    'intervals': <int>[0, 2, 4, 6, 8, 10, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Hungarian Major',
+    'intervals': <int>[0, 3, 4, 6, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Hungarian Minor',
+    'intervals': <int>[0, 2, 3, 6, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Ichikosucho',
+    'intervals': <int>[0, 2, 4, 5, 6, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Persian',
+    'intervals': <int>[0, 1, 4, 5, 6, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Flamenco',
+    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Hawaiian',
+    'intervals': <int>[0, 2, 3, 5, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Maqam',
+    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Oriental',
+    'intervals': <int>[0, 1, 4, 5, 6, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Iwato',
+    'intervals': <int>[0, 1, 5, 6, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Raga Malakosh',
+    'intervals': <int>[0, 3, 5, 7, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Balinese',
+    'intervals': <int>[0, 1, 3, 7, 8, 12],
+  },
+  <String, dynamic>{
+    'name': 'Kafi Raga',
+    'intervals': <int>[0, 2, 3, 5, 7, 9, 10, 12],
+  },
+  <String, dynamic>{
+    'name': 'Todi Raga',
+    'intervals': <int>[0, 1, 3, 6, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'Purvi Raga',
+    'intervals': <int>[0, 1, 4, 6, 7, 8, 11, 12],
+  },
+  <String, dynamic>{
+    'name': 'In Sen',
+    'intervals': <int>[0, 1, 5, 7, 10, 12],
+  },
+];
+
+const List<String> _kCommonChordSuffixOrder = <String>[
+  '',
+  'm',
+  '7',
+  'maj7',
+  'm7',
+  'sus4',
+  'sus2',
+  'dim',
+  'aug',
+  '5',
+  '6',
+  'm6',
+  'add9',
+  'madd9',
+  '9',
+  'maj9',
+  'm9',
+  '11',
+  'm11',
+  '13',
+  'm13',
+  'dim7',
+  'm7b5',
+];
+
+const Map<String, String> _kScaleNameEs = <String, String>{
+  'Ionian': 'Jónica',
+  'Dorian': 'Dórica',
+  'Phrygian': 'Frigia',
+  'Lydian': 'Lidia',
+  'Mixolydian': 'Mixolidia',
+  'Aeolian': 'Eólica',
+  'Locrian': 'Locria',
+  'Chromatic': 'Cromática',
+  'Locrian #2': 'Locria #2',
+  'Harmonic Minor': 'Menor armónica',
+  'Melodic Minor': 'Menor melódica',
+  'Major Pentatonic': 'Pentatónica mayor',
+  'Minor Pentatonic': 'Pentatónica menor',
+  'Blues Pentatonic': 'Pentatónica blues',
+  'Neutral Pentatonic': 'Pentatónica neutral',
+  'Bebop': 'Bebop',
+  'Bebop Major': 'Bebop mayor',
+  'Bebop Minor': 'Bebop menor',
+  'Half Diminished': 'Semidisminuida',
+  'Diminished': 'Disminuida',
+  'Whole Tone (WT)': 'Tonos enteros (WT)',
+  'Diminished WT': 'Disminuida WT',
+  'Minor Blues': 'Blues menor',
+  'Super Locrian': 'Superlocria',
+  'Romanian Minor': 'Menor rumana',
+  'Spanish Gypsy': 'Gitana española',
+  'Eight Tone Spanish': 'Española de ocho tonos',
+  'Enigmatic': 'Enigmática',
+  'Neapolitan Major': 'Napolitana mayor',
+  'Neapolitan Minor': 'Napolitana menor',
+  'Prometheus': 'Prometeo',
+  'Prometheus Neapolitan': 'Prometeo napolitana',
+  'Six Tone Symmetric': 'Simétrica de seis tonos',
+  'Lydian Minor': 'Lidia menor',
+  'Lydian Augmented': 'Lidia aumentada',
+  'Lydian Diminished': 'Lidia disminuida',
+  'Lydian Augmented #6': 'Lidia aumentada #6',
+  'Hungarian Major': 'Húngara mayor',
+  'Hungarian Minor': 'Menor húngara',
+  'Ichikosucho': 'Ichikosucho',
+  'Pelog': 'Pelog',
+  'Persian': 'Persa',
+  'Flamenco': 'Flamenca',
+  'Hawaiian': 'Hawaiana',
+  'Maqam': 'Maqam',
+  'Oriental': 'Oriental',
+  'Iwato': 'Iwato',
+  'Raga Malakosh': 'Raga Malakosh',
+  'Balinese': 'Balinesa',
+  'Kafi Raga': 'Raga Kafi',
+  'Todi Raga': 'Raga Todi',
+  'Purvi Raga': 'Raga Purvi',
+  'In Sen': 'In Sen',
+};
+
+class _ChordAnalysis {
+  const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
+  final int? rootPc;
+  final Map<String, dynamic>? pattern;
+  final int? bassPc;
 }
 
 class MidiChordsMobileApp extends StatelessWidget {
@@ -93,15 +598,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _text = Color(0xFFE9EDF2);
   static const Color _muted = Color(0xFFA8B6C8);
   static const Color _accent = Color(0xFFF3BF2F);
-
-  static const String _defaultApiBase = String.fromEnvironment(
-    'MIDICHORDS_API_BASE',
-    defaultValue: 'http://127.0.0.1:8000',
-  );
-
-  final TextEditingController _apiBaseController = TextEditingController(
-    text: _defaultApiBase,
-  );
   final TextEditingController _detectionOutputController =
       TextEditingController(text: 'Sin resultados');
   final TextEditingController _chordOutputController = TextEditingController(
@@ -112,7 +608,6 @@ class _HomeScreenState extends State<HomeScreen> {
   );
 
   int _tabIndex = 0;
-  bool _loadingMeta = false;
   bool _requestInFlight = false;
   String _instrumentView = 'piano';
 
@@ -233,14 +728,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                TextField(
-                  controller: _apiBaseController,
-                  style: const TextStyle(color: _text),
-                  decoration: const InputDecoration(
-                    labelText: 'Backend API base URL',
-                  ),
-                ),
-                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   key: ValueKey<String>('settings_lang_$_language'),
                   initialValue: _language,
@@ -264,19 +751,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() => _language = value);
                     await _loadMeta();
                   },
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _accent,
-                      foregroundColor: const Color(0xFF1A222D),
-                    ),
-                    onPressed: _loadingMeta ? null : _loadMeta,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Meta'),
-                  ),
                 ),
               ],
             ),
@@ -315,46 +789,590 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _forbiddenFlashTimers.clear();
     _audioCapture?.stop();
-    _apiBaseController.dispose();
     _detectionOutputController.dispose();
     _chordOutputController.dispose();
     _scaleOutputController.dispose();
     super.dispose();
   }
 
-  Uri _uri(String path) => Uri.parse('${_apiBaseController.text.trim()}$path');
+  int _positiveMod12(int value) {
+    final m = value % 12;
+    return m < 0 ? m + 12 : m;
+  }
 
-  Future<Map<String, dynamic>> _postJson(
-    String path,
-    Map<String, dynamic> payload,
-  ) async {
-    final resp = await http.post(
-      _uri(path),
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
-    if (resp.statusCode >= 400) {
-      throw Exception('HTTP ${resp.statusCode}: ${resp.body}');
+  bool get _preferFlat => _accidental == 'flat';
+
+  String _noteNameLocal(
+    int midiNote, {
+    required String language,
+    required bool preferFlat,
+    bool withOctave = true,
+  }) {
+    const sharpEs = <String>[
+      'Do',
+      'Do#',
+      'Re',
+      'Re#',
+      'Mi',
+      'Fa',
+      'Fa#',
+      'Sol',
+      'Sol#',
+      'La',
+      'La#',
+      'Si',
+    ];
+    const sharpEn = <String>[
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
+    const flatAliasesEs = <int, String>{
+      1: 'Re♭',
+      3: 'Mi♭',
+      6: 'Sol♭',
+      8: 'La♭',
+      10: 'Si♭',
+    };
+    const flatAliasesEn = <int, String>{
+      1: 'D♭',
+      3: 'E♭',
+      6: 'G♭',
+      8: 'A♭',
+      10: 'B♭',
+    };
+    final names = language == 'en' ? sharpEn : sharpEs;
+    final flatAliases = language == 'en' ? flatAliasesEn : flatAliasesEs;
+    final pc = _positiveMod12(midiNote);
+    final name = preferFlat ? (flatAliases[pc] ?? names[pc]) : names[pc];
+    if (!withOctave) {
+      return name;
     }
-    return jsonDecode(resp.body) as Map<String, dynamic>;
+    final octave = (midiNote ~/ 12) - 1;
+    return '$name$octave';
+  }
+
+  int _tonicLetterIndex(int tonicPc, bool preferFlats) {
+    const mapSharp = <int, int>{
+      0: 0,
+      1: 0,
+      2: 1,
+      3: 1,
+      4: 2,
+      5: 3,
+      6: 3,
+      7: 4,
+      8: 4,
+      9: 5,
+      10: 5,
+      11: 6,
+    };
+    const mapFlat = <int, int>{
+      0: 0,
+      1: 1,
+      2: 1,
+      3: 2,
+      4: 2,
+      5: 3,
+      6: 4,
+      7: 4,
+      8: 5,
+      9: 5,
+      10: 6,
+      11: 6,
+    };
+    final map = preferFlats ? mapFlat : mapSharp;
+    return map[_positiveMod12(tonicPc)] ?? 0;
+  }
+
+  String? _applyAccidental(String base, int diff) {
+    switch (diff) {
+      case 0:
+        return base;
+      case 1:
+        return '$base#';
+      case -1:
+        return '$base♭';
+      case 2:
+        return '$base##';
+      case -2:
+        return '$base♭♭';
+      default:
+        return null;
+    }
+  }
+
+  String _spellByDegree({
+    required int rootPc,
+    required int targetPc,
+    required int degree,
+    required String language,
+    required bool preferFlats,
+    int? midiNote,
+    bool withOctave = false,
+  }) {
+    const letterEs = <String>['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
+    const letterEn = <String>['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const basePcs = <int>[0, 2, 4, 5, 7, 9, 11];
+    final letters = language == 'en' ? letterEn : letterEs;
+    final tonicLetter = _tonicLetterIndex(rootPc, preferFlats);
+    final letterIdx = (tonicLetter + degree) % 7;
+    final naturalPc = basePcs[letterIdx];
+    var diff = _positiveMod12(targetPc - naturalPc);
+    if (diff > 6) {
+      diff -= 12;
+    }
+    final spelled = _applyAccidental(letters[letterIdx], diff);
+    if (spelled == null) {
+      final fallback = midiNote ?? targetPc;
+      return _noteNameLocal(
+        fallback,
+        language: language,
+        preferFlat: preferFlats,
+        withOctave: withOctave,
+      );
+    }
+    if (!withOctave) {
+      return spelled;
+    }
+    if (midiNote == null) {
+      return spelled;
+    }
+    final octave = (midiNote ~/ 12) - 1;
+    return '$spelled$octave';
+  }
+
+  int _chordIntervalDegree(int interval, String suffix) {
+    final value = interval;
+    if (value == 0 || value == 12) return 0;
+    if (value == 1 || value == 2 || value == 13 || value == 14) return 1;
+    if (value == 3 || value == 4 || value == 15) return 2;
+    if (value == 5 || value == 17) return 3;
+    if (value == 6 || value == 18) {
+      if (suffix.contains('b5') || suffix.contains('dim')) return 4;
+      return 3;
+    }
+    if (value == 7) return 4;
+    if (value == 8) {
+      if (suffix.contains('#5') || suffix.contains('aug')) return 4;
+      return 5;
+    }
+    if (value == 9 || value == 21) return 5;
+    if (value == 10 || value == 11) return 6;
+    return math.max(0, math.min(6, value % 7));
+  }
+
+  List<int> _voicedIntervalsForInversion(List<int> intervals, int inversion) {
+    if (intervals.isEmpty) {
+      return <int>[];
+    }
+    final total = intervals.length;
+    final inversionIdx = inversion.clamp(0, total - 1);
+    final rotated = List<int>.generate(
+      total,
+      (i) => intervals[(inversionIdx + i) % total],
+    );
+    final voiced = <int>[];
+    for (final raw in rotated) {
+      var value = raw;
+      if (voiced.isNotEmpty) {
+        while (value <= voiced.last) {
+          value += 12;
+        }
+      }
+      voiced.add(value);
+    }
+    return voiced;
+  }
+
+  List<Map<String, dynamic>> _chordPatternsForUi() {
+    final priority = <String, int>{
+      for (int i = 0; i < _kCommonChordSuffixOrder.length; i += 1)
+        _kCommonChordSuffixOrder[i]: i,
+    };
+    final sorted = _kChordPatternDefs
+        .map(
+          (p) => <String, dynamic>{
+            'suffix': p['suffix'],
+            'intervals': List<int>.from(
+              p['intervals'] as List<dynamic>? ?? const <dynamic>[],
+            ),
+          },
+        )
+        .toList();
+    sorted.sort((a, b) {
+      final aSuffix = (a['suffix'] as String? ?? '');
+      final bSuffix = (b['suffix'] as String? ?? '');
+      final aIntervals =
+          (a['intervals'] as List<dynamic>? ?? const <dynamic>[]).length;
+      final bIntervals =
+          (b['intervals'] as List<dynamic>? ?? const <dynamic>[]).length;
+      final aPrio = priority[aSuffix] ?? _kCommonChordSuffixOrder.length;
+      final bPrio = priority[bSuffix] ?? _kCommonChordSuffixOrder.length;
+      if (aPrio != bPrio) return aPrio.compareTo(bPrio);
+      if (aIntervals != bIntervals) return aIntervals.compareTo(bIntervals);
+      return aSuffix.compareTo(bSuffix);
+    });
+    return sorted;
+  }
+
+  List<Map<String, dynamic>> _scalePatternsLocal(String language) {
+    return _kScalePatternDefs
+        .map((pattern) {
+          final name = pattern['name'] as String? ?? 'Ionian';
+          final localized = language == 'es'
+              ? (_kScaleNameEs[name] ?? name)
+              : name;
+          return <String, dynamic>{
+            'name': name,
+            'localized_name': localized,
+            'intervals': List<int>.from(
+              pattern['intervals'] as List<dynamic>? ?? const <dynamic>[],
+            ),
+          };
+        })
+        .toList(growable: false);
+  }
+
+  _ChordAnalysis _analyzeChordNotes(Set<int> notes) {
+    if (notes.isEmpty) {
+      return const _ChordAnalysis(null, null, null);
+    }
+    final pcs = notes.map(_positiveMod12).toSet();
+    var bestScore = -999;
+    var bestComplexity = -999;
+    int? bestRoot;
+    Map<String, dynamic>? bestPattern;
+    for (int root = 0; root < 12; root += 1) {
+      for (final pattern in _kChordPatternDefs) {
+        final intervals =
+            (pattern['intervals'] as List<dynamic>? ?? const <dynamic>[])
+                .map((e) => e as int)
+                .toList(growable: false);
+        final template = intervals.map((i) => (root + i) % 12).toSet();
+        final extra = pcs.difference(template).length;
+        final missing = template.difference(pcs).length;
+        int score;
+        if (extra == 0 && missing == 0) {
+          score = 100;
+        } else if (missing == 0) {
+          score = 70 - extra;
+        } else if (extra == 0) {
+          score = 40 - missing;
+        } else {
+          continue;
+        }
+        final complexity = -intervals.length;
+        if (score > bestScore ||
+            (score == bestScore && complexity > bestComplexity)) {
+          bestScore = score;
+          bestComplexity = complexity;
+          bestRoot = root;
+          bestPattern = pattern;
+        }
+      }
+    }
+    final bassPc = notes.reduce(math.min) % 12;
+    return _ChordAnalysis(bestRoot, bestPattern, bassPc);
+  }
+
+  Map<String, dynamic> _generateChordLocal({
+    required int rootPc,
+    required String suffix,
+    required int inversion,
+    required String language,
+    required bool preferFlat,
+  }) {
+    final selected = _kChordPatternDefs.firstWhere(
+      (p) => (p['suffix'] as String? ?? '') == suffix,
+      orElse: () => _kChordPatternDefs.first,
+    );
+    final intervals = List<int>.from(
+      selected['intervals'] as List<dynamic>? ?? const <dynamic>[],
+    );
+    if (intervals.isEmpty) {
+      return <String, dynamic>{
+        'root_pc': _positiveMod12(rootPc),
+        'suffix': selected['suffix'] as String? ?? '',
+        'inversion': 0,
+        'name': '-',
+        'notes_midi': <int>[],
+        'notes': <String>[],
+      };
+    }
+    final safeInversion = inversion.clamp(0, intervals.length - 1);
+    final rootMidi = 60 + _positiveMod12(rootPc);
+    final voicedIntervals = _voicedIntervalsForInversion(
+      intervals,
+      safeInversion,
+    );
+    final notesMidi = voicedIntervals.map((i) => rootMidi + i).toList();
+    final noteLabels = <String>[];
+    final noteLabelsNoOct = <String>[];
+    for (int i = 0; i < notesMidi.length; i += 1) {
+      final interval = voicedIntervals[i];
+      final midiNote = notesMidi[i];
+      final degree = _chordIntervalDegree(interval, suffix);
+      final pc = _positiveMod12(midiNote);
+      noteLabels.add(
+        _spellByDegree(
+          rootPc: rootPc,
+          targetPc: pc,
+          degree: degree,
+          language: language,
+          preferFlats: preferFlat,
+          midiNote: midiNote,
+          withOctave: true,
+        ),
+      );
+      noteLabelsNoOct.add(
+        _spellByDegree(
+          rootPc: rootPc,
+          targetPc: pc,
+          degree: degree,
+          language: language,
+          preferFlats: preferFlat,
+          midiNote: midiNote,
+          withOctave: false,
+        ),
+      );
+    }
+    final rootName = _spellByDegree(
+      rootPc: rootPc,
+      targetPc: _positiveMod12(rootPc),
+      degree: 0,
+      language: language,
+      preferFlats: preferFlat,
+      midiNote: rootPc,
+      withOctave: false,
+    );
+    var chordName = '$rootName$suffix';
+    if (safeInversion > 0 && noteLabelsNoOct.isNotEmpty) {
+      chordName = '$chordName/${noteLabelsNoOct.first}';
+    }
+    return <String, dynamic>{
+      'root_pc': _positiveMod12(rootPc),
+      'suffix': suffix,
+      'inversion': safeInversion,
+      'name': chordName,
+      'notes_midi': notesMidi,
+      'notes': noteLabels,
+      'notes_no_octave': noteLabelsNoOct,
+      'intervals': voicedIntervals,
+    };
+  }
+
+  Map<String, dynamic> _detectChordLocal({
+    required List<int> notes,
+    required String language,
+    required bool preferFlat,
+  }) {
+    final midiNotes = notes.toSet().toList()..sort();
+    if (midiNotes.isEmpty) {
+      return <String, dynamic>{
+        'name': '-',
+        'extras_midi': <int>[],
+        'notes_midi': <int>[],
+        'notes': <String>[],
+        'extras': <String>[],
+      };
+    }
+    final pcs = midiNotes.map(_positiveMod12).toSet();
+    if (pcs.length == 1) {
+      final single = midiNotes.first;
+      return <String, dynamic>{
+        'name': _noteNameLocal(
+          single,
+          language: language,
+          preferFlat: preferFlat,
+          withOctave: false,
+        ),
+        'notes_midi': midiNotes,
+        'notes': midiNotes
+            .map(
+              (n) => _noteNameLocal(
+                n,
+                language: language,
+                preferFlat: preferFlat,
+                withOctave: true,
+              ),
+            )
+            .toList(),
+        'extras_midi': <int>[],
+        'extras': <String>[],
+      };
+    }
+    final analysis = _analyzeChordNotes(midiNotes.toSet());
+    final root = analysis.rootPc;
+    final pattern = analysis.pattern;
+    final bassPc = analysis.bassPc;
+    if (root == null || pattern == null) {
+      return <String, dynamic>{
+        'name': midiNotes
+            .map(
+              (n) => _noteNameLocal(
+                n,
+                language: language,
+                preferFlat: preferFlat,
+                withOctave: false,
+              ),
+            )
+            .join(' + '),
+        'notes_midi': midiNotes,
+        'notes': midiNotes
+            .map(
+              (n) => _noteNameLocal(
+                n,
+                language: language,
+                preferFlat: preferFlat,
+                withOctave: true,
+              ),
+            )
+            .toList(),
+        'extras_midi': <int>[],
+        'extras': <String>[],
+      };
+    }
+    final suffix = pattern['suffix'] as String? ?? '';
+    final intervals = List<int>.from(
+      pattern['intervals'] as List<dynamic>? ?? const <dynamic>[],
+    );
+    final degreeByPc = <int, int>{};
+    for (final interval in intervals) {
+      final pc = _positiveMod12(root + interval);
+      degreeByPc.putIfAbsent(pc, () => _chordIntervalDegree(interval, suffix));
+    }
+    final rootName = _spellByDegree(
+      rootPc: root,
+      targetPc: root,
+      degree: 0,
+      language: language,
+      preferFlats: preferFlat,
+      midiNote: root,
+      withOctave: false,
+    );
+    var chordName = '$rootName$suffix';
+    if (bassPc != null && bassPc != root) {
+      final bassDegree = degreeByPc[bassPc];
+      final bassName = bassDegree == null
+          ? _noteNameLocal(
+              bassPc,
+              language: language,
+              preferFlat: preferFlat,
+              withOctave: false,
+            )
+          : _spellByDegree(
+              rootPc: root,
+              targetPc: bassPc,
+              degree: bassDegree,
+              language: language,
+              preferFlats: preferFlat,
+              midiNote: bassPc,
+              withOctave: false,
+            );
+      chordName = '$chordName/$bassName';
+    }
+    final expectedPcs = intervals.map((i) => _positiveMod12(root + i)).toSet();
+    final extras = midiNotes
+        .where((n) => !expectedPcs.contains(n % 12))
+        .toList();
+    final noteLabels = midiNotes.map((n) {
+      final degree = degreeByPc[n % 12];
+      if (degree == null) {
+        return _noteNameLocal(
+          n,
+          language: language,
+          preferFlat: preferFlat,
+          withOctave: true,
+        );
+      }
+      return _spellByDegree(
+        rootPc: root,
+        targetPc: n % 12,
+        degree: degree,
+        language: language,
+        preferFlats: preferFlat,
+        midiNote: n,
+        withOctave: true,
+      );
+    }).toList();
+    return <String, dynamic>{
+      'name': chordName,
+      'notes_midi': midiNotes,
+      'notes': noteLabels,
+      'extras_midi': extras,
+      'extras': extras
+          .map(
+            (n) => _noteNameLocal(
+              n,
+              language: language,
+              preferFlat: preferFlat,
+              withOctave: true,
+            ),
+          )
+          .toList(),
+      'root_pc': root,
+      'suffix': suffix,
+    };
+  }
+
+  Map<String, dynamic> _generateScaleLocal({
+    required int tonicPc,
+    required String patternName,
+    required String language,
+    required bool preferFlat,
+  }) {
+    final selected = _kScalePatternDefs.firstWhere(
+      (p) => (p['name'] as String? ?? '') == patternName,
+      orElse: () => _kScalePatternDefs.first,
+    );
+    final intervals = List<int>.from(
+      selected['intervals'] as List<dynamic>? ?? const <dynamic>[],
+    );
+    final rootMidi = 60 + _positiveMod12(tonicPc);
+    final notesMidi = intervals.map((i) => rootMidi + i).toList();
+    final names = <String>[];
+    for (int idx = 0; idx < notesMidi.length; idx += 1) {
+      final midiNote = notesMidi[idx];
+      names.add(
+        _spellByDegree(
+          rootPc: tonicPc,
+          targetPc: _positiveMod12(midiNote),
+          degree: idx,
+          language: language,
+          preferFlats: preferFlat,
+          midiNote: midiNote,
+          withOctave: true,
+        ),
+      );
+    }
+    final selectedName = selected['name'] as String? ?? patternName;
+    final localized = language == 'es'
+        ? (_kScaleNameEs[selectedName] ?? selectedName)
+        : selectedName;
+    return <String, dynamic>{
+      'tonic_pc': _positiveMod12(tonicPc),
+      'pattern_name': selectedName,
+      'pattern_localized_name': localized,
+      'notes_midi': notesMidi,
+      'notes': names,
+      'intervals': intervals,
+    };
   }
 
   Future<void> _loadMeta() async {
-    setState(() => _loadingMeta = true);
     try {
-      final resp = await http.get(_uri('/api/meta?language=$_language'));
-      if (resp.statusCode >= 400) {
-        throw Exception('HTTP ${resp.statusCode}: ${resp.body}');
-      }
-      final json = jsonDecode(resp.body) as Map<String, dynamic>;
-      final chordPatterns =
-          (json['chord_patterns'] as List<dynamic>? ?? <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .toList();
-      final scalePatterns =
-          (json['scale_patterns'] as List<dynamic>? ?? <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .toList();
+      final chordPatterns = _chordPatternsForUi();
+      final scalePatterns = _scalePatternsLocal(_language);
       setState(() {
         _chordPatterns = chordPatterns;
         _scalePatterns = scalePatterns;
@@ -384,10 +1402,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (err) {
       _detectionOutputController.text = 'Error cargando meta: $err';
-    } finally {
-      if (mounted) {
-        setState(() => _loadingMeta = false);
-      }
     }
   }
 
@@ -602,6 +1616,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return <int>{};
   }
 
+  Set<int> _instrumentExtrasForCurrentTab() {
+    if (_tabIndex == 0 && _detectionResultJson != null) {
+      return _extractMidiList(_detectionResultJson!, <String>[
+        'extras_midi',
+      ]).toSet();
+    }
+    return <int>{};
+  }
+
   List<int> _scaleBaseNotes() {
     if (_generatedScaleJson == null) return <int>[];
     final base = _extractMidiList(_generatedScaleJson!, <String>['notes_midi']);
@@ -795,16 +1818,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _detectionMidiHeldNotes.clear();
         _stopHeldMidiInputs();
       }
-      final shiftPressed = _isShiftPressed();
       setState(() {
-        if (shiftPressed) {
-          if (_detectionSelectedNotes.contains(midi)) {
-            _detectionSelectedNotes.remove(midi);
-          } else {
-            _detectionSelectedNotes.add(midi);
-          }
+        if (_detectionSelectedNotes.contains(midi)) {
+          _detectionSelectedNotes.remove(midi);
         } else {
-          _detectionSelectedNotes.clear();
           _detectionSelectedNotes.add(midi);
         }
       });
@@ -900,6 +1917,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _updateInputDrag(int midi, int pointer, Offset globalPos) async {
     if (!_inputDragActive || _dragPointer != pointer) return;
+    if (_tabIndex == 0) {
+      return;
+    }
     if (_dragCurrentNote == midi) return;
     final now = DateTime.now();
     final msSinceLast = now.difference(_dragLastSwitchAt).inMilliseconds;
@@ -960,14 +1980,19 @@ class _HomeScreenState extends State<HomeScreen> {
     required String instrument,
   }) async {
     _stopHeldChord();
-    for (final midi in notes) {
+    final starts = notes.map((midi) async {
       final player = await _playTone(
         midi: midi,
         instrument: instrument,
         durationSeconds: instrument == 'guitar' ? 1.45 : 1.35,
       );
+      return MapEntry<int, AudioPlayer?>(midi, player);
+    }).toList();
+    final started = await Future.wait(starts);
+    for (final entry in started) {
+      final player = entry.value;
       if (player != null) {
-        _heldChordPlayers[midi] = player;
+        _heldChordPlayers[entry.key] = player;
       }
     }
   }
@@ -1023,11 +2048,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _requestInFlight = true);
     try {
       final notes = _activeDetectionNotes.toList()..sort();
-      final json = await _postJson('/api/detect', <String, dynamic>{
-        'notes': notes,
-        'language': _language,
-        'accidental': _accidental,
-      });
+      final json = _detectChordLocal(
+        notes: notes,
+        language: _language,
+        preferFlat: _preferFlat,
+      );
       _detectionResultJson = json;
       final detectedMidi = _extractMidiList(json, <String>['notes_midi']);
       _detectionOutputController.text =
@@ -1050,13 +2075,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _requestInFlight = true);
     try {
-      final json = await _postJson('/api/generate/chord', <String, dynamic>{
-        'root_pc': _chordRootPc,
-        'suffix': _chordSuffix,
-        'inversion': _chordInversion,
-        'language': _language,
-        'accidental': _accidental,
-      });
+      final json = _generateChordLocal(
+        rootPc: _chordRootPc,
+        suffix: _chordSuffix,
+        inversion: _chordInversion,
+        language: _language,
+        preferFlat: _preferFlat,
+      );
       _generatedChordJson = json;
       final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
       _chordOutputController.text =
@@ -1078,12 +2103,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _requestInFlight = true);
     try {
-      final json = await _postJson('/api/generate/scale', <String, dynamic>{
-        'tonic_pc': _scaleTonicPc,
-        'pattern_name': _scalePatternName,
-        'language': _language,
-        'accidental': _accidental,
-      });
+      final json = _generateScaleLocal(
+        tonicPc: _scaleTonicPc,
+        patternName: _scalePatternName,
+        language: _language,
+        preferFlat: _preferFlat,
+      );
       _generatedScaleJson = json;
       final scaleMidi = _extractMidiList(json, <String>['notes_midi']);
       _scaleGuitarStartNote = scaleMidi.isNotEmpty ? scaleMidi.first : null;
@@ -1638,6 +2663,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 74,
         centerTitle: false,
         titleSpacing: 12,
         title: Row(
@@ -1654,7 +2680,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     dropdownColor: _surfaceDark,
                     style: const TextStyle(color: _text),
                     decoration: const InputDecoration(
-                      labelText: 'Modo',
+                      hintText: 'Modo',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       isDense: true,
                     ),
                     items: List<DropdownMenuItem<int>>.generate(
@@ -1984,101 +3014,54 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPianoStrip(Set<int> activeMidi) {
-    final midiRange = List<int>.generate(31, (i) => 48 + i); // C3..F#5
+    final midiRange = List<int>.generate(37, (i) => 48 + i); // C3..C6
     final whiteMidi = midiRange
         .where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12))
         .toList();
-    const whiteW = 50.0;
-    const blackW = 30.0;
     const whiteH = 130.0;
-    const blackH = 84.0;
     final active = activeMidi.toSet();
+    final extras = _instrumentExtrasForCurrentTab();
     final scaleRh = _tabIndex == 2 ? _scaleRhNotes().toSet() : <int>{};
     final scaleLh = (_tabIndex == 2 && _instrumentView == 'piano')
         ? _scaleLhNotes(_scaleRhNotes()).toSet()
         : <int>{};
 
-    double xForMidi(int midi) {
-      final idx = whiteMidi.indexWhere((m) => m >= midi);
-      final wIdx = idx < 0 ? whiteMidi.length - 1 : idx;
-      return wIdx * whiteW;
-    }
-
     return SizedBox(
       height: 140,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: whiteMidi.length * whiteW,
-          child: Stack(
-            children: <Widget>[
-              Row(
-                children: whiteMidi.map((midi) {
-                  final isActive = active.contains(midi);
-                  final isScaleCurrent =
-                      _tabIndex == 2 &&
-                      _scaleCurrentNote != null &&
-                      _scaleCurrentNote == midi;
-                  final currentIsLeft =
-                      isScaleCurrent &&
-                      _instrumentView == 'piano' &&
-                      scaleLh.contains(midi) &&
-                      !scaleRh.contains(midi);
-                  return Listener(
-                    onPointerDown: (event) => unawaited(
-                      _beginInputDrag(midi, event.pointer, event.position),
-                    ),
-                    onPointerMove: (event) => unawaited(
-                      _updateInputDrag(midi, event.pointer, event.position),
-                    ),
-                    onPointerUp: (event) => _endInputDrag(event.pointer),
-                    onPointerCancel: (event) => _endInputDrag(event.pointer),
-                    child: Container(
-                      width: whiteW,
-                      height: whiteH,
-                      margin: EdgeInsets.zero,
-                      decoration: BoxDecoration(
-                        color: isScaleCurrent
-                            ? (currentIsLeft
-                                  ? const Color(0xFFFF8A2B)
-                                  : const Color(0xFF4DA3EA))
-                            : (isActive
-                                  ? const Color(0xFFF3C64F)
-                                  : const Color(0xFFF5F4EF)),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFAEB8C5)),
-                      ),
-                      alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
-                        _pcLabel(midi % 12),
-                        style: const TextStyle(
-                          color: Color(0xFF1A222D),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              ...midiRange
-                  .where((m) => const <int>{1, 3, 6, 8, 10}.contains(m % 12))
-                  .map((midi) {
-                    final isActive = active.contains(midi);
-                    final isScaleCurrent =
-                        _tabIndex == 2 &&
-                        _scaleCurrentNote != null &&
-                        _scaleCurrentNote == midi;
-                    final currentIsLeft =
-                        isScaleCurrent &&
-                        _instrumentView == 'piano' &&
-                        scaleLh.contains(midi) &&
-                        !scaleRh.contains(midi);
-                    return Positioned(
-                      left: xForMidi(midi) - (blackW / 2),
-                      top: 0,
-                      child: Listener(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final viewportW = constraints.maxWidth;
+          final whiteW = math.max(40.0, viewportW / whiteMidi.length);
+          final blackW = whiteW * 0.6;
+          final blackH = whiteH * 0.65;
+          final keyboardW = whiteMidi.length * whiteW;
+
+          double xForMidi(int midi) {
+            final idx = whiteMidi.indexWhere((m) => m >= midi);
+            final wIdx = idx < 0 ? whiteMidi.length - 1 : idx;
+            return wIdx * whiteW;
+          }
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: math.max(viewportW, keyboardW),
+              child: Stack(
+                children: <Widget>[
+                  Row(
+                    children: whiteMidi.map((midi) {
+                      final isActive = active.contains(midi);
+                      final isExtra = extras.contains(midi);
+                      final isScaleCurrent =
+                          _tabIndex == 2 &&
+                          _scaleCurrentNote != null &&
+                          _scaleCurrentNote == midi;
+                      final currentIsLeft =
+                          isScaleCurrent &&
+                          _instrumentView == 'piano' &&
+                          scaleLh.contains(midi) &&
+                          !scaleRh.contains(midi);
+                      return Listener(
                         onPointerDown: (event) => unawaited(
                           _beginInputDrag(midi, event.pointer, event.position),
                         ),
@@ -2089,56 +3072,142 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPointerCancel: (event) =>
                             _endInputDrag(event.pointer),
                         child: Container(
-                          width: blackW,
-                          height: blackH,
+                          width: whiteW,
+                          height: whiteH,
+                          margin: EdgeInsets.zero,
                           decoration: BoxDecoration(
                             color: isScaleCurrent
                                 ? (currentIsLeft
-                                      ? const Color(0xFFB35F00)
-                                      : const Color(0xFF0078D7))
-                                : (isActive
-                                      ? const Color(0xFFC37B00)
-                                      : const Color(0xFF101822)),
+                                      ? const Color(0xFFFF8A2B)
+                                      : const Color(0xFF4DA3EA))
+                                : (isExtra
+                                      ? const Color(0xFFE04A4A)
+                                      : (isActive
+                                            ? const Color(0xFFF3C64F)
+                                            : const Color(0xFFF5F4EF))),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF6F7F96)),
+                            border: Border.all(color: const Color(0xFFAEB8C5)),
                           ),
                           alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: Text(
                             _pcLabel(midi % 12),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF1A222D),
                               fontWeight: FontWeight.w700,
-                              fontSize: 9,
+                              fontSize: 11,
                             ),
                           ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  ...midiRange
+                      .where(
+                        (m) => const <int>{1, 3, 6, 8, 10}.contains(m % 12),
+                      )
+                      .map((midi) {
+                        final isActive = active.contains(midi);
+                        final isExtra = extras.contains(midi);
+                        final isScaleCurrent =
+                            _tabIndex == 2 &&
+                            _scaleCurrentNote != null &&
+                            _scaleCurrentNote == midi;
+                        final currentIsLeft =
+                            isScaleCurrent &&
+                            _instrumentView == 'piano' &&
+                            scaleLh.contains(midi) &&
+                            !scaleRh.contains(midi);
+                        return Positioned(
+                          left: xForMidi(midi) - (blackW / 2),
+                          top: 0,
+                          child: Listener(
+                            onPointerDown: (event) => unawaited(
+                              _beginInputDrag(
+                                midi,
+                                event.pointer,
+                                event.position,
+                              ),
+                            ),
+                            onPointerMove: (event) => unawaited(
+                              _updateInputDrag(
+                                midi,
+                                event.pointer,
+                                event.position,
+                              ),
+                            ),
+                            onPointerUp: (event) =>
+                                _endInputDrag(event.pointer),
+                            onPointerCancel: (event) =>
+                                _endInputDrag(event.pointer),
+                            child: Container(
+                              width: blackW,
+                              height: blackH,
+                              decoration: BoxDecoration(
+                                color: isScaleCurrent
+                                    ? (currentIsLeft
+                                          ? const Color(0xFFB35F00)
+                                          : const Color(0xFF0078D7))
+                                    : (isExtra
+                                          ? const Color(0xFFB33434)
+                                          : (isActive
+                                                ? const Color(0xFFC37B00)
+                                                : const Color(0xFF101822))),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFF6F7F96),
+                                ),
+                              ),
+                              alignment: Alignment.bottomCenter,
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: SizedBox(
+                                width: blackW - 4,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _pcLabel(midi % 12),
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                  ..._forbiddenFlashNotes.map((midi) {
+                    return Positioned(
+                      left: xForMidi(midi),
+                      top: 48,
+                      child: const Text(
+                        '⊘',
+                        style: TextStyle(
+                          color: Color(0xFFFF5A5A),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     );
                   }),
-              ..._forbiddenFlashNotes.map((midi) {
-                return Positioned(
-                  left: xForMidi(midi),
-                  top: 48,
-                  child: const Text(
-                    '⊘',
-                    style: TextStyle(
-                      color: Color(0xFFFF5A5A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildGuitarStrip(Set<int> activeMidi) {
     final activePcs = activeMidi.map((n) => n % 12).toSet();
+    final extraPcs = _instrumentExtrasForCurrentTab()
+        .map((n) => n % 12)
+        .toSet();
     final rightTuning = <int>[40, 45, 50, 55, 59, 64];
     final tuning = _guitarHandedness == 'left'
         ? rightTuning.reversed.toList()
@@ -2233,6 +3302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     final y = 32.0 + (s * stringGap) - 10;
                     final x = 40 + (f * fretW) - 11;
                     final active = activePcs.contains(note % 12);
+                    final isExtra = extraPcs.contains(note % 12);
                     final showDot = detectionMode || active;
                     return Positioned(
                       left: x,
@@ -2254,14 +3324,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: active
-                                ? const Color(0xFFF3BF2F)
+                                ? (isExtra
+                                      ? const Color(0xFFE04A4A)
+                                      : const Color(0xFFF3BF2F))
                                 : (showDot
                                       ? const Color(0xFFE5E7EB)
                                       : Colors.transparent),
                             border: showDot
                                 ? Border.all(
                                     color: active
-                                        ? const Color(0xFFD29B20)
+                                        ? (isExtra
+                                              ? const Color(0xFFB33434)
+                                              : const Color(0xFFD29B20))
                                         : const Color(0xFFAAB1BC),
                                   )
                                 : null,
@@ -2280,7 +3354,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         active ? _pcLabel(note % 12) : '•',
                                         style: TextStyle(
                                           color: active
-                                              ? const Color(0xFF1A222D)
+                                              ? (isExtra
+                                                    ? const Color(0xFFFCECEC)
+                                                    : const Color(0xFF1A222D))
                                               : const Color(0xFF7D8797),
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,
@@ -2327,6 +3403,23 @@ class _HomeScreenState extends State<HomeScreen> {
           Wrap(
             spacing: 8,
             children: <Widget>[
+              _holdPlayButton(
+                enabled: hasNotes,
+                active: _detectionPlayPressed,
+                label: null,
+                onDown: () async {
+                  final notes = _activeDetectionNotes.toList()..sort();
+                  if (notes.isEmpty) return;
+                  setState(() => _detectionPlayPressed = true);
+                  await _startHeldChord(notes, instrument: 'piano');
+                },
+                onUp: () {
+                  _stopHeldChord();
+                  if (mounted) {
+                    setState(() => _detectionPlayPressed = false);
+                  }
+                },
+              ),
               OutlinedButton.icon(
                 onPressed: !hasNotes
                     ? null
@@ -2360,27 +3453,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       : 'Silenciar entrada MIDI',
                 ),
                 style: midiSoundStyle,
-              ),
-              OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.restore),
-                label: const Text(''),
-              ),
-              _holdPlayButton(
-                enabled: hasNotes,
-                active: _detectionPlayPressed,
-                onDown: () async {
-                  final notes = _activeDetectionNotes.toList()..sort();
-                  if (notes.isEmpty) return;
-                  setState(() => _detectionPlayPressed = true);
-                  await _startHeldChord(notes, instrument: 'piano');
-                },
-                onUp: () {
-                  _stopHeldChord();
-                  if (mounted) {
-                    setState(() => _detectionPlayPressed = false);
-                  }
-                },
               ),
             ],
           ),
@@ -3239,8 +4311,9 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool active,
     required Future<void> Function() onDown,
     required VoidCallback onUp,
-    String label = 'Play',
+    String? label,
   }) {
+    final hasLabel = (label != null && label.trim().isNotEmpty);
     return Listener(
       onPointerDown: (_) {
         if (!enabled) return;
@@ -3254,20 +4327,36 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!enabled) return;
         onUp();
       },
-      child: FilledButton.icon(
-        style: FilledButton.styleFrom(
-          backgroundColor: active ? _accent : null,
-          foregroundColor: active ? const Color(0xFF1A222D) : null,
-        ),
-        onPressed: enabled ? () {} : null,
-        icon: const Icon(Icons.play_arrow),
-        label: Text(label),
-      ),
+      child: hasLabel
+          ? FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: active ? _accent : _surfaceDark,
+                foregroundColor: active ? const Color(0xFF1A222D) : _text,
+              ),
+              onPressed: enabled ? () {} : null,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(label),
+            )
+          : FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(46, 42),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                backgroundColor: active ? _accent : _surfaceDark,
+                foregroundColor: active ? const Color(0xFF1A222D) : _text,
+              ),
+              onPressed: enabled ? () {} : null,
+              child: const Icon(Icons.play_arrow),
+            ),
     );
   }
 
   Widget _resultBlock({required TextEditingController controller}) {
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF17273A),
@@ -3278,6 +4367,7 @@ class _HomeScreenState extends State<HomeScreen> {
         valueListenable: controller,
         builder: (context, value, _) {
           return SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
             child: SelectableText(
               value.text,
               style: const TextStyle(color: _text, fontSize: 16, height: 1.35),

@@ -47,7 +47,24 @@ def run_web(host: str, port: int, reload: bool) -> None:
 
 def run_mobile(mobile_args: list[str]) -> None:
     project_dir = Path(__file__).resolve().parent / "apps" / "mobile_flutter"
-    cmd = ["flutter", "run", *mobile_args]
+    cmd = ["flutter", "run"]
+    has_sdkroot_define = any(
+        arg == "--dart-define"
+        or arg.startswith("--dart-define=")
+        or arg.startswith("SdkRoot=")
+        for arg in mobile_args
+    )
+    if not has_sdkroot_define:
+        try:
+            sdk_root = subprocess.check_output(
+                ["xcrun", "--sdk", "iphoneos", "--show-sdk-path"],
+                text=True,
+            ).strip()
+        except Exception:
+            sdk_root = ""
+        if sdk_root:
+            cmd.extend(["--dart-define", f"SdkRoot={sdk_root}"])
+    cmd.extend(mobile_args)
     try:
         subprocess.run(cmd, cwd=str(project_dir), check=True)
     except FileNotFoundError:

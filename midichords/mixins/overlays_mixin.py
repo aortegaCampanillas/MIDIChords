@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -200,6 +201,9 @@ class OverlaysMixin:
             if widget != self.config_icon_btn:
                 self._close_settings_overlay()
         if self.mode_selector_overlay is not None and not self._is_widget_inside(self.mode_selector_overlay, widget):
+            opened_ts = float(getattr(self, "_mode_selector_opened_ts", 0.0) or 0.0)
+            if opened_ts > 0.0 and (time.monotonic() - opened_ts) < 0.18:
+                return
             if not self._is_widget_inside(self.mode_picker_trigger, widget):
                 self._close_mode_selector_overlay()
     def _preview_piano_sound(self, preset: str) -> None:

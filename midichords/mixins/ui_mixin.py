@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk
@@ -2068,6 +2069,7 @@ class UiMixin:
         )
         overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.62)
         self.mode_selector_overlay = overlay
+        self._mode_selector_opened_ts = time.monotonic()
 
         cards_frame = tk.Frame(overlay, bg=self.color_surface_alt)
         cards_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)

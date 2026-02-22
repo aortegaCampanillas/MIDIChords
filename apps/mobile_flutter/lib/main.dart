@@ -1283,6 +1283,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return useFlat ? labelsFlatEs[pc % 12] : labelsSharpEs[pc % 12];
   }
 
+  String _inversionLabel(int inversion, {bool compact = false}) {
+    if (inversion == 0) {
+      return compact ? 'Fundamental' : 'Posición fundamental';
+    }
+    return '$inversionª inversión';
+  }
+
   void _metronomeTick() {
     if (!_metroRunning) {
       return;
@@ -2476,6 +2483,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'inv_$_chordInversion/$_chordMaxInversion',
                   ),
                   initialValue: _chordInversion.clamp(0, _chordMaxInversion),
+                  isExpanded: true,
                   dropdownColor: _surfaceDark,
                   style: const TextStyle(color: _text),
                   decoration: const InputDecoration(isDense: true),
@@ -2483,8 +2491,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     _chordMaxInversion + 1,
                     (i) => DropdownMenuItem<int>(
                       value: i,
+                      child: Text(_inversionLabel(i)),
+                    ),
+                  ),
+                  selectedItemBuilder: (context) => List<Widget>.generate(
+                    _chordMaxInversion + 1,
+                    (i) => Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
-                        i == 0 ? 'Posición fundamental' : '$iª inversión',
+                        _inversionLabel(i, compact: true),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ),

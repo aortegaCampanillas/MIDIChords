@@ -5,11 +5,18 @@ PODS:
   - Flutter (1.0.0)
   - flutter_audio_capture (1.1.12):
     - Flutter
+  - flutter_midi_command (0.4.2):
+    - Flutter
+  - universal_ble (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - Flutter (from `Flutter`)
   - flutter_audio_capture (from `.symlinks/plugins/flutter_audio_capture/ios`)
+  - flutter_midi_command (from `.symlinks/plugins/flutter_midi_command/ios`)
+  - universal_ble (from `.symlinks/plugins/universal_ble/darwin`)
 
 EXTERNAL SOURCES:
   audioplayers_darwin:
@@ -18,12 +25,18 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_audio_capture:
     :path: ".symlinks/plugins/flutter_audio_capture/ios"
+  flutter_midi_command:
+    :path: ".symlinks/plugins/flutter_midi_command/ios"
+  universal_ble:
+    :path: ".symlinks/plugins/universal_ble/darwin"
 
 SPEC CHECKSUMS:
   audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_audio_capture: 289b33897e98bc0865484669eda07cab90b879b7
+  flutter_midi_command: 28d867d5701407d94917c4c35ca0172d362e1611
+  universal_ble: ff19787898040d721109c6324472e5dd4bc86adc
 
-PODFILE CHECKSUM: b83722b2c5091253b54459af356a23230ec8b956
+PODFILE CHECKSUM: 91a5e0e1a7e471b4b69aa6482c51bde243b2c56d
 
 COCOAPODS: 1.16.2

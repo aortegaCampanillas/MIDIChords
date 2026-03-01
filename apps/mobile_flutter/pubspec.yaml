@@ -58,6 +58,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/metronome.mp3
+    - assets/guitar_chord_cache.json
+    - assets/samples/grand_piano/
+    - assets/samples/guitar_nylon/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

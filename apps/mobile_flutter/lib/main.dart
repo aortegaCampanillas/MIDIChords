@@ -534,6 +534,7 @@ const Map<int, String> _kGuitarNylonSamples = <int, String>{
   64: 'samples/guitar_nylon/E4.mp3',
 };
 const String _kMetronomeSample = 'metronome.mp3';
+const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
 
 class _ChordAnalysis {
   const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
@@ -651,6 +652,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
   final Map<String, String> _toneFileCache = <String, String>{};
+  bool _samplePlaybackAvailable = true;
+  bool _metronomeSampleAvailable = true;
   Map<String, List<Map<String, dynamic>>> _guitarChordCacheByKey =
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
@@ -698,12 +701,13 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tunerCents = 0;
   double _tunerFreq = 0.0;
   String _tunerError = '';
-  String _tunerTuning = 'standard';
+  String _tunerTuning = 'standard_e';
   int? _tunerCurrentStringIdx;
   double _tunerInputGain = 1.0;
   int _tunerRangeMin = 20;
   int _tunerRangeMax = 500;
   double _tunerSmoothedFreq = 0.0;
+  List<double> _tunerSpectrumBins = List<double>.filled(96, 0.0);
   final int _tunerSampleRate = 44100;
   DateTime _lastTunerUiUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   Map<String, dynamic>? _detectionResultJson;
@@ -797,6 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initMidiInput();
+    unawaited(_initPlatformAudioWorkarounds());
     _loadMeta();
   }
 
@@ -828,6 +833,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool get _preferFlat => _accidental == 'flat';
+
+  Future<void> _initPlatformAudioWorkarounds() async {
+    if (!Platform.isIOS) return;
+    try {
+      final isSimulator =
+          await _kPlatformChannel.invokeMethod<bool>('isIosSimulator') ?? false;
+      if (!isSimulator) return;
+      _samplePlaybackAvailable = false;
+      _metronomeSampleAvailable = false;
+    } catch (_) {}
+  }
 
   String _noteNameLocal(
     int midiNote, {
@@ -2038,6 +2054,7 @@ class _HomeScreenState extends State<HomeScreen> {
           volume: targetVolume,
         );
       }
+      _bindAutoDisposeOnComplete(player);
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
@@ -2057,14 +2074,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }) async {
     final gain = volumeScale.clamp(0.0, 1.0);
     if (gain <= 0.0) return null;
+    final level = bar ? 2 : (accent ? 1 : 0);
     if (!_audioPlaybackAvailable) {
       if (gain > 0.02) {
         SystemSound.play(SystemSoundType.click);
       }
       return null;
     }
-
-    final level = bar ? 2 : (accent ? 1 : 0);
+    if (!_metronomeSampleAvailable) {
+      final midi = switch (level) {
+        2 => 90,
+        1 => 82,
+        _ => 74,
+      };
+      final toneGain = switch (level) {
+        2 => 0.95,
+        1 => 0.78,
+        _ => 0.64,
+      };
+      await _playTone(
+        midi: midi,
+        instrument: 'piano',
+        durationSeconds: 0.085,
+        volumeScale: (gain * toneGain).clamp(0.0, 1.0),
+      );
+      return null;
+    }
     final baseGain = switch (level) {
       2 => 1.02,
       1 => 0.96,
@@ -2084,9 +2119,10 @@ class _HomeScreenState extends State<HomeScreen> {
         AssetSource(_kMetronomeSample),
         volume: (baseGain * gain).clamp(0.0, 1.0),
       );
+      _bindAutoDisposeOnComplete(player);
       return player;
     } catch (err) {
-      _audioPlaybackAvailable = false;
+      _metronomeSampleAvailable = false;
       try {
         await player.dispose();
       } catch (_) {}
@@ -2101,6 +2137,9 @@ class _HomeScreenState extends State<HomeScreen> {
     required String instrument,
     required double volume,
   }) async {
+    if (!_samplePlaybackAvailable) {
+      return null;
+    }
     final bank = instrument == 'guitar'
         ? _kGuitarNylonSamples
         : _kGrandPianoSamples;
@@ -2131,8 +2170,11 @@ class _HomeScreenState extends State<HomeScreen> {
       await player.setReleaseMode(ReleaseMode.stop);
       await player.setPlaybackRate(clampedRate);
       await player.play(AssetSource(assetPath), volume: volume);
+      _bindAutoDisposeOnComplete(player);
       return player;
-    } catch (_) {
+    } catch (err) {
+      _samplePlaybackAvailable = false;
+      debugPrint('Instrument sample playback unavailable: $err');
       try {
         await player.dispose();
       } catch (_) {}
@@ -2140,11 +2182,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _bindAutoDisposeOnComplete(AudioPlayer player) {
+    late StreamSubscription<void> completeSub;
+    completeSub = player.onPlayerComplete.listen((_) {
+      completeSub.cancel();
+      unawaited(_safeStopDispose(player));
+    });
+  }
+
   Future<void> _safeStopDispose(AudioPlayer player) async {
-    // On iOS simulator, stop/dispose can throw sporadic platform errors even
-    // for already-finished players. Avoid hard lifecycle calls here.
     try {
-      await player.setVolume(0.0);
+      await player.stop();
+    } catch (_) {}
+    try {
+      await player.release();
+    } catch (_) {}
+    try {
+      await player.dispose();
     } catch (_) {}
   }
 
@@ -2777,9 +2831,9 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (_tunerTuning) {
       case 'drop_d':
         return <int>[38, 45, 50, 55, 59, 64];
-      case 'half_step':
+      case 'half_step_down':
         return <int>[39, 44, 49, 54, 58, 63];
-      case 'standard':
+      case 'standard_e':
       default:
         return <int>[40, 45, 50, 55, 59, 64];
     }
@@ -2788,6 +2842,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _tunerOpenLabelsForCurrentTuning() {
     return _tunerOpenNotesForCurrentTuning()
         .map((n) => _pcLabel(((n % 12) + 12) % 12))
+        .toList(growable: false);
+  }
+
+  List<double> _tunerOpenFreqsForCurrentTuning() {
+    return _tunerOpenNotesForCurrentTuning()
+        .map((n) => _midiToFreq(n))
         .toList(growable: false);
   }
 
@@ -2919,6 +2979,52 @@ class _HomeScreenState extends State<HomeScreen> {
     return freq;
   }
 
+  List<double> _computeTunerSpectrum(
+    List<double> samples,
+    int sampleRate, {
+    required double minHz,
+    required double maxHz,
+    int bins = 96,
+  }) {
+    if (samples.isEmpty || sampleRate <= 0 || bins <= 0) {
+      return List<double>.filled(math.max(1, bins), 0.0);
+    }
+    final n = math.min(samples.length, 1024);
+    if (n < 64) return List<double>.filled(bins, 0.0);
+    final start = samples.length - n;
+    final windowed = List<double>.filled(n, 0.0);
+    for (int i = 0; i < n; i += 1) {
+      final w = 0.5 - 0.5 * math.cos((2 * math.pi * i) / (n - 1));
+      windowed[i] = samples[start + i] * w;
+    }
+    final fMin = minHz.clamp(1.0, sampleRate / 2 - 1);
+    final fMax = maxHz.clamp(fMin + 1, sampleRate / 2 - 1);
+    final logMin = math.log(fMin);
+    final logMax = math.log(fMax);
+    final out = List<double>.filled(bins, 0.0);
+    double maxMag = 0.0;
+    for (int b = 0; b < bins; b += 1) {
+      final t = bins == 1 ? 0.0 : (b / (bins - 1));
+      final freq = math.exp(logMin + (logMax - logMin) * t);
+      final omega = 2 * math.pi * freq / sampleRate;
+      double re = 0.0;
+      double im = 0.0;
+      for (int i = 0; i < n; i += 1) {
+        final s = windowed[i];
+        re += s * math.cos(omega * i);
+        im -= s * math.sin(omega * i);
+      }
+      final mag = math.sqrt(re * re + im * im) / n;
+      out[b] = mag;
+      if (mag > maxMag) maxMag = mag;
+    }
+    if (maxMag <= 1e-9) return List<double>.filled(bins, 0.0);
+    for (int i = 0; i < out.length; i += 1) {
+      out[i] = (out[i] / maxMag).clamp(0.0, 1.0);
+    }
+    return out;
+  }
+
   void _onTunerAudio(dynamic obj) {
     List<double> samples;
     if (obj is Float64List) {
@@ -2933,47 +3039,83 @@ class _HomeScreenState extends State<HomeScreen> {
     final scaled = samples
         .map((s) => (s * _tunerInputGain).clamp(-1.0, 1.0))
         .toList(growable: false);
-    final detected = _estimatePitch(scaled, _tunerSampleRate);
-    if (detected == null) {
-      return;
+    final effectiveSampleRate =
+        (_audioCapture?.actualSampleRate?.round() ?? _tunerSampleRate).clamp(
+          8000,
+          96000,
+        );
+    final spectrum = _computeTunerSpectrum(
+      scaled,
+      effectiveSampleRate,
+      minHz: _tunerRangeMin.toDouble(),
+      maxHz: _tunerRangeMax.toDouble(),
+    );
+    if (_tunerSpectrumBins.length != spectrum.length) {
+      _tunerSpectrumBins = List<double>.from(spectrum);
+    } else {
+      for (int i = 0; i < spectrum.length; i += 1) {
+        final current = _tunerSpectrumBins[i];
+        final incoming = spectrum[i];
+        // Musical envelope: quick attack, slower decay.
+        double next;
+        if (incoming >= current) {
+          next = current * 0.35 + incoming * 0.65;
+        } else {
+          final decayed = current * 0.93;
+          next = math.max(incoming, decayed);
+        }
+        // Gentle compression and tiny floor removal for cleaner motion.
+        final compressed = math.pow(next, 0.78).toDouble();
+        _tunerSpectrumBins[i] = compressed < 0.012 ? 0.0 : compressed;
+      }
     }
-    if (detected < _tunerRangeMin || detected > _tunerRangeMax) {
-      return;
+
+    final detected = _estimatePitch(scaled, effectiveSampleRate);
+    int? bestIdx;
+    int? rounded;
+    double? bestCents;
+    if (detected != null &&
+        detected >= _tunerRangeMin &&
+        detected <= _tunerRangeMax) {
+      _tunerSmoothedFreq = _tunerSmoothedFreq <= 0.0
+          ? detected
+          : (_tunerSmoothedFreq * 0.72 + detected * 0.28);
+      final midi = 69 + 12 * (math.log(_tunerSmoothedFreq / 440.0) / math.ln2);
+      rounded = midi.round();
+      final tuningNotes = _tunerOpenNotesForCurrentTuning();
+      int localBestIdx = 0;
+      double bestAbsCents = double.infinity;
+      double localBestCents = 0.0;
+      for (int i = 0; i < tuningNotes.length; i += 1) {
+        final targetFreq = 440.0 * math.pow(2.0, (tuningNotes[i] - 69) / 12.0);
+        final centsToString =
+            1200.0 * (math.log(_tunerSmoothedFreq / targetFreq) / math.ln2);
+        final absVal = centsToString.abs();
+        if (absVal < bestAbsCents) {
+          bestAbsCents = absVal;
+          localBestIdx = i;
+          localBestCents = centsToString;
+        }
+      }
+      bestIdx = localBestIdx;
+      bestCents = localBestCents;
     }
-    _tunerSmoothedFreq = _tunerSmoothedFreq <= 0.0
-        ? detected
-        : (_tunerSmoothedFreq * 0.72 + detected * 0.28);
+
     final now = DateTime.now();
     if (now.difference(_lastTunerUiUpdate).inMilliseconds < 80) {
       return;
     }
     _lastTunerUiUpdate = now;
-    final midi = 69 + 12 * (math.log(_tunerSmoothedFreq / 440.0) / math.ln2);
-    final rounded = midi.round();
-    final tuningNotes = _tunerOpenNotesForCurrentTuning();
-    int bestIdx = 0;
-    double bestAbsCents = double.infinity;
-    double bestCents = 0.0;
-    for (int i = 0; i < tuningNotes.length; i += 1) {
-      final targetFreq = 440.0 * math.pow(2.0, (tuningNotes[i] - 69) / 12.0);
-      final centsToString =
-          1200.0 * (math.log(_tunerSmoothedFreq / targetFreq) / math.ln2);
-      final absVal = centsToString.abs();
-      if (absVal < bestAbsCents) {
-        bestAbsCents = absVal;
-        bestIdx = i;
-        bestCents = centsToString;
-      }
-    }
-    final note = _pcLabel(((rounded % 12) + 12) % 12);
     if (!mounted || !_tunerRunning) {
       return;
     }
     setState(() {
-      _tunerNote = note;
-      _tunerCurrentStringIdx = bestIdx;
-      _tunerCents = bestCents.round().clamp(-50, 50);
-      _tunerFreq = _tunerSmoothedFreq;
+      if (rounded != null && bestIdx != null && bestCents != null) {
+        _tunerNote = _pcLabel(((rounded % 12) + 12) % 12);
+        _tunerCurrentStringIdx = bestIdx;
+        _tunerCents = bestCents.round().clamp(-50, 50);
+        _tunerFreq = _tunerSmoothedFreq;
+      }
     });
   }
 
@@ -2994,8 +3136,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     try {
       _audioCapture ??= FlutterAudioCapture();
+      final initialized = await _audioCapture!.init();
+      if (initialized != true) {
+        throw Exception('No se pudo inicializar FlutterAudioCapture');
+      }
       _tunerError = '';
       _tunerSmoothedFreq = 0.0;
+      _tunerSpectrumBins = List<double>.filled(96, 0.0);
       await _audioCapture!.start(
         _onTunerAudio,
         _onTunerError,
@@ -3030,6 +3177,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _tunerRunning = false;
       _tunerCurrentStringIdx = null;
+      _tunerSpectrumBins = List<double>.filled(_tunerSpectrumBins.length, 0.0);
     });
   }
 
@@ -3097,6 +3245,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       if (value != 3) {
                         _stopMetronome();
+                      }
+                      if (value != 4 && _tunerRunning) {
+                        unawaited(_stopTuner());
                       }
                       _stopHeldChord();
                       _stopHeldInputs();
@@ -3192,6 +3343,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildModeScaffold({
     required Widget controls,
     bool showInstrument = true,
+    Widget? bottomPanel,
   }) {
     final staffNotes = _staffNotesForCurrentTab();
     final staffExtras = _staffExtrasForCurrentTab();
@@ -3226,7 +3378,10 @@ class _HomeScreenState extends State<HomeScreen> {
           return Column(
             children: <Widget>[
               Expanded(child: top),
-              if (showInstrument) ...<Widget>[
+              if (bottomPanel != null) ...<Widget>[
+                const SizedBox(height: 12),
+                bottomPanel,
+              ] else if (showInstrument) ...<Widget>[
                 const SizedBox(height: 12),
                 _buildInstrumentPanel(instrumentNotes),
               ],
@@ -3263,10 +3418,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 3 => CustomPaint(
                   painter: _MiniMetronomePainter(
                     beatsPerBar: _metroBeatsPerBar,
+                    clicksPerBeat: _metroClicksPerBeat,
                     currentBeat: _metroCurrentBeat,
                     running: _metroRunning,
                     direction: _metroDirection,
                     motionProgress: _metronomeMotionProgress(),
+                    timerEnabled: _metroTimerEnabled,
+                    timerRemaining: _metroRemaining,
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -4422,13 +4580,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Volumen',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: _muted),
-                ),
                 Row(
                   children: <Widget>[
-                    const SizedBox(width: 52),
+                    const SizedBox(
+                      width: 84,
+                      child: Text(
+                        'Volumen',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _muted,
+                        ),
+                      ),
+                    ),
                     Expanded(
                       child: Slider(
                         min: 0,
@@ -4653,6 +4816,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final meter = (_tunerCents + 50) / 100.0;
     return _buildModeScaffold(
       showInstrument: false,
+      bottomPanel: _buildTunerSpectrumPanel(),
       controls: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           child: ConstrainedBox(
@@ -4691,18 +4855,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         initialValue: _tunerTuning,
                         dropdownColor: _surfaceDark,
                         decoration: const InputDecoration(isDense: true),
-                        items: const <DropdownMenuItem<String>>[
+                        items: <DropdownMenuItem<String>>[
                           DropdownMenuItem<String>(
-                            value: 'standard',
-                            child: Text('E A D G B E'),
+                            value: 'standard_e',
+                            child: Text(
+                              _language == 'en' ? 'Standard E' : 'E estándar',
+                            ),
                           ),
-                          DropdownMenuItem<String>(
+                          const DropdownMenuItem<String>(
                             value: 'drop_d',
-                            child: Text('D A D G B E'),
+                            child: Text('Drop D'),
                           ),
                           DropdownMenuItem<String>(
-                            value: 'half_step',
-                            child: Text('Eb Ab Db Gb Bb Eb'),
+                            value: 'half_step_down',
+                            child: Text(
+                              _language == 'en'
+                                  ? 'Half-step down'
+                                  : '1/2 tono abajo',
+                            ),
                           ),
                         ],
                         onChanged: (value) {
@@ -4891,7 +5061,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
                 if (_tunerError.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -4902,6 +5071,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTunerSpectrumPanel() {
+    return _panel(
+      child: SizedBox(
+        height: 220,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0B1018),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2F3743)),
+          ),
+          child: CustomPaint(
+            painter: _MiniTunerSpectrumPainter(
+              rangeMinHz: _tunerRangeMin.toDouble(),
+              rangeMaxHz: _tunerRangeMax.toDouble(),
+              currentFreq: _tunerFreq,
+              currentStringIdx: _tunerCurrentStringIdx,
+              tuningLabels: _tunerOpenLabelsForCurrentTuning(),
+              tuningFreqs: _tunerOpenFreqsForCurrentTuning(),
+              spectrumBins: _tunerSpectrumBins,
+            ),
+            child: const SizedBox.expand(),
           ),
         ),
       ),
@@ -5086,6 +5282,15 @@ class _MiniStaffPainter extends CustomPainter {
           noteOutline.color = currentBass
               ? const Color(0xFFFF8A2B)
               : const Color(0xFFE9EDF2);
+          _drawLedgerLines(
+            canvas,
+            x: x,
+            midi: bassMidi.toDouble(),
+            top: bassTop,
+            gap: gap,
+            treble: false,
+            color: noteOutline.color,
+          );
           canvas.drawOval(
             Rect.fromCenter(center: Offset(x, yBass), width: 16, height: 12),
             noteOutline,
@@ -5100,6 +5305,15 @@ class _MiniStaffPainter extends CustomPainter {
         noteOutline.color = currentTreble
             ? const Color(0xFF4DA3EA)
             : const Color(0xFFE9EDF2);
+        _drawLedgerLines(
+          canvas,
+          x: x,
+          midi: trebleMidi.toDouble(),
+          top: trebleTop,
+          gap: gap,
+          treble: true,
+          color: noteOutline.color,
+        );
         canvas.drawOval(
           Rect.fromCenter(center: Offset(x, yTreble), width: 16, height: 12),
           noteOutline,
@@ -5156,6 +5370,15 @@ class _MiniStaffPainter extends CustomPainter {
           width: noteW,
           height: noteH,
         );
+        _drawLedgerLines(
+          canvas,
+          x: x,
+          midi: midi.toDouble(),
+          top: midi >= 60 ? trebleTop : bassTop,
+          gap: gap,
+          treble: midi >= 60,
+          color: noteOutline.color,
+        );
         if (fillColor != null) {
           canvas.drawOval(oval, Paint()..color = fillColor);
         }
@@ -5184,6 +5407,59 @@ class _MiniStaffPainter extends CustomPainter {
     final pc = ((n % 12) + 12) % 12;
     final octave = (n ~/ 12) - 1;
     return (octave * 7 + pcToLetter[pc]).toDouble();
+  }
+
+  void _drawLedgerLines(
+    Canvas canvas, {
+    required double x,
+    required double midi,
+    required double top,
+    required double gap,
+    required bool treble,
+    required Color color,
+  }) {
+    final d = _midiToDiatonic(midi).round();
+    final bottomLineD = treble ? 30 : 18;
+    final topLineD = bottomLineD + 8;
+    if (d >= bottomLineD && d <= topLineD) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    final lineLeft = x - 11.0;
+    final lineRight = x + 11.0;
+    if (d < bottomLineD) {
+      for (int ld = bottomLineD - 2; ld >= d; ld -= 2) {
+        final y = _staffYForDiatonic(
+          diatonic: ld.toDouble(),
+          bottomLineDiatonic: bottomLineD.toDouble(),
+          top: top,
+          gap: gap,
+        );
+        canvas.drawLine(Offset(lineLeft, y), Offset(lineRight, y), paint);
+      }
+      return;
+    }
+    for (int ld = topLineD + 2; ld <= d; ld += 2) {
+      final y = _staffYForDiatonic(
+        diatonic: ld.toDouble(),
+        bottomLineDiatonic: bottomLineD.toDouble(),
+        top: top,
+        gap: gap,
+      );
+      canvas.drawLine(Offset(lineLeft, y), Offset(lineRight, y), paint);
+    }
+  }
+
+  double _staffYForDiatonic({
+    required double diatonic,
+    required double bottomLineDiatonic,
+    required double top,
+    required double gap,
+  }) {
+    final baseY = top + 4 * gap;
+    return baseY - ((diatonic - bottomLineDiatonic) * (gap / 2));
   }
 
   @override
@@ -5231,63 +5507,94 @@ class _MiniStaffPainter extends CustomPainter {
 class _MiniMetronomePainter extends CustomPainter {
   _MiniMetronomePainter({
     required this.beatsPerBar,
+    required this.clicksPerBeat,
     required this.currentBeat,
     required this.running,
     required this.direction,
     required this.motionProgress,
+    required this.timerEnabled,
+    required this.timerRemaining,
   });
 
   final int beatsPerBar;
+  final int clicksPerBeat;
   final int currentBeat;
   final bool running;
   final int direction;
   final double motionProgress;
+  final bool timerEnabled;
+  final Duration timerRemaining;
 
   @override
   void paint(Canvas canvas, Size size) {
     final bg = Paint()..color = const Color(0xFF0F1621);
     canvas.drawRect(Offset.zero & size, bg);
-    final title = TextPainter(
-      text: const TextSpan(
-        text: 'Tempo',
-        style: TextStyle(
-          color: Color(0xFFA8B6C8),
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    title.paint(canvas, const Offset(14, 10));
-
     final count = math.max(1, beatsPerBar);
+    final clicks = math.max(1, clicksPerBeat);
     final left = 34.0;
-    final right = size.width - 34.0;
-    final y = size.height * 0.54;
-    final step = count == 1 ? 0.0 : (right - left) / (count - 1);
+    final right = math.max(left + 1.0, size.width - 34.0);
+    final yTop = math.max(44.0, size.height * 0.30);
+    final yBot = math.min(size.height - 56.0, yTop + 74.0);
+    final axisY = yBot + 18.0;
+    final spacing = count == 1 ? (right - left) : (right - left) / (count - 1);
+    final xs = count == 1
+        ? <double>[(left + right) * 0.5]
+        : List<double>.generate(count, (i) => left + i * spacing);
 
     final rail = Paint()
-      ..color = const Color(0xFF8EA0B7)
-      ..strokeWidth = 2;
-    canvas.drawLine(Offset(left, y), Offset(right, y), rail);
+      ..color = const Color(0xFF8F98A3)
+      ..strokeWidth = 3;
+    canvas.drawLine(Offset(left, axisY), Offset(right, axisY), rail);
 
-    final markerPaint = Paint()..color = const Color(0xFF6F7F96);
-    for (int i = 0; i < count; i += 1) {
-      final x = count == 1 ? (left + right) / 2 : left + i * step;
-      final active = running && i == currentBeat;
-      canvas.drawCircle(Offset(x, y), active ? 7 : 5, markerPaint);
+    for (int k = 0; k <= clicks; k += 1) {
+      final xTick = left + ((right - left) * (k / clicks));
+      final isEnd = k == 0 || k == clicks;
+      final tickH = isEnd ? 18.0 : 13.0;
+      final tickPaint = Paint()
+        ..color = isEnd ? const Color(0xFF9AA6B2) : const Color(0xFF747F8D)
+        ..strokeWidth = isEnd ? 2.8 : 2.0;
+      canvas.drawLine(
+        Offset(xTick, axisY - (tickH / 2)),
+        Offset(xTick, axisY + (tickH / 2)),
+        tickPaint,
+      );
+    }
+
+    final current = count > 0 ? ((currentBeat % count) + count) % count : 0;
+    final baseR = (30 - (count * 0.75)).clamp(7.0, 24.0);
+    final maxRBySpacing = (spacing * 0.42 - 2).clamp(6.0, 1000.0);
+    final normalR = math.min(baseR, maxRBySpacing);
+    final activeR = math.min(normalR + 2.0, maxRBySpacing + 1.5);
+    for (int i = 0; i < xs.length; i += 1) {
+      final x = xs[i];
+      final active = running && i == current && currentBeat >= 0;
+      final r = active ? activeR : normalR;
+      canvas.drawCircle(
+        Offset(x, yTop),
+        r,
+        Paint()
+          ..color = active ? const Color(0xFFFFD24A) : const Color(0xFFC8A832),
+      );
+      canvas.drawCircle(
+        Offset(x, yTop),
+        r,
+        Paint()
+          ..color = active ? const Color(0xFFF3DA7A) : const Color(0xFF9F8427)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
       final tp = TextPainter(
         text: TextSpan(
           text: '${i + 1}',
           style: TextStyle(
-            color: active ? const Color(0xFFE9EDF2) : const Color(0xFF7E8FA9),
-            fontSize: 11,
+            color: const Color(0xFF1A1A1A),
+            fontSize: (normalR * 0.82).clamp(8.0, 12.0),
             fontWeight: FontWeight.w700,
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(x - (tp.width / 2), y + 12));
+      tp.paint(canvas, Offset(x - (tp.width / 2), yTop - (tp.height / 2)));
     }
 
     final p = motionProgress.clamp(0.0, 1.0);
@@ -5299,38 +5606,32 @@ class _MiniMetronomePainter extends CustomPainter {
       ..color = const Color(0xFFB61F1F)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
-    canvas.drawCircle(Offset(ballX, y), 11, redBall);
-    canvas.drawCircle(Offset(ballX, y), 11, redBallOutline);
+    canvas.drawCircle(Offset(ballX, axisY), 11, redBall);
+    canvas.drawCircle(Offset(ballX, axisY), 11, redBallOutline);
 
-    final support = Paint()
-      ..color = const Color(0xFF5E6E86)
-      ..strokeWidth = 2;
-    canvas.drawLine(
-      Offset((left + right) / 2, y + 22),
-      Offset((left + right) / 2, y + 44),
-      support,
-    );
-    final base = Paint()..color = const Color(0xFF2F3A4B);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH((left + right) / 2 - 34, y + 44, 68, 12),
-        const Radius.circular(6),
-      ),
-      base,
-    );
-    final baseBorder = Paint()
-      ..color = const Color(0xFF6A7A94)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH((left + right) / 2 - 34, y + 44, 68, 12),
-        const Radius.circular(6),
-      ),
-      baseBorder,
-    );
-
-    if (!running) {
+    if (timerEnabled) {
+      final total = math.max(0, timerRemaining.inSeconds);
+      final mm = (total ~/ 60).toString().padLeft(2, '0');
+      final ss = (total % 60).toString().padLeft(2, '0');
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '$mm:$ss',
+          style: TextStyle(
+            color: const Color(0xFFFFB17A),
+            fontSize: math.min(44.0, size.height * 0.24),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width - 24);
+      tp.paint(
+        canvas,
+        Offset(
+          (size.width - tp.width) / 2,
+          axisY + ((size.height - axisY) * 0.5) - (tp.height / 2),
+        ),
+      );
+    } else if (!running) {
       final idle = TextPainter(
         text: const TextSpan(
           text: 'Pulsa Play para iniciar',
@@ -5342,16 +5643,19 @@ class _MiniMetronomePainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: size.width - 24);
-      idle.paint(canvas, Offset((size.width - idle.width) / 2, y + 66));
+      idle.paint(canvas, Offset((size.width - idle.width) / 2, axisY + 44));
     }
   }
 
   @override
   bool shouldRepaint(covariant _MiniMetronomePainter oldDelegate) {
     return oldDelegate.beatsPerBar != beatsPerBar ||
+        oldDelegate.clicksPerBeat != clicksPerBeat ||
         oldDelegate.currentBeat != currentBeat ||
         oldDelegate.running != running ||
         oldDelegate.direction != direction ||
+        oldDelegate.timerEnabled != timerEnabled ||
+        oldDelegate.timerRemaining.inSeconds != timerRemaining.inSeconds ||
         (oldDelegate.motionProgress - motionProgress).abs() > 0.001;
   }
 }
@@ -5506,6 +5810,307 @@ class _MiniTunerPainter extends CustomPainter {
     if (oldDelegate.tuningLabels.length != tuningLabels.length) return true;
     for (int i = 0; i < tuningLabels.length; i += 1) {
       if (oldDelegate.tuningLabels[i] != tuningLabels[i]) return true;
+    }
+    return false;
+  }
+}
+
+class _MiniTunerSpectrumPainter extends CustomPainter {
+  _MiniTunerSpectrumPainter({
+    required this.rangeMinHz,
+    required this.rangeMaxHz,
+    required this.currentFreq,
+    required this.currentStringIdx,
+    required this.tuningLabels,
+    required this.tuningFreqs,
+    required this.spectrumBins,
+  });
+
+  final double rangeMinHz;
+  final double rangeMaxHz;
+  final double currentFreq;
+  final int? currentStringIdx;
+  final List<String> tuningLabels;
+  final List<double> tuningFreqs;
+  final List<double> spectrumBins;
+
+  double _midiToFreq(int midi) => 440.0 * math.pow(2.0, (midi - 69) / 12.0);
+  double _freqToMidi(double freq) =>
+      69 + 12 * (math.log(freq / 440.0) / math.ln2);
+
+  String _noteNameFromPc(int pc) {
+    const names = <String>[
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
+    return names[((pc % 12) + 12) % 12];
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = const Color(0xFF0F1621),
+    );
+    final outer = RRect.fromRectAndRadius(
+      Rect.fromLTWH(10, 10, size.width - 20, size.height - 20),
+      const Radius.circular(10),
+    );
+    canvas.drawRRect(outer, Paint()..color = const Color(0xFF0B1018));
+    canvas.drawRRect(
+      outer,
+      Paint()
+        ..color = const Color(0xFF2F3743)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    final x1 = 42.0;
+    final y1 = 12.0;
+    final x2 = math.max(x1 + 1.0, size.width - 14.0);
+    final y2 = math.max(y1 + 1.0, size.height - 30.0);
+    final frameRect = Rect.fromLTRB(x1, y1, x2, y2);
+    canvas.drawRect(frameRect, Paint()..color = const Color(0xFF10131A));
+    canvas.drawRect(
+      frameRect,
+      Paint()
+        ..color = const Color(0xFF465062)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    final fmin = math.max(1.0, rangeMinHz);
+    final fmaxRaw = math.max(10.0, rangeMaxHz);
+    final fmax = fmaxRaw <= fmin + 1 ? (fmin + 1) : fmaxRaw;
+    final logMin = math.log(fmin) / math.ln10;
+    final logMax = math.log(fmax) / math.ln10;
+    final hzTicks = <int>[
+      70,
+      80,
+      90,
+      100,
+      120,
+      140,
+      160,
+      200,
+      250,
+      315,
+      400,
+      500,
+      630,
+      800,
+      1000,
+      1250,
+      1400,
+      1600,
+      2000,
+      2500,
+      3000,
+    ];
+    final majorHz = <int>{100, 200, 400, 800, 1000};
+
+    double fx(double hz) {
+      final safe = hz.clamp(fmin, fmax);
+      final logHz = math.log(safe) / math.ln10;
+      final ratio = (logHz - logMin) / math.max(1e-6, (logMax - logMin));
+      return x1 + ratio.clamp(0.0, 1.0) * (x2 - x1);
+    }
+
+    for (final hz in hzTicks) {
+      final h = hz.toDouble();
+      if (h < fmin || h > fmax) continue;
+      final x = fx(h);
+      final isMajor = majorHz.contains(hz);
+      canvas.drawLine(
+        Offset(x, y1),
+        Offset(x, y2),
+        Paint()
+          ..color = isMajor ? const Color(0xFF293140) : const Color(0xFF1F2531)
+          ..strokeWidth = 1,
+      );
+      if (isMajor) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '$hz',
+            style: const TextStyle(color: Color(0xFF8F98A8), fontSize: 8),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(x - (tp.width / 2), y2 + 4));
+      }
+    }
+
+    const whitePcs = <int>{0, 2, 4, 5, 7, 9, 11};
+    final minMidi = math.max(0, _freqToMidi(fmin).floor() - 1);
+    final maxMidi = math.min(127, _freqToMidi(fmax).ceil() + 1);
+    for (int midi = minMidi; midi <= maxMidi; midi += 1) {
+      final hz = _midiToFreq(midi);
+      if (hz < fmin || hz > fmax) continue;
+      final x = fx(hz);
+      final isNatural = whitePcs.contains(midi % 12);
+      final lineColor = isNatural
+          ? const Color(0xFFFF9F2A)
+          : const Color(0xFF8A5F22);
+      canvas.drawLine(
+        Offset(x, y1),
+        Offset(x, y2),
+        Paint()
+          ..color = lineColor
+          ..strokeWidth = 1.0,
+      );
+      final label = _noteNameFromPc(midi % 12);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: isNatural
+                ? const Color(0xFFFFBF6C)
+                : const Color(0xFFB58A4F),
+            fontSize: 7,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 14);
+      final labelY = y1 + (midi.isEven ? 8 : 18);
+      tp.paint(canvas, Offset(x - (tp.width / 2), labelY));
+    }
+
+    if (spectrumBins.isNotEmpty) {
+      final innerW = x2 - x1;
+      final innerH = y2 - y1 - 6;
+      final bars = spectrumBins.length;
+      final barW = math.max(1.2, innerW / math.max(40, bars * 1.35));
+      for (int i = 0; i < bars; i += 1) {
+        final v = spectrumBins[i].clamp(0.0, 1.0);
+        if (v <= 0.005) continue;
+        final x = x1 + (innerW * (i / math.max(1, bars - 1)));
+        final h = v * innerH;
+        canvas.drawRect(
+          Rect.fromLTWH(x, y2 - h, barW, h),
+          Paint()..color = const Color(0xFF49B5FF),
+        );
+      }
+    }
+
+    final n = math.min(tuningLabels.length, tuningFreqs.length);
+    for (int i = 0; i < n; i += 1) {
+      final hz = tuningFreqs[i];
+      if (hz < fmin || hz > fmax) continue;
+      final x = fx(hz);
+      final active = currentStringIdx == i;
+      final color = active ? const Color(0xFFFFBF6C) : const Color(0xFFB58A4F);
+      canvas.drawLine(
+        Offset(x, y1 + 2),
+        Offset(x, y2 - 2),
+        Paint()
+          ..color = color
+          ..strokeWidth = active ? 2.0 : 1.2,
+      );
+      final tp = TextPainter(
+        text: TextSpan(
+          text: tuningLabels[i],
+          style: TextStyle(
+            color: color,
+            fontSize: 9,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 22);
+      tp.paint(canvas, Offset(x - (tp.width / 2), y1 + (i.isEven ? 8 : 18)));
+    }
+
+    if (currentFreq > 0.0 && currentFreq >= fmin && currentFreq <= fmax) {
+      final x = fx(currentFreq);
+      final markerColor = const Color(0xFF49B5FF);
+      canvas.drawLine(
+        Offset(x, y1),
+        Offset(x, y2),
+        Paint()
+          ..color = markerColor
+          ..strokeWidth = 2.2,
+      );
+      canvas.drawCircle(Offset(x, y1 + 8), 3.5, Paint()..color = markerColor);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${currentFreq.toStringAsFixed(1)} Hz',
+          style: const TextStyle(
+            color: Color(0xFF7CC8FF),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: math.max(80.0, x2 - x1));
+      final dx = (x - (tp.width / 2)).clamp(x1, x2 - tp.width);
+      tp.paint(canvas, Offset(dx, y1 + 2));
+    } else if (spectrumBins.isEmpty || spectrumBins.every((v) => v < 0.01)) {
+      final tp = TextPainter(
+        text: const TextSpan(
+          text: '-',
+          style: TextStyle(
+            color: Color(0xFF8796AB),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset((x1 + x2 - tp.width) / 2, (y1 + y2 - tp.height) / 2),
+      );
+    }
+
+    final hzLabel = TextPainter(
+      text: const TextSpan(
+        text: 'Hz',
+        style: TextStyle(
+          color: Color(0xFFA0A8B7),
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    hzLabel.paint(
+      canvas,
+      Offset(((x1 + x2) / 2) - (hzLabel.width / 2), size.height - 16),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniTunerSpectrumPainter oldDelegate) {
+    if ((oldDelegate.rangeMinHz - rangeMinHz).abs() > 0.01) return true;
+    if ((oldDelegate.rangeMaxHz - rangeMaxHz).abs() > 0.01) return true;
+    if ((oldDelegate.currentFreq - currentFreq).abs() > 0.01) return true;
+    if (oldDelegate.currentStringIdx != currentStringIdx) return true;
+    if (oldDelegate.tuningLabels.length != tuningLabels.length) return true;
+    if (oldDelegate.tuningFreqs.length != tuningFreqs.length) return true;
+    if (oldDelegate.spectrumBins.length != spectrumBins.length) return true;
+    for (int i = 0; i < tuningLabels.length; i += 1) {
+      if (oldDelegate.tuningLabels[i] != tuningLabels[i]) return true;
+    }
+    for (int i = 0; i < tuningFreqs.length; i += 1) {
+      if ((oldDelegate.tuningFreqs[i] - tuningFreqs[i]).abs() > 0.001) {
+        return true;
+      }
+    }
+    for (int i = 0; i < spectrumBins.length; i += 1) {
+      if ((oldDelegate.spectrumBins[i] - spectrumBins[i]).abs() > 0.01) {
+        return true;
+      }
     }
     return false;
   }

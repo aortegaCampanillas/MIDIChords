@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -513,6 +514,27 @@ const Map<String, String> _kScaleNameEs = <String, String>{
   'In Sen': 'In Sen',
 };
 
+const Map<int, String> _kGrandPianoSamples = <int, String>{
+  48: 'samples/grand_piano/C3.mp3',
+  52: 'samples/grand_piano/E3.mp3',
+  55: 'samples/grand_piano/G3.mp3',
+  60: 'samples/grand_piano/C4.mp3',
+  64: 'samples/grand_piano/E4.mp3',
+  67: 'samples/grand_piano/G4.mp3',
+  72: 'samples/grand_piano/C5.mp3',
+};
+
+const Map<int, String> _kGuitarNylonSamples = <int, String>{
+  40: 'samples/guitar_nylon/E2.mp3',
+  45: 'samples/guitar_nylon/A2.mp3',
+  50: 'samples/guitar_nylon/D3.mp3',
+  52: 'samples/guitar_nylon/E3.mp3',
+  55: 'samples/guitar_nylon/G3.mp3',
+  59: 'samples/guitar_nylon/B3.mp3',
+  64: 'samples/guitar_nylon/E4.mp3',
+};
+const String _kMetronomeSample = 'metronome.mp3';
+
 class _ChordAnalysis {
   const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
   final int? rootPc;
@@ -622,11 +644,15 @@ class _HomeScreenState extends State<HomeScreen> {
   String _chordSuffix = '';
   int _chordInversion = 0;
   int _chordMaxInversion = 0;
+  int _chordGuitarVariant = 0;
   bool _generationPlayPressed = false;
+  final Set<int> _generationInputStaffNotes = <int>{};
   final Map<int, AudioPlayer> _heldChordPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
   final Map<String, String> _toneFileCache = <String, String>{};
+  Map<String, List<Map<String, dynamic>>> _guitarChordCacheByKey =
+      <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
   bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
@@ -645,6 +671,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _scaleLoopDirection = 1;
   Timer? _scaleLoopTimer;
   int? _scaleCurrentNote;
+  bool? _scaleCurrentIsLeft;
   int? _scaleInputRawNote;
   int? _scaleGuitarStartNote;
   final Set<int> _detectionSelectedNotes = <int>{};
@@ -1371,6 +1398,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadMeta() async {
     try {
+      await _loadGuitarChordCache();
       final chordPatterns = _chordPatternsForUi();
       final scalePatterns = _scalePatternsLocal(_language);
       setState(() {
@@ -1402,6 +1430,33 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (err) {
       _detectionOutputController.text = 'Error cargando meta: $err';
+    }
+  }
+
+  Future<void> _loadGuitarChordCache() async {
+    if (_guitarChordCacheByKey.isNotEmpty) return;
+    try {
+      final raw = await rootBundle.loadString('assets/guitar_chord_cache.json');
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final byKey = decoded['by_app_key'];
+      if (byKey is! Map) return;
+      final parsed = <String, List<Map<String, dynamic>>>{};
+      byKey.forEach((key, value) {
+        if (key is! String || value is! List) return;
+        final variations = value
+            .whereType<Map>()
+            .map(
+              (item) => item.map(
+                (k, v) => MapEntry<String, dynamic>(k.toString(), v),
+              ),
+            )
+            .toList();
+        parsed[key] = variations;
+      });
+      _guitarChordCacheByKey = parsed;
+    } catch (_) {
+      _guitarChordCacheByKey = <String, List<Map<String, dynamic>>>{};
     }
   }
 
@@ -1542,6 +1597,20 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshMidiConnections();
   }
 
+  Set<int> _selectedChordGuitarNotes() {
+    final variations = _chordGuitarVariations();
+    if (variations.isNotEmpty) {
+      final idx = _chordGuitarVariant.clamp(0, variations.length - 1);
+      return _variationNotes(variations[idx]).toSet();
+    }
+    final fallback = _fallbackChordGuitarVoicings();
+    if (fallback.isNotEmpty) {
+      final idx = _chordGuitarVariant.clamp(0, fallback.length - 1);
+      return fallback[idx].toSet();
+    }
+    return <int>{};
+  }
+
   Set<int> _staffNotesForCurrentTab() {
     if (_tabIndex == 0) {
       if (_detectionResultJson != null) {
@@ -1555,7 +1624,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_tabIndex == 1 && _generatedChordJson != null) {
       final rh = _extractMidiList(_generatedChordJson!, <String>['notes_midi']);
       if (_instrumentView == 'guitar') {
-        return rh.toSet();
+        final selected = _selectedChordGuitarNotes();
+        return selected.isNotEmpty ? selected : rh.toSet();
       }
       final lh = rh.map((n) => n - 12).where((n) => n >= 0);
       return <int>{...rh, ...lh};
@@ -1570,7 +1640,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Set<int> _generationPlayingNotesForStaff() {
     if (_tabIndex != 1) return <int>{};
-    final rh = _heldChordPlayers.keys.toSet();
+    final rh = <int>{..._heldChordPlayers.keys, ..._generationInputStaffNotes};
     if (_instrumentView == 'guitar') return rh;
     final lh = rh.map((n) => n - 12).where((n) => n >= 0);
     return <int>{...rh, ...lh};
@@ -1596,9 +1666,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Set<int> _activeMidiForInstrument() {
     if (_tabIndex == 0) return _activeDetectionNotes;
     if (_tabIndex == 1 && _generatedChordJson != null) {
-      return _extractMidiList(_generatedChordJson!, <String>[
+      final rh = _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
       ]).toSet();
+      if (_instrumentView == 'guitar') {
+        final selected = _selectedChordGuitarNotes();
+        return selected.isNotEmpty ? selected : rh;
+      }
+      final lh = rh.map((n) => n - 12).where((n) => n >= 0);
+      return <int>{...rh, ...lh};
     }
     if (_tabIndex == 2 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
@@ -1614,6 +1690,153 @@ class _HomeScreenState extends State<HomeScreen> {
       return notes;
     }
     return <int>{};
+  }
+
+  int? _generationStaffNoteForPitch(int note, {required bool includeBass}) {
+    if (_generatedChordJson == null) return null;
+    final rh = _extractMidiList(_generatedChordJson!, <String>['notes_midi']);
+    final lh = includeBass
+        ? rh.map((n) => n - 12).where((n) => n >= 0)
+        : const <int>[];
+    final candidates = <int>{...rh, ...lh}.toList();
+    if (candidates.isEmpty) return null;
+    if (candidates.contains(note)) return note;
+    final pc = _positiveMod12(note);
+    final samePc = candidates.where((n) => _positiveMod12(n) == pc).toList();
+    if (samePc.isNotEmpty) {
+      samePc.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+      return samePc.first;
+    }
+    candidates.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+    return candidates.first;
+  }
+
+  int? _variationBassPc(Map<String, dynamic> variation) {
+    final stringNotes = variation['string_notes'];
+    if (stringNotes is List && stringNotes.length >= 6) {
+      for (final note in stringNotes) {
+        final n = note is num ? note.toInt() : int.tryParse('$note');
+        if (n != null) return _positiveMod12(n);
+      }
+    }
+    final fretsRaw = variation['frets'];
+    if (fretsRaw is List && fretsRaw.length >= 6) {
+      const tuning = <int>[40, 45, 50, 55, 59, 64]; // 6->1
+      for (int i = 0; i < fretsRaw.length && i < tuning.length; i += 1) {
+        final fret = fretsRaw[i] is num
+            ? (fretsRaw[i] as num).toInt()
+            : int.tryParse('${fretsRaw[i]}');
+        if (fret != null && fret >= 0) {
+          return _positiveMod12(tuning[i] + fret);
+        }
+      }
+    }
+    final notesRaw = variation['notes'];
+    if (notesRaw is List && notesRaw.isNotEmpty) {
+      final notes = notesRaw
+          .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+          .whereType<int>()
+          .toList();
+      if (notes.isNotEmpty) {
+        notes.sort();
+        return _positiveMod12(notes.first);
+      }
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _chordGuitarVariations() {
+    if (_tabIndex != 1 || _generatedChordJson == null) {
+      return const <Map<String, dynamic>>[];
+    }
+    final rootPc = (_generatedChordJson!['root_pc'] is num)
+        ? (_generatedChordJson!['root_pc'] as num).toInt()
+        : _chordRootPc;
+    final suffix = _generatedChordJson!['suffix'] as String? ?? _chordSuffix;
+    final key = '${_positiveMod12(rootPc)}|$suffix';
+    var variations = List<Map<String, dynamic>>.from(
+      _guitarChordCacheByKey[key] ?? const <Map<String, dynamic>>[],
+    );
+    final intervals =
+        (_chordPatterns.firstWhere(
+                      (p) => (p['suffix'] as String? ?? '') == suffix,
+                      orElse: () => <String, dynamic>{
+                        'intervals': const <int>[],
+                      },
+                    )['intervals']
+                    as List<dynamic>? ??
+                const <dynamic>[])
+            .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+            .whereType<int>()
+            .toList();
+    if (intervals.isNotEmpty && variations.isNotEmpty) {
+      final inversion = (_generatedChordJson!['inversion'] is num)
+          ? (_generatedChordJson!['inversion'] as num).toInt()
+          : _chordInversion;
+      final inversionIdx = inversion.clamp(0, intervals.length - 1);
+      final targetBassPc = _positiveMod12(rootPc + intervals[inversionIdx]);
+      final filtered = variations
+          .where((v) => _variationBassPc(v) == targetBassPc)
+          .toList();
+      if (filtered.isNotEmpty) {
+        variations = filtered;
+      }
+    }
+    return variations;
+  }
+
+  List<int> _variationNotes(Map<String, dynamic> variation) {
+    final fromStrings =
+        (variation['string_notes'] as List<dynamic>? ?? const <dynamic>[])
+            .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+            .whereType<int>()
+            .toList();
+    if (fromStrings.isNotEmpty) return fromStrings;
+    return (variation['notes'] as List<dynamic>? ?? const <dynamic>[])
+        .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+        .whereType<int>()
+        .toList();
+  }
+
+  List<List<int>> _fallbackChordGuitarVoicings() {
+    if (_tabIndex != 1 || _generatedChordJson == null) {
+      return const <List<int>>[];
+    }
+    final chordPcs = _extractMidiList(_generatedChordJson!, <String>[
+      'notes_midi',
+    ]).map((n) => _positiveMod12(n)).toSet();
+    if (chordPcs.isEmpty) return const <List<int>>[];
+    const tuning = <int>[40, 45, 50, 55, 59, 64];
+    final out = <List<int>>[];
+    final seen = <String>{};
+    for (int windowStart = 0; windowStart <= 9; windowStart += 1) {
+      final shape = <int>[];
+      var valid = true;
+      for (final open in tuning) {
+        int? chosenFret;
+        var bestDistance = 9999;
+        for (int fret = 0; fret <= 12; fret += 1) {
+          if (!chordPcs.contains(_positiveMod12(open + fret))) continue;
+          if (fret < windowStart || fret > windowStart + 4) continue;
+          final dist = (fret - (windowStart + 1)).abs();
+          if (dist < bestDistance) {
+            bestDistance = dist;
+            chosenFret = fret;
+          }
+        }
+        if (chosenFret == null) {
+          valid = false;
+          break;
+        }
+        shape.add(open + chosenFret);
+      }
+      if (!valid) continue;
+      final key = shape.join(',');
+      if (seen.add(key)) {
+        out.add(shape);
+      }
+    }
+    return out;
   }
 
   Set<int> _instrumentExtrasForCurrentTab() {
@@ -1664,6 +1887,34 @@ class _HomeScreenState extends State<HomeScreen> {
     if (samePc.isEmpty) return null;
     samePc.sort((a, b) => (a - target).abs().compareTo((b - target).abs()));
     return samePc.first;
+  }
+
+  MapEntry<int, bool>? _scaleStaffSelectionForPiano(int note) {
+    if (_generatedScaleJson == null) return null;
+    final rh = _scaleRhNotes();
+    final lh = _scaleLhNotes(rh);
+    if (rh.contains(note)) return MapEntry<int, bool>(note, false);
+    if (lh.contains(note)) return MapEntry<int, bool>(note, true);
+    final pc = _positiveMod12(note);
+    final rhByPc = rh.where((n) => _positiveMod12(n) == pc).toList();
+    final lhByPc = lh.where((n) => _positiveMod12(n) == pc).toList();
+    if (rhByPc.isEmpty && lhByPc.isEmpty) return null;
+    if (rhByPc.isEmpty) {
+      lhByPc.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+      return MapEntry<int, bool>(lhByPc.first, true);
+    }
+    if (lhByPc.isEmpty) {
+      rhByPc.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+      return MapEntry<int, bool>(rhByPc.first, false);
+    }
+    rhByPc.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+    lhByPc.sort((a, b) => (a - note).abs().compareTo((b - note).abs()));
+    final rhBest = rhByPc.first;
+    final lhBest = lhByPc.first;
+    if ((lhBest - note).abs() < (rhBest - note).abs()) {
+      return MapEntry<int, bool>(lhBest, true);
+    }
+    return MapEntry<int, bool>(rhBest, false);
   }
 
   int _safeMidi(int midi) => midi.clamp(21, 108);
@@ -1746,6 +1997,17 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return null;
     }
+
+    final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
+    final sampled = await _playSampleTone(
+      midi: midi,
+      instrument: instrument,
+      volume: targetVolume,
+    );
+    if (sampled != null) {
+      return sampled;
+    }
+
     final player = AudioPlayer();
     try {
       await player.setPlayerMode(PlayerMode.mediaPlayer);
@@ -1756,7 +2018,6 @@ class _HomeScreenState extends State<HomeScreen> {
         seconds: seconds,
         instrument: instrument,
       );
-      final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
       if (Platform.isIOS) {
         final key =
             '${_safeMidi(midi)}|$instrument|${(seconds * 1000).round()}';
@@ -1785,6 +2046,96 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (_) {}
       debugPrint('Audio playback unavailable on this device/runtime: $err');
       SystemSound.play(SystemSoundType.click);
+      return null;
+    }
+  }
+
+  Future<AudioPlayer?> _playMetronomeClick({
+    bool accent = false,
+    bool bar = false,
+    double volumeScale = 1.0,
+  }) async {
+    final gain = volumeScale.clamp(0.0, 1.0);
+    if (gain <= 0.0) return null;
+    if (!_audioPlaybackAvailable) {
+      if (gain > 0.02) {
+        SystemSound.play(SystemSoundType.click);
+      }
+      return null;
+    }
+
+    final level = bar ? 2 : (accent ? 1 : 0);
+    final baseGain = switch (level) {
+      2 => 1.02,
+      1 => 0.96,
+      _ => 0.82,
+    };
+    final baseRate = switch (level) {
+      2 => 1.34,
+      1 => 1.22,
+      _ => 1.0,
+    };
+    final player = AudioPlayer();
+    try {
+      await player.setPlayerMode(PlayerMode.mediaPlayer);
+      await player.setReleaseMode(ReleaseMode.stop);
+      await player.setPlaybackRate(baseRate);
+      await player.play(
+        AssetSource(_kMetronomeSample),
+        volume: (baseGain * gain).clamp(0.0, 1.0),
+      );
+      return player;
+    } catch (err) {
+      _audioPlaybackAvailable = false;
+      try {
+        await player.dispose();
+      } catch (_) {}
+      debugPrint('Metronome sample playback unavailable: $err');
+      SystemSound.play(SystemSoundType.click);
+      return null;
+    }
+  }
+
+  Future<AudioPlayer?> _playSampleTone({
+    required int midi,
+    required String instrument,
+    required double volume,
+  }) async {
+    final bank = instrument == 'guitar'
+        ? _kGuitarNylonSamples
+        : _kGrandPianoSamples;
+    if (bank.isEmpty) {
+      return null;
+    }
+    // Keep metronome click notes and out-of-range tones on synthesis fallback.
+    final safe = _safeMidi(midi);
+    if (instrument == 'piano' && (safe < 48 || safe > 84)) {
+      return null;
+    }
+    if (instrument == 'guitar' && (safe < 40 || safe > 76)) {
+      return null;
+    }
+    final sampleMidi = bank.keys.reduce(
+      (a, b) => (a - safe).abs() <= (b - safe).abs() ? a : b,
+    );
+    final assetPath = bank[sampleMidi];
+    if (assetPath == null) {
+      return null;
+    }
+    final semitones = safe - sampleMidi;
+    final targetRate = math.pow(2.0, semitones / 12.0).toDouble();
+    final clampedRate = targetRate.clamp(0.5, 2.0);
+    final player = AudioPlayer();
+    try {
+      await player.setPlayerMode(PlayerMode.mediaPlayer);
+      await player.setReleaseMode(ReleaseMode.stop);
+      await player.setPlaybackRate(clampedRate);
+      await player.play(AssetSource(assetPath), volume: volume);
+      return player;
+    } catch (_) {
+      try {
+        await player.dispose();
+      } catch (_) {}
       return null;
     }
   }
@@ -1847,6 +2198,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ...chordNotes.map((n) => n - 12),
             }.contains(midi);
       if (!allowed) return;
+      final staffNote = _generationStaffNoteForPitch(
+        midi,
+        includeBass: _instrumentView != 'guitar',
+      );
+      if (staffNote != null) {
+        _generationInputStaffNotes
+          ..clear()
+          ..add(staffNote);
+        setState(() {});
+      }
       if (pressed) {
         await _startHeldInputNote(
           midi,
@@ -1873,6 +2234,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _scaleGuitarStartNote = midi;
             _scaleCurrentNote = null;
+            _scaleCurrentIsLeft = null;
             _scaleInputRawNote = null;
           });
           if (_scaleLoopRunning) {
@@ -1886,8 +2248,21 @@ class _HomeScreenState extends State<HomeScreen> {
         _showForbiddenOnPiano(midi);
         return;
       }
-      _scaleCurrentNote =
-          _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+      if (_instrumentView == 'piano') {
+        final picked = _scaleStaffSelectionForPiano(midi);
+        if (picked != null) {
+          _scaleCurrentNote = picked.key;
+          _scaleCurrentIsLeft = picked.value;
+        } else {
+          _scaleCurrentNote =
+              _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+          _scaleCurrentIsLeft = null;
+        }
+      } else {
+        _scaleCurrentNote =
+            _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+        _scaleCurrentIsLeft = null;
+      }
       _scaleInputRawNote = _instrumentView == 'piano' ? midi : null;
       setState(() {});
       if (pressed) {
@@ -1935,6 +2310,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (_dragCurrentNote != null) {
       _releaseHeldInputNote(_dragCurrentNote!);
+      if (_tabIndex == 1) {
+        _generationInputStaffNotes.clear();
+      }
     }
     _dragCurrentNote = midi;
     _dragLastGlobalPos = globalPos;
@@ -1949,8 +2327,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _dragCurrentNote = null;
     _dragLastGlobalPos = null;
     _stopHeldInputs();
+    if (_tabIndex == 1) {
+      _generationInputStaffNotes.clear();
+    }
     if (_tabIndex == 2 && _scaleInputRawNote != null) {
       setState(() => _scaleInputRawNote = null);
+    }
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -1994,6 +2378,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (player != null) {
         _heldChordPlayers[entry.key] = player;
       }
+    }
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -2083,6 +2470,8 @@ class _HomeScreenState extends State<HomeScreen> {
         preferFlat: _preferFlat,
       );
       _generatedChordJson = json;
+      _chordGuitarVariant = 0;
+      _generationInputStaffNotes.clear();
       final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
       _chordOutputController.text =
           'Acorde: ${json['name']}\n'
@@ -2114,6 +2503,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _scaleGuitarStartNote = scaleMidi.isNotEmpty ? scaleMidi.first : null;
       _scaleInputRawNote = null;
       _scaleCurrentNote = null;
+      _scaleCurrentIsLeft = null;
       _scaleOutputController.text =
           'Escala: ${json['pattern_localized_name'] ?? json['pattern_name']}\n'
           'Notas: ${(json['notes'] as List<dynamic>? ?? <dynamic>[]).join(' - ')}\n'
@@ -2139,6 +2529,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scaleLoopTimer = null;
     _scaleLoopRunning = false;
     _scaleCurrentNote = null;
+    _scaleCurrentIsLeft = null;
     _scaleInputRawNote = null;
     if (mounted) {
       setState(() {});
@@ -2157,15 +2548,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final idx = _scaleLoopIndex.clamp(0, notes.length - 1);
     final note = notes[idx];
     _scaleCurrentNote = note;
+    _scaleCurrentIsLeft = false;
     _scaleInputRawNote = null;
     if (_scaleMetronomeOnly) {
       final accent = idx == 0 && _scaleLoopDirection > 0;
-      final clickMidi = accent ? 96 : 86;
       unawaited(
-        _playTone(
-          midi: clickMidi,
-          instrument: 'piano',
-          durationSeconds: 0.12,
+        _playMetronomeClick(
+          accent: accent,
           volumeScale: _metronomeVolumeGain(),
         ),
       );
@@ -2321,6 +2710,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final clicks = _metroClicksPerBeat.clamp(1, 6);
     final isPrimary = _metroSubdivisionIndex % clicks == 0;
+    var isBarAccent = false;
     if (isPrimary) {
       if (_metroTickCount > 0) {
         _metroDirection *= -1;
@@ -2328,16 +2718,16 @@ class _HomeScreenState extends State<HomeScreen> {
       _metroMotionStartAt = DateTime.now();
       final nextBeat = (_metroCurrentBeat + 1) % _metroBeatsPerBar;
       _metroCurrentBeat = nextBeat;
-      final isBarAccent = _metroBarAccent && nextBeat == 0;
-      final clickMidi = isBarAccent ? 98 : 88;
-      unawaited(
-        _playTone(
-          midi: clickMidi,
-          instrument: 'piano',
-          durationSeconds: 0.12,
-          volumeScale: _metronomeVolumeGain(),
-        ),
-      );
+      isBarAccent = _metroBarAccent && nextBeat == 0;
+    }
+    unawaited(
+      _playMetronomeClick(
+        accent: isPrimary,
+        bar: isBarAccent,
+        volumeScale: _metronomeVolumeGain(),
+      ),
+    );
+    if (isPrimary) {
       if (isBarAccent) {
         HapticFeedback.mediumImpact();
       } else {
@@ -2696,7 +3086,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     onChanged: (value) {
                       if (value == null) return;
-                      setState(() => _tabIndex = value);
+                      setState(() {
+                        _tabIndex = value;
+                        if (value == 0) {
+                          _instrumentView = 'piano';
+                        }
+                      });
                       if (value != 2) {
                         _stopScaleLoop();
                       }
@@ -2706,6 +3101,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _stopHeldChord();
                       _stopHeldInputs();
                       _stopHeldMidiInputs();
+                      _generationInputStaffNotes.clear();
                       _detectionPlayPressed = false;
                       _generationPlayPressed = false;
                       if (value != 0) {
@@ -2929,6 +3325,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? _scaleLhNotes(_scaleRhNotes())
                         : const <int>[],
                     scaleCurrentNote: _tabIndex == 2 ? _scaleCurrentNote : null,
+                    scaleCurrentIsLeft: _tabIndex == 2
+                        ? _scaleCurrentIsLeft
+                        : null,
                     scaleGuitarMode:
                         _tabIndex == 2 && _instrumentView == 'guitar',
                   ),
@@ -2944,55 +3343,116 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final showRightControls = _tabIndex == 1 || _tabIndex == 2;
+    final chordVariations = (_tabIndex == 1 && _instrumentView == 'guitar')
+        ? _chordGuitarVariations()
+        : const <Map<String, dynamic>>[];
+    final chordVoicings = (_tabIndex == 1 && _instrumentView == 'guitar')
+        ? (chordVariations.isNotEmpty
+              ? chordVariations.map(_variationNotes).toList()
+              : _fallbackChordGuitarVoicings())
+        : const <List<int>>[];
+    final safeVariant = chordVoicings.isEmpty
+        ? 0
+        : _chordGuitarVariant.clamp(0, chordVoicings.length - 1);
     return _panel(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Expanded(
-            child: _instrumentView == 'piano'
-                ? _buildPianoStrip(activeMidi)
-                : _buildGuitarStrip(activeMidi),
-          ),
-          if (showRightControls) ...<Widget>[
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 118,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _instToggle('piano', 'Piano'),
-                  const SizedBox(height: 8),
-                  _instToggle('guitar', 'Guitarra'),
-                  if (_instrumentView == 'guitar') ...<Widget>[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey<String>('hand_$_guitarHandedness'),
-                      initialValue: _guitarHandedness,
-                      dropdownColor: _surfaceDark,
-                      style: const TextStyle(color: _text),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        labelText: 'Mano',
-                      ),
-                      items: const <DropdownMenuItem<String>>[
-                        DropdownMenuItem<String>(
-                          value: 'right',
-                          child: Text('Diestro'),
+          SizedBox(
+            height: 186,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: _instrumentView == 'piano'
+                      ? _buildPianoStrip(activeMidi)
+                      : _buildGuitarStrip(
+                          activeMidi,
+                          chordVoicings: chordVoicings,
+                          chordVariations: chordVariations,
+                          chordVariant: safeVariant,
                         ),
-                        DropdownMenuItem<String>(
-                          value: 'left',
-                          child: Text('Zurdo'),
-                        ),
+                ),
+                if (showRightControls) ...<Widget>[
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 118,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _instToggle('piano', 'Piano'),
+                        const SizedBox(height: 8),
+                        _instToggle('guitar', 'Guitarra'),
+                        if (_instrumentView == 'guitar') ...<Widget>[
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey<String>('hand_$_guitarHandedness'),
+                            initialValue: _guitarHandedness,
+                            dropdownColor: _surfaceDark,
+                            style: const TextStyle(color: _text),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Mano',
+                            ),
+                            items: const <DropdownMenuItem<String>>[
+                              DropdownMenuItem<String>(
+                                value: 'right',
+                                child: Text('Diestro'),
+                              ),
+                              DropdownMenuItem<String>(
+                                value: 'left',
+                                child: Text('Zurdo'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => _guitarHandedness = value);
+                              }
+                            },
+                          ),
+                        ],
                       ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _guitarHandedness = value);
-                        }
-                      },
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
+            ),
+          ),
+          if (_tabIndex == 1 && _instrumentView == 'guitar') ...<Widget>[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                OutlinedButton(
+                  onPressed: chordVoicings.length > 1 && safeVariant > 0
+                      ? () => setState(
+                          () => _chordGuitarVariant = safeVariant - 1,
+                        )
+                      : null,
+                  child: const Icon(Icons.chevron_left),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  chordVoicings.isEmpty
+                      ? 'Variante 0/0'
+                      : 'Variante ${safeVariant + 1}/${chordVoicings.length}',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed:
+                      chordVoicings.length > 1 &&
+                          safeVariant < chordVoicings.length - 1
+                      ? () => setState(
+                          () => _chordGuitarVariant = safeVariant + 1,
+                        )
+                      : null,
+                  child: const Icon(Icons.chevron_right),
+                ),
+              ],
             ),
           ],
         ],
@@ -3025,13 +3485,59 @@ class _HomeScreenState extends State<HomeScreen> {
     final scaleLh = (_tabIndex == 2 && _instrumentView == 'piano')
         ? _scaleLhNotes(_scaleRhNotes()).toSet()
         : <int>{};
+    final chordGenPiano = _tabIndex == 1 && _instrumentView == 'piano';
+    final chordRh = chordGenPiano && _generatedChordJson != null
+        ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
+        : const <int>[];
+    final chordLh = chordGenPiano
+        ? chordRh.map((n) => n - 12).where((n) => n >= 0).toList()
+        : const <int>[];
+    final rhFinger = <int, int>{};
+    final lhFinger = <int, int>{};
+    for (int i = 0; i < chordRh.length; i += 1) {
+      rhFinger[chordRh[i]] = math.min(5, i + 1);
+    }
+    for (int i = 0; i < chordLh.length; i += 1) {
+      lhFinger[chordLh[i]] = math.max(1, 5 - i);
+    }
+
+    Widget marker({
+      required double size,
+      required Color color,
+      required int digit,
+      required double top,
+      required double left,
+    }) {
+      return Positioned(
+        left: left,
+        top: top,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE9EDF2)),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$digit',
+            style: TextStyle(
+              color: const Color(0xFF11223A),
+              fontWeight: FontWeight.w800,
+              fontSize: size * 0.5,
+            ),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 140,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final viewportW = constraints.maxWidth;
-          final whiteW = math.max(40.0, viewportW / whiteMidi.length);
+          final whiteW = math.max(36.0, viewportW / whiteMidi.length);
           final blackW = whiteW * 0.6;
           final blackH = whiteH * 0.65;
           final keyboardW = whiteMidi.length * whiteW;
@@ -3061,6 +3567,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _instrumentView == 'piano' &&
                           scaleLh.contains(midi) &&
                           !scaleRh.contains(midi);
+                      final rh = rhFinger[midi];
+                      final lh = lhFinger[midi];
                       return Listener(
                         onPointerDown: (event) => unawaited(
                           _beginInputDrag(midi, event.pointer, event.position),
@@ -3074,7 +3582,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Container(
                           width: whiteW,
                           height: whiteH,
-                          margin: EdgeInsets.zero,
                           decoration: BoxDecoration(
                             color: isScaleCurrent
                                 ? (currentIsLeft
@@ -3088,15 +3595,39 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0xFFAEB8C5)),
                           ),
-                          alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            _pcLabel(midi % 12),
-                            style: const TextStyle(
-                              color: Color(0xFF1A222D),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
+                          child: Stack(
+                            children: <Widget>[
+                              Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    _pcLabel(midi % 12),
+                                    style: const TextStyle(
+                                      color: Color(0xFF1A222D),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (chordGenPiano && rh != null)
+                                marker(
+                                  size: 22,
+                                  color: const Color(0xFF33C6FF),
+                                  digit: rh,
+                                  top: 74,
+                                  left: (whiteW - 22) / 2,
+                                ),
+                              if (chordGenPiano && rh == null && lh != null)
+                                marker(
+                                  size: 22,
+                                  color: const Color(0xFFFF9E34),
+                                  digit: lh,
+                                  top: 74,
+                                  left: (whiteW - 22) / 2,
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -3118,6 +3649,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             _instrumentView == 'piano' &&
                             scaleLh.contains(midi) &&
                             !scaleRh.contains(midi);
+                        final rh = rhFinger[midi];
+                        final lh = lhFinger[midi];
                         return Positioned(
                           left: xForMidi(midi) - (blackW / 2),
                           top: 0,
@@ -3158,23 +3691,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: const Color(0xFF6F7F96),
                                 ),
                               ),
-                              alignment: Alignment.bottomCenter,
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: SizedBox(
-                                width: blackW - 4,
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _pcLabel(midi % 12),
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 9,
+                              child: Stack(
+                                children: <Widget>[
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: SizedBox(
+                                        width: blackW - 4,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            _pcLabel(midi % 12),
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 9,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  if (chordGenPiano && rh != null)
+                                    marker(
+                                      size: 18,
+                                      color: const Color(0xFF33C6FF),
+                                      digit: rh,
+                                      top: 10,
+                                      left: (blackW - 18) / 2,
+                                    ),
+                                  if (chordGenPiano && rh == null && lh != null)
+                                    marker(
+                                      size: 18,
+                                      color: const Color(0xFFFF9E34),
+                                      digit: lh,
+                                      top: 10,
+                                      left: (blackW - 18) / 2,
+                                    ),
+                                ],
                               ),
                             ),
                           ),
@@ -3203,7 +3760,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildGuitarStrip(Set<int> activeMidi) {
+  Widget _buildGuitarStrip(
+    Set<int> activeMidi, {
+    List<List<int>> chordVoicings = const <List<int>>[],
+    List<Map<String, dynamic>> chordVariations = const <Map<String, dynamic>>[],
+    int chordVariant = 0,
+  }) {
     final activePcs = activeMidi.map((n) => n % 12).toSet();
     final extraPcs = _instrumentExtrasForCurrentTab()
         .map((n) => n % 12)
@@ -3216,7 +3778,26 @@ class _HomeScreenState extends State<HomeScreen> {
     const fretW = 78.0;
     const stringGap = 25.0;
     final detectionMode = _tabIndex == 0;
-    final width = (fretCount + 1) * fretW;
+    final chordMode = _tabIndex == 1;
+    final selectedVariation = chordVariations.isEmpty
+        ? null
+        : chordVariations[chordVariant.clamp(0, chordVariations.length - 1)];
+    final selectedVoicing = chordVoicings.isEmpty
+        ? const <int>[]
+        : chordVoicings[chordVariant.clamp(0, chordVoicings.length - 1)];
+    final rawFrets =
+        (selectedVariation?['frets'] as List<dynamic>? ?? const <dynamic>[])
+            .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+            .whereType<int>()
+            .toList();
+    final selectedFrets = _guitarHandedness == 'left'
+        ? rawFrets.reversed.toList()
+        : rawFrets;
+    final useFrets = selectedFrets.length >= 6;
+    const openLeft = 40.0;
+    final nutX = openLeft + fretW;
+    final boardWidth = fretCount * fretW;
+    final width = nutX + boardWidth;
     return SizedBox(
       height: 186,
       child: Container(
@@ -3232,12 +3813,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Stack(
               children: <Widget>[
                 Positioned(
-                  left: 40,
+                  left: openLeft,
                   top: 6,
                   right: 0,
                   child: Row(
                     children: List<Widget>.generate(
-                      fretCount + 1,
+                      fretCount,
                       (i) => SizedBox(
                         width: fretW,
                         child: Text(
@@ -3245,12 +3826,30 @@ class _HomeScreenState extends State<HomeScreen> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF1A222D),
+                            color: Color(0xFFC9D4E4),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
+                  ),
+                ),
+                Positioned(
+                  left: openLeft,
+                  top: 20,
+                  child: Container(
+                    width: fretW,
+                    height: (6 * stringGap) + 16,
+                    color: const Color(0xFFF4F5F7),
+                  ),
+                ),
+                Positioned(
+                  left: nutX,
+                  top: 20,
+                  child: Container(
+                    width: boardWidth,
+                    height: (6 * stringGap) + 16,
+                    color: const Color(0xFF34363C),
                   ),
                 ),
                 ...List<Widget>.generate(6, (s) {
@@ -3276,10 +3875,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ...List<Widget>.generate(6, (s) {
                   final y = 32.0 + (s * stringGap);
                   return Positioned(
-                    left: 40,
+                    left: openLeft,
                     top: y,
                     child: Container(
-                      width: width,
+                      width: width - openLeft,
                       height: 2,
                       color: const Color(0xFF8FA0B8),
                     ),
@@ -3287,36 +3886,58 @@ class _HomeScreenState extends State<HomeScreen> {
                 }),
                 ...List<Widget>.generate(fretCount + 1, (f) {
                   return Positioned(
-                    left: 40 + (f * fretW),
+                    left: nutX + (f * fretW),
                     top: 28,
                     child: Container(
-                      width: f == 0 ? 3 : 2,
+                      width: f == 0 ? 4 : 2,
                       height: 6 * stringGap,
                       color: const Color(0xFFC0AE94),
                     ),
                   );
                 }),
                 ...List<int>.generate(6, (s) => s).expand((s) {
-                  return List<Widget>.generate(fretCount + 1, (f) {
+                  return List<Widget>.generate(fretCount, (f) {
                     final note = tuning[s] + f;
                     final y = 32.0 + (s * stringGap) - 10;
-                    final x = 40 + (f * fretW) - 11;
-                    final active = activePcs.contains(note % 12);
+                    final x = openLeft + ((f + 0.5) * fretW) - 11;
+                    final selectedFret = s < selectedFrets.length
+                        ? selectedFrets[s]
+                        : -999;
+                    final active = chordMode
+                        ? (useFrets
+                              ? (selectedFret >= 0 && f == selectedFret)
+                              : selectedVoicing.contains(note))
+                        : activePcs.contains(note % 12);
                     final isExtra = extraPcs.contains(note % 12);
                     final showDot = detectionMode || active;
                     return Positioned(
                       left: x,
                       top: y,
                       child: Listener(
-                        onPointerDown: (event) => unawaited(
-                          _beginInputDrag(note, event.pointer, event.position),
-                        ),
-                        onPointerMove: (event) => unawaited(
-                          _updateInputDrag(note, event.pointer, event.position),
-                        ),
-                        onPointerUp: (event) => _endInputDrag(event.pointer),
-                        onPointerCancel: (event) =>
-                            _endInputDrag(event.pointer),
+                        onPointerDown: showDot
+                            ? (event) => unawaited(
+                                _beginInputDrag(
+                                  note,
+                                  event.pointer,
+                                  event.position,
+                                ),
+                              )
+                            : null,
+                        onPointerMove: showDot
+                            ? (event) => unawaited(
+                                _updateInputDrag(
+                                  note,
+                                  event.pointer,
+                                  event.position,
+                                ),
+                              )
+                            : null,
+                        onPointerUp: showDot
+                            ? (event) => _endInputDrag(event.pointer)
+                            : null,
+                        onPointerCancel: showDot
+                            ? (event) => _endInputDrag(event.pointer)
+                            : null,
                         child: Container(
                           width: 22,
                           height: 22,
@@ -3351,7 +3972,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 )
                               : (showDot
                                     ? Text(
-                                        active ? _pcLabel(note % 12) : '•',
+                                        active
+                                            ? _pcLabel(note % 12)
+                                            : (detectionMode ? '•' : ''),
                                         style: TextStyle(
                                           color: active
                                               ? (isExtra
@@ -3539,16 +4162,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: <Widget>[
-              const SizedBox(
-                width: 92,
-                child: Text(
-                  'Inversión',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: _muted),
-                ),
-              ),
               Expanded(
                 child: DropdownButtonFormField<int>(
                   key: ValueKey<String>(
@@ -3558,7 +4174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   isExpanded: true,
                   dropdownColor: _surfaceDark,
                   style: const TextStyle(color: _text),
-                  decoration: const InputDecoration(isDense: true),
+                  decoration: const InputDecoration(labelText: 'Inversión'),
                   items: List<DropdownMenuItem<int>>.generate(
                     _chordMaxInversion + 1,
                     (i) => DropdownMenuItem<int>(
@@ -3588,37 +4204,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                 ),
               ),
-              const SizedBox(width: 8),
-              _holdPlayButton(
-                enabled:
-                    _generatedChordJson != null &&
-                    _extractMidiList(_generatedChordJson!, <String>[
-                      'notes_midi',
-                    ]).isNotEmpty,
-                active: _generationPlayPressed,
-                onDown: () async {
-                  final notes = _generatedChordJson == null
-                      ? <int>[]
-                      : _extractMidiList(_generatedChordJson!, <String>[
-                          'notes_midi',
-                        ]);
-                  if (notes.isEmpty) return;
-                  setState(() => _generationPlayPressed = true);
-                  await _startHeldChord(
-                    notes,
-                    instrument: _instrumentView == 'guitar'
-                        ? 'guitar'
-                        : 'piano',
-                  );
-                },
-                onUp: () {
-                  _stopHeldChord();
-                  if (mounted) {
-                    setState(() => _generationPlayPressed = false);
-                  }
-                },
-              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _holdPlayButton(
+              enabled:
+                  _generatedChordJson != null &&
+                  _extractMidiList(_generatedChordJson!, <String>[
+                    'notes_midi',
+                  ]).isNotEmpty,
+              active: _generationPlayPressed,
+              label: null,
+              onDown: () async {
+                final notes = _generatedChordJson == null
+                    ? <int>[]
+                    : _extractMidiList(_generatedChordJson!, <String>[
+                        'notes_midi',
+                      ]);
+                if (notes.isEmpty) return;
+                setState(() => _generationPlayPressed = true);
+                await _startHeldChord(
+                  notes,
+                  instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+                );
+              },
+              onUp: () {
+                _stopHeldChord();
+                if (mounted) {
+                  setState(() => _generationPlayPressed = false);
+                }
+              },
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(child: _resultBlock(controller: _chordOutputController)),
@@ -4390,6 +5008,7 @@ class _MiniStaffPainter extends CustomPainter {
     this.scaleRhNotes = const <int>[],
     this.scaleLhNotes = const <int>[],
     this.scaleCurrentNote,
+    this.scaleCurrentIsLeft,
     this.scaleGuitarMode = false,
   });
 
@@ -4402,6 +5021,7 @@ class _MiniStaffPainter extends CustomPainter {
   final List<int> scaleRhNotes;
   final List<int> scaleLhNotes;
   final int? scaleCurrentNote;
+  final bool? scaleCurrentIsLeft;
   final bool scaleGuitarMode;
 
   @override
@@ -4460,7 +5080,9 @@ class _MiniStaffPainter extends CustomPainter {
           final bassMidi = scaleLhNotes[degree];
           final yBass = _midiToBassY(bassMidi.toDouble(), bassTop, gap);
           final currentBass =
-              scaleCurrentNote != null && scaleCurrentNote == bassMidi;
+              scaleCurrentNote != null &&
+              scaleCurrentNote == bassMidi &&
+              (scaleCurrentIsLeft != false);
           noteOutline.color = currentBass
               ? const Color(0xFFFF8A2B)
               : const Color(0xFFE9EDF2);
@@ -4472,7 +5094,9 @@ class _MiniStaffPainter extends CustomPainter {
         final trebleMidi = scaleRhNotes[degree];
         final yTreble = _midiToTrebleY(trebleMidi.toDouble(), trebleTop, gap);
         final currentTreble =
-            scaleCurrentNote != null && scaleCurrentNote == trebleMidi;
+            scaleCurrentNote != null &&
+            scaleCurrentNote == trebleMidi &&
+            (scaleCurrentIsLeft != true);
         noteOutline.color = currentTreble
             ? const Color(0xFF4DA3EA)
             : const Color(0xFFE9EDF2);
@@ -4580,6 +5204,7 @@ class _MiniStaffPainter extends CustomPainter {
     if (oldDelegate.scaleRhNotes.length != scaleRhNotes.length) return true;
     if (oldDelegate.scaleLhNotes.length != scaleLhNotes.length) return true;
     if (oldDelegate.scaleCurrentNote != scaleCurrentNote) return true;
+    if (oldDelegate.scaleCurrentIsLeft != scaleCurrentIsLeft) return true;
     if (oldDelegate.scaleGuitarMode != scaleGuitarMode) return true;
     for (int i = 0; i < notes.length; i += 1) {
       if (oldDelegate.notes[i] != notes[i]) return true;

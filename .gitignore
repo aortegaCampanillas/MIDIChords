@@ -65,3 +65,4 @@ dmg-root/
 *.pkg
 *.spec
 scripts/entitlements.mas.generated.plist
+scripts/build_ejecutado_manualmente.txt

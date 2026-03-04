@@ -1,0 +1,4 @@
+# Keep this folder in git, ignore all local signing files.
+*
+!.gitignore
+!README.md

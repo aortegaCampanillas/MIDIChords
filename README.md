@@ -82,6 +82,69 @@ python launch.py mobile -- -d <device_id>
 
 Nota: la app Flutter ya incluye detección, generación de acordes, generación de escalas, metrónomo y afinador.
 
+## Firmar y notarizar macOS (Apple Developer)
+
+Para ejecutar la app de escritorio "normalmente" en macOS (sin avisos de app no confiable), firma con `Developer ID Application` y notariza.
+
+1. Crear perfil de credenciales para notarización (una sola vez):
+
+```bash
+xcrun notarytool store-credentials "AC_NOTARY" --apple-id "<TU_APPLE_ID>" --team-id "<TU_TEAM_ID>" --password "<APP_SPECIFIC_PASSWORD>"
+```
+
+2. Compilar + firmar + crear DMG + notarizar + staple:
+
+```bash
+scripts/sign_notarize_macos.sh \
+  --identity "Developer ID Application: Tu Nombre (TEAMID)" \
+  --bundle-id "com.tudominio.midichords" \
+  --notary-profile "AC_NOTARY"
+```
+
+Salida esperada:
+- `dist/MIDIChords.app` firmado
+- `MIDIChords-macos.dmg` firmado y notarizado
+
+Opciones útiles:
+- `--skip-build`: reutiliza `dist/MIDIChords.app` ya generado.
+- `--skip-notarize`: solo firma localmente (sin envío a Apple).
+
+## Empaquetar para Mac App Store (MAS)
+
+Para subir a la Mac App Store, no uses DMG con `Developer ID`. Debes generar un `PKG` firmado para App Store con sandbox.
+
+Requisitos previos:
+
+- Certificado `Mac App Distribution`
+- Certificado `Mac Installer Distribution`
+- Provisioning profile de macOS App Store para tu `Bundle ID`
+
+Script disponible:
+
+```bash
+scripts/build_mas_pkg.sh \
+  --app-dist-identity "Mac App Distribution: Tu Nombre (TEAMID)" \
+  --installer-identity "Mac Installer Distribution: Tu Nombre (TEAMID)" \
+  --bundle-id "com.tudominio.midichords" \
+  --provisioning-profile "/ruta/a/TuPerfil.provisionprofile" \
+  --version "1.0.0" \
+  --build-number "1" \
+  --allow-network \
+  --allow-file-access
+```
+
+Salida esperada:
+
+- `dist/MIDIChords.app` firmado para Mac App Store
+- `MIDIChords-macos-appstore.pkg` listo para subir a App Store Connect
+
+Notas:
+
+- Entitlements base en `scripts/entitlements.mas.plist`.
+- El script genera un archivo temporal: `scripts/entitlements.mas.generated.plist`.
+- Si no necesitas red o acceso a archivos seleccionados por usuario, omite `--allow-network` y/o `--allow-file-access`.
+- Para guardar certificados/perfiles/keys dentro del proyecto sin subirlos a git, usa `signing/local/` (documentado en `signing/README.md`).
+
 ## VS Code launch
 
 Se añadieron dos configuraciones:

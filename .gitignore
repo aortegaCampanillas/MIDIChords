@@ -8,6 +8,15 @@ config.json
 .env.*
 .certs/
 
+# Local signing material (Apple certificates/profiles/keys)
+signing/local/
+*.p12
+*.p8
+*.cer
+*.csr
+*.mobileprovision
+*.provisionprofile
+
 # Python
 .venv/
 venv/
@@ -47,3 +56,12 @@ node_modules/
 **/macos/Flutter/ephemeral/
 **/windows/flutter/ephemeral/
 **/linux/flutter/ephemeral/
+
+# Local macOS packaging artifacts
+dist/
+build/
+dmg-root/
+*.dmg
+*.pkg
+*.spec
+scripts/entitlements.mas.generated.plist

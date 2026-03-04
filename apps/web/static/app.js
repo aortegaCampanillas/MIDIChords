@@ -1,3 +1,6 @@
+// Feature flag: keep tuner code but hide/disable it by default.
+const TUNER_FEATURE_ENABLED = false;
+
 const state = {
   mode: null,
   instrument: "piano",
@@ -473,6 +476,8 @@ function applyTranslations() {
     opt("scales", "mode_scales");
     opt("metronome", "mode_metronome");
     opt("tuner", "mode_tuner");
+    const tunerOption = modeSelect.querySelector('option[value="tuner"]');
+    if (tunerOption) tunerOption.hidden = !TUNER_FEATURE_ENABLED;
   }
 
   const setText = (id, key) => {
@@ -579,7 +584,9 @@ function applyTranslations() {
     });
     tunerSel.value = TUNER_TUNINGS.some((t) => t.key === prev) ? prev : TUNER_TUNINGS[0].key;
   }
-  void refreshTunerInputs();
+  if (TUNER_FEATURE_ENABLED) {
+    void refreshTunerInputs();
+  }
   syncLeftPanelHeader();
 }
 
@@ -594,14 +601,18 @@ function activeModeSupportsInstrument() {
 }
 
 function activeModeSupportsStaff() {
-  return state.mode === "detection" || state.mode === "generation" || state.mode === "scales" || state.mode === "metronome" || state.mode === "tuner";
+  return state.mode === "detection"
+    || state.mode === "generation"
+    || state.mode === "scales"
+    || state.mode === "metronome"
+    || (TUNER_FEATURE_ENABLED && state.mode === "tuner");
 }
 
 function syncLeftPanelHeader() {
   const header = el("staffHeader");
   if (!header) return;
   if (state.mode === "metronome") header.textContent = tr("mode_metronome");
-  else if (state.mode === "tuner") header.textContent = tr("mode_tuner");
+  else if (TUNER_FEATURE_ENABLED && state.mode === "tuner") header.textContent = tr("mode_tuner");
   else header.textContent = tr("staff");
 }
 
@@ -620,6 +631,9 @@ function setScalePlayMode(mode) {
 }
 
 function setMode(mode) {
+  if (!TUNER_FEATURE_ENABLED && mode === "tuner") {
+    mode = "detection";
+  }
   stopHeldChord();
   stopAllHeldInputNotes();
   stopAllHeldMidiInputNotes();
@@ -636,7 +650,7 @@ function setMode(mode) {
   state.generationPlayingNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
-  if (state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
+  if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
   refreshDetectionButtonsState();
   const modeScreen = el("modeScreen");
@@ -656,7 +670,10 @@ function setMode(mode) {
     metronome: "panelMetronome",
     tuner: "panelTuner",
   };
-  el(panelMap[mode]).classList.remove("hidden");
+  const panelId = panelMap[mode];
+  if (panelId && el(panelId)) {
+    el(panelId).classList.remove("hidden");
+  }
 
   const supportsInstrument = activeModeSupportsInstrument();
   const supportsStaff = activeModeSupportsStaff();
@@ -670,8 +687,8 @@ function setMode(mode) {
   const guitarVariationBar = el("guitarVariationBar");
   if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !(mode === "generation" && state.instrument === "guitar"));
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
-  if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.toggle("hidden", mode !== "tuner");
-  if (mode === "tuner") {
+  if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.toggle("hidden", mode !== "tuner" || !TUNER_FEATURE_ENABLED);
+  if (TUNER_FEATURE_ENABLED && mode === "tuner") {
     el("instrumentArea").classList.remove("hidden");
     el("sharedPiano").classList.add("hidden");
     el("sharedGuitarCanvas").classList.add("hidden");
@@ -691,7 +708,7 @@ function setMode(mode) {
     setInstrument(state.instrument);
     renderInstrument();
     renderStaff();
-  } else if (mode === "tuner") {
+  } else if (TUNER_FEATURE_ENABLED && mode === "tuner") {
     renderStaff();
     renderTunerSpectrumPanel();
   } else if (supportsStaff) {
@@ -713,7 +730,7 @@ function setInstrument(inst) {
     state.scalePlayMode = inst;
     renderScaleModeButtons();
   }
-  if (state.mode === "tuner") {
+  if (TUNER_FEATURE_ENABLED && state.mode === "tuner") {
     el("instrumentArea").classList.remove("guitar-active");
     el("sharedPiano").classList.add("hidden");
     el("sharedGuitarCanvas").classList.add("hidden");
@@ -3720,6 +3737,7 @@ function updateTunerGainValue() {
 }
 
 async function refreshTunerInputs() {
+  if (!TUNER_FEATURE_ENABLED) return;
   const select = el("tunerInput");
   if (!select) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
@@ -3828,6 +3846,7 @@ function updateTunerDetection(freq) {
 }
 
 async function toggleTuner() {
+  if (!TUNER_FEATURE_ENABLED) return;
   if (state.tuner.running) {
     state.tuner.running = false;
     if (state.tuner.raf) cancelAnimationFrame(state.tuner.raf);
@@ -4305,54 +4324,59 @@ function bindEvents() {
   el("metroTimerSeconds").addEventListener("change", syncTimerInputs);
   syncTimerInputs();
 
-  const tunerTuning = el("tunerTuning");
-  if (tunerTuning) {
-    tunerTuning.addEventListener("change", (e) => {
-      const key = String(e.target.value || "standard_e");
-      state.tuner.tuningKey = TUNER_TUNINGS.some((t) => t.key === key) ? key : "standard_e";
-      state.tuner.currentStringIdx = null;
-      state.tuner.detectedMidi = null;
-      state.tuner.currentCents = 0;
-      if (state.mode === "tuner") renderStaff();
+  if (TUNER_FEATURE_ENABLED) {
+    const tunerTuning = el("tunerTuning");
+    if (tunerTuning) {
+      tunerTuning.addEventListener("change", (e) => {
+        const key = String(e.target.value || "standard_e");
+        state.tuner.tuningKey = TUNER_TUNINGS.some((t) => t.key === key) ? key : "standard_e";
+        state.tuner.currentStringIdx = null;
+        state.tuner.detectedMidi = null;
+        state.tuner.currentCents = 0;
+        if (state.mode === "tuner") renderStaff();
+      });
+    }
+    const tunerInput = el("tunerInput");
+    if (tunerInput) {
+      tunerInput.addEventListener("change", async (e) => {
+        state.tuner.inputDeviceId = String(e.target.value || "");
+        if (state.tuner.running) {
+          await toggleTuner();
+          await toggleTuner();
+        }
+      });
+    }
+    const syncTunerGain = () => {
+      state.tuner.inputGain = Math.max(0, Math.min(200, Number(el("tunerGain").value) || 100));
+      el("tunerGain").value = String(state.tuner.inputGain);
+      updateTunerGainValue();
+    };
+    el("tunerGain").addEventListener("input", syncTunerGain);
+    el("tunerGainMinus").addEventListener("click", () => {
+      el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) - 1)));
+      syncTunerGain();
     });
-  }
-  const tunerInput = el("tunerInput");
-  if (tunerInput) {
-    tunerInput.addEventListener("change", async (e) => {
-      state.tuner.inputDeviceId = String(e.target.value || "");
-      if (state.tuner.running) {
-        await toggleTuner();
-        await toggleTuner();
-      }
+    el("tunerGainPlus").addEventListener("click", () => {
+      el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) + 1)));
+      syncTunerGain();
     });
-  }
-  const syncTunerGain = () => {
-    state.tuner.inputGain = Math.max(0, Math.min(200, Number(el("tunerGain").value) || 100));
-    el("tunerGain").value = String(state.tuner.inputGain);
-    updateTunerGainValue();
-  };
-  el("tunerGain").addEventListener("input", syncTunerGain);
-  el("tunerGainMinus").addEventListener("click", () => {
-    el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) - 1)));
     syncTunerGain();
-  });
-  el("tunerGainPlus").addEventListener("click", () => {
-    el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) + 1)));
-    syncTunerGain();
-  });
-  syncTunerGain();
 
-  const syncTunerRange = () => {
-    clampTunerRange(el("tunerRangeMin").value, el("tunerRangeMax").value);
-    if (state.mode === "tuner") renderStaff();
-  };
-  el("tunerRangeMin").addEventListener("change", syncTunerRange);
-  el("tunerRangeMax").addEventListener("change", syncTunerRange);
-  syncTunerRange();
+    const syncTunerRange = () => {
+      clampTunerRange(el("tunerRangeMin").value, el("tunerRangeMax").value);
+      if (state.mode === "tuner") renderStaff();
+    };
+    el("tunerRangeMin").addEventListener("change", syncTunerRange);
+    el("tunerRangeMax").addEventListener("change", syncTunerRange);
+    syncTunerRange();
+  } else {
+    const panelTuner = el("panelTuner");
+    if (panelTuner) panelTuner.classList.add("hidden");
+  }
 
   window.addEventListener("resize", () => {
     if (activeModeSupportsStaff()) renderStaff();
-    if (state.mode === "tuner") renderTunerSpectrumPanel();
+    if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
   });
   window.addEventListener("blur", () => {
     stopHeldChord();
@@ -4360,7 +4384,9 @@ function bindEvents() {
   });
 
   el("metroToggle").addEventListener("click", toggleMetronome);
-  el("tunerToggle").addEventListener("click", toggleTuner);
+  if (TUNER_FEATURE_ENABLED) {
+    el("tunerToggle").addEventListener("click", toggleTuner);
+  }
 }
 
 async function main() {
@@ -4375,12 +4401,42 @@ async function main() {
   refreshMetronomeTempoInfo();
   if (el("metroMotionDot")) updateMetronomeMotion();
   renderMetronomeTimerDisplay();
-  await loadMeta();
-  await refreshTunerInputs();
+  setMode("detection");
+  renderMetronomeDots();
+  renderStaff();
+
+  try {
+    await loadMeta();
+  } catch (err) {
+    console.warn("Failed to load /api/meta during startup:", err);
+  }
+
+  if (TUNER_FEATURE_ENABLED) {
+    try {
+      await refreshTunerInputs();
+    } catch (err) {
+      console.warn("Failed to refresh tuner inputs during startup:", err);
+    }
+  }
+
   applyTranslations();
-  await runGenerateChord();
-  await runGenerateScale();
-  await runDetection();
+
+  try {
+    await runGenerateChord();
+  } catch (err) {
+    console.warn("Failed to run initial chord generation:", err);
+  }
+  try {
+    await runGenerateScale();
+  } catch (err) {
+    console.warn("Failed to run initial scale generation:", err);
+  }
+  try {
+    await runDetection();
+  } catch (err) {
+    console.warn("Failed to run initial detection:", err);
+  }
+
   refreshDetectionButtonsState();
   setMode("detection");
   showMidiStartupModal();

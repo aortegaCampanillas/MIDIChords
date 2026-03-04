@@ -32,18 +32,3 @@ jobs:
           command: >
             pages deploy apps/web/pages-dist
             --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
-
-  deploy-api-worker:
-    name: Deploy API Worker (optional)
-    runs-on: ubuntu-latest
-    if: ${{ hashFiles('wrangler.toml') != '' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy Worker API
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy

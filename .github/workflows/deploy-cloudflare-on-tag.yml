@@ -23,6 +23,7 @@ jobs:
           mkdir -p apps/web/pages-dist/static
           cp apps/web/templates/index.html apps/web/pages-dist/index.html
           cp -R apps/web/static/. apps/web/pages-dist/static/
+          cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -33,4 +34,3 @@ jobs:
             pages deploy apps/web/pages-dist
             --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
             --branch=main
-            --functions=apps/web/functions

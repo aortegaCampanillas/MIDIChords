@@ -37,7 +37,8 @@ htmlcov/
 
 # IDE / editor
 .idea/
-.vscode/
+.vscode/*
+!.vscode/launch.json
 *.iml
 
 # Node / frontend tooling

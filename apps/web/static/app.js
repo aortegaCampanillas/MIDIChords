@@ -278,7 +278,7 @@ const NOTE_LABELS = {
 const SHARP_KEY_SIGNATURES = ["F", "C", "G", "D", "A", "E", "B"];
 const FLAT_KEY_SIGNATURES = ["B", "E", "A", "D", "G", "C", "F"];
 const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
-const DONATE_URL = "https://buy.stripe.com/test_00w7sLcfn6Q3bvT3GL2cg00";
+const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
   { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
   { key: "drop_d", es: "Drop D", en: "Drop D", notes: [38, 45, 50, 55, 59, 64] },

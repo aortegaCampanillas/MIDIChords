@@ -56,6 +56,8 @@ def http_json(path: str, method: str = "GET", payload: dict[str, Any] | None = N
 def normalize(value: Any) -> Any:
     if isinstance(value, dict):
         return {k: normalize(v) for k, v in sorted(value.items(), key=lambda kv: kv[0])}
+    if isinstance(value, tuple):
+        return [normalize(v) for v in value]
     if isinstance(value, list):
         return [normalize(v) for v in value]
     return value

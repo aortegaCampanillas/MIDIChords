@@ -106,8 +106,17 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.audio_engine = PianoAudioEngine()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
         self.audio_engine.set_guitar_preset(str(self.config_data.get("guitar_sound_preset", "steel_clean")))
+        self.tuner_enabled = str(os.getenv("MIDICHORDS_ENABLE_TUNER_DESKTOP", "0")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        if self.current_mode not in {"detection", "generation", "scales", "metronome", "tuner"}:
+        allowed_modes = {"detection", "generation", "scales", "metronome"}
+        if self.tuner_enabled:
+            allowed_modes.add("tuner")
+        if self.current_mode not in allowed_modes:
             self.current_mode = "detection"
         self.generation_tab_active = False
         self.scale_tab_active = False

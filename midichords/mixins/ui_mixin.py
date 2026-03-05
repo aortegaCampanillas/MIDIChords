@@ -10,6 +10,12 @@ from midichords.ui.widgets import GrayRoundedButton, GreenRoundedButton, PlayTra
 
 
 class UiMixin:
+    def _available_mode_keys(self) -> list[str]:
+        modes = ["detection", "generation", "scales", "metronome"]
+        if bool(getattr(self, "tuner_enabled", True)):
+            modes.append("tuner")
+        return modes
+
     def _draw_vertical_gradient(self, canvas: tk.Canvas, color_top: str, color_bottom: str) -> None:
         def hex_to_rgb(color: str) -> tuple[int, int, int]:
             color = color.lstrip("#")
@@ -2079,13 +2085,17 @@ class UiMixin:
         cards_frame.rowconfigure(1, weight=1)
         cards_frame.rowconfigure(2, weight=1)
 
-        options = [
-            ("detection", self._mode_label("detection"), "◎", "#ffa320"),
-            ("generation", self._mode_label("generation"), "♬", "#39c8ff"),
-            ("scales", self._mode_label("scales"), "♪", "#e4eb3f"),
-            ("metronome", self._mode_label("metronome"), "⏱", "#ff8f40"),
-            ("tuner", self._mode_label("tuner"), "🎸", "#8eea6b"),
-        ]
+        mode_cards = {
+            "detection": ("◎", "#ffa320"),
+            "generation": ("♬", "#39c8ff"),
+            "scales": ("♪", "#e4eb3f"),
+            "metronome": ("⏱", "#ff8f40"),
+            "tuner": ("🎸", "#8eea6b"),
+        }
+        options = []
+        for mode_key in self._available_mode_keys():
+            icon_txt, icon_color = mode_cards[mode_key]
+            options.append((mode_key, self._mode_label(mode_key), icon_txt, icon_color))
 
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
             card = tk.Frame(
@@ -2132,6 +2142,8 @@ class UiMixin:
             self.mode_selector_overlay.destroy()
             self.mode_selector_overlay = None
     def _apply_mode(self, mode_key: str) -> None:
+        if mode_key not in self._available_mode_keys():
+            mode_key = "detection"
         self.mode_var.set(self._mode_label(mode_key))
         self._close_mode_selector_overlay()
         self._on_mode_combo_changed(None)
@@ -2150,7 +2162,7 @@ class UiMixin:
             self.current_mode = "scales"
         elif selected == self._mode_label("metronome"):
             self.current_mode = "metronome"
-        elif selected == self._mode_label("tuner"):
+        elif bool(getattr(self, "tuner_enabled", True)) and selected == self._mode_label("tuner"):
             self.current_mode = "tuner"
         else:
             self.current_mode = "detection"

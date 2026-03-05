@@ -280,7 +280,7 @@ function spellByDegree(rootPc, targetPc, degree, language, preferFlats, midiNote
   const tonicLetter = tonicLetterIndex(rootPc, preferFlats);
   const letterIdx = (tonicLetter + Number(degree)) % 7;
   const naturalPc = basePcs[letterIdx];
-  let diff = (Number(targetPc) - naturalPc) % 12;
+  let diff = ((Number(targetPc) - naturalPc) % 12 + 12) % 12;
   if (diff > 6) diff -= 12;
   const spelled = applyAccidental(letterNames[letterIdx], diff);
   if (spelled == null) {
@@ -367,7 +367,9 @@ function listChordPatterns() {
       const pb = priority.has(b.suffix) ? priority.get(b.suffix) : COMMON_CHORD_SUFFIX_ORDER.length;
       if (pa !== pb) return pa - pb;
       if (a.intervals.length !== b.intervals.length) return a.intervals.length - b.intervals.length;
-      return a.suffix.localeCompare(b.suffix);
+      if (a.suffix < b.suffix) return -1;
+      if (a.suffix > b.suffix) return 1;
+      return 0;
     })
     .map((p) => ({ suffix: p.suffix, intervals: [...p.intervals] }));
 }
@@ -573,4 +575,3 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
-

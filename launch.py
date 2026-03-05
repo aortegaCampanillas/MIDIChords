@@ -48,6 +48,50 @@ def run_web(host: str, port: int, reload: bool) -> None:
 def run_mobile(mobile_args: list[str]) -> None:
     project_dir = Path(__file__).resolve().parent / "apps" / "mobile_flutter"
     cmd = ["flutter", "run"]
+    has_sdkroot_define = any(
+        arg.startswith("--dart-define=SdkRoot=") or arg.startswith("SdkRoot=")
+        for arg in mobile_args
+    ) or any(
+        mobile_args[i] == "--dart-define"
+        and i + 1 < len(mobile_args)
+        and mobile_args[i + 1].startswith("SdkRoot=")
+        for i in range(len(mobile_args))
+    )
+    if not has_sdkroot_define:
+        requested_device: str | None = None
+        for i, arg in enumerate(mobile_args):
+            if arg == "-d" and i + 1 < len(mobile_args):
+                requested_device = mobile_args[i + 1]
+                break
+            if arg.startswith("-d="):
+                requested_device = arg.split("=", 1)[1]
+                break
+        if requested_device:
+            devices = _flutter_list_devices(project_dir)
+            resolved = _resolve_flutter_device(requested_device, devices)
+            selected = next(
+                (
+                    d
+                    for d in devices
+                    if str(d.get("id", "")) == (resolved or requested_device)
+                    or str(d.get("name", "")) == (resolved or requested_device)
+                ),
+                None,
+            )
+            if selected is not None:
+                platform = str(selected.get("targetPlatform", "")).lower()
+                if platform == "ios":
+                    is_emulator = bool(selected.get("emulator", False))
+                    sdk = "iphonesimulator" if is_emulator else "iphoneos"
+                    try:
+                        sdk_root = subprocess.check_output(
+                            ["xcrun", "--sdk", sdk, "--show-sdk-path"],
+                            text=True,
+                        ).strip()
+                    except Exception:
+                        sdk_root = ""
+                    if sdk_root:
+                        cmd.extend(["--dart-define", f"SdkRoot={sdk_root}"])
     cmd.extend(mobile_args)
     try:
         subprocess.run(cmd, cwd=str(project_dir), check=True)

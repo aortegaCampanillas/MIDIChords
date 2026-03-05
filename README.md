@@ -143,6 +143,19 @@ Notas:
 - Entitlements base en `scripts/entitlements.mas.plist`.
 - El script genera un archivo temporal: `scripts/entitlements.mas.generated.plist`.
 - Si no necesitas red o acceso a archivos seleccionados por usuario, omite `--allow-network` y/o `--allow-file-access`.
+- El script también configura automáticamente claves requeridas por App Store:
+  - `LSApplicationCategoryType` (por defecto: `public.app-category.music`)
+  - `LSMinimumSystemVersion` (por defecto: `12.0`)
+  - `CFBundleIconFile` + `AppIcon.icns` generado desde `assets/app_logo.png`
+- El script elimina automáticamente atributos `com.apple.quarantine` del `.app` y del `.pkg`.
+- El script extrae del provisioning profile:
+  - `com.apple.application-identifier`
+  - `com.apple.developer.team-identifier`
+  y los incluye en los entitlements de firma.
+- Puedes ajustar estos valores con:
+  - `--category-uti`
+  - `--min-system-version`
+  - `--icon-png` (o `--skip-icon` si ya lo gestionas externamente)
 - Para guardar certificados/perfiles/keys dentro del proyecto sin subirlos a git, usa `signing/local/` (documentado en `signing/README.md`).
 
 ## VS Code launch

@@ -22,6 +22,10 @@ Options:
   --build-number          CFBundleVersion (optional)
   --entrypoint            Python entrypoint for PyInstaller (default: app.py)
   --output-pkg            Output package path (default: <APP_NAME>-macos-appstore.pkg)
+  --category-uti          LSApplicationCategoryType (default: public.app-category.music)
+  --min-system-version    LSMinimumSystemVersion (default: 12.0)
+  --icon-png              Source PNG for AppIcon.icns (default: assets/app_logo.png)
+  --skip-icon             Do not generate/embed AppIcon.icns
   --allow-network         Add com.apple.security.network.client entitlement
   --allow-file-access     Add user-selected read/write entitlement
   --skip-build            Do not run PyInstaller build
@@ -43,6 +47,10 @@ PROVISIONING_PROFILE=""
 VERSION=""
 BUILD_NUMBER=""
 OUTPUT_PKG=""
+CATEGORY_UTI="public.app-category.music"
+MIN_SYSTEM_VERSION="12.0"
+ICON_PNG="assets/app_logo.png"
+SKIP_ICON=0
 ALLOW_NETWORK=0
 ALLOW_FILE_ACCESS=0
 SKIP_BUILD=0
@@ -86,6 +94,22 @@ while [[ $# -gt 0 ]]; do
       OUTPUT_PKG="${2:-}"
       shift 2
       ;;
+    --category-uti)
+      CATEGORY_UTI="${2:-}"
+      shift 2
+      ;;
+    --min-system-version)
+      MIN_SYSTEM_VERSION="${2:-}"
+      shift 2
+      ;;
+    --icon-png)
+      ICON_PNG="${2:-}"
+      shift 2
+      ;;
+    --skip-icon)
+      SKIP_ICON=1
+      shift
+      ;;
     --allow-network)
       ALLOW_NETWORK=1
       shift
@@ -128,10 +152,22 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
 ENTITLEMENTS_PATH="$ROOT_DIR/scripts/entitlements.mas.generated.plist"
+ICONSET_TMP_DIR=""
+PROFILE_PLIST_TMP=""
+PROFILE_APP_IDENTIFIER=""
+PROFILE_TEAM_ID=""
 
 if [[ -z "$OUTPUT_PKG" ]]; then
   OUTPUT_PKG="$ROOT_DIR/${APP_NAME}-macos-appstore.pkg"
 fi
+
+if [[ "$ICON_PNG" != /* ]]; then
+  ICON_PNG="$ROOT_DIR/$ICON_PNG"
+fi
+
+mkdir -p "$ROOT_DIR/build"
+PROFILE_PLIST_TMP="$(mktemp "$ROOT_DIR/build/profile.XXXXXX.plist")"
+trap 'if [[ -n "$ICONSET_TMP_DIR" && -d "$ICONSET_TMP_DIR" ]]; then rm -rf "$ICONSET_TMP_DIR"; fi; if [[ -n "$PROFILE_PLIST_TMP" && -f "$PROFILE_PLIST_TMP" ]]; then rm -f "$PROFILE_PLIST_TMP"; fi' EXIT
 
 cd "$ROOT_DIR"
 
@@ -163,8 +199,68 @@ if [[ -n "$BUILD_NUMBER" ]]; then
   /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUILD_NUMBER" "$INFO_PLIST"
 fi
 
+echo "Setting App Store category: $CATEGORY_UTI"
+/usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType $CATEGORY_UTI" "$INFO_PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string $CATEGORY_UTI" "$INFO_PLIST"
+
+echo "Setting minimum macOS version: $MIN_SYSTEM_VERSION"
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $MIN_SYSTEM_VERSION" "$INFO_PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MIN_SYSTEM_VERSION" "$INFO_PLIST"
+
+if [[ "$SKIP_ICON" -eq 0 ]]; then
+  if [[ ! -f "$ICON_PNG" ]]; then
+    echo "Error: icon source not found: $ICON_PNG" >&2
+    exit 1
+  fi
+  if ! command -v iconutil >/dev/null 2>&1; then
+    echo "Error: iconutil not found. Install Xcode command line tools." >&2
+    exit 1
+  fi
+  if ! command -v sips >/dev/null 2>&1; then
+    echo "Error: sips not found on this macOS system." >&2
+    exit 1
+  fi
+
+  mkdir -p "$ROOT_DIR/build"
+  ICONSET_TMP_DIR="$(mktemp -d "$ROOT_DIR/build/iconset.XXXXXX")"
+  ICONSET_DIR="$ICONSET_TMP_DIR/AppIcon.iconset"
+  mkdir -p "$ICONSET_DIR"
+
+  echo "Generating AppIcon.icns from: $ICON_PNG"
+  sips -z 16 16 "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+
+  mkdir -p "$APP_PATH/Contents/Resources"
+  iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon" "$INFO_PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$INFO_PLIST"
+fi
+
 echo "Embedding provisioning profile..."
 cp "$PROVISIONING_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
+
+echo "Reading provisioning profile entitlements..."
+security cms -D -i "$PROVISIONING_PROFILE" > "$PROFILE_PLIST_TMP"
+PROFILE_APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST_TMP" 2>/dev/null || true)"
+if [[ -z "$PROFILE_APP_IDENTIFIER" ]]; then
+  PROFILE_APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c "Print :ApplicationIdentifierPrefix:0" "$PROFILE_PLIST_TMP" 2>/dev/null || true).$BUNDLE_ID"
+fi
+PROFILE_TEAM_ID="$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.team-identifier" "$PROFILE_PLIST_TMP" 2>/dev/null || true)"
+if [[ -z "$PROFILE_TEAM_ID" ]]; then
+  PROFILE_TEAM_ID="$(/usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" "$PROFILE_PLIST_TMP" 2>/dev/null || true)"
+fi
+if [[ -z "$PROFILE_APP_IDENTIFIER" || -z "$PROFILE_TEAM_ID" ]]; then
+  echo "Error: unable to extract application/team identifier from provisioning profile." >&2
+  exit 1
+fi
 
 echo "Generating App Sandbox entitlements..."
 cat > "$ENTITLEMENTS_PATH" <<EOF
@@ -172,6 +268,10 @@ cat > "$ENTITLEMENTS_PATH" <<EOF
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>com.apple.application-identifier</key>
+  <string>$PROFILE_APP_IDENTIFIER</string>
+  <key>com.apple.developer.team-identifier</key>
+  <string>$PROFILE_TEAM_ID</string>
   <key>com.apple.security.app-sandbox</key>
   <true/>
 EOF
@@ -195,6 +295,10 @@ cat >> "$ENTITLEMENTS_PATH" <<'EOF'
 </plist>
 EOF
 
+echo "Removing quarantine attributes from app bundle..."
+xattr -cr "$APP_PATH"
+xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
+
 echo "Signing app for Mac App Store..."
 codesign --force --deep --timestamp \
   --entitlements "$ENTITLEMENTS_PATH" \
@@ -210,6 +314,9 @@ productbuild \
   --component "$APP_PATH" /Applications \
   --sign "$INSTALLER_IDENTITY" \
   "$OUTPUT_PKG"
+
+xattr -cr "$OUTPUT_PKG"
+xattr -d com.apple.quarantine "$OUTPUT_PKG" 2>/dev/null || true
 
 echo "Verifying installer signature..."
 pkgutil --check-signature "$OUTPUT_PKG"

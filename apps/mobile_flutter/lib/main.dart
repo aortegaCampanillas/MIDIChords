@@ -535,6 +535,8 @@ const Map<int, String> _kGuitarNylonSamples = <int, String>{
 };
 const String _kMetronomeSample = 'metronome.mp3';
 const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
+const bool _kEnableMobileTuner = false;
+const double _kTabletMinShortestSide = 600.0;
 
 class _ChordAnalysis {
   const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
@@ -599,7 +601,71 @@ class MidiChordsMobileApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const _TabletOnlyGate(child: HomeScreen()),
+    );
+  }
+}
+
+class _TabletOnlyGate extends StatelessWidget {
+  const _TabletOnlyGate({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final isTablet = media.size.shortestSide >= _kTabletMinShortestSide;
+    if (isTablet) return child;
+    return Scaffold(
+      backgroundColor: const Color(0xFF202834),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF273140),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF56627A)),
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Icons.tablet_mac_outlined,
+                      color: Color(0xFFF3BF2F),
+                      size: 44,
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'MIDIChords está disponible solo para tablets',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFFE9EDF2),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Abre la aplicación en un iPad o tablet Android para continuar.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFFA8B6C8),
+                        fontSize: 15,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -722,6 +788,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
 
+  List<int> _enabledModeIndexes() {
+    return _kEnableMobileTuner
+        ? const <int>[0, 1, 2, 3, 4]
+        : const <int>[0, 1, 2, 3];
+  }
+
   String _modeLabel(int index) {
     switch (index) {
       case 0:
@@ -835,6 +907,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _preferFlat => _accidental == 'flat';
 
   Future<void> _initPlatformAudioWorkarounds() async {
+    if (Platform.isAndroid) {
+      // On older Android tablets, audioplayers + MediaPlayer sample playback
+      // can spam position polling and cause visible jank.
+      _samplePlaybackAvailable = false;
+      _metronomeSampleAvailable = false;
+      return;
+    }
     if (!Platform.isIOS) return;
     try {
       final isSimulator =
@@ -2015,19 +2094,39 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
-    final sampled = await _playSampleTone(
-      midi: midi,
-      instrument: instrument,
-      volume: targetVolume,
-    );
-    if (sampled != null) {
-      return sampled;
+    try {
+      final sampled = await _playSampleTone(
+        midi: midi,
+        instrument: instrument,
+        volume: targetVolume,
+      );
+      if (sampled != null) {
+        return sampled;
+      }
+    } catch (err) {
+      _samplePlaybackAvailable = false;
+      debugPrint('Instrument sample playback unavailable: $err');
     }
 
     final player = AudioPlayer();
+    player.positionUpdater = null;
     try {
-      await player.setPlayerMode(PlayerMode.mediaPlayer);
-      await player.setReleaseMode(ReleaseMode.stop);
+      final useLowLatency = Platform.isAndroid;
+      await player.setPlayerMode(
+        useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      );
+      await player.setReleaseMode(ReleaseMode.release);
+      if (Platform.isAndroid) {
+        await player.setAudioContext(
+          AudioContext(
+            android: const AudioContextAndroid(
+              contentType: AndroidContentType.sonification,
+              usageType: AndroidUsageType.assistanceSonification,
+              audioFocus: AndroidAudioFocus.none,
+            ),
+          ),
+        );
+      }
       final seconds = durationSeconds.clamp(0.12, 2.2);
       final wavBytes = _buildWavTone(
         midi: _safeMidi(midi),
@@ -2054,7 +2153,15 @@ class _HomeScreenState extends State<HomeScreen> {
           volume: targetVolume,
         );
       }
-      _bindAutoDisposeOnComplete(player);
+      if (useLowLatency) {
+        // lowLatency mode does not emit completion events on Android.
+        final ttlMs = ((seconds * 1000) + 120).round().clamp(180, 2600);
+        Timer(Duration(milliseconds: ttlMs), () {
+          unawaited(_safeStopDispose(player));
+        });
+      } else {
+        _bindAutoDisposeOnComplete(player);
+      }
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
@@ -2111,10 +2218,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _ => 1.0,
     };
     final player = AudioPlayer();
+    player.positionUpdater = null;
     try {
       await player.setPlayerMode(PlayerMode.mediaPlayer);
-      await player.setReleaseMode(ReleaseMode.stop);
-      await player.setPlaybackRate(baseRate);
+      await player.setReleaseMode(ReleaseMode.release);
+      if ((baseRate - 1.0).abs() > 0.001) {
+        await player.setPlaybackRate(baseRate);
+      }
       await player.play(
         AssetSource(_kMetronomeSample),
         volume: (baseGain * gain).clamp(0.0, 1.0),
@@ -2165,11 +2275,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final targetRate = math.pow(2.0, semitones / 12.0).toDouble();
     final clampedRate = targetRate.clamp(0.5, 2.0);
     final player = AudioPlayer();
+    player.positionUpdater = null;
     try {
       await player.setPlayerMode(PlayerMode.mediaPlayer);
-      await player.setReleaseMode(ReleaseMode.stop);
-      await player.setPlaybackRate(clampedRate);
-      await player.play(AssetSource(assetPath), volume: volume);
+      await player.setReleaseMode(ReleaseMode.release);
+      if (Platform.isIOS && (clampedRate - 1.0).abs() > 0.001) {
+        // iOS can ignore rate if set before playback starts.
+        // Start sample first, then apply transposition.
+        await player.play(AssetSource(assetPath), volume: volume);
+        await player.setPlaybackRate(clampedRate);
+      } else {
+        if ((clampedRate - 1.0).abs() > 0.001) {
+          await player.setPlaybackRate(clampedRate);
+        }
+        await player.play(AssetSource(assetPath), volume: volume);
+      }
       _bindAutoDisposeOnComplete(player);
       return player;
     } catch (err) {
@@ -2191,12 +2311,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _safeStopDispose(AudioPlayer player) async {
-    try {
-      await player.stop();
-    } catch (_) {}
-    try {
-      await player.release();
-    } catch (_) {}
     try {
       await player.dispose();
     } catch (_) {}
@@ -3191,6 +3305,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final enabledModes = _enabledModeIndexes();
+    final currentTab = enabledModes.contains(_tabIndex) ? _tabIndex : 0;
+    if (currentTab != _tabIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _tabIndex = currentTab);
+        }
+      });
+    }
     final pages = <Widget>[
       _buildDetectionPage(),
       _buildChordGenerationPage(),
@@ -3213,8 +3336,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 360),
                   child: DropdownButtonFormField<int>(
-                    key: ValueKey<int>(_tabIndex),
-                    initialValue: _tabIndex,
+                    key: ValueKey<String>(
+                      'mode_${currentTab}_${_kEnableMobileTuner ? 1 : 0}',
+                    ),
+                    initialValue: currentTab,
                     dropdownColor: _surfaceDark,
                     style: const TextStyle(color: _text),
                     decoration: const InputDecoration(
@@ -3225,15 +3350,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       isDense: true,
                     ),
-                    items: List<DropdownMenuItem<int>>.generate(
-                      5,
-                      (int i) => DropdownMenuItem<int>(
-                        value: i,
-                        child: Text(_modeLabel(i)),
-                      ),
-                    ),
+                    items: enabledModes
+                        .map(
+                          (i) => DropdownMenuItem<int>(
+                            value: i,
+                            child: Text(_modeLabel(i)),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
+                      if (!_kEnableMobileTuner && value == 4) return;
                       setState(() {
                         _tabIndex = value;
                         if (value == 0) {
@@ -3335,7 +3462,7 @@ class _HomeScreenState extends State<HomeScreen> {
             colors: <Color>[_bgTop, _bgBottom],
           ),
         ),
-        child: Column(children: <Widget>[Expanded(child: pages[_tabIndex])]),
+        child: Column(children: <Widget>[Expanded(child: pages[currentTab])]),
       ),
     );
   }

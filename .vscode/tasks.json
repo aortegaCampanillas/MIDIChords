@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run: Desktop MIDIChords",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["launch.py", "desktop"],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "MIDICHORDS_FORCE_MIDI_OPEN": "1"
+        }
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: Web MIDIChords",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": [
+        "launch.py",
+        "web",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: Mobile iPad MIDIChords",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["launch.py", "mobile", "--", "-d", "${input:ipadDeviceId}"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "ipadDeviceId",
+      "type": "promptString",
+      "description": "ID o nombre del iPad (usa `flutter devices` para verlo)",
+      "default": "iPad"
+    }
+  ]
+}

@@ -10,7 +10,6 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
-      "python": "${workspaceFolder}/.venv/bin/python",
       "env": {
         "MIDICHORDS_FORCE_MIDI_OPEN": "1"
       }
@@ -23,8 +22,7 @@
       "args": ["web", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true,
-      "python": "${workspaceFolder}/.venv/bin/python"
+      "justMyCode": true
     },
     {
       "name": "Mobile iPad: MIDIChords",
@@ -39,8 +37,7 @@
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true,
-      "python": "${workspaceFolder}/.venv/bin/python"
+      "justMyCode": true
     }
   ],
   "inputs": [

@@ -70,6 +70,24 @@ Abrir: `http://127.0.0.1:8000`
 
 Proyecto base creado en `apps/mobile_flutter`.
 
+Para ejecutar en emulador Android:
+
+```bash
+# 1) Listar emuladores disponibles
+flutter emulators
+
+# 2) Arrancar uno (ejemplo)
+flutter emulators --launch Medium_Tablet
+
+# 3) Confirmar device id activo (ej: emulator-5554)
+flutter devices
+
+# 4) Lanzar la app en ese emulador
+python launch.py mobile -d emulator-5554
+```
+
+Si ya tienes un único dispositivo Android activo, también funciona:
+
 ```bash
 python launch.py mobile
 ```

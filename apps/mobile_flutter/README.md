@@ -21,6 +21,31 @@ Base Flutter para tablets iOS/Android del proyecto MIDIChords.
 
 ## Ejecutar
 
+Arranque recomendado en emulador Android:
+
+```bash
+# Desde la raíz del repo
+flutter emulators
+flutter emulators --launch Medium_Tablet
+flutter devices
+python launch.py mobile -d emulator-5554
+```
+
+Si solo hay un dispositivo Android activo, también puedes usar:
+
+```bash
+python launch.py mobile
+```
+
+Puedes ejecutar Flutter directamente desde este directorio:
+
+```bash
+cd apps/mobile_flutter
+flutter run -d emulator-5554
+```
+
+Comando unificado (sin elegir device explícitamente):
+
 ```bash
 python launch.py mobile
 ```
@@ -35,13 +60,6 @@ Puedes listar dispositivos con:
 
 ```bash
 flutter devices
-```
-
-También puedes ejecutar Flutter directamente:
-
-```bash
-cd apps/mobile_flutter
-flutter run
 ```
 
 ## Nota de arquitectura

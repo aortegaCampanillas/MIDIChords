@@ -76,8 +76,10 @@ Para ejecutar en emulador Android:
 # 1) Listar emuladores disponibles
 flutter emulators
 
-# 2) Arrancar uno (ejemplo)
-flutter emulators --launch Medium_Tablet
+# 2) Arrancar Medium_Tablet con el SDK que contiene su system image
+ANDROID_SDK_ROOT=/Users/aortega/.buildozer/android/platform/android-sdk \
+ANDROID_HOME=/Users/aortega/.buildozer/android/platform/android-sdk \
+/Users/aortega/.buildozer/android/platform/android-sdk/emulator/emulator -avd Medium_Tablet
 
 # 3) Confirmar device id activo (ej: emulator-5554)
 flutter devices
@@ -85,6 +87,11 @@ flutter devices
 # 4) Lanzar la app en ese emulador
 python launch.py mobile -d emulator-5554
 ```
+
+Nota: en esta máquina `Medium_Tablet` usa la imagen en
+`/Users/aortega/.buildozer/android/platform/android-sdk/system-images/...`.
+Si se intenta arrancar con `/Users/aortega/Library/Android/sdk`, puede fallar
+con error de `Broken AVD system path`.
 
 Si ya tienes un único dispositivo Android activo, también funciona:
 

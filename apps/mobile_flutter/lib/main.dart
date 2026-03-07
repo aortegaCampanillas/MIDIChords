@@ -907,13 +907,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _preferFlat => _accidental == 'flat';
 
   Future<void> _initPlatformAudioWorkarounds() async {
-    if (Platform.isAndroid) {
-      // On older Android tablets, audioplayers + MediaPlayer sample playback
-      // can spam position polling and cause visible jank.
-      _samplePlaybackAvailable = false;
-      _metronomeSampleAvailable = false;
-      return;
-    }
+    if (Platform.isAndroid) return;
     if (!Platform.isIOS) return;
     try {
       final isSimulator =
@@ -2048,29 +2042,90 @@ class _HomeScreenState extends State<HomeScreen> {
     byteData.setUint32(40, dataSize, Endian.little);
 
     final pi2 = 2.0 * math.pi;
-    final attack = instrument == 'guitar' ? 0.006 : 0.009;
-    final decayBase = instrument == 'guitar' ? 0.935 : 0.785;
-    final maxAmp = instrument == 'guitar' ? 0.58 : 0.52;
+    final rng = math.Random((midi * 997) + instrument.hashCode);
+    final isGuitar = instrument == 'guitar';
+    final attack = isGuitar ? 0.0045 : 0.010;
+    final decayBase = isGuitar ? 0.92 : 0.80;
+    final maxAmp = isGuitar ? 0.54 : 0.50;
     for (int i = 0; i < totalSamples; i += 1) {
       final t = i / sampleRate;
       final decayFactor = math
-          .pow(decayBase, t * (instrument == 'guitar' ? 7.2 : 5.6))
+          .pow(decayBase, t * (isGuitar ? 8.3 : 5.3))
           .toDouble();
       final env = t < attack ? (t / attack) : decayFactor;
-      final fundamental = math.sin(pi2 * freq * t);
+      final fundamental = math.sin(pi2 * freq * t) * (isGuitar ? 0.84 : 0.92);
       final harmonic2 =
-          math.sin(pi2 * freq * 2.0 * t) *
-          (instrument == 'guitar' ? 0.20 : 0.14);
+          math.sin(pi2 * freq * 2.0 * t) * (isGuitar ? 0.24 : 0.20);
       final harmonic3 =
-          math.sin(pi2 * freq * 3.0 * t) *
-          (instrument == 'guitar' ? 0.10 : 0.06);
+          math.sin(pi2 * freq * 3.0 * t) * (isGuitar ? 0.15 : 0.12);
       final harmonic4 =
-          math.sin(pi2 * freq * 4.0 * t) *
-          (instrument == 'guitar' ? 0.04 : 0.025);
+          math.sin(pi2 * freq * 4.0 * t) * (isGuitar ? 0.08 : 0.06);
+      final harmonic5 =
+          math.sin(pi2 * freq * 5.0 * t) * (isGuitar ? 0.03 : 0.045);
+      final noise = (rng.nextDouble() * 2.0) - 1.0;
+      final pick = isGuitar ? (noise * math.exp(-t * 48.0) * 0.26) : 0.0;
       final sample =
-          (fundamental + harmonic2 + harmonic3 + harmonic4) * env * maxAmp;
+          (fundamental + harmonic2 + harmonic3 + harmonic4 + harmonic5 + pick) *
+          env *
+          maxAmp;
       final pcm = (sample * 32767.0).round().clamp(-32767, 32767);
       byteData.setInt16(44 + i * 2, pcm, Endian.little);
+    }
+    return byteData.buffer.asUint8List();
+  }
+
+  Uint8List _buildMetronomeClickWav({
+    required int level,
+    int sampleRate = 44100,
+  }) {
+    final freq = switch (level) {
+      2 => 1700.0,
+      1 => 1300.0,
+      _ => 950.0,
+    };
+    final seconds = 0.045;
+    final totalSamples = math.max(1, (sampleRate * seconds).round());
+    final dataSize = totalSamples * 2;
+    final byteData = ByteData(44 + dataSize);
+    final rng = math.Random(1000 + (level * 97));
+
+    void writeStr(int offset, String value) {
+      for (int i = 0; i < value.length; i += 1) {
+        byteData.setUint8(offset + i, value.codeUnitAt(i));
+      }
+    }
+
+    writeStr(0, 'RIFF');
+    byteData.setUint32(4, 36 + dataSize, Endian.little);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    byteData.setUint32(16, 16, Endian.little);
+    byteData.setUint16(20, 1, Endian.little);
+    byteData.setUint16(22, 1, Endian.little);
+    byteData.setUint32(24, sampleRate, Endian.little);
+    byteData.setUint32(28, sampleRate * 2, Endian.little);
+    byteData.setUint16(32, 2, Endian.little);
+    byteData.setUint16(34, 16, Endian.little);
+    writeStr(36, 'data');
+    byteData.setUint32(40, dataSize, Endian.little);
+
+    final isAccent = level >= 1;
+    final oscAmp = isAccent ? 0.34 : 0.24;
+    final noiseAmp = isAccent ? 0.78 : 0.62;
+
+    double triangleAt(double phase) {
+      final wrapped = phase - phase.floorToDouble();
+      return (4.0 * (wrapped - 0.5).abs()) - 1.0;
+    }
+
+    for (int i = 0; i < totalSamples; i += 1) {
+      final t = i / sampleRate;
+      final env = math.exp(-t * (isAccent ? 82.0 : 74.0));
+      final tri = triangleAt(freq * t) * oscAmp;
+      final noise = ((rng.nextDouble() * 2.0) - 1.0) * noiseAmp;
+      final mixed = (tri + (noise * math.exp(-t * 115.0))) * env * 0.36;
+      final pcm = (mixed * 32767.0).round().clamp(-32767, 32767);
+      byteData.setInt16(44 + (i * 2), pcm, Endian.little);
     }
     return byteData.buffer.asUint8List();
   }
@@ -2086,6 +2141,19 @@ class _HomeScreenState extends State<HomeScreen> {
     if (gain <= 0.0) {
       return null;
     }
+    if (Platform.isAndroid) {
+      final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
+      final ok = await _playAndroidSynthTone(
+        midi: _safeMidi(midi),
+        instrument: instrument,
+        durationMs: (durationSeconds.clamp(0.1, 2.2) * 1000).round(),
+        volume: targetVolume,
+      );
+      if (!ok && gain > 0.02) {
+        SystemSound.play(SystemSoundType.click);
+      }
+      return null;
+    }
     if (!_audioPlaybackAvailable) {
       if (gain > 0.02) {
         SystemSound.play(SystemSoundType.click);
@@ -2099,22 +2167,19 @@ class _HomeScreenState extends State<HomeScreen> {
         midi: midi,
         instrument: instrument,
         volume: targetVolume,
+        durationSeconds: durationSeconds,
       );
       if (sampled != null) {
         return sampled;
       }
     } catch (err) {
-      _samplePlaybackAvailable = false;
       debugPrint('Instrument sample playback unavailable: $err');
     }
-
     final player = AudioPlayer();
     player.positionUpdater = null;
     try {
-      final useLowLatency = Platform.isAndroid;
-      await player.setPlayerMode(
-        useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
-      );
+      // audioplayers on Android cannot play BytesSource in lowLatency mode.
+      await player.setPlayerMode(PlayerMode.mediaPlayer);
       await player.setReleaseMode(ReleaseMode.release);
       if (Platform.isAndroid) {
         await player.setAudioContext(
@@ -2153,15 +2218,7 @@ class _HomeScreenState extends State<HomeScreen> {
           volume: targetVolume,
         );
       }
-      if (useLowLatency) {
-        // lowLatency mode does not emit completion events on Android.
-        final ttlMs = ((seconds * 1000) + 120).round().clamp(180, 2600);
-        Timer(Duration(milliseconds: ttlMs), () {
-          unawaited(_safeStopDispose(player));
-        });
-      } else {
-        _bindAutoDisposeOnComplete(player);
-      }
+      _bindAutoDisposeOnComplete(player);
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
@@ -2182,63 +2239,114 @@ class _HomeScreenState extends State<HomeScreen> {
     final gain = volumeScale.clamp(0.0, 1.0);
     if (gain <= 0.0) return null;
     final level = bar ? 2 : (accent ? 1 : 0);
+    if (Platform.isAndroid) {
+      final ok = await _playAndroidMetronomeClick(
+        level: level,
+        volume: gain.clamp(0.0, 1.0),
+      );
+      if (!ok && gain > 0.02) {
+        SystemSound.play(SystemSoundType.click);
+      }
+      return null;
+    }
     if (!_audioPlaybackAvailable) {
       if (gain > 0.02) {
         SystemSound.play(SystemSoundType.click);
       }
       return null;
     }
-    if (!_metronomeSampleAvailable) {
-      final midi = switch (level) {
-        2 => 90,
-        1 => 82,
-        _ => 74,
-      };
-      final toneGain = switch (level) {
-        2 => 0.95,
-        1 => 0.78,
-        _ => 0.64,
-      };
-      await _playTone(
-        midi: midi,
-        instrument: 'piano',
-        durationSeconds: 0.085,
-        volumeScale: (gain * toneGain).clamp(0.0, 1.0),
-      );
-      return null;
-    }
     final baseGain = switch (level) {
-      2 => 1.02,
+      2 => 1.24,
       1 => 0.96,
-      _ => 0.82,
+      _ => 0.68,
     };
-    final baseRate = switch (level) {
-      2 => 1.34,
-      1 => 1.22,
-      _ => 1.0,
-    };
+    if (_metronomeSampleAvailable) {
+      final samplePlayer = AudioPlayer();
+      samplePlayer.positionUpdater = null;
+      final baseRate = switch (level) {
+        2 => 1.68,
+        1 => 1.24,
+        _ => 0.94,
+      };
+      try {
+        await samplePlayer.setPlayerMode(PlayerMode.mediaPlayer);
+        await samplePlayer.setReleaseMode(ReleaseMode.release);
+        if ((baseRate - 1.0).abs() > 0.001) {
+          await samplePlayer.setPlaybackRate(baseRate);
+        }
+        await samplePlayer.play(
+          AssetSource(_kMetronomeSample),
+          volume: (baseGain * gain).clamp(0.0, 1.0),
+        );
+        if (level > 0) {
+          unawaited(_playMetronomeAccentTransient(level: level, gain: gain));
+        }
+        _bindAutoDisposeOnComplete(samplePlayer);
+        return samplePlayer;
+      } catch (err) {
+        _metronomeSampleAvailable = false;
+        try {
+          await samplePlayer.dispose();
+        } catch (_) {}
+        debugPrint('Metronome sample playback unavailable: $err');
+      }
+    }
+    final clickWav = _buildMetronomeClickWav(level: level);
     final player = AudioPlayer();
     player.positionUpdater = null;
     try {
       await player.setPlayerMode(PlayerMode.mediaPlayer);
       await player.setReleaseMode(ReleaseMode.release);
-      if ((baseRate - 1.0).abs() > 0.001) {
-        await player.setPlaybackRate(baseRate);
-      }
       await player.play(
-        AssetSource(_kMetronomeSample),
+        BytesSource(clickWav, mimeType: 'audio/wav'),
         volume: (baseGain * gain).clamp(0.0, 1.0),
       );
       _bindAutoDisposeOnComplete(player);
       return player;
     } catch (err) {
-      _metronomeSampleAvailable = false;
       try {
         await player.dispose();
       } catch (_) {}
-      debugPrint('Metronome sample playback unavailable: $err');
+      debugPrint('Metronome synthesized click unavailable: $err');
+    }
+    if (gain > 0.02) {
       SystemSound.play(SystemSoundType.click);
-      return null;
+    }
+    return null;
+  }
+
+  Future<void> _playMetronomeAccentTransient({
+    required int level,
+    required double gain,
+  }) async {
+    if (level <= 0 || gain <= 0.0) return;
+    if (Platform.isAndroid) {
+      final overlay = level >= 2 ? 0.52 : 0.34;
+      unawaited(
+        _playAndroidMetronomeClick(
+          level: level,
+          volume: (overlay * gain).clamp(0.0, 1.0),
+        ),
+      );
+      return;
+    }
+    final player = AudioPlayer();
+    player.positionUpdater = null;
+    try {
+      await player.setPlayerMode(PlayerMode.mediaPlayer);
+      await player.setReleaseMode(ReleaseMode.release);
+      await player.play(
+        BytesSource(
+          _buildMetronomeClickWav(level: level),
+          mimeType: 'audio/wav',
+        ),
+        volume: ((level >= 2 ? 0.48 : 0.32) * gain).clamp(0.0, 1.0),
+      );
+      _bindAutoDisposeOnComplete(player);
+    } catch (_) {
+      try {
+        await player.dispose();
+      } catch (_) {}
     }
   }
 
@@ -2246,7 +2354,11 @@ class _HomeScreenState extends State<HomeScreen> {
     required int midi,
     required String instrument,
     required double volume,
+    double durationSeconds = 0.6,
   }) async {
+    if (Platform.isAndroid) {
+      return null;
+    }
     if (!_samplePlaybackAvailable) {
       return null;
     }
@@ -2277,28 +2389,127 @@ class _HomeScreenState extends State<HomeScreen> {
     final player = AudioPlayer();
     player.positionUpdater = null;
     try {
-      await player.setPlayerMode(PlayerMode.mediaPlayer);
+      final useLowLatency = Platform.isAndroid;
+      await player.setPlayerMode(
+        useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      );
       await player.setReleaseMode(ReleaseMode.release);
-      if (Platform.isIOS && (clampedRate - 1.0).abs() > 0.001) {
-        // iOS can ignore rate if set before playback starts.
-        // Start sample first, then apply transposition.
-        await player.play(AssetSource(assetPath), volume: volume);
-        await player.setPlaybackRate(clampedRate);
-      } else {
+      if (Platform.isAndroid) {
+        await player.setAudioContext(
+          AudioContext(
+            android: const AudioContextAndroid(
+              contentType: AndroidContentType.music,
+              usageType: AndroidUsageType.media,
+              audioFocus: AndroidAudioFocus.none,
+            ),
+          ),
+        );
+        await player.setSource(AssetSource(assetPath));
         if ((clampedRate - 1.0).abs() > 0.001) {
-          await player.setPlaybackRate(clampedRate);
+          try {
+            await player.setPlaybackRate(clampedRate);
+          } catch (_) {
+            // Keep sample playback even if transposition is unsupported.
+          }
         }
-        await player.play(AssetSource(assetPath), volume: volume);
+        await player.setVolume(volume);
+        await player.resume();
+        final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
+            .round()
+            .clamp(220, 3200);
+        Timer(Duration(milliseconds: ttlMs), () {
+          unawaited(_safeStopDispose(player));
+        });
+        return player;
       }
-      _bindAutoDisposeOnComplete(player);
+      await player.play(AssetSource(assetPath), volume: volume);
+      if ((clampedRate - 1.0).abs() > 0.001) {
+        try {
+          await player.setPlaybackRate(clampedRate);
+        } catch (_) {
+          // Keep sample playback even if transposition is unsupported.
+        }
+      }
+      if (useLowLatency) {
+        final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
+            .round()
+            .clamp(220, 3200);
+        Timer(Duration(milliseconds: ttlMs), () {
+          unawaited(_safeStopDispose(player));
+        });
+      } else {
+        _bindAutoDisposeOnComplete(player);
+      }
       return player;
     } catch (err) {
-      _samplePlaybackAvailable = false;
       debugPrint('Instrument sample playback unavailable: $err');
       try {
         await player.dispose();
       } catch (_) {}
       return null;
+    }
+  }
+
+  Future<bool> _playAndroidSynthTone({
+    required int midi,
+    required String instrument,
+    required int durationMs,
+    required double volume,
+  }) async {
+    try {
+      return await _kPlatformChannel
+              .invokeMethod<bool>('playAndroidSynthTone', <String, dynamic>{
+                'midi': midi,
+                'instrument': instrument,
+                'durationMs': durationMs.clamp(80, 2600),
+                'volume': volume.clamp(0.0, 1.0),
+              }) ??
+          false;
+    } catch (err) {
+      debugPrint('Android synth tone unavailable: $err');
+      return false;
+    }
+  }
+
+  Future<bool> _playAndroidSynthChord({
+    required List<int> notes,
+    required String instrument,
+    required int durationMs,
+    required double volume,
+  }) async {
+    if (notes.isEmpty) return false;
+    try {
+      return await _kPlatformChannel
+              .invokeMethod<bool>('playAndroidSynthChord', <String, dynamic>{
+                'notes': notes.map(_safeMidi).toList(growable: false),
+                'instrument': instrument,
+                'durationMs': durationMs.clamp(80, 2600),
+                'volume': volume.clamp(0.0, 1.0),
+              }) ??
+          false;
+    } catch (err) {
+      debugPrint('Android synth chord unavailable: $err');
+      return false;
+    }
+  }
+
+  Future<bool> _playAndroidMetronomeClick({
+    required int level,
+    required double volume,
+  }) async {
+    try {
+      return await _kPlatformChannel.invokeMethod<bool>(
+            'playAndroidMetronomeClick',
+            <String, dynamic>{
+              'level': level.clamp(0, 2),
+              'durationMs': 55,
+              'volume': volume.clamp(0.0, 1.0),
+            },
+          ) ??
+          false;
+    } catch (err) {
+      debugPrint('Android metronome click unavailable: $err');
+      return false;
     }
   }
 
@@ -2532,6 +2743,19 @@ class _HomeScreenState extends State<HomeScreen> {
     required String instrument,
   }) async {
     _stopHeldChord();
+    final chordNotes = notes.map(_safeMidi).toSet().toList()..sort();
+    if (Platform.isAndroid && chordNotes.length > 1) {
+      await _playAndroidSynthChord(
+        notes: chordNotes,
+        instrument: instrument,
+        durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
+        volume: 0.92,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
     final starts = notes.map((midi) async {
       final player = await _playTone(
         midi: midi,
@@ -4055,12 +4279,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final extraPcs = _instrumentExtrasForCurrentTab()
         .map((n) => n % 12)
         .toSet();
-    final rightTuning = <int>[40, 45, 50, 55, 59, 64];
-    final tuning = _guitarHandedness == 'left'
-        ? rightTuning.reversed.toList()
-        : rightTuning;
+    const physicalTuning = <int>[40, 45, 50, 55, 59, 64]; // 6 -> 1
+    final tuning = _guitarHandedness == 'right'
+        ? physicalTuning.reversed
+              .toList() // 1 -> 6 (arriba -> abajo)
+        : physicalTuning;
     const fretCount = 14;
     const fretW = 78.0;
+    const openFretW = fretW / 2;
     const stringGap = 25.0;
     final detectionMode = _tabIndex == 0;
     final chordMode = _tabIndex == 1;
@@ -4075,13 +4301,13 @@ class _HomeScreenState extends State<HomeScreen> {
             .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
             .whereType<int>()
             .toList();
-    final selectedFrets = _guitarHandedness == 'left'
+    final selectedFrets = _guitarHandedness == 'right'
         ? rawFrets.reversed.toList()
         : rawFrets;
     final useFrets = selectedFrets.length >= 6;
     const openLeft = 40.0;
-    final nutX = openLeft + fretW;
-    final boardWidth = fretCount * fretW;
+    final nutX = openLeft + openFretW;
+    final boardWidth = (fretCount - 1) * fretW;
     final width = nutX + boardWidth;
     return SizedBox(
       height: 186,
@@ -4101,21 +4327,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   left: openLeft,
                   top: 6,
                   right: 0,
-                  child: Row(
-                    children: List<Widget>.generate(
-                      fretCount,
-                      (i) => SizedBox(
-                        width: fretW,
-                        child: Text(
-                          '$i',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFFC9D4E4),
-                            fontWeight: FontWeight.w700,
+                  child: SizedBox(
+                    width: width - openLeft,
+                    child: Row(
+                      children: <Widget>[
+                        SizedBox(
+                          width: openFretW,
+                          child: const Text(
+                            '0',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFFC9D4E4),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
+                        ...List<Widget>.generate(
+                          fretCount - 1,
+                          (i) => SizedBox(
+                            width: fretW,
+                            child: Text(
+                              '${i + 1}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFFC9D4E4),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -4123,7 +4366,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   left: openLeft,
                   top: 20,
                   child: Container(
-                    width: fretW,
+                    width: openFretW,
                     height: (6 * stringGap) + 16,
                     color: const Color(0xFFF4F5F7),
                   ),
@@ -4169,7 +4412,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 }),
-                ...List<Widget>.generate(fretCount + 1, (f) {
+                ...List<Widget>.generate(fretCount, (f) {
                   return Positioned(
                     left: nutX + (f * fretW),
                     top: 28,
@@ -4184,7 +4427,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   return List<Widget>.generate(fretCount, (f) {
                     final note = tuning[s] + f;
                     final y = 32.0 + (s * stringGap) - 10;
-                    final x = openLeft + ((f + 0.5) * fretW) - 11;
+                    final x = (f == 0)
+                        ? (openLeft + (openFretW * 0.5) - 11)
+                        : (nutX + ((f - 0.5) * fretW) - 11);
                     final selectedFret = s < selectedFrets.length
                         ? selectedFrets[s]
                         : -999;
@@ -4545,7 +4790,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -4607,15 +4852,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: _scaleLoopRunning ? _accent : null,
+                        backgroundColor: _scaleLoopRunning
+                            ? _accent
+                            : _surfaceDark,
                         foregroundColor: _scaleLoopRunning
                             ? const Color(0xFF1A222D)
-                            : null,
+                            : _text,
                       ),
                       onPressed: _toggleScaleLoop,
                       icon: Icon(
@@ -4627,8 +4874,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         backgroundColor: _scaleMetronomeOnly
-                            ? const Color(0xFF3B4659)
-                            : null,
+                            ? _accent
+                            : _surfaceDark,
+                        foregroundColor: _scaleMetronomeOnly
+                            ? const Color(0xFF1A222D)
+                            : _text,
+                        side: BorderSide(
+                          color: _scaleMetronomeOnly ? _accent : _border,
+                        ),
                       ),
                       onPressed: () {
                         setState(
@@ -4662,7 +4915,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ],
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
                     const Text('BPM'),
@@ -4680,7 +4933,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(width: 64, child: Text('$_scaleBpm BPM')),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 SizedBox(
                   height: 180,
                   child: _resultBlock(controller: _scaleOutputController),
@@ -4706,7 +4959,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Configuración de Metrónomo',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
                     const SizedBox(
@@ -4841,7 +5094,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         final active = _metroClicksPerBeat == n;
                         return ChoiceChip(
                           selected: active,
-                          label: Text('$n'),
+                          label: _metronomeSubdivisionFigure(n, active: active),
                           onSelected: (_) {
                             setState(() => _metroClicksPerBeat = n);
                             if (_metroRunning) _startMetronome();
@@ -4855,6 +5108,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: <Widget>[
                     Checkbox(
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       value: _metroBarAccent,
                       onChanged: (value) {
                         setState(() => _metroBarAccent = value ?? true);
@@ -4866,6 +5121,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: <Widget>[
                     Checkbox(
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       value: _metroTimerEnabled,
                       onChanged: (value) {
                         setState(() => _metroTimerEnabled = value ?? false);
@@ -4914,27 +5171,75 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _metroRunning ? _accent : _surfaceDark,
+                    foregroundColor: _metroRunning
+                        ? const Color(0xFF1A222D)
+                        : _text,
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: _toggleMetronome,
                   icon: Icon(_metroRunning ? Icons.stop : Icons.play_arrow),
                   label: Text(
                     _metroRunning ? 'Detener metrónomo' : 'Iniciar metrónomo',
                   ),
                 ),
-                if (_metroTimerEnabled)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${_metroRemaining.inMinutes.remainder(60).toString().padLeft(2, '0')}:${_metroRemaining.inSeconds.remainder(60).toString().padLeft(2, '0')}',
-                      style: const TextStyle(
-                        color: _muted,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _metronomeSubdivisionFigure(int clicks, {required bool active}) {
+    final fg = active ? const Color(0xFF1A222D) : _text;
+    if (clicks == 3 || clicks == 6) {
+      final glyph = clicks == 3 ? '♪♪♪' : '♬♬';
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            '3',
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              height: 0.9,
+            ),
+          ),
+          Text(
+            glyph,
+            style: TextStyle(
+              color: fg,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+            ),
+          ),
+        ],
+      );
+    }
+    final glyph = switch (clicks) {
+      1 => '♩',
+      2 => '♪♪',
+      4 => '♬',
+      _ => '$clicks',
+    };
+    return Text(
+      glyph,
+      style: TextStyle(
+        color: fg,
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        height: 1.0,
       ),
     );
   }

@@ -20,10 +20,13 @@ jobs:
       - name: Prepare static web bundle
         run: |
           rm -rf apps/web/pages-dist
-          mkdir -p apps/web/pages-dist/static
+          mkdir -p apps/web/pages-dist/static apps/web/pages-dist/functions
           cp apps/web/templates/index.html apps/web/pages-dist/index.html
           cp -R apps/web/static/. apps/web/pages-dist/static/
-          cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
+          cp -R apps/web/functions/. apps/web/pages-dist/functions/
+          test -f apps/web/pages-dist/static/app.js
+          test -f apps/web/pages-dist/static/style.css
+          test -f apps/web/pages-dist/functions/api/health.js
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

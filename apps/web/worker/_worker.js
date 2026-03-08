@@ -519,6 +519,10 @@ function isPreviewDeployment(env) {
   return branch !== "main" && branch !== "master";
 }
 
+function isProductionFeedbackEnabled(env) {
+  return String(env?.MIDICHORDS_FEEDBACK_ENABLE_IN_PROD || "").trim().toLowerCase() === "true";
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -531,11 +535,13 @@ function escapeHtml(value) {
 async function sendFeedbackViaResend({ to, name, email, message, env }) {
   const apiKey = String(env?.RESEND_API_KEY || "").trim();
   const from = String(env?.MIDICHORDS_FEEDBACK_FROM || "").trim();
+  const preview = isPreviewDeployment(env);
   if (!apiKey || !from) {
     return json({ ok: false, error: "feedback provider misconfigured", provider: "resend" }, 500);
   }
 
-  const subject = `[MIDIChords Preview] Nuevo comentario de ${name}`;
+  const subjectPrefix = preview ? "[MIDIChords Preview]" : "[MIDIChords]";
+  const subject = `${subjectPrefix} Nuevo comentario de ${name}`;
   const text = [
     `Nombre: ${name}`,
     `Email: ${email}`,
@@ -587,8 +593,9 @@ async function forwardFeedbackByEmail(body, env) {
     return json({ error: "missing required fields" }, 400);
   }
 
-  if (!isPreviewDeployment(env)) {
-    return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "not_preview" });
+  const preview = isPreviewDeployment(env);
+  if (!preview && !isProductionFeedbackEnabled(env)) {
+    return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "not_enabled" });
   }
 
   if (provider === "resend") {

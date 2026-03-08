@@ -26,13 +26,14 @@ Rutas internas del Worker:
 
 ## Comentarios
 
-El formulario de comentarios puede enviar email real solo en despliegues de preview.
-
-Variables necesarias en Cloudflare Pages (Preview):
+El formulario de comentarios usa `Resend` si está configurado:
 
 - `MIDICHORDS_FEEDBACK_PROVIDER=resend`
 - `MIDICHORDS_FEEDBACK_TO=destino@dominio.com`
-- `MIDICHORDS_FEEDBACK_FROM=MIDIChords Preview <no-reply@tu-dominio-verificado.com>`
+- `MIDICHORDS_FEEDBACK_FROM=MIDIChords <no-reply@tu-dominio-verificado.com>`
 - `RESEND_API_KEY` (secret)
 
-En `main`/producción el endpoint `/api/feedback` queda en modo no-envío (mock).
+Comportamiento por entorno:
+
+- Preview: envía correo automáticamente cuando `provider=resend`.
+- Producción (`main`): envía solo si además defines `MIDICHORDS_FEEDBACK_ENABLE_IN_PROD=true`.

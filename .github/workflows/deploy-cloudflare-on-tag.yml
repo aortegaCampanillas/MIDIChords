@@ -21,9 +21,10 @@ jobs:
         run: |
           rm -rf apps/web/pages-dist
           mkdir -p apps/web/pages-dist/static
-          cp apps/web/templates/index.html apps/web/pages-dist/index.html
+          cp apps/web/index.html apps/web/pages-dist/index.html
           cp -R apps/web/static/. apps/web/pages-dist/static/
           cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
+          test -f apps/web/pages-dist/index.html
           test -f apps/web/pages-dist/static/app.js
           test -f apps/web/pages-dist/static/style.css
           test -f apps/web/pages-dist/_worker.js

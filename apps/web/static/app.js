@@ -97,6 +97,8 @@ const state = {
   detectionMidiHeldNotes: new Set(),
   midiInputSoundEnabled: true,
   heldMidiInputVoices: new Map(),
+  audioSampleCache: {},
+  audioSampleLoadPromise: null,
 };
 
 const UI_TEXTS = {
@@ -278,6 +280,28 @@ const NOTE_LABELS = {
 const SHARP_KEY_SIGNATURES = ["F", "C", "G", "D", "A", "E", "B"];
 const FLAT_KEY_SIGNATURES = ["B", "E", "A", "D", "G", "C", "F"];
 const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+
+const PIANO_SAMPLE_URLS = {
+  48: "/static/samples/grand_piano/C3.mp3",
+  52: "/static/samples/grand_piano/E3.mp3",
+  55: "/static/samples/grand_piano/G3.mp3",
+  60: "/static/samples/grand_piano/C4.mp3",
+  64: "/static/samples/grand_piano/E4.mp3",
+  67: "/static/samples/grand_piano/G4.mp3",
+  72: "/static/samples/grand_piano/C5.mp3",
+};
+
+const GUITAR_SAMPLE_URLS = {
+  40: "/static/samples/guitar_nylon/E2.mp3",
+  45: "/static/samples/guitar_nylon/A2.mp3",
+  50: "/static/samples/guitar_nylon/D3.mp3",
+  52: "/static/samples/guitar_nylon/E3.mp3",
+  55: "/static/samples/guitar_nylon/G3.mp3",
+  59: "/static/samples/guitar_nylon/B3.mp3",
+  64: "/static/samples/guitar_nylon/E4.mp3",
+};
+
+const METRONOME_SAMPLE_URL = "/static/metronome.mp3";
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
   { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
@@ -2772,18 +2796,6 @@ function ensureAudioCtx() {
   return state.metronomeCtx;
 }
 
-function ensureNoiseBuffer(ctx) {
-  if (state.audioNoiseBuffer && state.audioNoiseBuffer.sampleRate === ctx.sampleRate) {
-    return state.audioNoiseBuffer;
-  }
-  const size = Math.max(2048, Math.floor(ctx.sampleRate * 0.09));
-  const buf = ctx.createBuffer(1, size, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < size; i += 1) data[i] = (Math.random() * 2) - 1;
-  state.audioNoiseBuffer = buf;
-  return buf;
-}
-
 function ensureAudioBus(ctx) {
   if (state.audioBus && state.audioBus.context === ctx) return state.audioBus;
   const comp = ctx.createDynamicsCompressor();
@@ -2800,132 +2812,108 @@ function ensureAudioBus(ctx) {
   return state.audioBus;
 }
 
+function nearestSampleRoot(note, sampleMap) {
+  const midi = Number(note);
+  const roots = Object.keys(sampleMap || {}).map((k) => Number(k)).filter((n) => Number.isFinite(n));
+  if (!roots.length) return null;
+  return roots.reduce((best, cur) => (
+    best == null || Math.abs(cur - midi) < Math.abs(best - midi) ? cur : best
+  ), null);
+}
+
+async function decodeSampleBuffer(ctx, url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`sample fetch failed: ${url} (${response.status})`);
+  const bytes = await response.arrayBuffer();
+  return await ctx.decodeAudioData(bytes.slice(0));
+}
+
+async function preloadAudioSamples() {
+  const ctx = ensureAudioCtx();
+  if (state.audioSampleLoadPromise) return state.audioSampleLoadPromise;
+  state.audioSampleLoadPromise = (async () => {
+    const urls = new Set([
+      METRONOME_SAMPLE_URL,
+      ...Object.values(PIANO_SAMPLE_URLS),
+      ...Object.values(GUITAR_SAMPLE_URLS),
+    ]);
+    const out = {};
+    await Promise.all(Array.from(urls).map(async (url) => {
+      try {
+        out[url] = await decodeSampleBuffer(ctx, url);
+      } catch (err) {
+        console.warn("Sample load failed:", url, err);
+      }
+    }));
+    state.audioSampleCache = out;
+    return out;
+  })();
+  return state.audioSampleLoadPromise;
+}
+
+function sampleBuffer(url) {
+  if (!state.audioSampleCache || typeof state.audioSampleCache !== "object") return null;
+  return state.audioSampleCache[url] || null;
+}
+
+function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, instrument = "piano") {
+  const sampleMap = instrument === "guitar" ? GUITAR_SAMPLE_URLS : PIANO_SAMPLE_URLS;
+  const root = nearestSampleRoot(midi, sampleMap);
+  if (root == null) return null;
+  const url = sampleMap[root];
+  const buffer = sampleBuffer(url);
+  if (!buffer) {
+    void preloadAudioSamples();
+    return null;
+  }
+
+  const ctx = ensureAudioCtx();
+  const t = startTime == null ? ctx.currentTime : Number(startTime);
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.setValueAtTime(2 ** ((Number(midi) - Number(root)) / 12), t);
+
+  const gain = ctx.createGain();
+  const baseDur = Math.max(0.12, Number(durationSeconds) || 0.46);
+  const sustainEnd = t + (instrument === "guitar" ? (baseDur * 1.15) : baseDur);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(instrument === "guitar" ? 0.96 : 0.88, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + (instrument === "guitar" ? 0.18 : 0.12));
+
+  src.connect(gain);
+  gain.connect(ensureAudioBus(ctx));
+  src.start(t);
+  src.stop(sustainEnd + 0.2);
+  return { source: src, gain };
+}
+
 function beep(freq = 1000, durationMs = 70, gain = 0.1) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
-  const dur = Math.max(0.02, Number(durationMs || 70) / 1000);
+  const base = sampleBuffer(METRONOME_SAMPLE_URL);
+  if (!base) return;
+  const src = ctx.createBufferSource();
+  src.buffer = base;
+  const pitch = Number(freq) >= 1500 ? 1.32 : (Number(freq) >= 1100 ? 1.16 : 1.0);
+  src.playbackRate.setValueAtTime(pitch, t);
+  const out = ctx.createGain();
   const amp = Math.max(0, Number(gain) || 0.1);
   if (amp <= 0) return;
-  const isAccent = freq >= 1500;
-
-  const noise = ctx.createBufferSource();
-  noise.buffer = ensureNoiseBuffer(ctx);
-  const hp = ctx.createBiquadFilter();
-  hp.type = "highpass";
-  hp.frequency.value = isAccent ? 1800 : 1300;
-  const lp = ctx.createBiquadFilter();
-  lp.type = "lowpass";
-  lp.frequency.value = isAccent ? 7600 : 6200;
-  const nGain = ctx.createGain();
-  nGain.gain.setValueAtTime(0.0001, t);
-  nGain.gain.exponentialRampToValueAtTime(amp * (isAccent ? 0.95 : 0.72), t + 0.002);
-  nGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  noise.connect(hp);
-  hp.connect(lp);
-  lp.connect(nGain);
-  nGain.connect(ensureAudioBus(ctx));
-  noise.start(t);
-  noise.stop(t + dur + 0.01);
-
-  const osc = ctx.createOscillator();
-  const oGain = ctx.createGain();
-  osc.type = "triangle";
-  osc.frequency.value = Number(freq) || 1000;
-  oGain.gain.setValueAtTime(0.0001, t);
-  oGain.gain.exponentialRampToValueAtTime(amp * (isAccent ? 0.7 : 0.42), t + 0.0015);
-  oGain.gain.exponentialRampToValueAtTime(0.0001, t + (dur * 0.82));
-  osc.connect(oGain);
-  oGain.connect(ensureAudioBus(ctx));
-  osc.start(t);
-  osc.stop(t + dur);
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(amp * 1.05, t + 0.003);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.04, Number(durationMs || 70) / 1000));
+  src.connect(out);
+  out.connect(ensureAudioBus(ctx));
+  src.start(t);
+  src.stop(t + 0.16);
 }
 
 function playPianoAt(midi, startTime = null, durationSeconds = 0.46) {
-  const ctx = ensureAudioCtx();
-  const t = startTime == null ? ctx.currentTime : Number(startTime);
-  const dur = Math.max(0.12, Number(durationSeconds) || 0.46);
-  const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
-  const attack = Math.min(0.014, dur * 0.18);
-  const decayPoint = t + Math.max(0.14, Math.min(0.32, dur * 0.44));
-  const releaseEnd = t + dur + Math.max(0.48, dur * 0.95);
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0.0001, t);
-  env.gain.linearRampToValueAtTime(0.16, t + attack);
-  env.gain.exponentialRampToValueAtTime(0.078, decayPoint);
-  env.gain.exponentialRampToValueAtTime(0.0001, releaseEnd);
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(6200, t);
-  filter.frequency.exponentialRampToValueAtTime(1900, t + Math.max(0.2, dur * 1.05));
-  filter.Q.value = 0.6;
-
-  env.connect(filter);
-  filter.connect(ensureAudioBus(ctx));
-
-  const partials = [
-    { ratio: 1.0, gain: 0.78, type: "sine" },
-    { ratio: 2.0, gain: 0.26, type: "triangle" },
-    { ratio: 3.0, gain: 0.12, type: "triangle" },
-  ];
-  partials.forEach((p) => {
-    const osc = ctx.createOscillator();
-    const og = ctx.createGain();
-    osc.type = p.type;
-    osc.frequency.setValueAtTime(freq * p.ratio, t);
-    og.gain.value = p.gain;
-    osc.connect(og);
-    og.connect(env);
-    osc.start(t);
-    osc.stop(releaseEnd + 0.08);
-  });
+  playInstrumentSampleAt(midi, startTime, durationSeconds, "piano");
 }
 
 function playGuitarAt(midi, startTime = null, durationSeconds = 0.9) {
-  const ctx = ensureAudioCtx();
-  const t = startTime == null ? ctx.currentTime : Number(startTime);
-  const dur = Math.max(0.18, Number(durationSeconds) || 0.9);
-  const freq = 440 * (2 ** ((Number(midi) - 69) / 12));
-
-  const body = ctx.createBiquadFilter();
-  body.type = "bandpass";
-  body.frequency.value = Math.min(2800, Math.max(170, freq * 2.4));
-  body.Q.value = 0.9;
-  const low = ctx.createBiquadFilter();
-  low.type = "lowpass";
-  low.frequency.value = Math.min(4200, Math.max(900, freq * 5.2));
-
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0.0001, t);
-  env.gain.exponentialRampToValueAtTime(0.17, t + 0.006);
-  env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-  body.connect(low);
-  low.connect(env);
-  env.connect(ensureAudioBus(ctx));
-
-  const noise = ctx.createBufferSource();
-  noise.buffer = ensureNoiseBuffer(ctx);
-  const nGain = ctx.createGain();
-  nGain.gain.setValueAtTime(0.0001, t);
-  nGain.gain.exponentialRampToValueAtTime(0.42, t + 0.001);
-  nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-  noise.connect(nGain);
-  nGain.connect(body);
-  noise.start(t);
-  noise.stop(t + 0.05);
-
-  const osc = ctx.createOscillator();
-  const oGain = ctx.createGain();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(freq, t);
-  oGain.gain.setValueAtTime(0.0001, t);
-  oGain.gain.exponentialRampToValueAtTime(0.22, t + 0.005);
-  oGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(oGain);
-  oGain.connect(body);
-  osc.start(t);
-  osc.stop(t + dur + 0.04);
+  playInstrumentSampleAt(midi, startTime, durationSeconds, "guitar");
 }
 
 function playSingleAt(midi, startTime = null, durationSeconds = 0.46, instrument = "piano") {
@@ -3045,85 +3033,19 @@ function startHeldMidiInputNote(midi, instrument = "piano") {
   if (!Number.isFinite(note)) return;
   if (!(state.heldMidiInputVoices instanceof Map)) state.heldMidiInputVoices = new Map();
   if (state.heldMidiInputVoices.has(note)) return;
-
-  const ctx = ensureAudioCtx();
-  const t = ctx.currentTime;
-  const freq = 440 * (2 ** ((note - 69) / 12));
-  const bus = ensureAudioBus(ctx);
-  const gain = ctx.createGain();
-  const voice = { gain, oscs: [], noise: null, instrument };
-
-  if (instrument === "guitar") {
-    const body = ctx.createBiquadFilter();
-    body.type = "bandpass";
-    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.2));
-    body.Q.value = 0.9;
-    const low = ctx.createBiquadFilter();
-    low.type = "lowpass";
-    low.frequency.value = Math.min(4300, Math.max(900, freq * 5.1));
-    body.connect(low);
-    low.connect(gain);
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = ensureNoiseBuffer(ctx);
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.0001, t);
-    nGain.gain.exponentialRampToValueAtTime(0.38, t + 0.001);
-    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-    noise.connect(nGain);
-    nGain.connect(body);
-    noise.start(t);
-    voice.noise = noise;
-
-    const osc = ctx.createOscillator();
-    const oGain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, t);
-    oGain.gain.value = 0.28;
-    osc.connect(oGain);
-    oGain.connect(body);
-    osc.start(t);
-    voice.oscs.push(osc);
-
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.06, t + 0.22);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.10);
-  } else {
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(5400, t);
-    filter.frequency.exponentialRampToValueAtTime(2200, t + 0.22);
-    filter.Q.value = 0.62;
-    filter.connect(gain);
-
-    const p1 = ctx.createOscillator();
-    const p1g = ctx.createGain();
-    p1.type = "sine";
-    p1.frequency.setValueAtTime(freq, t);
-    p1g.gain.value = 0.78;
-    p1.connect(p1g);
-    p1g.connect(filter);
-    p1.start(t);
-
-    const p2 = ctx.createOscillator();
-    const p2g = ctx.createGain();
-    p2.type = "triangle";
-    p2.frequency.setValueAtTime(freq * 2, t);
-    p2g.gain.value = 0.22;
-    p2.connect(p2g);
-    p2g.connect(filter);
-    p2.start(t);
-
-    voice.oscs.push(p1, p2);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.16, t + 0.014);
-    gain.gain.exponentialRampToValueAtTime(0.065, t + 0.24);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
-  }
-
-  gain.connect(bus);
-  state.heldMidiInputVoices.set(note, voice);
+  const played = playInstrumentSampleAt(
+    note,
+    null,
+    instrument === "guitar" ? 1.05 : 0.95,
+    instrument,
+  );
+  if (!played) return;
+  state.heldMidiInputVoices.set(note, {
+    gain: played.gain,
+    oscs: [played.source],
+    noise: null,
+    instrument,
+  });
 }
 
 function stopHeldMidiInputNote(midi) {
@@ -3221,85 +3143,19 @@ function startHeldInputNote(midi, instrument = "piano") {
   if (!Number.isFinite(note)) return;
   if (!(state.heldInputVoices instanceof Map)) state.heldInputVoices = new Map();
   if (state.heldInputVoices.has(note)) return;
-
-  const ctx = ensureAudioCtx();
-  const t = ctx.currentTime;
-  const freq = 440 * (2 ** ((note - 69) / 12));
-  const bus = ensureAudioBus(ctx);
-  const gain = ctx.createGain();
-  const voice = { gain, oscs: [], noise: null, instrument };
-
-  if (instrument === "guitar") {
-    const body = ctx.createBiquadFilter();
-    body.type = "bandpass";
-    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.2));
-    body.Q.value = 0.9;
-    const low = ctx.createBiquadFilter();
-    low.type = "lowpass";
-    low.frequency.value = Math.min(4300, Math.max(900, freq * 5.1));
-    body.connect(low);
-    low.connect(gain);
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = ensureNoiseBuffer(ctx);
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.0001, t);
-    nGain.gain.exponentialRampToValueAtTime(0.38, t + 0.001);
-    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-    noise.connect(nGain);
-    nGain.connect(body);
-    noise.start(t);
-    voice.noise = noise;
-
-    const osc = ctx.createOscillator();
-    const oGain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, t);
-    oGain.gain.value = 0.28;
-    osc.connect(oGain);
-    oGain.connect(body);
-    osc.start(t);
-    voice.oscs.push(osc);
-
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.06, t + 0.22);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.10);
-  } else {
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(5400, t);
-    filter.frequency.exponentialRampToValueAtTime(2200, t + 0.22);
-    filter.Q.value = 0.62;
-    filter.connect(gain);
-
-    const p1 = ctx.createOscillator();
-    const p1g = ctx.createGain();
-    p1.type = "sine";
-    p1.frequency.setValueAtTime(freq, t);
-    p1g.gain.value = 0.78;
-    p1.connect(p1g);
-    p1g.connect(filter);
-    p1.start(t);
-
-    const p2 = ctx.createOscillator();
-    const p2g = ctx.createGain();
-    p2.type = "triangle";
-    p2.frequency.setValueAtTime(freq * 2, t);
-    p2g.gain.value = 0.22;
-    p2.connect(p2g);
-    p2g.connect(filter);
-    p2.start(t);
-
-    voice.oscs.push(p1, p2);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.16, t + 0.014);
-    gain.gain.exponentialRampToValueAtTime(0.065, t + 0.24);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
-  }
-
-  gain.connect(bus);
-  state.heldInputVoices.set(note, voice);
+  const played = playInstrumentSampleAt(
+    note,
+    null,
+    instrument === "guitar" ? 1.05 : 0.95,
+    instrument,
+  );
+  if (!played) return;
+  state.heldInputVoices.set(note, {
+    gain: played.gain,
+    oscs: [played.source],
+    noise: null,
+    instrument,
+  });
 }
 
 function startHeldVoice(midi, instrument = "piano") {
@@ -3307,85 +3163,19 @@ function startHeldVoice(midi, instrument = "piano") {
   if (!Number.isFinite(note)) return;
   if (!(state.heldChordVoices instanceof Map)) state.heldChordVoices = new Map();
   if (state.heldChordVoices.has(note)) return;
-
-  const ctx = ensureAudioCtx();
-  const t = ctx.currentTime;
-  const freq = 440 * (2 ** ((note - 69) / 12));
-  const gain = ctx.createGain();
-  const bus = ensureAudioBus(ctx);
-  const voice = { gain, oscs: [], noise: null };
-
-  if (instrument === "guitar") {
-    const body = ctx.createBiquadFilter();
-    body.type = "bandpass";
-    body.frequency.value = Math.min(2600, Math.max(170, freq * 2.1));
-    body.Q.value = 0.9;
-    const low = ctx.createBiquadFilter();
-    low.type = "lowpass";
-    low.frequency.value = Math.min(4200, Math.max(900, freq * 5.0));
-    body.connect(low);
-    low.connect(gain);
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = ensureNoiseBuffer(ctx);
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.0001, t);
-    nGain.gain.exponentialRampToValueAtTime(0.33, t + 0.001);
-    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-    noise.connect(nGain);
-    nGain.connect(body);
-    noise.start(t);
-    voice.noise = noise;
-
-    const osc = ctx.createOscillator();
-    const oGain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, t);
-    oGain.gain.value = 0.28;
-    osc.connect(oGain);
-    oGain.connect(body);
-    osc.start(t);
-    voice.oscs.push(osc);
-
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.17, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.095, t + 0.13);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.65);
-  } else {
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(5200, t);
-    filter.frequency.exponentialRampToValueAtTime(2400, t + 0.25);
-    filter.Q.value = 0.65;
-    filter.connect(gain);
-
-    const p1 = ctx.createOscillator();
-    const p1g = ctx.createGain();
-    p1.type = "sine";
-    p1.frequency.setValueAtTime(freq, t);
-    p1g.gain.value = 0.8;
-    p1.connect(p1g);
-    p1g.connect(filter);
-    p1.start(t);
-
-    const p2 = ctx.createOscillator();
-    const p2g = ctx.createGain();
-    p2.type = "triangle";
-    p2.frequency.setValueAtTime(freq * 2, t);
-    p2g.gain.value = 0.22;
-    p2.connect(p2g);
-    p2g.connect(filter);
-    p2.start(t);
-
-    voice.oscs.push(p1, p2);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.15, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.085, t + 0.14);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.95);
-  }
-
-  gain.connect(bus);
-  state.heldChordVoices.set(note, voice);
+  const played = playInstrumentSampleAt(
+    note,
+    null,
+    instrument === "guitar" ? 1.2 : 1.35,
+    instrument,
+  );
+  if (!played) return;
+  state.heldChordVoices.set(note, {
+    gain: played.gain,
+    oscs: [played.source],
+    noise: null,
+    instrument,
+  });
 }
 
 function startHeldChord(notes, instrument = "piano") {
@@ -3652,7 +3442,7 @@ function syncMetronomeInputsToState() {
   );
 }
 
-function toggleMetronome() {
+async function toggleMetronome() {
   if (state.metronomeRunning) {
     state.metronomeRunning = false;
     if (state.metronomeTimer != null) clearTimeout(state.metronomeTimer);
@@ -3668,6 +3458,11 @@ function toggleMetronome() {
   }
 
   syncMetronomeInputsToState();
+  try {
+    const ctx = ensureAudioCtx();
+    if (ctx.state !== "running") await ctx.resume();
+  } catch (_e) {}
+  void preloadAudioSamples();
   state.metronomeRunning = true;
   state.currentBeat = 0;
   state.currentSubclick = 0;
@@ -4391,6 +4186,7 @@ function bindEvents() {
 
 async function main() {
   initStaffAssets();
+  void preloadAudioSamples();
   bindEvents();
   applyTranslations();
   syncLeftPanelHeader();

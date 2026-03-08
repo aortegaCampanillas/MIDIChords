@@ -31,6 +31,7 @@
         </div>
         <div id="instrumentSwitch" class="controls-inline">
           <button id="midiToggle" class="ghost" title="Entrada MIDI Web">MIDI: Off</button>
+          <button id="helpToggle" class="ghost" title="Ayuda">Ayuda</button>
         </div>
       </div>
     </header>
@@ -53,10 +54,10 @@
                   <button id="detectMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="result-block">
-                  <div><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
-                  <div><span id="labelDetectNotes" class="label">Notas:</span> <span id="detectNotes">-</span></div>
-                  <div><span id="labelDetectExtras" class="label">Sobrantes:</span> <span id="detectExtras">-</span></div>
-                  <div><span id="labelDetectIntervals" class="label">Intervalos:</span> <span id="detectIntervals">-</span></div>
+                  <div id="detectFieldChord"><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
+                  <div id="detectFieldNotes"><span id="labelDetectNotes" class="label">Notas:</span> <span id="detectNotes">-</span></div>
+                  <div id="detectFieldExtras"><span id="labelDetectExtras" class="label">Sobrantes:</span> <span id="detectExtras">-</span></div>
+                  <div id="detectFieldIntervals"><span id="labelDetectIntervals" class="label">Intervalos:</span> <span id="detectIntervals">-</span></div>
                 </div>
               </section>
 
@@ -78,9 +79,9 @@
                   <button id="genPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
                 </div>
                 <div class="result-block">
-                  <div><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong></div>
-                  <div><span id="labelGenNotes" class="label">Notas:</span> <span id="genNotes">-</span></div>
-                  <div><span id="labelGenIntervals" class="label">Intervalos:</span> <span id="genIntervals">-</span></div>
+                  <div id="genFieldChord"><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong></div>
+                  <div id="genFieldNotes"><span id="labelGenNotes" class="label">Notas:</span> <span id="genNotes">-</span></div>
+                  <div id="genFieldIntervals"><span id="labelGenIntervals" class="label">Intervalos:</span> <span id="genIntervals">-</span></div>
                 </div>
               </section>
 
@@ -149,7 +150,7 @@
                 <div class="metro-meter-meta">
                   <div id="metroMeterValue">4</div>
                 </div>
-                <div class="row">
+                <div id="metroRowSubdivision" class="row">
                   <label id="labelMetronomeSubdivision">Subdivisión</label>
                   <div id="metroFigures" class="controls-inline">
                     <button class="metro-figure active" data-clicks="1" type="button">♩</button>
@@ -159,21 +160,21 @@
                     <button class="metro-figure triplet" data-clicks="6" type="button"><span class="triplet-num">3</span><span class="triplet-glyph">♬♬</span></button>
                   </div>
                 </div>
-                <div class="row">
+                <div id="metroRowBarAccent" class="row">
                   <label id="labelMetronomeBarAccent" for="metroBarAccent">Acento de compás</label>
                   <input id="metroBarAccent" type="checkbox" checked />
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-                <div class="row">
+                <div id="metroRowTimerEnabled" class="row">
                   <label id="labelMetronomeTimerEnabled" for="metroTimerEnabled">Temporizador</label>
                   <input id="metroTimerEnabled" type="checkbox" />
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-                <div class="row metro-timer-row">
+                <div id="metroRowTimer" class="row metro-timer-row">
                   <label id="labelMetronomeTimer" for="metroTimerMinutes">Tiempo</label>
                   <input id="metroTimerMinutes" type="number" min="0" max="99" value="2" />
                   <span>:</span>
@@ -295,6 +296,8 @@
         </form>
       </div>
     </div>
+
+    <div id="helpOverlay" class="help-overlay hidden" aria-hidden="true"></div>
 
     <script src="/static/app.js"></script>
   </body>

@@ -85,6 +85,7 @@ const state = {
     scalePressedNote: null,
     scalePressedDegree: null,
     scaleSuppressNextClick: false,
+    metronomeRegions: {},
   },
   heldChordVoices: new Map(),
   heldInputVoices: new Map(),
@@ -95,6 +96,12 @@ const state = {
   guitarSuppressNextClickTimer: null,
   detectionShiftPressed: false,
   shiftPressed: false,
+  help: {
+    active: false,
+    bindings: [],
+    activeTarget: null,
+    activeItem: null,
+  },
   detectionMouseChordNotes: new Set(),
   detectionMidiHeldNotes: new Set(),
   midiInputSoundEnabled: true,
@@ -193,6 +200,67 @@ const UI_TEXTS = {
     feedback_sending: "Enviando...",
     feedback_ok: "Gracias. Comentario enviado.",
     feedback_error: "No se pudo enviar. Inténtalo de nuevo.",
+    help_button: "Ayuda",
+    help_close_hint: "Pulsa Ayuda de nuevo para cerrar",
+    help_mode_select: "Aquí cambias entre detección, generación, escalas y utilidades.",
+    help_language: "Selecciona el idioma de la interfaz.",
+    help_accidental: "Elige si prefieres nombres de notas con sostenidos (#) o bemoles (♭).",
+    help_midi_toggle: "Activa o desactiva la entrada de un teclado/controlador MIDI.",
+    help_inst_piano_btn: "Cambia el instrumento visual e interactivo a teclado.",
+    help_inst_guitar_btn: "Cambia el instrumento visual e interactivo a guitarra.",
+    help_guitar_handedness: "Ajusta la orientación de la guitarra (diestro/zurdo).",
+    help_staff_detection: "Pentagrama de detección: muestra las notas activas y el acorde detectado.",
+    help_staff_generation: "Pentagrama de generación: muestra el acorde generado y resalta la nota que pulses.",
+    help_staff_scales: "Pentagrama de escalas: muestra las notas y la nota actual. Al tocar en teclado/guitarra se refleja aquí, y al pulsar notas del pentagrama también se reproducen.",
+    help_staff_metronome: "Vista del metrónomo: muestra el pulso y el estado de reproducción.",
+    help_detection_panel: "Panel de detección: controles y resultado del acorde actual.",
+    help_detect_play: "Reproduce las notas activas del acorde detectado.",
+    help_detect_clear: "Limpia todas las notas activas para comenzar de nuevo.",
+    help_detect_midi_sound: "Activa o silencia el sonido de la entrada MIDI al tocar.",
+    help_detect_result: "Resultado de la detección: nombre, notas, sobrantes e intervalos.",
+    help_instrument_surface_detection: "Teclado/guitarra interactivos: pulsa para detectar acordes (también vía MIDI). Puedes mantener notas con Shift; lo que toques se refleja en el pentagrama y viceversa.",
+    help_field_chord: "Acorde: nombre detectado con la mejor coincidencia.",
+    help_field_notes: "Notas: notas que forman el acorde detectado.",
+    help_field_extras: "Sobrantes: notas activas que no encajan en el acorde.",
+    help_field_intervals: "Intervalos: distancias entre notas respecto a la tónica.",
+    help_generation_panel: "Panel de generación: elige tónica, variante e inversión para construir acordes.",
+    help_instrument_surface_generation: "Teclado/guitarra del acorde generado: al pulsar una nota se resalta en el pentagrama, y al pulsar una nota del pentagrama se marca en el instrumento con su octava. En piano se muestran mano derecha (arriba) y mano izquierda (una octava abajo); los números en teclas son digitaciones sugeridas de dedos.",
+    help_gen_root: "Tónica del acorde a generar.",
+    help_gen_variant: "Tipo o color del acorde (mayor, menor, 7, etc.).",
+    help_gen_inversion: "Reordena las notas del acorde sin cambiar su calidad.",
+    help_gen_play: "Reproduce el acorde generado.",
+    help_gen_result_chord: "Nombre del acorde generado.",
+    help_gen_result_notes: "Notas que forman el acorde generado.",
+    help_gen_result_intervals: "Intervalos del acorde respecto a su tónica.",
+    help_guitar_variations_bar: "Barra de variaciones de guitarra: aquí aparecen posiciones alternativas del mismo acorde.",
+    help_guitar_variation_btn: "Cada botón selecciona una digitación/posición distinta del acorde en guitarra.",
+    help_scales_panel: "Panel de escalas: configura tónica, tipo y reproducción.",
+    help_instrument_surface_scales: "Teclado/guitarra de escala: puedes tocar notas de la escala y verlas en el pentagrama; el pentagrama y el instrumento se mantienen sincronizados al tocar en cualquiera de los dos.",
+    help_scale_root: "Tónica de la escala.",
+    help_scale_type: "Tipo de escala (mayor, menor, modos, etc.).",
+    help_scale_play: "Reproduce la escala actual.",
+    help_scale_metronome_mode: "Activa reproducción de escala con pulsos de metrónomo.",
+    help_scale_bpm: "Velocidad de reproducción de la escala.",
+    help_scale_result_name: "Nombre completo de la escala seleccionada.",
+    help_scale_result_notes: "Notas de la escala.",
+    help_scale_result_intervals: "Intervalos de la escala respecto a la tónica.",
+    help_metronome_panel: "Panel de metrónomo: tempo, compás, subdivisión y temporizador.",
+    help_instrument_surface_metronome: "Piano del metrónomo: muestra las notas que entran por MIDI (si están habilitadas) y permite ver qué tocas mientras el metrónomo corre.",
+    help_metro_start: "Inicia o detiene el metrónomo.",
+    help_metro_volume: "Volumen del clic del metrónomo.",
+    help_metro_bpm: "Tempo en pulsos por minuto.",
+    help_metro_bpm_minus: "Disminuye el tempo (BPM) en 1.",
+    help_metro_bpm_plus: "Aumenta el tempo (BPM) en 1.",
+    help_metro_meter: "Número de pulsos por compás.",
+    help_metro_meter_minus: "Disminuye los pulsos por compás en 1.",
+    help_metro_meter_plus: "Aumenta los pulsos por compás en 1.",
+    help_metro_subdivision: "Subdivide cada pulso en 1, 2, 3, 4 o 6 clics.",
+    help_metro_bar_accent: "Activa acento en el primer pulso de cada compás.",
+    help_metro_timer: "Activa un temporizador de parada automática.",
+    help_metro_timer_values: "Duración del temporizador (minutos y segundos).",
+    help_metro_yellow_points: "Puntos amarillos: representan los pulsos del compás actual.",
+    help_metro_scale_axis: "Escala/eje del metrónomo: marca el recorrido y la subdivisión del pulso.",
+    help_metro_red_ball: "Bola roja: indica la posición instantánea del pulso en movimiento.",
     detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
     scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
     staff_no_active_notes: "Sin notas activas",
@@ -286,6 +354,67 @@ const UI_TEXTS = {
     feedback_sending: "Sending...",
     feedback_ok: "Thanks. Feedback sent.",
     feedback_error: "Could not send. Please try again.",
+    help_button: "Help",
+    help_close_hint: "Click Help again to close",
+    help_mode_select: "Switch between detection, generation, scales, and utility tools here.",
+    help_language: "Choose the interface language.",
+    help_accidental: "Set whether note names prefer sharps (#) or flats (♭).",
+    help_midi_toggle: "Enable or disable MIDI keyboard/controller input.",
+    help_inst_piano_btn: "Switch the interactive instrument to piano.",
+    help_inst_guitar_btn: "Switch the interactive instrument to guitar.",
+    help_guitar_handedness: "Set guitar orientation (right-handed/left-handed).",
+    help_staff_detection: "Detection staff: shows active notes and the detected chord.",
+    help_staff_generation: "Generation staff: shows the generated chord and highlights the note you press.",
+    help_staff_scales: "Scale staff: shows scale notes and the current note. Playing notes on keyboard/guitar is reflected here, and clicking staff notes also triggers playback.",
+    help_staff_metronome: "Metronome view: shows pulse and playback state.",
+    help_detection_panel: "Detection panel: controls and current chord output.",
+    help_detect_play: "Play the currently active detected notes.",
+    help_detect_clear: "Clear all active notes and start over.",
+    help_detect_midi_sound: "Enable or mute MIDI input sound while playing.",
+    help_detect_result: "Detection output: chord name, notes, extras, and intervals.",
+    help_instrument_surface_detection: "Interactive keyboard/guitar: press notes to detect chords (also via MIDI). Hold Shift to sustain notes; instrument and staff stay in sync both ways.",
+    help_field_chord: "Chord: detected chord name with the best match.",
+    help_field_notes: "Notes: notes that belong to the detected chord.",
+    help_field_extras: "Extra notes: active notes that do not fit the chord.",
+    help_field_intervals: "Intervals: note distances relative to the tonic.",
+    help_generation_panel: "Generation panel: choose tonic, chord quality, and inversion.",
+    help_instrument_surface_generation: "Generated-chord keyboard/guitar: pressing a note highlights it on the staff, and pressing a staff note highlights it on the instrument at the same octave. In piano mode, right hand notes (upper register) and left hand notes (one octave below) are shown; numbers on keys are suggested fingerings.",
+    help_gen_root: "Root note of the chord to generate.",
+    help_gen_variant: "Chord quality/type (major, minor, 7th, etc.).",
+    help_gen_inversion: "Reorders chord notes without changing chord quality.",
+    help_gen_play: "Play the generated chord.",
+    help_gen_result_chord: "Generated chord name.",
+    help_gen_result_notes: "Notes that form the generated chord.",
+    help_gen_result_intervals: "Chord intervals relative to its tonic.",
+    help_guitar_variations_bar: "Guitar variations bar: alternative positions for the same chord appear here.",
+    help_guitar_variation_btn: "Each button selects a different guitar fingering/position for the chord.",
+    help_scales_panel: "Scales panel: set tonic, scale type, and playback.",
+    help_instrument_surface_scales: "Scale keyboard/guitar: play scale notes and see them on the staff; staff and instrument stay synced when you interact with either one.",
+    help_scale_root: "Scale tonic.",
+    help_scale_type: "Scale type (major, minor, modes, etc.).",
+    help_scale_play: "Play the current scale.",
+    help_scale_metronome_mode: "Enable scale playback synced with metronome pulses.",
+    help_scale_bpm: "Scale playback speed.",
+    help_scale_result_name: "Full selected scale name.",
+    help_scale_result_notes: "Scale notes.",
+    help_scale_result_intervals: "Scale intervals relative to tonic.",
+    help_metronome_panel: "Metronome panel: tempo, meter, subdivision, and timer.",
+    help_instrument_surface_metronome: "Metronome piano: displays incoming MIDI notes (when enabled) so you can monitor what you play while the metronome runs.",
+    help_metro_start: "Start or stop the metronome.",
+    help_metro_volume: "Metronome click volume.",
+    help_metro_bpm: "Tempo in beats per minute.",
+    help_metro_bpm_minus: "Decrease tempo (BPM) by 1.",
+    help_metro_bpm_plus: "Increase tempo (BPM) by 1.",
+    help_metro_meter: "Beats per bar.",
+    help_metro_meter_minus: "Decrease beats per bar by 1.",
+    help_metro_meter_plus: "Increase beats per bar by 1.",
+    help_metro_subdivision: "Subdivide each beat into 1, 2, 3, 4, or 6 clicks.",
+    help_metro_bar_accent: "Enable accent on the first beat of each bar.",
+    help_metro_timer: "Enable auto-stop timer.",
+    help_metro_timer_values: "Timer duration (minutes and seconds).",
+    help_metro_yellow_points: "Yellow points: represent beats in the current bar.",
+    help_metro_scale_axis: "Metronome scale/axis: shows pulse travel and subdivision.",
+    help_metro_red_ball: "Red ball: shows current pulse position in motion.",
     detection_staff_shift_hint: "Hold Shift to sustain notes",
     scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
     staff_no_active_notes: "No active notes",
@@ -339,6 +468,107 @@ const TUNER_TUNINGS = [
   { key: "open_d", es: "Open D", en: "Open D", notes: [38, 45, 50, 54, 57, 62] },
   { key: "dadgad", es: "DADGAD", en: "DADGAD", notes: [38, 45, 50, 55, 57, 62] },
 ];
+
+const HELP_CALLOUTS_DETECTION = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_detection", side: "top" },
+  { selector: "#panelDetection", textKey: "help_detection_panel", side: "left" },
+  { selector: "#detectPlay", textKey: "help_detect_play", side: "bottom" },
+  { selector: "#detectClear", textKey: "help_detect_clear", side: "bottom" },
+  { selector: "#detectMidiSoundToggle", textKey: "help_detect_midi_sound", side: "top" },
+  { selector: "#detectFieldChord", textKey: "help_field_chord", side: "left" },
+  { selector: "#detectFieldNotes", textKey: "help_field_notes", side: "left" },
+  { selector: "#detectFieldExtras", textKey: "help_field_extras", side: "left" },
+  { selector: "#detectFieldIntervals", textKey: "help_field_intervals", side: "left" },
+  { selector: "#sharedPiano", textKey: "help_instrument_surface_detection", side: "top" },
+];
+const HELP_CALLOUTS_GENERATION = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_generation", side: "top" },
+  { selector: "#panelGeneration", textKey: "help_generation_panel", side: "left" },
+  { selector: "#genRoot", textKey: "help_gen_root", side: "left" },
+  { selector: "#genVariant", textKey: "help_gen_variant", side: "left" },
+  { selector: "#genInversion", textKey: "help_gen_inversion", side: "left" },
+  { selector: "#genPlay", textKey: "help_gen_play", side: "bottom" },
+  { selector: "#genFieldChord", textKey: "help_gen_result_chord", side: "left" },
+  { selector: "#genFieldNotes", textKey: "help_gen_result_notes", side: "left" },
+  { selector: "#genFieldIntervals", textKey: "help_gen_result_intervals", side: "left" },
+  { selector: "#guitarVariationBar", textKey: "help_guitar_variations_bar", side: "top" },
+  { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
+  { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
+];
+const HELP_CALLOUTS_SCALES = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_scales", side: "top" },
+  { selector: "#panelScales", textKey: "help_scales_panel", side: "left" },
+  { selector: "#scaleRoot", textKey: "help_scale_root", side: "left" },
+  { selector: "#scaleType", textKey: "help_scale_type", side: "left" },
+  { selector: "#scalePlay", textKey: "help_scale_play", side: "bottom" },
+  { selector: "#scaleModeMetronome", textKey: "help_scale_metronome_mode", side: "top" },
+  { selector: "#scaleBpm", textKey: "help_scale_bpm", side: "left" },
+  { selector: "#scaleName", textKey: "help_scale_result_name", side: "left" },
+  { selector: "#scaleNotes", textKey: "help_scale_result_notes", side: "left" },
+  { selector: "#scaleIntervals", textKey: "help_scale_result_intervals", side: "left" },
+  { selector: "#instrumentArea", textKey: "help_instrument_surface_scales", side: "top" },
+];
+const HELP_CALLOUTS_METRONOME = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_metronome", side: "top" },
+  { selector: "#sharedPiano", textKey: "help_instrument_surface_metronome", side: "top" },
+  { selector: "#panelMetronome", textKey: "help_metronome_panel", side: "left" },
+  { selector: "#metroToggle", textKey: "help_metro_start", side: "bottom" },
+  { selector: "#metroMidiSoundToggle", textKey: "help_detect_midi_sound", side: "top" },
+  { selector: "#metroVolume", textKey: "help_metro_volume", side: "left" },
+  { selector: "#metroBpmMinus", textKey: "help_metro_bpm_minus", side: "left" },
+  { selector: "#bpm", textKey: "help_metro_bpm", side: "left" },
+  { selector: "#metroBpmPlus", textKey: "help_metro_bpm_plus", side: "left" },
+  { selector: "#metroMeterMinus", textKey: "help_metro_meter_minus", side: "left" },
+  { selector: "#metroMeter", textKey: "help_metro_meter", side: "left" },
+  { selector: "#metroMeterPlus", textKey: "help_metro_meter_plus", side: "left" },
+  { selector: "#metroRowSubdivision", textKey: "help_metro_subdivision", side: "top" },
+  { selector: "#metroRowBarAccent", textKey: "help_metro_bar_accent", side: "left" },
+  { selector: "#metroRowTimerEnabled", textKey: "help_metro_timer", side: "left" },
+  { selector: "#metroRowTimer", textKey: "help_metro_timer_values", side: "left" },
+  { selector: "#helpMetroYellowPoints", textKey: "help_metro_yellow_points", side: "top" },
+  { selector: "#helpMetroScaleAxis", textKey: "help_metro_scale_axis", side: "top" },
+  { selector: "#helpMetroRedBall", textKey: "help_metro_red_ball", side: "top" },
+];
+
+function helpCalloutsForMode(mode) {
+  if (mode === "detection") return HELP_CALLOUTS_DETECTION;
+  if (mode === "generation") return HELP_CALLOUTS_GENERATION;
+  if (mode === "scales") return HELP_CALLOUTS_SCALES;
+  if (mode === "metronome") return HELP_CALLOUTS_METRONOME;
+  return [];
+}
+
+function isHelpAvailableForMode(mode) {
+  return helpCalloutsForMode(mode).length > 0;
+}
 
 function el(id) {
   return document.getElementById(id);
@@ -518,6 +748,237 @@ function hideFeedbackModal() {
   modal.classList.add("hidden");
 }
 
+function refreshHelpButtonState() {
+  const helpBtn = el("helpToggle");
+  if (!helpBtn) return;
+  const available = isHelpAvailableForMode(state.mode);
+  helpBtn.disabled = !available;
+  helpBtn.classList.toggle("active", !!state.help.active);
+  helpBtn.classList.toggle("help-blink", !!state.help.active);
+  helpBtn.textContent = tr("help_button");
+  helpBtn.setAttribute("title", tr("help_button"));
+}
+
+function placeHelpCallout(node, targetRect, side) {
+  const margin = 12;
+  const gap = 10;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = node.offsetWidth;
+  const height = node.offsetHeight;
+  let x = targetRect.left;
+  let y = targetRect.top;
+  if (side === "top") {
+    x = targetRect.left + (targetRect.width - width) / 2;
+    y = targetRect.top - height - gap;
+  } else if (side === "bottom") {
+    x = targetRect.left + (targetRect.width - width) / 2;
+    y = targetRect.bottom + gap;
+  } else if (side === "left") {
+    x = targetRect.left - width - gap;
+    y = targetRect.top + (targetRect.height - height) / 2;
+  } else {
+    x = targetRect.right + gap;
+    y = targetRect.top + (targetRect.height - height) / 2;
+  }
+  x = Math.max(margin, Math.min(vw - width - margin, x));
+  y = Math.max(margin, Math.min(vh - height - margin, y));
+  node.style.left = `${Math.round(x)}px`;
+  node.style.top = `${Math.round(y)}px`;
+}
+
+function ensureHelpOverlayChildren() {
+  const overlay = el("helpOverlay");
+  if (!overlay) return null;
+  let highlight = overlay.querySelector(".help-highlight");
+  if (!highlight) {
+    highlight = document.createElement("div");
+    highlight.className = "help-highlight hidden";
+    overlay.appendChild(highlight);
+  }
+  let callout = overlay.querySelector(".help-callout");
+  if (!callout) {
+    callout = document.createElement("div");
+    callout.className = "help-callout hidden";
+    overlay.appendChild(callout);
+  }
+  let closeTip = overlay.querySelector(".help-close-tip");
+  if (!closeTip) {
+    closeTip = document.createElement("div");
+    closeTip.className = "help-close-tip";
+    overlay.appendChild(closeTip);
+  }
+  closeTip.textContent = tr("help_close_hint");
+  return { overlay, highlight, callout, closeTip };
+}
+
+function removeMetronomeHelpHotspots() {
+  document.querySelectorAll(".help-metro-hotspot").forEach((node) => node.remove());
+}
+
+function syncMetronomeHelpHotspots() {
+  removeMetronomeHelpHotspots();
+  if (!(state.help.active && state.mode === "metronome")) return;
+  const canvas = el("staffCanvas");
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const cw = Math.max(1, Number(canvas.width) || 1);
+  const ch = Math.max(1, Number(canvas.height) || 1);
+  const sx = rect.width / cw;
+  const sy = rect.height / ch;
+  const regions = state.staff.metronomeRegions || {};
+  const defs = [
+    ["helpMetroYellowPoints", regions.yellowPoints],
+    ["helpMetroScaleAxis", regions.scaleAxis],
+    ["helpMetroRedBall", regions.redBall],
+  ];
+  defs.forEach(([id, r]) => {
+    if (!r || !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.w) || !Number.isFinite(r.h) || r.w <= 0 || r.h <= 0) return;
+    const node = document.createElement("div");
+    node.id = String(id);
+    node.className = "help-metro-hotspot";
+    node.style.left = `${Math.round(rect.left + (Number(r.x) * sx))}px`;
+    node.style.top = `${Math.round(rect.top + (Number(r.y) * sy))}px`;
+    node.style.width = `${Math.round(Number(r.w) * sx)}px`;
+    node.style.height = `${Math.round(Number(r.h) * sy)}px`;
+    document.body.appendChild(node);
+  });
+}
+
+function positionHelpCloseTip(closeTip) {
+  const helpBtn = el("helpToggle");
+  if (!closeTip || !helpBtn) return;
+  const rect = helpBtn.getBoundingClientRect();
+  const gap = 8;
+  closeTip.style.left = `${Math.round(rect.right)}px`;
+  closeTip.style.top = `${Math.round(rect.bottom + gap)}px`;
+  closeTip.style.bottom = "auto";
+  closeTip.style.transform = "translateX(-100%)";
+}
+
+function clearHelpFocus() {
+  const ui = ensureHelpOverlayChildren();
+  if (!ui) return;
+  ui.highlight.classList.add("hidden");
+  ui.callout.classList.add("hidden");
+  if (state.help.activeTarget) {
+    state.help.activeTarget.classList.remove("help-target-active");
+  }
+  state.help.activeTarget = null;
+  state.help.activeItem = null;
+}
+
+function showHelpForTarget(target, item) {
+  const ui = ensureHelpOverlayChildren();
+  if (!ui) return;
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    clearHelpFocus();
+    return;
+  }
+  if (state.help.activeTarget && state.help.activeTarget !== target) {
+    state.help.activeTarget.classList.remove("help-target-active");
+  }
+  state.help.activeTarget = target;
+  state.help.activeItem = item;
+  target.classList.add("help-target-active");
+
+  const pad = 4;
+  ui.highlight.classList.remove("hidden");
+  ui.highlight.style.left = `${Math.round(rect.left - pad)}px`;
+  ui.highlight.style.top = `${Math.round(rect.top - pad)}px`;
+  ui.highlight.style.width = `${Math.round(rect.width + (pad * 2))}px`;
+  ui.highlight.style.height = `${Math.round(rect.height + (pad * 2))}px`;
+
+  ui.callout.className = `help-callout help-${item.side || "top"}`;
+  ui.callout.textContent = tr(item.textKey);
+  ui.callout.classList.remove("hidden");
+  placeHelpCallout(ui.callout, rect, item.side || "top");
+}
+
+function clearHelpBindings() {
+  state.help.bindings.forEach(({ target, onEnter, onLeave }) => {
+    target.removeEventListener("mouseenter", onEnter);
+    target.removeEventListener("focus", onEnter);
+    target.removeEventListener("mouseleave", onLeave);
+    target.removeEventListener("blur", onLeave);
+    target.classList.remove("help-target", "help-target-active");
+  });
+  state.help.bindings = [];
+}
+
+function findHelpBindingForTarget(target) {
+  if (!target) return null;
+  return state.help.bindings.find((b) => b.target === target) || null;
+}
+
+function enableHelpMode() {
+  const ui = ensureHelpOverlayChildren();
+  if (!ui) return;
+  ui.overlay.classList.remove("hidden");
+  document.body.classList.add("help-active");
+  clearHelpBindings();
+  helpCalloutsForMode(state.mode).forEach((item) => {
+    const target = document.querySelector(item.selector);
+    if (!target) return;
+    const onEnter = () => showHelpForTarget(target, item);
+    const onLeave = (ev) => {
+      const next = ev && ev.relatedTarget instanceof Element
+        ? ev.relatedTarget.closest(".help-target")
+        : null;
+      if (next && next !== target) {
+        const binding = findHelpBindingForTarget(next);
+        if (binding) {
+          showHelpForTarget(binding.target, binding.item);
+          return;
+        }
+      }
+      if (state.help.activeTarget === target) clearHelpFocus();
+    };
+    target.classList.add("help-target");
+    target.addEventListener("mouseenter", onEnter);
+    target.addEventListener("focus", onEnter);
+    target.addEventListener("mouseleave", onLeave);
+    target.addEventListener("blur", onLeave);
+    state.help.bindings.push({ target, item, onEnter, onLeave });
+  });
+}
+
+function disableHelpMode() {
+  const ui = ensureHelpOverlayChildren();
+  clearHelpBindings();
+  clearHelpFocus();
+  removeMetronomeHelpHotspots();
+  document.body.classList.remove("help-active");
+  if (ui) {
+    ui.closeTip.classList.add("hidden");
+    ui.overlay.classList.add("hidden");
+  }
+}
+
+function refreshHelpOverlay() {
+  if (!state.help.active) {
+    disableHelpMode();
+    return;
+  }
+  syncMetronomeHelpHotspots();
+  enableHelpMode();
+  const ui = ensureHelpOverlayChildren();
+  if (ui) {
+    ui.closeTip.classList.remove("hidden");
+    positionHelpCloseTip(ui.closeTip);
+  }
+  if (state.help.activeTarget && state.help.activeItem) {
+    showHelpForTarget(state.help.activeTarget, state.help.activeItem);
+  }
+}
+
+function setHelpActive(active) {
+  state.help.active = !!active && isHelpAvailableForMode(state.mode);
+  refreshHelpButtonState();
+  refreshHelpOverlay();
+}
+
 function refreshDetectionButtonsState() {
   const hasNotes = (state.activeDetectionNotes?.size || 0) > 0;
   const playBtn = el("detectPlay");
@@ -600,6 +1061,7 @@ function applyTranslations() {
   setText("feedbackMessageLabel", "feedback_message");
   setText("feedbackSubmit", "feedback_send");
   setText("feedbackCloseBtn", "close");
+  setText("helpToggle", "help_button");
   setText("midiStartupTitle", "midi_startup_title");
   setText("midiStartupText", "midi_startup_text");
   setText("midiStartupEnableBtn", "midi_startup_enable");
@@ -634,6 +1096,7 @@ function applyTranslations() {
   if (midiBtn) midiBtn.textContent = state.midi.enabled ? tr("midi_on") : tr("midi_off");
   if (midiBtn) midiBtn.setAttribute("title", midiButtonTooltipForState());
   refreshMidiToggleButtonState();
+  refreshHelpButtonState();
   refreshMidiInputSoundToggleButton();
   if (el("scaleBpm") && el("scaleBpmValue")) {
     el("scaleBpmValue").textContent = `${el("scaleBpm").value} ${tempoUnitLabel()}`;
@@ -660,6 +1123,7 @@ function applyTranslations() {
     void refreshTunerInputs();
   }
   syncLeftPanelHeader();
+  if (state.help.active) refreshHelpOverlay();
 }
 
 async function submitFeedbackForm(event) {
@@ -763,7 +1227,9 @@ function setMode(mode) {
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
+  if (state.help.active && !isHelpAvailableForMode(state.mode)) state.help.active = false;
   refreshDetectionButtonsState();
+  refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
     modeScreen.classList.remove("mode-detection", "mode-generation", "mode-scales", "mode-metronome", "mode-tuner");
@@ -829,6 +1295,7 @@ function setMode(mode) {
   }
   refreshGenerationInversionControlState();
   renderScaleModeButtons();
+  refreshHelpOverlay();
 }
 
 function backToMenu() {
@@ -1172,6 +1639,7 @@ function renderPiano() {
     ? Number(state.scaleInputRawNote)
     : null;
   const generationPianoMode = state.mode === "generation" && state.instrument === "piano" && state.generatedChord;
+  const generationCurrentMidi = state.mode === "generation" ? Number(state.generationCurrentNote) : null;
   const scalePianoMode = state.mode === "scales" && getScalePlaybackInstrument() === "piano";
   const rhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
@@ -1213,6 +1681,7 @@ function renderPiano() {
     if (generationPianoMode) {
       if (rhFingerByNote.has(midi)) key.classList.add("rh");
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
+      if (generationCurrentMidi != null && Number(midi) === generationCurrentMidi) key.classList.add("active");
     } else if (state.mode === "detection") {
       if (activeMidi.has(midi)) key.classList.add("active");
     } else if (scalePianoMode) {
@@ -1317,6 +1786,7 @@ function renderGuitar() {
   const leftHanded = state.guitarHandedness === "left";
   const chordRootPc = state.generatedChord ? Number(state.generatedChord.root_pc) : null;
   const tonicPc = state.generatedScale ? Number(state.generatedScale.tonic_pc) : null;
+  const generationCurrentMidi = state.mode === "generation" ? Number(state.generationCurrentNote) : null;
   const drawnPcs = state.mode === "detection" ? null : activePcs;
   const generationVariationMode = state.mode === "generation" && state.instrument === "guitar" && state.guitarSelectedVariationIdx != null
     && state.guitarSelectedVariationIdx >= 0 && state.guitarSelectedVariationIdx < state.guitarVariations.length;
@@ -1499,18 +1969,21 @@ function renderGuitar() {
         const pc = note % 12;
         const cx = fretCenterX(fret);
         const isRoot = chordRootPc !== null && pc === chordRootPc;
+        const isCurrentGeneration = state.mode === "generation"
+          && generationCurrentMidi != null
+          && Number(note) === Number(generationCurrentMidi);
         const finger = Number(displayFingers[i] || 0);
         const coveredByBarre = fret > 0 && barreCovered.has(i);
         state.guitarHitRegions.push({ note, x: cx, y, r: 12, tonic: false });
         if (coveredByBarre) continue;
-        ctx.fillStyle = isRoot ? "#b35f00" : "#f4a742";
-        ctx.strokeStyle = "#f1c27d";
+        ctx.fillStyle = isCurrentGeneration ? "#2faeff" : (isRoot ? "#b35f00" : "#f4a742");
+        ctx.strokeStyle = isCurrentGeneration ? "#4fd4ff" : "#f1c27d";
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.arc(cx, y, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = isRoot ? "#ffffff" : "#1f1200";
+        ctx.fillStyle = (isRoot || isCurrentGeneration) ? "#ffffff" : "#1f1200";
         ctx.font = "bold 10px sans-serif";
         ctx.fillText(String(finger > 0 ? finger : 1), cx - 3, y + 3);
         continue;
@@ -1527,10 +2000,16 @@ function renderGuitar() {
       const isCurrentScale = state.mode === "scales"
         && state.scaleCurrentNote != null
         && Number(note) === Number(state.scaleCurrentNote);
+      const isCurrentGeneration = state.mode === "generation"
+        && generationCurrentMidi != null
+        && Number(note) === generationCurrentMidi;
 
       if (detectionMode && !inSet) {
         ctx.fillStyle = "#e5e7eb";
         ctx.strokeStyle = "#aab1bc";
+      } else if (isCurrentGeneration) {
+        ctx.fillStyle = "#2faeff";
+        ctx.strokeStyle = "#4fd4ff";
       } else if (isCurrentScale) {
         ctx.fillStyle = "#2faeff";
         ctx.strokeStyle = "#4fd4ff";
@@ -1545,7 +2024,7 @@ function renderGuitar() {
       ctx.stroke();
 
       if (inSet) {
-        ctx.fillStyle = isCurrentScale ? "#f2f8ff" : "#121a26";
+        ctx.fillStyle = (isCurrentScale || isCurrentGeneration) ? "#f2f8ff" : "#121a26";
         ctx.font = "bold 10px sans-serif";
         const label = noteNameFromPc(pc);
         ctx.fillText(label, cx - (label.length * 2.8), y + 3);
@@ -1591,14 +2070,17 @@ function renderGuitar() {
       const pc = ((note % 12) + 12) % 12;
       const y = top + (stringIdx * yGap);
       const isRoot = chordRootPc !== null && pc === chordRootPc;
-      ctx.fillStyle = isRoot ? "#b35f00" : "#f4a742";
-      ctx.strokeStyle = "#2e2e2e";
+      const isCurrentGeneration = state.mode === "generation"
+        && generationCurrentMidi != null
+        && Number(note) === Number(generationCurrentMidi);
+      ctx.fillStyle = isCurrentGeneration ? "#2faeff" : (isRoot ? "#b35f00" : "#f4a742");
+      ctx.strokeStyle = isCurrentGeneration ? "#4fd4ff" : "#2e2e2e";
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.arc(x, y, 10.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = isRoot ? "#ffffff" : "#1f1200";
+      ctx.fillStyle = (isRoot || isCurrentGeneration) ? "#ffffff" : "#1f1200";
       ctx.font = "bold 10px sans-serif";
       ctx.fillText(String(seg.finger > 0 ? seg.finger : 1), x - 3, y + 3);
     }
@@ -1705,11 +2187,15 @@ function handleInstrumentNote(note, options = {}) {
         state.generationCurrentClearTimer = null;
       }
       state.generationCurrentNote = Number(midi);
+      renderInstrument();
       renderStaff();
       state.generationCurrentClearTimer = setTimeout(() => {
         state.generationCurrentNote = null;
         state.generationCurrentClearTimer = null;
-        if (state.mode === "generation") renderStaff();
+        if (state.mode === "generation") {
+          renderInstrument();
+          renderStaff();
+        }
       }, 720);
     };
     if (state.instrument === "piano") {
@@ -2115,6 +2601,28 @@ function drawMetronomeCanvas(ctx, width, height) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  state.staff.metronomeRegions = {
+    yellowPoints: {
+      x: left - activeR - 6,
+      y: yTop - activeR - 6,
+      w: (right - left) + ((activeR + 6) * 2),
+      h: (activeR + 6) * 2,
+    },
+    scaleAxis: {
+      x: left,
+      y: axisY - 18,
+      w: right - left,
+      h: 36,
+    },
+    redBall: {
+      x: redX - redR - 6,
+      y: axisY - redR - 6,
+      w: (redR + 6) * 2,
+      h: (redR + 6) * 2,
+    },
+  };
+  if (state.help.active && state.mode === "metronome") syncMetronomeHelpHotspots();
+
   if (state.metronomeTimerEnabled) {
     const total = Math.max(0, Math.floor(state.metronomeTimerRemaining));
     const mm = Math.floor(total / 60);
@@ -2470,6 +2978,7 @@ function renderStaff() {
   const tonicPc = staffCtx.tonicPc;
   const compactChordStaff = state.mode === "generation";
   const detectionStaff = state.mode === "detection";
+  const generationStaff = state.mode === "generation";
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
   if (detectionStaff && notes.length === 0) {
@@ -2626,7 +3135,7 @@ function renderStaff() {
       : null;
     drawNote(ctx, x, y, staffTop, gap, extra, tonic, current, currentStroke);
 
-    if (scaleStaff) {
+    if (scaleStaff || generationStaff) {
       state.staff.scaleRegions.push({
         note: Number(midi),
         degree: Number(degreeIdx),
@@ -2678,7 +3187,7 @@ function renderStaff() {
     ctx.textBaseline = "alphabetic";
   }
 
-  if (scaleStaff || detectionStaff) {
+  if (scaleStaff || detectionStaff || generationStaff) {
     const getScaleHit = (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
@@ -4133,6 +4642,12 @@ function bindEvents() {
   });
 
   el("midiToggle").addEventListener("click", toggleMidi);
+  const helpToggle = el("helpToggle");
+  if (helpToggle) {
+    helpToggle.addEventListener("click", () => {
+      setHelpActive(!state.help.active);
+    });
+  }
   const midiStartupEnableBtn = el("midiStartupEnableBtn");
   if (midiStartupEnableBtn) {
     midiStartupEnableBtn.addEventListener("click", async () => {
@@ -4233,6 +4748,10 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.help.active) {
+      setHelpActive(false);
+      return;
+    }
     if (event.key !== "Shift") return;
     if (event.repeat) return;
     state.shiftPressed = true;
@@ -4434,10 +4953,15 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     if (activeModeSupportsStaff()) renderStaff();
     if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
+    if (state.help.active) refreshHelpOverlay();
   });
+  window.addEventListener("scroll", () => {
+    if (state.help.active) refreshHelpOverlay();
+  }, true);
   window.addEventListener("blur", () => {
     stopHeldChord();
     stopAllHeldInputNotes();
+    if (state.help.active) setHelpActive(false);
   });
 
   el("metroToggle").addEventListener("click", toggleMetronome);

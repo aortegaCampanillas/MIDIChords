@@ -313,11 +313,11 @@ button:disabled {
 
 #staffCanvas {
   width: 100%;
-  height: 100%;
+  height: clamp(340px, 40vh, 430px);
   border-radius: 10px;
   border: 1px solid #3a4558;
   background: #0f1621;
-  min-height: 410px;
+  min-height: 0;
 }
 
 .sidebar {
@@ -381,12 +381,13 @@ button:disabled {
 
 .mode-screen.mode-generation .staff-panel,
 .mode-screen.mode-scales .staff-panel {
-  max-height: min(50vh, 500px);
+  height: min(50vh, 500px);
+  overflow: hidden;
 }
 
 .mode-screen.mode-generation #staffCanvas,
 .mode-screen.mode-scales #staffCanvas {
-  min-height: clamp(360px, 40vh, 440px);
+  height: clamp(340px, 40vh, 430px);
 }
 
 .mode-screen.mode-generation .sidebar-top,
@@ -396,11 +397,12 @@ button:disabled {
 }
 
 .mode-screen.mode-detection .staff-panel {
-  max-height: min(49vh, 470px);
+  height: min(49vh, 470px);
+  overflow: hidden;
 }
 
 .mode-screen.mode-detection #staffCanvas {
-  min-height: clamp(340px, 40vh, 420px);
+  height: clamp(330px, 39vh, 420px);
 }
 
 .mode-screen.mode-detection .sidebar-top {

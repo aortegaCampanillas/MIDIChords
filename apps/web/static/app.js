@@ -91,6 +91,7 @@ const state = {
   inputDragActive: false,
   inputDragNote: null,
   inputDragInstrument: null,
+  guitarSuppressNextClickUntil: 0,
   detectionShiftPressed: false,
   shiftPressed: false,
   detectionMouseChordNotes: new Set(),
@@ -412,7 +413,7 @@ function refreshMetronomeVolumeInfo() {
 
 function metronomeVolumeGain() {
   const vol = Math.max(0, Math.min(100, Number(state.metronomeVolume) || 100));
-  return (vol / 100) * 1.85;
+  return (vol / 100) * 3;
 }
 
 function tr(key) {
@@ -1510,7 +1511,6 @@ function renderGuitar() {
     ctx.lineCap = "butt";
   });
 
-  let suppressCanvasClick = false;
   const releaseCanvasPress = () => endInputDrag();
   const triggerGuitarPress = (event) => {
     const rect = canvas.getBoundingClientRect();
@@ -1521,7 +1521,7 @@ function renderGuitar() {
   };
   canvas.onmousedown = (event) => {
     if (Number(event.button) !== 0) return;
-    suppressCanvasClick = true;
+    state.guitarSuppressNextClickUntil = performance.now() + 450;
     event.preventDefault();
     const hit = triggerGuitarPress(event);
     if (hit && state.mode === "scales" && getScalePlaybackInstrument() === "guitar" && state.shiftPressed && hit.tonic) {
@@ -1536,7 +1536,7 @@ function renderGuitar() {
     }
   };
   canvas.ontouchstart = (event) => {
-    suppressCanvasClick = true;
+    state.guitarSuppressNextClickUntil = performance.now() + 450;
     event.preventDefault();
     const hit = triggerGuitarPress(event);
     if (hit) {
@@ -1564,8 +1564,8 @@ function renderGuitar() {
   canvas.ontouchend = releaseCanvasPress;
   canvas.ontouchcancel = releaseCanvasPress;
   canvas.onclick = (event) => {
-    if (suppressCanvasClick) {
-      suppressCanvasClick = false;
+    if (performance.now() <= Number(state.guitarSuppressNextClickUntil || 0)) {
+      state.guitarSuppressNextClickUntil = 0;
       event.preventDefault();
       return;
     }
@@ -2874,6 +2874,20 @@ function ensureAudioBus(ctx) {
   return state.audioBus;
 }
 
+function ensureMetronomeNoiseBuffer(ctx) {
+  if (state.metronomeNoiseBuffer && state.metronomeNoiseBuffer.sampleRate === ctx.sampleRate) {
+    return state.metronomeNoiseBuffer;
+  }
+  const size = Math.max(512, Math.floor(ctx.sampleRate * 0.025));
+  const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < size; i += 1) {
+    data[i] = (Math.random() * 2) - 1;
+  }
+  state.metronomeNoiseBuffer = buffer;
+  return buffer;
+}
+
 function nearestSampleRoot(note, sampleMap) {
   const midi = Number(note);
   const roots = Object.keys(sampleMap || {}).map((k) => Number(k)).filter((n) => Number.isFinite(n));
@@ -2890,6 +2904,33 @@ async function decodeSampleBuffer(ctx, url) {
   return await ctx.decodeAudioData(bytes.slice(0));
 }
 
+function normalizeAudioBuffer(ctx, buffer, { targetPeak = 0.98, extraGain = 1.0 } = {}) {
+  if (!buffer) return buffer;
+  const channels = buffer.numberOfChannels || 1;
+  const length = buffer.length || 0;
+  if (!length) return buffer;
+  let peak = 0;
+  for (let ch = 0; ch < channels; ch += 1) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < data.length; i += 1) {
+      const v = Math.abs(data[i]);
+      if (v > peak) peak = v;
+    }
+  }
+  const safePeak = Math.max(1e-6, peak);
+  const gain = Math.max(0, (targetPeak / safePeak) * Math.max(0, Number(extraGain) || 1));
+  const out = ctx.createBuffer(channels, length, buffer.sampleRate);
+  for (let ch = 0; ch < channels; ch += 1) {
+    const src = buffer.getChannelData(ch);
+    const dst = out.getChannelData(ch);
+    for (let i = 0; i < src.length; i += 1) {
+      const v = src[i] * gain;
+      dst[i] = Math.max(-1, Math.min(1, v));
+    }
+  }
+  return out;
+}
+
 async function preloadAudioSamples() {
   const ctx = ensureAudioCtx();
   if (state.audioSampleLoadPromise) return state.audioSampleLoadPromise;
@@ -2902,7 +2943,10 @@ async function preloadAudioSamples() {
     const out = {};
     await Promise.all(Array.from(urls).map(async (url) => {
       try {
-        out[url] = await decodeSampleBuffer(ctx, url);
+        const decoded = await decodeSampleBuffer(ctx, url);
+        out[url] = url === METRONOME_SAMPLE_URL
+          ? normalizeAudioBuffer(ctx, decoded, { targetPeak: 0.98, extraGain: 1.8 })
+          : decoded;
       } catch (err) {
         console.warn("Sample load failed:", url, err);
       }
@@ -2952,22 +2996,51 @@ function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, 
 function beep(freq = 1000, durationMs = 70, gain = 0.1) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
-  const base = sampleBuffer(METRONOME_SAMPLE_URL);
-  if (!base) return;
-  const src = ctx.createBufferSource();
-  src.buffer = base;
-  const pitch = Number(freq) >= 1500 ? 1.32 : (Number(freq) >= 1100 ? 1.16 : 1.0);
-  src.playbackRate.setValueAtTime(pitch, t);
+  const inputGain = Math.max(0, Number(gain) || 0.1);
+  if (inputGain <= 0) return;
+  // Keep metronome click under clipping so volume changes remain perceptible.
+  const amp = Math.min(1.0, inputGain * 0.34);
+  const dur = Math.max(0.035, Number(durationMs || 70) / 1000);
+  const isBar = Number(freq) >= 1700;
+  const isAccent = isBar || Number(freq) >= 1300;
+
   const out = ctx.createGain();
-  const amp = Math.max(0, Number(gain) || 0.1);
-  if (amp <= 0) return;
-  out.gain.setValueAtTime(0.0001, t);
-  out.gain.exponentialRampToValueAtTime(amp * 1.05, t + 0.003);
-  out.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.04, Number(durationMs || 70) / 1000));
-  src.connect(out);
-  out.connect(ensureAudioBus(ctx));
-  src.start(t);
-  src.stop(t + 0.16);
+  out.gain.value = 1.0;
+  out.connect(ctx.destination);
+
+  // Percussive "tick": short noise burst filtered as woodblock-like click.
+  const noise = ctx.createBufferSource();
+  noise.buffer = ensureMetronomeNoiseBuffer(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = isAccent ? 1300 : 1050;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = isBar ? 2400 : (isAccent ? 2100 : 1750);
+  bp.Q.value = isBar ? 2.2 : 1.8;
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(0.0001, t);
+  nGain.gain.exponentialRampToValueAtTime(amp * (isBar ? 1.12 : (isAccent ? 0.96 : 0.82)), t + 0.0015);
+  nGain.gain.exponentialRampToValueAtTime(0.0001, t + (dur * 0.42));
+  noise.connect(hp);
+  hp.connect(bp);
+  bp.connect(nGain);
+  nGain.connect(out);
+  noise.start(t);
+  noise.stop(t + Math.min(0.06, dur));
+
+  // Resonant body for a natural metronome "toc".
+  const osc = ctx.createOscillator();
+  const oGain = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(isBar ? 1820 : (isAccent ? 1520 : 1260), t);
+  oGain.gain.setValueAtTime(0.0001, t);
+  oGain.gain.exponentialRampToValueAtTime(amp * (isBar ? 0.44 : (isAccent ? 0.36 : 0.30)), t + 0.001);
+  oGain.gain.exponentialRampToValueAtTime(0.0001, t + (dur * 0.6));
+  osc.connect(oGain);
+  oGain.connect(out);
+  osc.start(t);
+  osc.stop(t + Math.min(0.08, dur * 1.1));
 }
 
 function playPianoAt(midi, startTime = null, durationSeconds = 0.46) {
@@ -3332,7 +3405,7 @@ function stepScaleLoop() {
   state.scaleCurrentNote = note;
   state.scaleInputRawNote = null;
   if (state.scaleMetronomeEnabled) {
-    beep((idx === 0 && state.scaleLoop.direction > 0) ? 1680 : 1080, 65, 0.22 * metronomeVolumeGain());
+    beep((idx === 0 && state.scaleLoop.direction > 0) ? 1720 : 1120, 70, 0.46 * metronomeVolumeGain());
   } else {
     const scaleInstrument = getScalePlaybackInstrument();
     const stepSeconds = Math.max(0.08, scaleStepMs() / 1000);
@@ -3478,9 +3551,9 @@ function metronomeTick() {
   const accent = state.currentSubclick === 0;
   const barAccent = accent && state.currentBeat === 0 && state.metronomeBarAccentEnabled;
   beep(
-    barAccent ? 1700 : (accent ? 1300 : 950),
-    65,
-    (barAccent ? 0.30 : 0.22) * metronomeVolumeGain(),
+    barAccent ? 1780 : (accent ? 1360 : 980),
+    72,
+    (barAccent ? 0.58 : 0.46) * metronomeVolumeGain(),
   );
 
   renderMetronomeDots();

@@ -6,7 +6,9 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
-      "args": ["desktop"],
+      "args": [
+        "desktop"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
@@ -19,10 +21,20 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
-      "args": ["web", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "args": [
+        "web",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
+      "justMyCode": true,
+      "env": {
+        "MIDICHORDS_FEEDBACK_TO": "aortega98@gmail.com"
+      }
     },
     {
       "name": "Mobile iPad: MIDIChords",

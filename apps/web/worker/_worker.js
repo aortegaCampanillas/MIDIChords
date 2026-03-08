@@ -513,6 +513,18 @@ function normalizePreferFlat(accidental) {
   return String(accidental || "sharp").toLowerCase() === "flat";
 }
 
+async function forwardFeedbackByEmail(body, env) {
+  const to = String(env?.MIDICHORDS_FEEDBACK_TO || "aortega98@gmail.com").trim();
+  const name = String(body?.name || "").trim();
+  const email = String(body?.email || "").trim();
+  const message = String(body?.message || "").trim();
+
+  if (!name || !email || !message) {
+    return json({ error: "missing required fields" }, 400);
+  }
+  return json({ ok: true, sent: false, queued: true, provider: "none", sent_to: to });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -567,6 +579,11 @@ export default {
         language: normalizeLanguage(body.language),
         preferFlat: normalizePreferFlat(body.accidental),
       }));
+    }
+
+    if (pathname === "/api/feedback" && request.method === "POST") {
+      const body = await readJson(request);
+      return forwardFeedbackByEmail(body, env);
     }
 
     if (pathname === "/api/generate/guitar-variations" && request.method === "POST") return json({ variations: [] });

@@ -238,11 +238,22 @@
         </div>
       </section>
       <section id="donationSection" class="donation-section">
-        <h3 id="donationTitle">Apoya MIDIChords</h3>
-        <p id="donationText">
-          Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.
-        </p>
-        <a id="donateBtn" class="donate-btn" href="#" target="_blank" rel="noopener noreferrer">Donar</a>
+        <div class="support-grid">
+          <div class="support-card">
+            <h3 id="donationTitle">Apoya MIDIChords</h3>
+            <p id="donationText">
+              Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.
+            </p>
+            <a id="donateBtn" class="donate-btn" href="#" target="_blank" rel="noopener noreferrer">Donar</a>
+          </div>
+          <div class="support-card">
+            <h3 id="feedbackPanelTitle">Comentarios</h3>
+            <p id="feedbackPanelText">
+              Puedes enviarnos comentarios sobre la página y sugerencias de mejora para seguir evolucionando la herramienta.
+            </p>
+            <button id="feedbackOpenBtn" class="donate-btn feedback-open-btn" type="button">Enviar comentarios</button>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -256,6 +267,32 @@
           <button id="midiStartupEnableBtn">Activar MIDI</button>
           <button id="midiStartupCloseBtn" class="ghost">Ahora no</button>
         </div>
+      </div>
+    </div>
+
+    <div id="feedbackModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <div class="modal-card feedback-modal-card">
+        <h3 id="feedbackModalTitle">Enviar comentarios</h3>
+        <p id="feedbackHelp" class="muted">Envíanos sugerencias o errores que hayas detectado.</p>
+        <form id="feedbackForm" class="feedback-form">
+          <div class="feedback-row">
+            <label id="feedbackNameLabel" for="feedbackName">Nombre</label>
+            <input id="feedbackName" name="name" type="text" maxlength="120" required />
+          </div>
+          <div class="feedback-row">
+            <label id="feedbackEmailLabel" for="feedbackEmail">Email</label>
+            <input id="feedbackEmail" name="email" type="email" maxlength="200" required />
+          </div>
+          <div class="feedback-row">
+            <label id="feedbackMessageLabel" for="feedbackMessage">Comentario</label>
+            <textarea id="feedbackMessage" name="message" rows="4" maxlength="4000" required></textarea>
+          </div>
+          <div class="feedback-actions">
+            <button id="feedbackSubmit" type="submit">Enviar comentario</button>
+            <button id="feedbackCloseBtn" type="button" class="ghost">Cerrar</button>
+            <span id="feedbackStatus" class="muted" aria-live="polite"></span>
+          </div>
+        </form>
       </div>
     </div>
 

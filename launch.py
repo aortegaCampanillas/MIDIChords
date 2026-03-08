@@ -19,30 +19,57 @@ def run_desktop() -> None:
 
 
 def run_web(host: str, port: int, reload: bool) -> None:
-    try:
-        import uvicorn
-    except ModuleNotFoundError as exc:
-        raise SystemExit(
-            "Faltan dependencias de la versión web. Ejecuta: "
-            "pip install -r requirements-web.txt"
-        ) from exc
-    try:
-        import apps.web.main  # noqa: F401
-    except ModuleNotFoundError as exc:
-        raise SystemExit(
-            "Faltan dependencias de la API web (FastAPI/Jinja2). Ejecuta: "
-            "pip install -r requirements-web.txt"
-        ) from exc
+    if reload:
+        print("[web] Nota: --reload se ignora; wrangler ya sirve en modo desarrollo.")
 
+    def _can_run(cmd: list[str], version_args: list[str]) -> bool:
+        try:
+            proc = subprocess.run(
+                [*cmd, *version_args],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            return proc.returncode == 0
+        except OSError:
+            return False
+
+    wrangler_cmd: list[str] | None = None
+    version_args: list[str] | None = None
+    for candidate, v_args in (
+        (["wrangler"], ["--version"]),
+        (["npx", "--yes", "wrangler@4"], ["--version"]),
+        (["npx", "wrangler"], ["--version"]),
+    ):
+        if _can_run(candidate, v_args):
+            wrangler_cmd = candidate
+            version_args = v_args
+            break
+
+    if wrangler_cmd is None:
+        raise SystemExit(
+            "No se encontró wrangler en PATH ni vía npx. Instala Node.js y luego: "
+            "npm i -g wrangler"
+        )
+
+    project_root = Path(__file__).resolve().parent
+    cmd = [
+        *wrangler_cmd,
+        "dev",
+        "apps/web/worker/_worker.js",
+        "--assets",
+        "apps/web",
+        "--ip",
+        host,
+        "--port",
+        str(port),
+    ]
     try:
-        uvicorn.run("apps.web.main:app", host=host, port=port, reload=reload)
-    except OSError as exc:
-        if "Address already in use" in str(exc) or "error while attempting to bind" in str(exc):
-            raise SystemExit(
-                f"El puerto {port} ya está en uso. "
-                f"Prueba con: python launch.py web --host {host} --port {port + 1}"
-            ) from exc
-        raise
+        if version_args is not None:
+            subprocess.run([*wrangler_cmd, *version_args], cwd=str(project_root), check=False)
+        subprocess.run(cmd, cwd=str(project_root), check=True)
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(f"wrangler dev falló con código {exc.returncode}") from exc
 
 
 def run_mobile(mobile_args: list[str]) -> None:

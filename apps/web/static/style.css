@@ -105,6 +105,62 @@ body {
   line-height: 1.4;
 }
 
+.support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.support-card {
+  background: linear-gradient(170deg, #2a3443, #24303f);
+  border: 1px solid #4e5d74;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.feedback-open-btn {
+  min-width: 180px;
+  font-weight: 700;
+}
+
+.feedback-modal-card {
+  width: min(640px, 96vw);
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.feedback-row input,
+.feedback-row textarea {
+  border-radius: 8px;
+  border: 1px solid #627189;
+  background: #182535;
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.feedback-row textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .donate-btn {
   display: inline-flex;
   align-items: center;
@@ -122,6 +178,12 @@ body {
 
 .donate-btn:hover {
   filter: brightness(1.04);
+}
+
+@media (max-width: 900px) {
+  .support-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .controls-inline {

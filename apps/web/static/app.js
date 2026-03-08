@@ -91,7 +91,8 @@ const state = {
   inputDragActive: false,
   inputDragNote: null,
   inputDragInstrument: null,
-  guitarSuppressNextClickUntil: 0,
+  guitarSuppressNextClick: false,
+  guitarSuppressNextClickTimer: null,
   detectionShiftPressed: false,
   shiftPressed: false,
   detectionMouseChordNotes: new Set(),
@@ -180,6 +181,18 @@ const UI_TEXTS = {
     donation_title: "Apoya MIDIChords",
     donation_text: "Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.",
     donation_button: "Donar",
+    feedback_panel_title: "Comentarios",
+    feedback_panel_text: "Puedes enviarnos comentarios sobre la página y sugerencias de mejora para seguir evolucionando la herramienta.",
+    feedback_open: "Enviar comentarios",
+    feedback_modal_title: "Enviar comentarios",
+    feedback_help: "Envíanos sugerencias o errores que hayas detectado.",
+    feedback_name: "Nombre",
+    feedback_email: "Email",
+    feedback_message: "Comentario",
+    feedback_send: "Enviar comentario",
+    feedback_sending: "Enviando...",
+    feedback_ok: "Gracias. Comentario enviado.",
+    feedback_error: "No se pudo enviar. Inténtalo de nuevo.",
     detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
     scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
     staff_no_active_notes: "Sin notas activas",
@@ -261,6 +274,18 @@ const UI_TEXTS = {
     donation_title: "Support MIDIChords",
     donation_text: "This project is designed to stay free forever and ad-free. Your support helps cover development, maintenance, infrastructure, and support time so we can keep improving it.",
     donation_button: "Donate",
+    feedback_panel_title: "Feedback",
+    feedback_panel_text: "You can send comments about the website and suggestions for improvements to keep evolving the tool.",
+    feedback_open: "Send feedback",
+    feedback_modal_title: "Send feedback",
+    feedback_help: "Send us suggestions or report issues you found.",
+    feedback_name: "Name",
+    feedback_email: "Email",
+    feedback_message: "Comment",
+    feedback_send: "Send feedback",
+    feedback_sending: "Sending...",
+    feedback_ok: "Thanks. Feedback sent.",
+    feedback_error: "Could not send. Please try again.",
     detection_staff_shift_hint: "Hold Shift to sustain notes",
     scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
     staff_no_active_notes: "No active notes",
@@ -481,6 +506,18 @@ function hideMidiStartupModal() {
   modal.classList.add("hidden");
 }
 
+function showFeedbackModal() {
+  const modal = el("feedbackModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+}
+
+function hideFeedbackModal() {
+  const modal = el("feedbackModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
 function refreshDetectionButtonsState() {
   const hasNotes = (state.activeDetectionNotes?.size || 0) > 0;
   const playBtn = el("detectPlay");
@@ -553,6 +590,16 @@ function applyTranslations() {
   setText("donationTitle", "donation_title");
   setText("donationText", "donation_text");
   setText("donateBtn", "donation_button");
+  setText("feedbackPanelTitle", "feedback_panel_title");
+  setText("feedbackPanelText", "feedback_panel_text");
+  setText("feedbackOpenBtn", "feedback_open");
+  setText("feedbackModalTitle", "feedback_modal_title");
+  setText("feedbackHelp", "feedback_help");
+  setText("feedbackNameLabel", "feedback_name");
+  setText("feedbackEmailLabel", "feedback_email");
+  setText("feedbackMessageLabel", "feedback_message");
+  setText("feedbackSubmit", "feedback_send");
+  setText("feedbackCloseBtn", "close");
   setText("midiStartupTitle", "midi_startup_title");
   setText("midiStartupText", "midi_startup_text");
   setText("midiStartupEnableBtn", "midi_startup_enable");
@@ -613,6 +660,45 @@ function applyTranslations() {
     void refreshTunerInputs();
   }
   syncLeftPanelHeader();
+}
+
+async function submitFeedbackForm(event) {
+  event.preventDefault();
+  const form = el("feedbackForm");
+  const submitBtn = el("feedbackSubmit");
+  const status = el("feedbackStatus");
+  if (!form || !submitBtn || !status) return;
+
+  const name = String(el("feedbackName")?.value || "").trim();
+  const email = String(el("feedbackEmail")?.value || "").trim();
+  const message = String(el("feedbackMessage")?.value || "").trim();
+  if (!name || !email || !message) {
+    status.textContent = tr("feedback_error");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  status.textContent = tr("feedback_sending");
+  try {
+    await fetchJson("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email,
+        message,
+        mode: state.mode || "web",
+        language: state.language,
+        page_url: window.location.href,
+      }),
+    });
+    form.reset();
+    status.textContent = tr("feedback_ok");
+  } catch (_err) {
+    status.textContent = tr("feedback_error");
+  } finally {
+    submitBtn.disabled = false;
+  }
 }
 
 async function fetchJson(url, options = {}) {
@@ -1309,47 +1395,52 @@ function renderGuitar() {
     const uniqueFrets = Array.from(new Set(displayFrets.filter((f) => Number(f) > 0))).sort((a, b) => a - b);
 
     uniqueFrets.forEach((fretValue) => {
-      const idxs = [];
+      const idxsByFinger = new Map();
       for (let i = 0; i < displayFrets.length; i += 1) {
-        if (Number(displayFrets[i]) === Number(fretValue) && Number(displayFingers[i]) > 0) idxs.push(i);
-      }
-      if (idxs.length < 2) return;
-
-      // Full barre: first and last sounding strings are covered at same fret.
-      if (idxs[0] === minSounded && idxs[idxs.length - 1] === maxSounded) {
-        const finger = Number(displayFingers[idxs[0]] || 1);
-        const covered = new Set(idxs);
-        barreSegments.push({ fret: Number(fretValue), finger, start: idxs[0], end: idxs[idxs.length - 1], covered });
-        idxs.forEach((idx) => barreCovered.add(idx));
-        return;
+        if (Number(displayFrets[i]) !== Number(fretValue)) continue;
+        const finger = Number(displayFingers[i]);
+        if (!Number.isFinite(finger) || finger <= 0) continue;
+        const arr = idxsByFinger.get(finger) || [];
+        arr.push(i);
+        idxsByFinger.set(finger, arr);
       }
 
-      // Partial barre(s): contiguous runs with at least 2 strings.
-      let runStart = idxs[0];
-      let runPrev = idxs[0];
-      for (let j = 1; j < idxs.length; j += 1) {
-        const idx = idxs[j];
-        if (idx === runPrev + 1) {
+      idxsByFinger.forEach((idxs, finger) => {
+        if (!Array.isArray(idxs) || idxs.length < 2) return;
+
+        // Full barre: first and last sounding strings are covered at same fret and same finger.
+        if (idxs[0] === minSounded && idxs[idxs.length - 1] === maxSounded) {
+          const covered = new Set(idxs);
+          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: idxs[0], end: idxs[idxs.length - 1], covered });
+          idxs.forEach((idx) => barreCovered.add(idx));
+          return;
+        }
+
+        // Partial barre(s): contiguous runs with at least 2 strings, same fret and same finger.
+        let runStart = idxs[0];
+        let runPrev = idxs[0];
+        for (let j = 1; j < idxs.length; j += 1) {
+          const idx = idxs[j];
+          if (idx === runPrev + 1) {
+            runPrev = idx;
+            continue;
+          }
+          if ((runPrev - runStart + 1) >= 2) {
+            const covered = new Set();
+            for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
+            barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
+            for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
+          }
+          runStart = idx;
           runPrev = idx;
-          continue;
         }
         if ((runPrev - runStart + 1) >= 2) {
-          const finger = Number(displayFingers[runStart] || 1);
           const covered = new Set();
           for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-          barreSegments.push({ fret: Number(fretValue), finger, start: runStart, end: runPrev, covered });
+          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
           for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
         }
-        runStart = idx;
-        runPrev = idx;
-      }
-      if ((runPrev - runStart + 1) >= 2) {
-        const finger = Number(displayFingers[runStart] || 1);
-        const covered = new Set();
-        for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-        barreSegments.push({ fret: Number(fretValue), finger, start: runStart, end: runPrev, covered });
-        for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
-      }
+      });
     });
   }
 
@@ -1370,24 +1461,6 @@ function renderGuitar() {
     ctx.stroke();
     ctx.lineCap = "butt";
 
-    // On barres, draw one marker per sounding string, preserving tonic color.
-    for (let stringIdx = seg.start; stringIdx <= seg.end; stringIdx += 1) {
-      if (!seg.covered.has(stringIdx)) continue;
-      const note = Number(tuning[stringIdx]) + Number(seg.fret);
-      const pc = ((note % 12) + 12) % 12;
-      const y = top + (stringIdx * yGap);
-      const isRoot = chordRootPc !== null && pc === chordRootPc;
-      ctx.fillStyle = isRoot ? "#b35f00" : "#f4a742";
-      ctx.strokeStyle = "#2e2e2e";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(x, y, 10.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = isRoot ? "#ffffff" : "#1f1200";
-      ctx.font = "bold 10px sans-serif";
-      ctx.fillText(String(seg.finger > 0 ? seg.finger : 1), x - 3, y + 3);
-    }
   });
 
   tuning.forEach((openNote, i) => {
@@ -1509,9 +1582,41 @@ function renderGuitar() {
     ctx.lineTo(x, y2);
     ctx.stroke();
     ctx.lineCap = "butt";
+
+    // On barres, draw one marker per covered string after repainting the bar,
+    // so circles remain visible.
+    for (let stringIdx = seg.start; stringIdx <= seg.end; stringIdx += 1) {
+      if (!seg.covered.has(stringIdx)) continue;
+      const note = Number(tuning[stringIdx]) + Number(seg.fret);
+      const pc = ((note % 12) + 12) % 12;
+      const y = top + (stringIdx * yGap);
+      const isRoot = chordRootPc !== null && pc === chordRootPc;
+      ctx.fillStyle = isRoot ? "#b35f00" : "#f4a742";
+      ctx.strokeStyle = "#2e2e2e";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(x, y, 10.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = isRoot ? "#ffffff" : "#1f1200";
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillText(String(seg.finger > 0 ? seg.finger : 1), x - 3, y + 3);
+    }
   });
 
   const releaseCanvasPress = () => endInputDrag();
+  const armSuppressNextGuitarClick = () => {
+    state.guitarSuppressNextClick = true;
+    if (state.guitarSuppressNextClickTimer != null) {
+      clearTimeout(state.guitarSuppressNextClickTimer);
+      state.guitarSuppressNextClickTimer = null;
+    }
+    // Synthetic click after mouse/touch release can arrive with noticeable delay.
+    state.guitarSuppressNextClickTimer = setTimeout(() => {
+      state.guitarSuppressNextClick = false;
+      state.guitarSuppressNextClickTimer = null;
+    }, 1400);
+  };
   const triggerGuitarPress = (event) => {
     const rect = canvas.getBoundingClientRect();
     const point = event.touches && event.touches.length ? event.touches[0] : event;
@@ -1521,13 +1626,13 @@ function renderGuitar() {
   };
   canvas.onmousedown = (event) => {
     if (Number(event.button) !== 0) return;
-    state.guitarSuppressNextClickUntil = performance.now() + 450;
     event.preventDefault();
     const hit = triggerGuitarPress(event);
     if (hit && state.mode === "scales" && getScalePlaybackInstrument() === "guitar" && state.shiftPressed && hit.tonic) {
       setScaleGuitarStartNote(Number(hit.note));
     }
     if (hit) {
+      armSuppressNextGuitarClick();
       beginInputDrag(Number(hit.note), "guitar");
       const onReleaseDoc = () => releaseCanvasPress();
       document.addEventListener("mouseup", onReleaseDoc, { once: true });
@@ -1536,10 +1641,10 @@ function renderGuitar() {
     }
   };
   canvas.ontouchstart = (event) => {
-    state.guitarSuppressNextClickUntil = performance.now() + 450;
     event.preventDefault();
     const hit = triggerGuitarPress(event);
     if (hit) {
+      armSuppressNextGuitarClick();
       beginInputDrag(Number(hit.note), "guitar");
       const onReleaseDoc = () => releaseCanvasPress();
       document.addEventListener("mouseup", onReleaseDoc, { once: true });
@@ -1564,8 +1669,12 @@ function renderGuitar() {
   canvas.ontouchend = releaseCanvasPress;
   canvas.ontouchcancel = releaseCanvasPress;
   canvas.onclick = (event) => {
-    if (performance.now() <= Number(state.guitarSuppressNextClickUntil || 0)) {
-      state.guitarSuppressNextClickUntil = 0;
+    if (state.guitarSuppressNextClick) {
+      state.guitarSuppressNextClick = false;
+      if (state.guitarSuppressNextClickTimer != null) {
+        clearTimeout(state.guitarSuppressNextClickTimer);
+        state.guitarSuppressNextClickTimer = null;
+      }
       event.preventDefault();
       return;
     }
@@ -4037,6 +4146,24 @@ function bindEvents() {
       hideMidiStartupModal();
     });
   }
+  const feedbackOpenBtn = el("feedbackOpenBtn");
+  if (feedbackOpenBtn) {
+    feedbackOpenBtn.addEventListener("click", () => {
+      showFeedbackModal();
+    });
+  }
+  const feedbackCloseBtn = el("feedbackCloseBtn");
+  if (feedbackCloseBtn) {
+    feedbackCloseBtn.addEventListener("click", () => {
+      hideFeedbackModal();
+    });
+  }
+  const feedbackModal = el("feedbackModal");
+  if (feedbackModal) {
+    feedbackModal.addEventListener("click", (event) => {
+      if (event.target === feedbackModal) hideFeedbackModal();
+    });
+  }
   el("guitarHandedness").addEventListener("change", (e) => {
     state.guitarHandedness = e.target.value;
     if (state.instrument === "guitar") renderInstrument();
@@ -4317,6 +4444,8 @@ function bindEvents() {
   if (TUNER_FEATURE_ENABLED) {
     el("tunerToggle").addEventListener("click", toggleTuner);
   }
+  const feedbackForm = el("feedbackForm");
+  if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
 }
 
 async function main() {

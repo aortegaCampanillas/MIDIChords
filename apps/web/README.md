@@ -1,27 +1,29 @@
 # MIDIChords Web
 
-Aplicación web en Python con FastAPI y frontend JS.
+Aplicación web servida con Cloudflare Worker (`apps/web/worker/_worker.js`) y assets estáticos (`apps/web/index.html` + `apps/web/static`).
 
-## Ejecutar
+## Ejecutar en local (igual que Cloudflare)
 
 Desde la raíz del repo:
 
 ```bash
-python launch.py web --host 127.0.0.1 --port 8000 --reload
+python launch.py web --host 127.0.0.1 --port 8000
 ```
 
-## Funcionalidades incluidas
-
-- Detección de acordes por notas activas
-- Generación de acordes (tónica/variante/inversión)
-- Generación de escalas
-- Metrónomo básico en navegador
-- Afinador básico con micrófono (WebAudio)
+Este comando usa `wrangler dev` con el mismo Worker que producción.
 
 ## API
 
+Rutas internas del Worker:
+
+- `GET /api/health`
 - `GET /api/meta`
 - `POST /api/detect`
 - `POST /api/generate/chord`
 - `POST /api/generate/scale`
+- `POST /api/generate/guitar-variations`
+- `POST /api/feedback`
 
+## Comentarios
+
+El formulario de comentarios no usa proveedor externo.

@@ -3,7 +3,7 @@
 Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas:
 
 - `apps/desktop`: aplicación de escritorio (Tkinter, Python)
-- `apps/web`: aplicación web (FastAPI + frontend JS)
+- `apps/web`: aplicación web (Cloudflare Worker + frontend JS)
 - `apps/mobile_flutter`: aplicación tablet (Flutter para iOS/Android)
 - `midichords`: librería Python común (teoría musical, audio y lógica compartida)
 - `assets`: recursos gráficos y muestras de audio compartidas
@@ -16,23 +16,22 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 │   ├── desktop/
 │   │   └── main.py
 │   ├── web/
-│   │   ├── main.py
-│   │   ├── templates/
+│   │   ├── worker/
+│   │   ├── index.html
 │   │   └── static/
 │   └── mobile_flutter/
 ├── midichords/
 ├── assets/
 ├── launch.py
 ├── app.py
-├── requirements.txt
-└── requirements-web.txt
+└── requirements.txt
 ```
 
 ## Requisitos
 
 - Python 3.10+
 - Dependencias desktop: `requirements.txt`
-- Dependencias web: `requirements-web.txt`
+- Node.js + `wrangler` para web local
 - Flutter (solo para móvil): 3.38+
 
 ## Instalación (Python)
@@ -41,7 +40,7 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install -r requirements-web.txt
+npm i -g wrangler
 ```
 
 ## Ejecución unificada
@@ -65,6 +64,8 @@ python launch.py web --host 127.0.0.1 --port 8000 --reload
 ```
 
 Abrir: `http://127.0.0.1:8000`
+
+Nota: `launch.py web` usa el mismo Worker de Cloudflare que producción (`wrangler dev`), para evitar diferencias entre local y Cloudflare.
 
 ## Flutter (tablets iOS/Android)
 
@@ -194,7 +195,7 @@ Archivo: `.vscode/launch.json`
 
 ## Librerías compartidas
 
-- La lógica musical reutilizable para web/desktop está en `midichords/core/music_service.py`.
+- La lógica musical reutilizable en Python está en `midichords/core/music_service.py`.
 - Esta capa expone:
   - detección armónica de acordes
   - generación de acordes

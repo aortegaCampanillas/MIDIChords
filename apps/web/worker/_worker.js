@@ -513,8 +513,72 @@ function normalizePreferFlat(accidental) {
   return String(accidental || "sharp").toLowerCase() === "flat";
 }
 
+function isPreviewDeployment(env) {
+  const branch = String(env?.CF_PAGES_BRANCH || "").trim().toLowerCase();
+  if (!branch) return false;
+  return branch !== "main" && branch !== "master";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function sendFeedbackViaResend({ to, name, email, message, env }) {
+  const apiKey = String(env?.RESEND_API_KEY || "").trim();
+  const from = String(env?.MIDICHORDS_FEEDBACK_FROM || "").trim();
+  if (!apiKey || !from) {
+    return json({ ok: false, error: "feedback provider misconfigured", provider: "resend" }, 500);
+  }
+
+  const subject = `[MIDIChords Preview] Nuevo comentario de ${name}`;
+  const text = [
+    `Nombre: ${name}`,
+    `Email: ${email}`,
+    "",
+    "Mensaje:",
+    message,
+  ].join("\n");
+  const html = [
+    `<p><strong>Nombre:</strong> ${escapeHtml(name)}</p>`,
+    `<p><strong>Email:</strong> ${escapeHtml(email)}</p>`,
+    "<p><strong>Mensaje:</strong></p>",
+    `<pre style="white-space:pre-wrap;font-family:inherit;">${escapeHtml(message)}</pre>`,
+  ].join("");
+
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      reply_to: email,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    return json(
+      { ok: false, error: "feedback provider error", provider: "resend", status: resp.status, body },
+      502,
+    );
+  }
+  return json({ ok: true, sent: true, provider: "resend", sent_to: to });
+}
+
 async function forwardFeedbackByEmail(body, env) {
   const to = String(env?.MIDICHORDS_FEEDBACK_TO || "aortega98@gmail.com").trim();
+  const provider = String(env?.MIDICHORDS_FEEDBACK_PROVIDER || "none").trim().toLowerCase();
   const name = String(body?.name || "").trim();
   const email = String(body?.email || "").trim();
   const message = String(body?.message || "").trim();
@@ -522,7 +586,16 @@ async function forwardFeedbackByEmail(body, env) {
   if (!name || !email || !message) {
     return json({ error: "missing required fields" }, 400);
   }
-  return json({ ok: true, sent: false, queued: true, provider: "none", sent_to: to });
+
+  if (!isPreviewDeployment(env)) {
+    return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "not_preview" });
+  }
+
+  if (provider === "resend") {
+    return sendFeedbackViaResend({ to, name, email, message, env });
+  }
+
+  return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "provider_disabled" });
 }
 
 export default {

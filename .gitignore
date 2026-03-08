@@ -45,6 +45,7 @@ htmlcov/
 
 # Node / frontend tooling
 node_modules/
+.wrangler/
 
 # Flutter / Dart
 **/.dart_tool/

@@ -26,4 +26,14 @@ Rutas internas del Worker:
 
 ## Comentarios
 
-El formulario de comentarios no usa proveedor externo.
+El formulario de comentarios usa `Resend` si está configurado:
+
+- `MIDICHORDS_FEEDBACK_PROVIDER=resend`
+- `MIDICHORDS_FEEDBACK_TO=destino@dominio.com`
+- `MIDICHORDS_FEEDBACK_FROM=MIDIChords <no-reply@tu-dominio-verificado.com>`
+- `RESEND_API_KEY` (secret)
+
+Comportamiento por entorno:
+
+- Preview: envía correo automáticamente cuando `provider=resend`.
+- Producción (`main`): envía solo si además defines `MIDICHORDS_FEEDBACK_ENABLE_IN_PROD=true`.

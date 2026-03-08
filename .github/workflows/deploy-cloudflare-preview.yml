@@ -1,0 +1,51 @@
+name: Deploy Cloudflare Preview
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-web-preview:
+    name: Deploy Web Preview to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve preview branch
+        id: ref
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            echo "branch=${GITHUB_HEAD_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare static web bundle
+        run: |
+          rm -rf apps/web/pages-dist
+          mkdir -p apps/web/pages-dist/static
+          cp apps/web/index.html apps/web/pages-dist/index.html
+          cp -R apps/web/static/. apps/web/pages-dist/static/
+          cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
+          test -f apps/web/pages-dist/index.html
+          test -f apps/web/pages-dist/static/app.js
+          test -f apps/web/pages-dist/static/style.css
+          test -f apps/web/pages-dist/_worker.js
+
+      - name: Deploy preview to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy apps/web/pages-dist
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=${{ steps.ref.outputs.branch }}

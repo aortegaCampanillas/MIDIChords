@@ -113,19 +113,4 @@ done < /tmp/vscode-ext-this.txt
 
 
 Segundo Ordenador:
-(.venv) ➜  MIDIChords git:(main) code --version
-code --list-extensions -- show-versions |head
 
-1.111.0
-ce099c1ed25d9eb3076c11e4a280f3eb52b4fbeb
-arm64
-amiralizadeh9480.laravel-extra-intellisense
-anbuselvanrocky.bootstrap5-vscode
-codingyu.laravel-goto-view
-damms005.devdb
-dart-code.dart-code
-dart-code.flutter
-david-rickard.git-diff-and-merge-tool
-editorconfig.editorconfig
-franneck94.c-cpp-runner
-github.copilot-chat

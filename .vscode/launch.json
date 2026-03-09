@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Desktop: MIDIChords",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
       "args": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "Web: MIDIChords",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
       "args": [
@@ -38,7 +38,7 @@
     },
     {
       "name": "Mobile iPad: MIDIChords",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
       "args": [

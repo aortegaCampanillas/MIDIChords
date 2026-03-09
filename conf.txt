@@ -1,0 +1,104 @@
+MIDIChords - VS Code environment snapshot
+Generated: 2026-03-09
+
+[Current machine]
+code path:
+/usr/local/bin/code
+
+VS Code version:
+1.110.1
+61b3d0ab13be7dda2389f1d3e60a119c7f660cc3
+arm64
+
+Installed extensions (with version):
+amiralizadeh9480.laravel-extra-intellisense@0.7.2
+christian-kohler.npm-intellisense@1.4.5
+codingyu.laravel-goto-view@1.3.11
+damms005.devdb@3.0.3
+dart-code.dart-code@3.130.1
+dart-code.flutter@3.130.0
+david-rickard.git-diff-and-merge-tool@1.0.5
+docker.docker@0.18.0
+eamodio.gitlens@17.11.0
+editorconfig.editorconfig@0.18.1
+github.copilot-chat@0.38.2
+github.vscode-github-actions@0.31.0
+github.vscode-pull-request-github@0.130.0
+glitchbl.laravel-create-view@0.0.6
+hediet.vscode-drawio@1.9.0
+ihunte.laravel-blade-wrapper@1.0.2
+javatest.java-test@0.0.2
+mikestead.dotenv@1.0.1
+ms-azuretools.vscode-containers@2.4.1
+ms-azuretools.vscode-docker@2.0.0
+ms-ceintl.vscode-language-pack-es@1.110.2026030409
+ms-dotnettools.csharp@2.120.3
+ms-dotnettools.vscode-dotnet-runtime@3.0.0
+ms-kubernetes-tools.vscode-kubernetes-tools@1.3.29
+ms-python.debugpy@2025.18.0
+ms-python.isort@2025.0.0
+ms-python.python@2026.2.0
+ms-python.vscode-pylance@2026.1.1
+ms-toolsai.jupyter-keymap@1.1.2
+ms-toolsai.jupyter-renderers@1.3.0
+ms-toolsai.jupyter@2025.9.1
+ms-toolsai.vscode-jupyter-cell-tags@0.1.9
+ms-toolsai.vscode-jupyter-slideshow@0.1.6
+ms-vscode-remote.remote-containers@0.447.0
+ms-vscode-remote.remote-ssh-edit@0.87.0
+ms-vscode-remote.remote-ssh@0.122.0
+ms-vscode.cmake-tools@1.22.28
+ms-vscode.cpp-devtools@0.3.6
+ms-vscode.cpptools-extension-pack@1.5.1
+ms-vscode.cpptools-themes@2.0.0
+ms-vscode.cpptools@1.30.5
+ms-vscode.live-server@0.4.17
+ms-vscode.remote-explorer@0.5.0
+ms-vscode.remote-server@1.5.3
+naoray.laravel-goto-components@1.2.0
+natizyskunk.sftp@1.16.3
+onecentlin.laravel-blade@1.37.0
+onecentlin.laravel-extension-pack@1.3.0
+onecentlin.laravel5-snippets@1.19.1
+openai.chatgpt@26.304.20706
+pgl.laravel-jump-controller@0.0.34
+redhat.fabric8-analytics@0.10.2
+redhat.java@1.53.0
+redhat.vscode-yaml@1.21.0
+ryannaddy.laravel-artisan@0.0.31
+shufo.vscode-blade-formatter@0.26.2
+vscjava.migrate-java-to-azure@1.13.0
+vscjava.vscode-gradle@3.17.2
+vscjava.vscode-java-debug@0.58.5
+vscjava.vscode-java-dependency@0.27.0
+vscjava.vscode-java-pack@0.30.5
+vscjava.vscode-java-test@0.44.0
+vscjava.vscode-java-upgrade@2.0.2
+vscjava.vscode-maven@0.45.1
+vscodevim.vim@1.32.4
+xdebug.php-debug@1.40.0
+xdebug.php-pack@1.0.3
+zobo.php-intellisense@1.3.3
+
+[Commands to run on another computer]
+1) Verify VS Code version (CLI path for macOS):
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --version
+
+2) Export installed extensions (with versions):
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --list-extensions --show-versions | sort > /tmp/vscode-ext-other.txt
+
+3) Compare with this machine list (save this block to /tmp/vscode-ext-this.txt first):
+diff -u /tmp/vscode-ext-this.txt /tmp/vscode-ext-other.txt
+
+4) Install project-required extensions only:
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension ms-python.python
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension ms-python.debugpy
+
+5) Install all extensions from this snapshot (optional full clone):
+while IFS= read -r ext; do
+  [ -n "$ext" ] && \
+  "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension "$ext"
+done < /tmp/vscode-ext-this.txt
+
+6) Launch project folder in VS Code:
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" .

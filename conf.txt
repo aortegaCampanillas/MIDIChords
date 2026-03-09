@@ -5,6 +5,10 @@ Generated: 2026-03-09
 code path:
 /usr/local/bin/code
 
+#!/usr/bin/env bash
+exec "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" "$@"
+
+
 VS Code version:
 1.110.1
 61b3d0ab13be7dda2389f1d3e60a119c7f660cc3

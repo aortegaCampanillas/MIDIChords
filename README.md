@@ -193,6 +193,11 @@ Se añadieron dos configuraciones:
 
 Archivo: `.vscode/launch.json`
 
+Extensiones recomendadas para este proyecto (archivo `.vscode/extensions.json`):
+
+- `ms-python.python` (soporte Python en VS Code)
+- `ms-python.debugpy` (depuración de configuraciones `launch.json`)
+
 ## Librerías compartidas
 
 - La lógica musical reutilizable en Python está en `midichords/core/music_service.py`.

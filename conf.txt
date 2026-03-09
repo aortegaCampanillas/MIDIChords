@@ -114,3 +114,42 @@ done < /tmp/vscode-ext-this.txt
 
 Segundo Ordenador:
 
+
+[Sync commands for second computer]
+Objetivo: aproximar el segundo equipo a este snapshot.
+
+1) Comprobar versión de VS Code:
+code --version
+
+2) Exportar extensiones actuales del segundo equipo:
+code --list-extensions --show-versions | sort > /tmp/vscode-ext-other.txt
+
+3) Crear lista de referencia (este equipo) pegando/extayendo desde este fichero:
+awk '/^[A-Za-z0-9_.-]+@[0-9]/{print}' conf.txt | sort > /tmp/vscode-ext-this.txt
+
+4) Ver diferencias:
+comm -23 /tmp/vscode-ext-this.txt /tmp/vscode-ext-other.txt > /tmp/vscode-missing.txt
+comm -13 /tmp/vscode-ext-this.txt /tmp/vscode-ext-other.txt > /tmp/vscode-extra.txt
+
+echo "MISSING:"; cat /tmp/vscode-missing.txt
+echo "EXTRA:"; cat /tmp/vscode-extra.txt
+
+5) Instalar faltantes (id@version):
+while IFS= read -r ext; do
+  [ -n "$ext" ] && code --install-extension "$ext"
+done < /tmp/vscode-missing.txt
+
+6) (Opcional) Desinstalar extras para dejarlo más parecido:
+while IFS= read -r ext; do
+  [ -n "$ext" ] && code --uninstall-extension "${ext%@*}"
+done < /tmp/vscode-extra.txt
+
+7) Verificación final:
+code --list-extensions --show-versions | sort > /tmp/vscode-ext-other-after.txt
+diff -u /tmp/vscode-ext-this.txt /tmp/vscode-ext-other-after.txt
+
+Notas:
+- Si no quieres tocar todo, instala solo lo mínimo del proyecto:
+  code --install-extension ms-python.python
+  code --install-extension ms-python.debugpy
+- La versión de VS Code puede no coincidir exacta; la comparación de extensiones sí.

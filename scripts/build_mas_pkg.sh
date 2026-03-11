@@ -18,6 +18,7 @@ Options:
   --bundle-id             CFBundleIdentifier for MIDIChords.app (required)
   --provisioning-profile  Path to provisioning profile for this App ID (required)
   --app-name              App bundle name (default: MIDIChords)
+  --display-name          App display name in Info.plist (default: MIDI Piano & Guitar Chords)
   --version               CFBundleShortVersionString (optional)
   --build-number          CFBundleVersion (optional)
   --entrypoint            Python entrypoint for PyInstaller (default: app.py)
@@ -39,6 +40,7 @@ EOF
 }
 
 APP_NAME="MIDIChords"
+DISPLAY_NAME="MIDI Piano & Guitar Chords"
 ENTRYPOINT="app.py"
 APP_DIST_IDENTITY=""
 INSTALLER_IDENTITY=""
@@ -55,6 +57,37 @@ ALLOW_NETWORK=0
 ALLOW_FILE_ACCESS=0
 SKIP_BUILD=0
 SKIP_STORE_VALIDATION=0
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
+check_supported_tk_runtime() {
+  if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    echo "Error: Python runtime not found: $PYTHON_BIN" >&2
+    exit 1
+  fi
+
+  local runtime_info py_exec tcl_ver tk_ver
+  runtime_info="$("$PYTHON_BIN" - <<'PY'
+import sys
+import tkinter
+
+print(f"{sys.executable}|{tkinter.TclVersion}|{tkinter.TkVersion}")
+PY
+)"
+  IFS='|' read -r py_exec tcl_ver tk_ver <<<"$runtime_info"
+
+  if [[ "${tcl_ver%%.*}" -ge 9 || "${tk_ver%%.*}" -ge 9 ]]; then
+    cat >&2 <<EOF
+Error: unsupported Tcl/Tk runtime detected for macOS packaging.
+Python: $py_exec
+Tcl: $tcl_ver
+Tk: $tk_ver
+
+Build the macOS app with a Python runtime linked against Tcl/Tk 8.6.
+Avoid Homebrew Python 3.14 + Tk 9.0 for App Store submissions.
+EOF
+    exit 1
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -76,6 +109,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --app-name)
       APP_NAME="${2:-}"
+      shift 2
+      ;;
+    --display-name)
+      DISPLAY_NAME="${2:-}"
       shift 2
       ;;
     --version)
@@ -172,6 +209,7 @@ trap 'if [[ -n "$ICONSET_TMP_DIR" && -d "$ICONSET_TMP_DIR" ]]; then rm -rf "$ICO
 cd "$ROOT_DIR"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  check_supported_tk_runtime
   echo "Building ${APP_NAME}.app with PyInstaller..."
   pyinstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" "$ENTRYPOINT"
 fi
@@ -186,6 +224,12 @@ INFO_PLIST="$APP_PATH/Contents/Info.plist"
 echo "Setting bundle identifier: $BUNDLE_ID"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$INFO_PLIST" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE_ID" "$INFO_PLIST"
+
+echo "Setting display name: $DISPLAY_NAME"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $DISPLAY_NAME" "$INFO_PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $DISPLAY_NAME" "$INFO_PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName $DISPLAY_NAME" "$INFO_PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleName string $DISPLAY_NAME" "$INFO_PLIST"
 
 if [[ -n "$VERSION" ]]; then
   echo "Setting marketing version: $VERSION"
@@ -220,6 +264,14 @@ if [[ "$SKIP_ICON" -eq 0 ]]; then
     echo "Error: sips not found on this macOS system." >&2
     exit 1
   fi
+  if ! command -v tiff2icns >/dev/null 2>&1; then
+    echo "Error: tiff2icns not found on this macOS system." >&2
+    exit 1
+  fi
+  if ! command -v tiffutil >/dev/null 2>&1; then
+    echo "Error: tiffutil not found on this macOS system." >&2
+    exit 1
+  fi
 
   mkdir -p "$ROOT_DIR/build"
   ICONSET_TMP_DIR="$(mktemp -d "$ROOT_DIR/build/iconset.XXXXXX")"
@@ -239,7 +291,17 @@ if [[ "$SKIP_ICON" -eq 0 ]]; then
   sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
 
   mkdir -p "$APP_PATH/Contents/Resources"
-  iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns"
+  if ! iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns" >/dev/null 2>&1; then
+    echo "iconutil failed; falling back to tiff2icns..."
+    TIFF_TMP_DIR="$ICONSET_TMP_DIR/tiff"
+    mkdir -p "$TIFF_TMP_DIR"
+    for size in 16 32 128 256 512 1024; do
+      sips -s format tiff -z "$size" "$size" "$ICON_PNG" --out "$TIFF_TMP_DIR/${size}.tiff" >/dev/null
+    done
+    tiffutil -cat "$TIFF_TMP_DIR"/*.tiff -out "$TIFF_TMP_DIR/multi.tiff" >/dev/null
+    tiff2icns "$TIFF_TMP_DIR/multi.tiff" >/dev/null
+    cp "$TIFF_TMP_DIR/multi.icns" "$APP_PATH/Contents/Resources/AppIcon.icns"
+  fi
   /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon" "$INFO_PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$INFO_PLIST"
 fi
@@ -248,7 +310,12 @@ echo "Embedding provisioning profile..."
 cp "$PROVISIONING_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
 
 echo "Reading provisioning profile entitlements..."
-security cms -D -i "$PROVISIONING_PROFILE" > "$PROFILE_PLIST_TMP"
+if ! security cms -D -i "$PROVISIONING_PROFILE" > "$PROFILE_PLIST_TMP" 2>/dev/null; then
+  if ! openssl smime -inform der -verify -noverify -in "$PROVISIONING_PROFILE" -out "$PROFILE_PLIST_TMP" >/dev/null 2>&1; then
+    echo "Error: unable to decode provisioning profile: $PROVISIONING_PROFILE" >&2
+    exit 1
+  fi
+fi
 PROFILE_APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST_TMP" 2>/dev/null || true)"
 if [[ -z "$PROFILE_APP_IDENTIFIER" ]]; then
   PROFILE_APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c "Print :ApplicationIdentifierPrefix:0" "$PROFILE_PLIST_TMP" 2>/dev/null || true).$BUNDLE_ID"

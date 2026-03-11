@@ -5,7 +5,7 @@ NOTE_NAMES = {
 
 UI_TEXTS = {
     "es": {
-        "app_title": "MIDIChords",
+        "app_title": "MIDI Piano & Guitar Chords",
         "panel_chord": "Acorde",
         "panel_settings": "Configuración",
         "panel_staff": "Pentagrama",
@@ -95,7 +95,7 @@ UI_TEXTS = {
         "button_save": "Guardar",
     },
     "en": {
-        "app_title": "MIDIChords",
+        "app_title": "MIDI Piano & Guitar Chords",
         "panel_chord": "Chord",
         "panel_settings": "Settings",
         "panel_staff": "Staff",

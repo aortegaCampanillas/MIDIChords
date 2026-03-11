@@ -61,6 +61,7 @@ class PianoAudioEngine:
         self.master_gain = 0.14
         self.preset = "acoustic"
         self.guitar_preset = "steel_clean"
+        self.output_device: Optional[int] = None
         self.stream: Optional[sd.OutputStream] = None
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
@@ -115,6 +116,7 @@ class PianoAudioEngine:
 
     def start(self, output_device: Optional[int]) -> None:
         self.stop()
+        self.output_device = output_device
         self.stream = sd.OutputStream(
             samplerate=self.sample_rate,
             channels=self.channels,
@@ -125,6 +127,16 @@ class PianoAudioEngine:
             latency="low",
         )
         self.stream.start()
+
+    def set_output_device(self, output_device: Optional[int]) -> None:
+        restart_stream = self.stream is not None and self.output_device != output_device
+        self.output_device = output_device
+        if restart_stream:
+            self.start(output_device)
+
+    def ensure_started(self) -> None:
+        if self.stream is None:
+            self.start(self.output_device)
 
     def stop(self) -> None:
         with self.lock:
@@ -147,6 +159,10 @@ class PianoAudioEngine:
     def note_on(self, note: int, velocity: int) -> None:
         if velocity <= 0:
             self.note_off(note)
+            return
+        try:
+            self.ensure_started()
+        except Exception:
             return
         if self.preset == "grand_sample" and self.piano_sample_map:
             self._trigger_sample_voice(
@@ -196,6 +212,10 @@ class PianoAudioEngine:
                     sample_voice.decay = min(sample_voice.decay, 0.9993)
 
     def metronome_click(self, accent: bool = False, bar: bool = False, volume_scale: float = 1.0) -> None:
+        try:
+            self.ensure_started()
+        except Exception:
+            return
         with self.lock:
             level_gain = max(0.0, min(1.0, float(volume_scale)))
             if level_gain <= 0.0:
@@ -224,6 +244,10 @@ class PianoAudioEngine:
                 self.click_voices.append(ClickVoice(accent_level=level, sample_gain=level_gain, age_samples=0))
 
     def pluck_guitar_note(self, note: int, velocity: int = 100, duration_seconds: float = 1.6) -> None:
+        try:
+            self.ensure_started()
+        except Exception:
+            return
         if self.guitar_preset == "nylon_sample" and self.guitar_sample_map:
             self._trigger_sample_voice(
                 note=note,

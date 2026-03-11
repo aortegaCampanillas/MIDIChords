@@ -14,7 +14,7 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MidiChordsMobileApp());
 
-    expect(find.text('MIDIChords Tablet'), findsOneWidget);
+    expect(find.text('MIDI Piano & Guitar Chords'), findsOneWidget);
     expect(find.text('Detección'), findsOneWidget);
   });
 }

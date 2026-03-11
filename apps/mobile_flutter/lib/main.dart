@@ -558,7 +558,7 @@ class MidiChordsMobileApp extends StatelessWidget {
     const accent = Color(0xFFF3BF2F);
 
     return MaterialApp(
-      title: 'MIDIChords',
+      title: 'MIDI Piano & Guitar Chords',
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: bg,
@@ -641,7 +641,7 @@ class _TabletOnlyGate extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'MIDIChords está disponible solo para tablets',
+                      'MIDI Piano & Guitar Chords esta disponible solo para tablets',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Color(0xFFE9EDF2),
@@ -3553,7 +3553,7 @@ class _HomeScreenState extends State<HomeScreen> {
         titleSpacing: 12,
         title: Row(
           children: <Widget>[
-            const Text('MIDIChords'),
+            const Text('MIDI Piano & Guitar Chords'),
             const SizedBox(width: 12),
             Expanded(
               child: Center(

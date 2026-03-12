@@ -202,6 +202,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				05A05F2917CBFF4CA1050BF5 /* [CP] Embed Pods Frameworks */,
+				C7E7F3A11D4B8C5E9A1B2C3D /* Sign Embedded Frameworks */,
 			);
 			buildRules = (
 			);
@@ -343,6 +344,22 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
+		C7E7F3A11D4B8C5E9A1B2C3D /* Sign Embedded Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}",
+			);
+			name = "Sign Embedded Frameworks";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\n\nFRAMEWORKS_DIR=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\nSIGNING_IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\nif [ -z \"$SIGNING_IDENTITY\" ] || [ ! -d \"$FRAMEWORKS_DIR\" ]; then\n  exit 0\nfi\n\nfind \"$FRAMEWORKS_DIR\" -maxdepth 1 -type d -name '*.framework' | while IFS= read -r framework; do\n  binary_name=\"$(basename \"$framework\" .framework)\"\n  binary_path=\"$framework/$binary_name\"\n  if [ -f \"$binary_path\" ]; then\n    codesign --force --sign \"$SIGNING_IDENTITY\" --preserve-metadata=identifier,entitlements,flags --timestamp=none \"$framework\"\n  fi\ndone\n";
+			showEnvVarsInLog = 0;
+		};
 		EF9F5744FCD1E4DA1D99BB5A /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -445,7 +462,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -463,7 +480,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "$(MIDICHORDS_TARGETED_DEVICE_FAMILY)";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Profile;
@@ -488,7 +505,7 @@
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -511,7 +528,7 @@
 					/usr/lib/swift,
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -535,7 +552,7 @@
 					/usr/lib/swift,
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -557,7 +574,7 @@
 					/usr/lib/swift,
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -593,7 +610,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -617,7 +634,7 @@
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "$(MIDICHORDS_TARGETED_DEVICE_FAMILY)";
 			};
 			name = Debug;
 		};
@@ -650,7 +667,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -695,11 +712,12 @@
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "$(MIDICHORDS_TARGETED_DEVICE_FAMILY)";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -724,10 +742,11 @@
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.aortegacampanillas.midichords.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "$(MIDICHORDS_TARGETED_DEVICE_FAMILY)";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;

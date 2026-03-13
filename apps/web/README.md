@@ -36,4 +36,4 @@ El formulario de comentarios usa `Resend` si está configurado:
 Comportamiento por entorno:
 
 - Preview: envía correo automáticamente cuando `provider=resend`.
-- Producción (`main`): envía solo si además defines `MIDICHORDS_FEEDBACK_ENABLE_IN_PROD=true`.
+- Producción (`main`): envía correo automáticamente cuando `provider=resend`.

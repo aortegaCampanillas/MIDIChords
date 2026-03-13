@@ -1144,7 +1144,7 @@ async function submitFeedbackForm(event) {
   submitBtn.disabled = true;
   status.textContent = tr("feedback_sending");
   try {
-    await fetchJson("/api/feedback", {
+    const out = await fetchJson("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1156,6 +1156,9 @@ async function submitFeedbackForm(event) {
         page_url: window.location.href,
       }),
     });
+    if (!out?.sent) {
+      throw new Error(out?.reason || "feedback_not_sent");
+    }
     form.reset();
     status.textContent = tr("feedback_ok");
   } catch (_err) {

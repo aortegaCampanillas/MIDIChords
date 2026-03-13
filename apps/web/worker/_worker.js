@@ -519,10 +519,6 @@ function isPreviewDeployment(env) {
   return branch !== "main" && branch !== "master";
 }
 
-function isProductionFeedbackEnabled(env) {
-  return String(env?.MIDICHORDS_FEEDBACK_ENABLE_IN_PROD || "").trim().toLowerCase() === "true";
-}
-
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -591,11 +587,6 @@ async function forwardFeedbackByEmail(body, env) {
 
   if (!name || !email || !message) {
     return json({ error: "missing required fields" }, 400);
-  }
-
-  const preview = isPreviewDeployment(env);
-  if (!preview && !isProductionFeedbackEnabled(env)) {
-    return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "not_enabled" });
   }
 
   if (provider === "resend") {

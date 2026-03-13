@@ -3379,7 +3379,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {});
     }
-    final metroAudioLeadMs = Platform.isIOS ? 18 : 0;
+    final metroAudioLeadMs = Platform.isIOS ? 26 : 0;
     if (metroAudioLeadMs > 0) {
       Future<void>.delayed(Duration(milliseconds: metroAudioLeadMs), () async {
         if (!_metroRunning) return;
@@ -5805,6 +5805,7 @@ class _HomeScreenState extends State<HomeScreen> {
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
+          final iphoneCompact = Platform.isIOS && _isCompactPhone(context);
           final sliderWidth = compact
               ? constraints.maxWidth - 24
               : constraints.maxWidth - 170;
@@ -5916,19 +5917,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
                       Text(_ui('Pulsos por compás:', 'Beats per bar:')),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _metroBeatsPerBar = (_metroBeatsPerBar - 1).clamp(
-                              1,
-                              16,
-                            );
-                            _metroCurrentBeat = -1;
-                          });
-                          if (_metroRunning) _startMetronome();
-                        },
-                        icon: const Icon(Icons.remove),
-                      ),
+                      if (!iphoneCompact)
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _metroBeatsPerBar = (_metroBeatsPerBar - 1).clamp(
+                                1,
+                                16,
+                              );
+                              _metroCurrentBeat = -1;
+                            });
+                            if (_metroRunning) _startMetronome();
+                          },
+                          icon: const Icon(Icons.remove),
+                        ),
                       SizedBox(
                         width: 72,
                         child: DropdownButton<int>(
@@ -5955,19 +5957,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                       ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _metroBeatsPerBar = (_metroBeatsPerBar + 1).clamp(
-                              1,
-                              16,
-                            );
-                            _metroCurrentBeat = -1;
-                          });
-                          if (_metroRunning) _startMetronome();
-                        },
-                        icon: const Icon(Icons.add),
-                      ),
+                      if (!iphoneCompact)
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _metroBeatsPerBar = (_metroBeatsPerBar + 1).clamp(
+                                1,
+                                16,
+                              );
+                              _metroCurrentBeat = -1;
+                            });
+                            if (_metroRunning) _startMetronome();
+                          },
+                          icon: const Icon(Icons.add),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),

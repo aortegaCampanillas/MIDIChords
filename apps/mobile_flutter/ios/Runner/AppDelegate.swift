@@ -10,6 +10,10 @@ private final class IOSMetronomeClickEngine {
     let resolved = assetLookup("assets/metronome.mp3")
     return Bundle.main.bundleURL.appendingPathComponent(resolved)
   }()
+  private lazy var barAccentURL: URL = {
+    let resolved = assetLookup("assets/metronome_bar_accent.mp3")
+    return Bundle.main.bundleURL.appendingPathComponent(resolved)
+  }()
 
   init?(assetLookup: @escaping (String) -> String) {
     self.assetLookup = assetLookup
@@ -30,18 +34,19 @@ private final class IOSMetronomeClickEngine {
     let gainSeed: Float
     switch safeLevel {
     case 2:
-      rate = 1.68
+      rate = 1.0
       gainSeed = 1.0
     case 1:
-      rate = 1.24
-      gainSeed = 0.80
+      rate = 1.42
+      gainSeed = 0.86
     default:
       rate = 0.94
       gainSeed = 0.62
     }
     let gain = max(0.0, min(1.0, Float(volume) * gainSeed))
     do {
-      let player = try AVAudioPlayer(contentsOf: metronomeURL)
+      let sourceURL = safeLevel == 2 ? barAccentURL : metronomeURL
+      let player = try AVAudioPlayer(contentsOf: sourceURL)
       player.enableRate = true
       player.rate = rate
       player.volume = gain
@@ -72,8 +77,13 @@ private final class IOSMetronomeClickEngine {
         player.volume = 0.0
         player.prepareToPlay()
         self.activePlayers.append(player)
+        let accentPlayer = try AVAudioPlayer(contentsOf: self.barAccentURL)
+        accentPlayer.enableRate = true
+        accentPlayer.volume = 0.0
+        accentPlayer.prepareToPlay()
+        self.activePlayers.append(accentPlayer)
         self.queue.asyncAfter(deadline: .now() + 0.4) {
-          self.activePlayers.removeAll { $0 === player }
+          self.activePlayers.removeAll { $0 === player || $0 === accentPlayer }
         }
       } catch {}
     }

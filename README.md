@@ -67,6 +67,21 @@ Abrir: `http://127.0.0.1:8000`
 
 Nota: `launch.py web` usa el mismo Worker de Cloudflare que producción (`wrangler dev`), para evitar diferencias entre local y Cloudflare.
 
+Despliegue a Cloudflare Pages:
+
+```bash
+gh workflow run deploy-cloudflare-on-tag.yml --ref main
+```
+
+Seguimiento:
+
+```bash
+gh run list --workflow deploy-cloudflare-on-tag.yml
+gh run watch <run_id>
+```
+
+La documentación operativa completa del despliegue web está en `apps/web/README.md`.
+
 ## Flutter (tablets iOS/Android)
 
 Proyecto base creado en `apps/mobile_flutter`.

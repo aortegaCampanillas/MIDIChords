@@ -2,6 +2,84 @@ import AVFoundation
 import Flutter
 import UIKit
 
+private final class IOSMetronomeClickEngine {
+  private let assetLookup: (String) -> String
+  private let queue = DispatchQueue(label: "midichords.ios.metronome")
+  private var activePlayers: [AVAudioPlayer] = []
+  private lazy var metronomeURL: URL = {
+    let resolved = assetLookup("assets/metronome.mp3")
+    return Bundle.main.bundleURL.appendingPathComponent(resolved)
+  }()
+
+  init?(assetLookup: @escaping (String) -> String) {
+    self.assetLookup = assetLookup
+    do {
+      let session = AVAudioSession.sharedInstance()
+      try session.setCategory(.playback, options: [.mixWithOthers])
+      try session.setPreferredSampleRate(44_100)
+      try session.setPreferredIOBufferDuration(0.0025)
+      try session.setActive(true)
+    } catch {
+      return nil
+    }
+  }
+
+  func playClick(level: Int, volume: Double) -> Bool {
+    let safeLevel = max(0, min(2, level))
+    let rate: Float
+    let gainSeed: Float
+    switch safeLevel {
+    case 2:
+      rate = 1.68
+      gainSeed = 1.0
+    case 1:
+      rate = 1.24
+      gainSeed = 0.80
+    default:
+      rate = 0.94
+      gainSeed = 0.62
+    }
+    let gain = max(0.0, min(1.0, Float(volume) * gainSeed))
+    do {
+      let player = try AVAudioPlayer(contentsOf: metronomeURL)
+      player.enableRate = true
+      player.rate = rate
+      player.volume = gain
+      player.prepareToPlay()
+      player.delegate = nil
+      let ok = player.play()
+      guard ok else {
+        return false
+      }
+      queue.async {
+        self.activePlayers.append(player)
+        let cleanupDelay = max(0.25, player.duration / Double(rate) + 0.08)
+        self.queue.asyncAfter(deadline: .now() + cleanupDelay) {
+          self.activePlayers.removeAll { $0 === player || !$0.isPlaying }
+        }
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  func prewarm() {
+    queue.async {
+      do {
+        let player = try AVAudioPlayer(contentsOf: self.metronomeURL)
+        player.enableRate = true
+        player.volume = 0.0
+        player.prepareToPlay()
+        self.activePlayers.append(player)
+        self.queue.asyncAfter(deadline: .now() + 0.4) {
+          self.activePlayers.removeAll { $0 === player }
+        }
+      } catch {}
+    }
+  }
+}
+
 private final class IOSSynthFallbackEngine {
   private let engine = AVAudioEngine()
   private let mixer = AVAudioMixerNode()
@@ -155,9 +233,19 @@ private final class IOSSampleInstrumentEngine {
       try session.setPreferredSampleRate(44_100)
       try session.setPreferredIOBufferDuration(0.0029)
       try session.setActive(true)
+      engine.prepare()
       try engine.start()
     } catch {
       return nil
+    }
+  }
+
+  func prewarm() {
+    let assets = Array(Set(Array(pianoBank.values) + Array(guitarBank.values)))
+    queue.async {
+      for asset in assets {
+        _ = self.loadBuffer(assetPath: asset)
+      }
     }
   }
 
@@ -293,6 +381,7 @@ private final class IOSSampleInstrumentEngine {
   private var platformChannel: FlutterMethodChannel?
   private var sampleEngine: IOSSampleInstrumentEngine?
   private let synthFallback = IOSSynthFallbackEngine()
+  private var metronomeClickEngine: IOSMetronomeClickEngine?
 
   override func application(
     _ application: UIApplication,
@@ -303,6 +392,11 @@ private final class IOSSampleInstrumentEngine {
       sampleEngine = IOSSampleInstrumentEngine(assetLookup: { asset in
         registrar.lookupKey(forAsset: asset)
       })
+      metronomeClickEngine = IOSMetronomeClickEngine(assetLookup: { asset in
+        registrar.lookupKey(forAsset: asset)
+      })
+      sampleEngine?.prewarm()
+      metronomeClickEngine?.prewarm()
       let channel = FlutterMethodChannel(
         name: "midichords/platform",
         binaryMessenger: registrar.messenger()
@@ -378,6 +472,20 @@ private final class IOSSampleInstrumentEngine {
           self.sampleEngine?.stopAll()
           self.synthFallback?.stopAll()
           result(true)
+        case "playIosMetronomeClick":
+          guard
+            let args = call.arguments as? [String: Any],
+            let level = args["level"] as? NSNumber,
+            let volume = args["volume"] as? NSNumber
+          else {
+            result(false)
+            return
+          }
+          let ok = self.metronomeClickEngine?.playClick(
+            level: level.intValue,
+            volume: min(1.0, max(0.0, volume.doubleValue))
+          ) ?? false
+          result(ok)
         default:
           result(FlutterMethodNotImplemented)
         }

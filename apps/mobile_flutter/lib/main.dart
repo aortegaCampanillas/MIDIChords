@@ -2389,6 +2389,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return null;
     }
+    if (Platform.isIOS) {
+      try {
+        final ok =
+            await _kPlatformChannel.invokeMethod<bool>('playIosMetronomeClick', {
+              'level': level,
+              'volume': gain.clamp(0.0, 1.0),
+            }) ??
+            false;
+        if (ok) {
+          return null;
+        }
+      } catch (_) {}
+    }
     if (!_audioPlaybackAvailable) {
       if (gain > 0.02) {
         SystemSound.play(SystemSoundType.click);
@@ -6028,7 +6041,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               setState(() => _metroTimerEnabled = value ?? false);
                             },
                           ),
-                          Text(_ui('Temporizador', 'Timer')),
+                          Text(
+                            _isCompactPhone(context)
+                                ? _ui('Timer', 'Timer')
+                                : _ui('Temporizador', 'Timer'),
+                          ),
                         ],
                       ),
                       SizedBox(

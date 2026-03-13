@@ -621,57 +621,7 @@ class _TabletOnlyGate extends StatelessWidget {
     final media = MediaQuery.of(context);
     final isTablet = media.size.shortestSide >= _kTabletMinShortestSide;
     if (isTablet) return child;
-    return Scaffold(
-      backgroundColor: const Color(0xFF202834),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF273140),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF56627A)),
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      Icons.tablet_mac_outlined,
-                      color: Color(0xFFF3BF2F),
-                      size: 44,
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'MIDI Piano & Guitar Chords esta disponible solo para tablets',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFFE9EDF2),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Abre la aplicación en un iPad o tablet Android para continuar.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFFA8B6C8),
-                        fontSize: 15,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    return child;
   }
 }
 
@@ -692,6 +642,17 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _text = Color(0xFFE9EDF2);
   static const Color _muted = Color(0xFFA8B6C8);
   static const Color _accent = Color(0xFFF3BF2F);
+
+  bool _isCompactPhone(BuildContext context) =>
+      MediaQuery.of(context).size.shortestSide < _kTabletMinShortestSide;
+
+  double _compactResultHeight(BoxConstraints constraints, {double minHeight = 170}) {
+    final available = constraints.maxHeight.isFinite ? constraints.maxHeight : 640.0;
+    return math.max(minHeight, math.min(260.0, available * 0.38));
+  }
+
+  bool _isCompactLandscapePhoneForConstraints(BuildContext context, BoxConstraints constraints) =>
+      _isCompactPhone(context) && constraints.maxWidth > constraints.maxHeight;
   final TextEditingController _detectionOutputController =
       TextEditingController(text: 'No results');
   final TextEditingController _chordOutputController = TextEditingController(
@@ -3835,6 +3796,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final portrait = media.orientation == Orientation.portrait;
+    final compactPhone = _isCompactPhone(context);
     final enabledModes = _enabledModeIndexes();
     final currentTab = enabledModes.contains(_tabIndex) ? _tabIndex : 0;
     if (currentTab != _tabIndex) {
@@ -3854,27 +3816,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: portrait ? 64 : 74,
+        toolbarHeight: compactPhone ? (portrait ? 60 : 64) : (portrait ? 64 : 74),
         centerTitle: false,
-        titleSpacing: 12,
+        titleSpacing: compactPhone ? 8 : 12,
         title: Row(
           children: <Widget>[
             Flexible(
-              flex: portrait ? 4 : 5,
+              flex: compactPhone ? 3 : (portrait ? 4 : 5),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'MIDI Piano & Guitar Chords',
-                  style: TextStyle(fontSize: portrait ? 19 : 24),
+                  style: TextStyle(
+                    fontSize: compactPhone ? (portrait ? 15 : 18) : (portrait ? 19 : 24),
+                  ),
                 ),
               ),
             ),
-            SizedBox(width: portrait ? 8 : 12),
+            SizedBox(width: compactPhone ? 6 : (portrait ? 8 : 12)),
             Expanded(
-              flex: portrait ? 5 : 4,
+              flex: compactPhone ? 4 : (portrait ? 5 : 4),
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: portrait ? 420 : 360),
+                constraints: BoxConstraints(
+                  maxWidth: compactPhone ? (portrait ? 260 : 320) : (portrait ? 420 : 360),
+                ),
                 child: DropdownButtonFormField<int>(
                   key: ValueKey<String>(
                     'mode_${currentTab}_${_kEnableMobileTuner ? 1 : 0}',
@@ -3885,8 +3851,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: InputDecoration(
                     hintText: _ui('Modo', 'Mode'),
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: portrait ? 8 : 10,
+                      horizontal: compactPhone ? 10 : 12,
+                      vertical: compactPhone ? 6 : (portrait ? 8 : 10),
                     ),
                     isDense: true,
                   ),
@@ -3944,7 +3910,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: EdgeInsets.only(right: compactPhone ? 6 : 8),
             child: OutlinedButton(
               onPressed: _toggleMidiInput,
               style: OutlinedButton.styleFrom(
@@ -3956,14 +3922,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? const Color(0xFF1A222D)
                     : _text,
                 backgroundColor: _midiInputEnabled ? _accent : _surfaceDark,
+                padding: EdgeInsets.symmetric(
+                  horizontal: compactPhone ? 10 : 14,
+                  vertical: compactPhone ? 6 : 8,
+                ),
               ),
               child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
             ),
           ),
           Container(
-            constraints: const BoxConstraints(minWidth: 76),
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            constraints: BoxConstraints(minWidth: compactPhone ? 64 : 76),
+            margin: EdgeInsets.only(right: compactPhone ? 6 : 8),
+            padding: EdgeInsets.symmetric(horizontal: compactPhone ? 6 : 8),
             decoration: BoxDecoration(
               color: _surfaceDark,
               borderRadius: BorderRadius.circular(10),
@@ -3994,7 +3964,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _openSettingsPanel,
             icon: const Icon(Icons.settings),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: compactPhone ? 4 : 8),
         ],
       ),
       body: Container(
@@ -4022,7 +3992,59 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(12),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
           final wide = constraints.maxWidth >= 900;
+          if (compactPhone) {
+            final staffHeight = math.min(
+              280.0,
+              math.max(180.0, constraints.maxHeight * 0.28),
+            );
+            final compactLandscape = constraints.maxWidth > constraints.maxHeight;
+            final compactTopHeight = compactLandscape
+                ? (_tabIndex == 3
+                      ? math.max(300.0, constraints.maxHeight * 0.58)
+                      : math.max(240.0, constraints.maxHeight * 0.42))
+                : staffHeight;
+            return SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  if (compactLandscape)
+                    SizedBox(
+                      height: compactTopHeight,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(
+                            flex: 11,
+                            child: _buildStaffPanel(staffNotes, staffExtras),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 9,
+                            child: _panel(child: controls),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...<Widget>[
+                    SizedBox(
+                      height: staffHeight,
+                      child: _buildStaffPanel(staffNotes, staffExtras),
+                    ),
+                    const SizedBox(height: 12),
+                    _panel(child: controls),
+                  ],
+                  if (bottomPanel != null) ...<Widget>[
+                    const SizedBox(height: 12),
+                    bottomPanel,
+                  ] else if (showInstrument) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _buildInstrumentPanel(instrumentNotes),
+                  ],
+                ],
+              ),
+            );
+          }
           final top = wide
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -4132,18 +4154,52 @@ class _HomeScreenState extends State<HomeScreen> {
                 border: Border.all(color: const Color(0xFF3A4558)),
               ),
               child: switch (_tabIndex) {
-                3 => CustomPaint(
-                  painter: _MiniMetronomePainter(
-                    beatsPerBar: _metroBeatsPerBar,
-                    clicksPerBeat: _metroClicksPerBeat,
-                    currentBeat: _metroCurrentBeat,
-                    running: _metroRunning,
-                    direction: _metroDirection,
-                    motionProgress: _metronomeMotionProgress(),
-                    timerEnabled: _metroTimerEnabled,
-                    timerRemaining: _metroRemaining,
-                  ),
-                  child: const SizedBox.expand(),
+                3 => Stack(
+                  children: <Widget>[
+                    CustomPaint(
+                      painter: _MiniMetronomePainter(
+                        beatsPerBar: _metroBeatsPerBar,
+                        clicksPerBeat: _metroClicksPerBeat,
+                        currentBeat: _metroCurrentBeat,
+                        running: _metroRunning,
+                        direction: _metroDirection,
+                        motionProgress: _metronomeMotionProgress(),
+                        timerEnabled: _metroTimerEnabled,
+                        timerRemaining: _metroRemaining,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        ignoring: false,
+                        child: Align(
+                          alignment: const Alignment(0, 0.18),
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _metroRunning ? _accent : _surfaceDark,
+                              foregroundColor: _metroRunning
+                                  ? const Color(0xFF1A222D)
+                                  : _text,
+                              minimumSize: const Size(0, 38),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: _toggleMetronome,
+                            icon: Icon(_metroRunning ? Icons.stop : Icons.play_arrow),
+                            label: Text(
+                              _metroRunning
+                                  ? _ui('Detener metrónomo', 'Stop metronome')
+                                  : _ui('Iniciar metrónomo', 'Start metronome'),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 4 => CustomPaint(
                   child: LayoutBuilder(
@@ -4201,13 +4257,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final compactPhone = _isCompactPhone(context);
     final metronomeFixedPiano = _tabIndex == 3;
     final showRightControls = _tabIndex == 1 || _tabIndex == 2;
     final displayInstrumentView = metronomeFixedPiano ? 'piano' : _instrumentView;
     final panelHeight = switch (_tabIndex) {
       3 => portrait ? 152.0 : 168.0,
-      2 when _scaleMetronomeOnly => portrait ? 168.0 : 184.0,
-      1 || 2 => portrait ? 188.0 : 220.0,
+      2 when _scaleMetronomeOnly => compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
+      1 || 2 => compactPhone ? (portrait ? 204.0 : 232.0) : (portrait ? 188.0 : 220.0),
       _ => 220.0,
     };
     final chordVariations = (_tabIndex == 1 && _instrumentView == 'guitar')
@@ -4227,65 +4284,139 @@ class _HomeScreenState extends State<HomeScreen> {
         children: <Widget>[
           SizedBox(
             height: panelHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  child: displayInstrumentView == 'piano'
-                      ? _buildPianoStrip(activeMidi)
-                      : _buildGuitarStrip(
-                          activeMidi,
-                          chordVoicings: chordVoicings,
-                          chordVariations: chordVariations,
-                          chordVariant: safeVariant,
-                        ),
-                ),
-                if (showRightControls) ...<Widget>[
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 172,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _instToggle('piano', 'Piano'),
-                        const SizedBox(height: 8),
-                        _instToggle('guitar', 'Guitarra'),
-                        if (_instrumentView == 'guitar') ...<Widget>[
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            key: ValueKey<String>('hand_$_guitarHandedness'),
-                            initialValue: _guitarHandedness,
-                            dropdownColor: _surfaceDark,
-                            style: const TextStyle(color: _text),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              labelText: 'Mano',
+            child: compactPhone && showRightControls
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Expanded(
+                        child: displayInstrumentView == 'piano'
+                            ? _buildPianoStrip(activeMidi)
+                            : _buildGuitarStrip(
+                                activeMidi,
+                                chordVoicings: chordVoicings,
+                                chordVariations: chordVariations,
+                                chordVariant: safeVariant,
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          SizedBox(width: 140, child: _instToggle('piano', 'Piano')),
+                          SizedBox(width: 140, child: _instToggle('guitar', 'Guitarra')),
+                          if (_tabIndex == 1 &&
+                              _instrumentView == 'guitar' &&
+                              chordVoicings.length > 1) ...<Widget>[
+                            OutlinedButton(
+                              onPressed: safeVariant > 0
+                                  ? () => setState(
+                                      () => _chordGuitarVariant = safeVariant - 1,
+                                    )
+                                  : null,
+                              child: const Icon(Icons.chevron_left),
                             ),
-                            items: const <DropdownMenuItem<String>>[
-                              DropdownMenuItem<String>(
-                                value: 'right',
-                                child: Text('Diestro'),
+                            OutlinedButton(
+                              onPressed: safeVariant < chordVoicings.length - 1
+                                  ? () => setState(
+                                      () => _chordGuitarVariant = safeVariant + 1,
+                                    )
+                                  : null,
+                              child: const Icon(Icons.chevron_right),
+                            ),
+                          ],
+                          if (_instrumentView == 'guitar')
+                            SizedBox(
+                              width: 180,
+                              child: DropdownButtonFormField<String>(
+                                key: ValueKey<String>('hand_$_guitarHandedness'),
+                                initialValue: _guitarHandedness,
+                                dropdownColor: _surfaceDark,
+                                style: const TextStyle(color: _text),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  labelText: 'Mano',
+                                ),
+                                items: const <DropdownMenuItem<String>>[
+                                  DropdownMenuItem<String>(
+                                    value: 'right',
+                                    child: Text('Diestro'),
+                                  ),
+                                  DropdownMenuItem<String>(
+                                    value: 'left',
+                                    child: Text('Zurdo'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _guitarHandedness = value);
+                                  }
+                                },
                               ),
-                              DropdownMenuItem<String>(
-                                value: 'left',
-                                child: Text('Zurdo'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _guitarHandedness = value);
-                              }
-                            },
-                          ),
+                            ),
                         ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: displayInstrumentView == 'piano'
+                            ? _buildPianoStrip(activeMidi)
+                            : _buildGuitarStrip(
+                                activeMidi,
+                                chordVoicings: chordVoicings,
+                                chordVariations: chordVariations,
+                                chordVariant: safeVariant,
+                              ),
+                      ),
+                      if (showRightControls) ...<Widget>[
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 172,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              _instToggle('piano', 'Piano'),
+                              const SizedBox(height: 8),
+                              _instToggle('guitar', 'Guitarra'),
+                              if (_instrumentView == 'guitar') ...<Widget>[
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  key: ValueKey<String>('hand_$_guitarHandedness'),
+                                  initialValue: _guitarHandedness,
+                                  dropdownColor: _surfaceDark,
+                                  style: const TextStyle(color: _text),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Mano',
+                                  ),
+                                  items: const <DropdownMenuItem<String>>[
+                                    DropdownMenuItem<String>(
+                                      value: 'right',
+                                      child: Text('Diestro'),
+                                    ),
+                                    DropdownMenuItem<String>(
+                                      value: 'left',
+                                      child: Text('Zurdo'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() => _guitarHandedness = value);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-              ],
-            ),
           ),
-          if (_tabIndex == 1 && _instrumentView == 'guitar') ...<Widget>[
+          if (!compactPhone && _tabIndex == 1 && _instrumentView == 'guitar') ...<Widget>[
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -4329,10 +4460,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _instToggle(String key, String label) {
     final active = _instrumentView == key;
+    final compactPhone = _isCompactPhone(context);
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(150, 56),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        minimumSize: compactPhone ? const Size(112, 42) : const Size(150, 56),
+        padding: compactPhone
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         backgroundColor: active ? _accent : _surfaceDark,
         side: BorderSide(color: active ? _accent : _border),
         foregroundColor: active ? const Color(0xFF1A222D) : _text,
@@ -4909,20 +5043,22 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: _midiInputSoundEnabled ? _accent : null,
     );
     return _buildModeScaffold(
-      controls: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
+      controls: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
+          final resultHeight = compactLandscape
+              ? math.max(132.0, constraints.maxHeight - 116.0)
+              : _compactResultHeight(constraints, minHeight: 140);
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
           Text(
             _ui('Detección de acordes', 'Chord detection'),
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _ui(
-              'Pulsa notas en piano/guitarra para detectar acordes.',
-              'Tap notes on piano/guitar to detect chords.',
-            ),
-            style: const TextStyle(color: _muted),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -4982,23 +5118,51 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 label: Text(
                   _midiInputSoundEnabled
-                      ? _ui('Reproducir entrada MIDI', 'Play MIDI input')
-                      : _ui('Silenciar entrada MIDI', 'Mute MIDI input'),
+                      ? 'MIDI'
+                      : 'MIDI',
                 ),
                 style: midiSoundStyle,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Expanded(child: _resultBlock(controller: _detectionOutputController)),
+          if (compactPhone)
+            SizedBox(
+              height: resultHeight,
+              child: _resultBlock(controller: _detectionOutputController),
+            )
+          else
+            Expanded(child: _resultBlock(controller: _detectionOutputController)),
         ],
+          );
+          if (!compactLandscape) {
+            return content;
+          }
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: content,
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildChordGenerationPage() {
     return _buildModeScaffold(
-      controls: Column(
+      controls: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
+          final resultHeight = compactLandscape
+              ? math.max(84.0, constraints.maxHeight - 156.0)
+              : _compactResultHeight(constraints);
+          final compactGenerationLayout = compactPhone && constraints.maxWidth < 700;
+          final content = Column(
         children: <Widget>[
           Align(
             alignment: Alignment.centerLeft,
@@ -5008,151 +5172,315 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  key: ValueKey<int>(_chordRootPc),
-                  initialValue: _chordRootPc,
-                  dropdownColor: _surfaceDark,
-                  style: const TextStyle(color: _text),
-                  decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
-                  items: List<DropdownMenuItem<int>>.generate(
-                    12,
-                    (index) => DropdownMenuItem<int>(
-                      value: index,
-                      child: Text(_pcLabel(index)),
+          if (compactGenerationLayout)
+            Column(
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    _holdPlayButton(
+                      enabled:
+                          _generatedChordJson != null &&
+                          _extractMidiList(_generatedChordJson!, <String>[
+                            'notes_midi',
+                          ]).isNotEmpty,
+                      active: _generationPlayPressed,
+                      label: null,
+                      onDown: () async {
+                        final notes = <int>[
+                          if (_generatedChordJson != null) ...(_instrumentView == 'guitar'
+                              ? _selectedChordGuitarNotes()
+                              : _extractMidiList(_generatedChordJson!, <String>[
+                                  'notes_midi',
+                                ])),
+                        ]..sort();
+                        if (notes.isEmpty) return;
+                        setState(() => _generationPlayPressed = true);
+                        await _startHeldChord(
+                          notes,
+                          instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+                        );
+                      },
+                      onUp: () {
+                        _stopHeldChord();
+                        if (mounted) {
+                          setState(() => _generationPlayPressed = false);
+                        }
+                      },
                     ),
-                  ),
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() => _chordRootPc = value);
-                    if (!_requestInFlight) {
-                      unawaited(_callGenerateChord());
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey<String>('suffix_$_chordSuffix'),
-                  initialValue: _chordSuffix,
-                  dropdownColor: _surfaceDark,
-                  style: const TextStyle(color: _text),
-                  decoration: InputDecoration(labelText: _ui('Variante', 'Variant')),
-                  items: _chordPatterns
-                      .map(
-                        (p) => DropdownMenuItem<String>(
-                          value: (p['suffix'] as String? ?? ''),
-                          child: Text(
-                            (p['suffix'] as String? ?? '').isEmpty
-                                ? 'maj'
-                                : (p['suffix'] as String? ?? ''),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        key: ValueKey<int>(_chordRootPc),
+                        initialValue: _chordRootPc,
+                        dropdownColor: _surfaceDark,
+                        style: const TextStyle(color: _text),
+                        decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+                        items: List<DropdownMenuItem<int>>.generate(
+                          12,
+                          (index) => DropdownMenuItem<int>(
+                            value: index,
+                            child: Text(_pcLabel(index)),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() {
-                      _chordSuffix = value;
-                      _recomputeMaxInversion();
-                    });
-                    if (!_requestInFlight) {
-                      unawaited(_callGenerateChord());
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  key: ValueKey<String>(
-                    'inv_$_chordInversion/$_chordMaxInversion',
-                  ),
-                  initialValue: _chordInversion.clamp(0, _chordMaxInversion),
-                  isExpanded: true,
-                  dropdownColor: _surfaceDark,
-                  style: const TextStyle(color: _text),
-                  decoration: InputDecoration(labelText: _ui('Inversión', 'Inversion')),
-                  items: List<DropdownMenuItem<int>>.generate(
-                    _chordMaxInversion + 1,
-                    (i) => DropdownMenuItem<int>(
-                      value: i,
-                      child: Text(_inversionLabel(i)),
-                    ),
-                  ),
-                  selectedItemBuilder: (context) => List<Widget>.generate(
-                    _chordMaxInversion + 1,
-                    (i) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _inversionLabel(i, compact: true),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
-                  onChanged: _instrumentView == 'guitar'
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() => _chordInversion = value);
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() => _chordRootPc = value);
                           if (!_requestInFlight) {
                             unawaited(_callGenerateChord());
                           }
                         },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: _holdPlayButton(
-              enabled:
-                  _generatedChordJson != null &&
-                  _extractMidiList(_generatedChordJson!, <String>[
-                    'notes_midi',
-                  ]).isNotEmpty,
-              active: _generationPlayPressed,
-              label: null,
-              onDown: () async {
-                final notes = <int>[
-                  if (_generatedChordJson != null) ...(_instrumentView == 'guitar'
-                      ? _selectedChordGuitarNotes()
-                      : _extractMidiList(_generatedChordJson!, <String>[
-                          'notes_midi',
-                        ])),
-                ]..sort();
-                if (notes.isEmpty) return;
-                setState(() => _generationPlayPressed = true);
-                await _startHeldChord(
-                  notes,
-                  instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
-                );
-              },
-              onUp: () {
-                _stopHeldChord();
-                if (mounted) {
-                  setState(() => _generationPlayPressed = false);
-                }
-              },
+                const SizedBox(height: 8),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey<String>('suffix_$_chordSuffix'),
+                        initialValue: _chordSuffix,
+                        dropdownColor: _surfaceDark,
+                        style: const TextStyle(color: _text),
+                        decoration: InputDecoration(labelText: _ui('Variante', 'Variant')),
+                        items: _chordPatterns
+                            .map(
+                              (p) => DropdownMenuItem<String>(
+                                value: (p['suffix'] as String? ?? ''),
+                                child: Text(
+                                  (p['suffix'] as String? ?? '').isEmpty
+                                      ? 'maj'
+                                      : (p['suffix'] as String? ?? ''),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _chordSuffix = value;
+                            _recomputeMaxInversion();
+                          });
+                          if (!_requestInFlight) {
+                            unawaited(_callGenerateChord());
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        key: ValueKey<String>(
+                          'inv_$_chordInversion/$_chordMaxInversion',
+                        ),
+                        initialValue: _chordInversion.clamp(0, _chordMaxInversion),
+                        isExpanded: true,
+                        dropdownColor: _surfaceDark,
+                        style: const TextStyle(color: _text),
+                        decoration: InputDecoration(labelText: _ui('Inversión', 'Inversion')),
+                        items: List<DropdownMenuItem<int>>.generate(
+                          _chordMaxInversion + 1,
+                          (i) => DropdownMenuItem<int>(
+                            value: i,
+                            child: Text(_inversionLabel(i)),
+                          ),
+                        ),
+                        selectedItemBuilder: (context) => List<Widget>.generate(
+                          _chordMaxInversion + 1,
+                          (i) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _inversionLabel(i, compact: true),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ),
+                        onChanged: _instrumentView == 'guitar'
+                            ? null
+                            : (value) {
+                                if (value == null) return;
+                                setState(() => _chordInversion = value);
+                                if (!_requestInFlight) {
+                                  unawaited(_callGenerateChord());
+                                }
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          else
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    key: ValueKey<int>(_chordRootPc),
+                    initialValue: _chordRootPc,
+                    dropdownColor: _surfaceDark,
+                    style: const TextStyle(color: _text),
+                    decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+                    items: List<DropdownMenuItem<int>>.generate(
+                      12,
+                      (index) => DropdownMenuItem<int>(
+                        value: index,
+                        child: Text(_pcLabel(index)),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() => _chordRootPc = value);
+                      if (!_requestInFlight) {
+                        unawaited(_callGenerateChord());
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey<String>('suffix_$_chordSuffix'),
+                    initialValue: _chordSuffix,
+                    dropdownColor: _surfaceDark,
+                    style: const TextStyle(color: _text),
+                    decoration: InputDecoration(labelText: _ui('Variante', 'Variant')),
+                    items: _chordPatterns
+                        .map(
+                          (p) => DropdownMenuItem<String>(
+                            value: (p['suffix'] as String? ?? ''),
+                            child: Text(
+                              (p['suffix'] as String? ?? '').isEmpty
+                                  ? 'maj'
+                                  : (p['suffix'] as String? ?? ''),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _chordSuffix = value;
+                        _recomputeMaxInversion();
+                      });
+                      if (!_requestInFlight) {
+                        unawaited(_callGenerateChord());
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
+          const SizedBox(height: 12),
+          if (!compactGenerationLayout) ...<Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    key: ValueKey<String>(
+                      'inv_$_chordInversion/$_chordMaxInversion',
+                    ),
+                    initialValue: _chordInversion.clamp(0, _chordMaxInversion),
+                    isExpanded: true,
+                    dropdownColor: _surfaceDark,
+                    style: const TextStyle(color: _text),
+                    decoration: InputDecoration(labelText: _ui('Inversión', 'Inversion')),
+                    items: List<DropdownMenuItem<int>>.generate(
+                      _chordMaxInversion + 1,
+                      (i) => DropdownMenuItem<int>(
+                        value: i,
+                        child: Text(_inversionLabel(i)),
+                      ),
+                    ),
+                    selectedItemBuilder: (context) => List<Widget>.generate(
+                      _chordMaxInversion + 1,
+                      (i) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _inversionLabel(i, compact: true),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    onChanged: _instrumentView == 'guitar'
+                        ? null
+                        : (value) {
+                            if (value == null) return;
+                            setState(() => _chordInversion = value);
+                            if (!_requestInFlight) {
+                              unawaited(_callGenerateChord());
+                            }
+                          },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _holdPlayButton(
+                enabled:
+                    _generatedChordJson != null &&
+                    _extractMidiList(_generatedChordJson!, <String>[
+                      'notes_midi',
+                    ]).isNotEmpty,
+                active: _generationPlayPressed,
+                label: null,
+                onDown: () async {
+                  final notes = <int>[
+                    if (_generatedChordJson != null) ...(_instrumentView == 'guitar'
+                        ? _selectedChordGuitarNotes()
+                        : _extractMidiList(_generatedChordJson!, <String>[
+                            'notes_midi',
+                          ])),
+                  ]..sort();
+                  if (notes.isEmpty) return;
+                  setState(() => _generationPlayPressed = true);
+                  await _startHeldChord(
+                    notes,
+                    instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+                  );
+                },
+                onUp: () {
+                  _stopHeldChord();
+                  if (mounted) {
+                    setState(() => _generationPlayPressed = false);
+                  }
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
-          Expanded(child: _resultBlock(controller: _chordOutputController)),
+          if (compactPhone)
+            SizedBox(
+              height: resultHeight,
+              child: _resultBlock(controller: _chordOutputController),
+            )
+          else
+            Expanded(child: _resultBlock(controller: _chordOutputController)),
         ],
+          );
+          if (!compactLandscape) {
+            return content;
+          }
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: content,
+            ),
+          );
+        },
       ),
     );
   }
@@ -5162,6 +5490,7 @@ class _HomeScreenState extends State<HomeScreen> {
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
+          final stackedSelectors = constraints.maxWidth < 420;
           final metroLabelWidth = compact ? 96.0 : 110.0;
           final resultHeight = _scaleMetronomeOnly
               ? math.max(132.0, constraints.maxHeight - 220.0)
@@ -5179,10 +5508,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
+                if (stackedSelectors)
+                  Column(
+                    children: <Widget>[
+                      DropdownButtonFormField<int>(
                         key: ValueKey<int>(100 + _scaleTonicPc),
                         initialValue: _scaleTonicPc,
                         dropdownColor: _surfaceDark,
@@ -5205,13 +5534,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
                         key: ValueKey<String>('scale_$_scalePatternName'),
                         initialValue: _scalePatternName,
+                        isExpanded: true,
                         dropdownColor: _surfaceDark,
                         style: const TextStyle(color: _text),
                         decoration: InputDecoration(labelText: _ui('Escala', 'Scale')),
@@ -5223,6 +5550,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                   (p['localized_name'] as String? ??
                                       p['name'] as String? ??
                                       'Ionian'),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        selectedItemBuilder: (context) => _scalePatterns
+                            .map(
+                              (p) => Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  (p['localized_name'] as String? ??
+                                      p['name'] as String? ??
+                                      'Ionian'),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ),
                             )
@@ -5237,9 +5580,87 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         },
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          key: ValueKey<int>(100 + _scaleTonicPc),
+                          initialValue: _scaleTonicPc,
+                          dropdownColor: _surfaceDark,
+                          style: const TextStyle(color: _text),
+                          decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+                          items: List<DropdownMenuItem<int>>.generate(
+                            12,
+                            (index) => DropdownMenuItem<int>(
+                              value: index,
+                              child: Text(_pcLabel(index)),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() => _scaleTonicPc = value);
+                            if (!_requestInFlight) {
+                              unawaited(_callGenerateScale());
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<String>(
+                          key: ValueKey<String>('scale_$_scalePatternName'),
+                          initialValue: _scalePatternName,
+                          isExpanded: true,
+                          dropdownColor: _surfaceDark,
+                          style: const TextStyle(color: _text),
+                          decoration: InputDecoration(labelText: _ui('Escala', 'Scale')),
+                          items: _scalePatterns
+                              .map(
+                                (p) => DropdownMenuItem<String>(
+                                  value: (p['name'] as String? ?? 'Ionian'),
+                                  child: Text(
+                                    (p['localized_name'] as String? ??
+                                        p['name'] as String? ??
+                                        'Ionian'),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          selectedItemBuilder: (context) => _scalePatterns
+                              .map(
+                                (p) => Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    (p['localized_name'] as String? ??
+                                        p['name'] as String? ??
+                                        'Ionian'),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() => _scalePatternName = value);
+                            if (!_requestInFlight) {
+                              unawaited(_callGenerateScale());
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
@@ -5651,30 +6072,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _metroRunning ? _accent : _surfaceDark,
-                      foregroundColor: _metroRunning
-                          ? const Color(0xFF1A222D)
-                          : _text,
-                      minimumSize: const Size(0, 38),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: _toggleMetronome,
-                    icon: Icon(_metroRunning ? Icons.stop : Icons.play_arrow),
-                    label: Text(
-                      _metroRunning
-                          ? _ui('Detener metrónomo', 'Stop metronome')
-                          : _ui('Iniciar metrónomo', 'Start metronome'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -6157,13 +6554,21 @@ class _MiniStaffPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.8;
 
-    final left = 52.0;
+    final compactWidth = size.width < 520;
+    final left = compactWidth ? 28.0 : 52.0;
     final right = size.width - 16;
     final gap = math.max(10.0, math.min(16.0, size.height / 24));
     final grandGap = math.max(64.0, gap * 6.2);
     final systemH = grandGap + (4 * gap);
     final trebleTop = (size.height - systemH) / 2;
     final bassTop = trebleTop + grandGap;
+    final clefInset = compactWidth ? 6.0 : 12.0;
+    final clefBassInset = compactWidth ? 8.0 : 14.0;
+    final noteStartX = left + (compactWidth ? 72.0 : 110.0);
+    final scaleStepX = compactWidth ? 24.0 : 32.0;
+    final noteW = compactWidth ? 13.0 : 16.0;
+    final noteH = compactWidth ? 10.0 : 12.0;
+    final noteColumnStep = compactWidth ? noteW * 1.4 : noteW * 1.8;
 
     for (int i = 0; i < 5; i += 1) {
       final yT = trebleTop + i * gap;
@@ -6186,17 +6591,17 @@ class _MiniStaffPainter extends CustomPainter {
       text: TextSpan(text: '𝄞', style: clefStyle),
       textDirection: TextDirection.ltr,
     )..layout();
-    tpTreble.paint(canvas, Offset(left + 12, trebleTop + gap * 0.6));
+    tpTreble.paint(canvas, Offset(left + clefInset, trebleTop + gap * 0.6));
     final tpBass = TextPainter(
       text: TextSpan(text: '𝄢', style: clefStyle),
       textDirection: TextDirection.ltr,
     )..layout();
-    tpBass.paint(canvas, Offset(left + 14, bassTop + gap * 0.5));
+    tpBass.paint(canvas, Offset(left + clefBassInset, bassTop + gap * 0.5));
 
     if (scaleRhNotes.isNotEmpty) {
       final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
       for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
-        final x = left + 110 + (degree * 32.0);
+        final x = noteStartX + (degree * scaleStepX);
         if (degree < pairCount) {
           final bassMidi = scaleLhNotes[degree];
           final yBass = _midiToBassY(bassMidi.toDouble(), bassTop, gap);
@@ -6217,7 +6622,7 @@ class _MiniStaffPainter extends CustomPainter {
             color: noteOutline.color,
           );
           canvas.drawOval(
-            Rect.fromCenter(center: Offset(x, yBass), width: 16, height: 12),
+            Rect.fromCenter(center: Offset(x, yBass), width: noteW, height: noteH),
             noteOutline,
           );
         }
@@ -6240,7 +6645,7 @@ class _MiniStaffPainter extends CustomPainter {
           color: noteOutline.color,
         );
         canvas.drawOval(
-          Rect.fromCenter(center: Offset(x, yTreble), width: 16, height: 12),
+          Rect.fromCenter(center: Offset(x, yTreble), width: noteW, height: noteH),
           noteOutline,
         );
       }
@@ -6250,8 +6655,6 @@ class _MiniStaffPainter extends CustomPainter {
       final placedBassCols = <int, List<double>>{};
       final rhSet = generationRhNotes.toSet();
       final lhSet = generationLhNotes.toSet();
-      const noteW = 16.0;
-      const noteH = 12.0;
       final overlapThreshold = math.max(1.0, noteH - 1.0);
       for (int i = 0; i < list.length; i += 1) {
         final midi = list[i];
@@ -6268,7 +6671,7 @@ class _MiniStaffPainter extends CustomPainter {
           if (!overlaps) break;
           col += 1;
         }
-        final x = left + 110 + (col * noteW * 1.8);
+        final x = noteStartX + (col * noteColumnStep);
         final ys = List<double>.from(placedCols[col] ?? const <double>[])
           ..add(y);
         placedCols[col] = ys;

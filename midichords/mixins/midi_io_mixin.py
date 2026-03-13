@@ -152,13 +152,12 @@ class MidiIOMixin:
                     )
 
         audio_device_index = self.audio_output_map.get(audio_name)
-        try:
-            self.audio_engine.start(audio_device_index)
-        except Exception as exc:
-            audio_error = str(exc)
+        self.audio_engine.set_output_device(audio_device_index)
+        if audio_name and audio_device_index is None:
+            audio_error = self.tr("status_unavailable")
 
         in_state = input_name if self.midi_bridge_connected else self.tr("status_no_input")
-        if self.audio_engine.stream is None:
+        if audio_error:
             out_state = self.tr("status_unavailable")
         elif audio_name and audio_name in self.audio_output_map:
             out_state = audio_name

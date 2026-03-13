@@ -1,12 +1,12 @@
-# Privacy Policy for Free MIDI Chords
+# Privacy Policy for MIDIChords
 
 Last updated: March 4, 2026
 
-Free MIDI Chords ("the App") is provided by Antonio Ortega González.
+MIDIChords ("the App") is provided by Antonio Ortega González.
 
 ## Data Collection
 
-Free MIDI Chords does not require account creation and does not intentionally collect personal data such as name, email address, phone number, or precise location.
+MIDIChords does not require account creation and does not intentionally collect personal data such as name, email address, phone number, or precise location.
 
 ## Analytics and Tracking
 

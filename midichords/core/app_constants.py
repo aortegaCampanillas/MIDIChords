@@ -1,10 +1,25 @@
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = PACKAGE_ROOT.parent
-CONFIG_PATH = PROJECT_ROOT / "config.json"
+
+
+def _resolve_config_path() -> Path:
+    if not getattr(sys, "frozen", False):
+        return PROJECT_ROOT / "config.json"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "MIDIChords" / "config.json"
+    config_root = os.environ.get("XDG_CONFIG_HOME")
+    if config_root:
+        return Path(config_root) / "MIDIChords" / "config.json"
+    return Path.home() / ".config" / "MIDIChords" / "config.json"
+
+
+CONFIG_PATH = _resolve_config_path()
 
 FORCE_RTMIDI_SCAN_ENV = "MIDICHORDS_FORCE_RTMIDI_SCAN"
 DISABLE_RTMIDI_SCAN_ENV = "MIDICHORDS_DISABLE_RTMIDI_SCAN"

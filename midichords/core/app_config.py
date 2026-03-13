@@ -22,4 +22,5 @@ def load_config_file(path: Path, defaults: dict[str, Any]) -> dict[str, Any]:
 
 
 def save_config_file(path: Path, config_data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config_data, indent=2, ensure_ascii=False), encoding="utf-8")

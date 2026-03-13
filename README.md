@@ -144,6 +144,7 @@ Requisitos previos:
 - Certificado `Mac App Distribution`
 - Certificado `Mac Installer Distribution`
 - Provisioning profile de macOS App Store para tu `Bundle ID`
+- Python enlazado con `Tcl/Tk 8.6` para el build de escritorio. No uses Homebrew `python@3.14` con `Tk 9.0` para generar el binario de la Mac App Store.
 
 Script disponible:
 
@@ -178,6 +179,10 @@ Notas:
   - `com.apple.application-identifier`
   - `com.apple.developer.team-identifier`
   y los incluye en los entitlements de firma.
+- Si App Review rechaza el binario por `libtcl9tk9.0.dylib` o símbolos no públicos, reconstruye con otro runtime de Python para macOS que use `Tcl/Tk 8.6`.
+- El nombre visible en App Store no debe incluir referencias a precio como `Free`; ese cambio se hace en App Store Connect, no en el bundle.
+- Si instalas el Python oficial de `python.org` para evitar Homebrew `Tk 9.0`, puedes preparar un entorno limpio con `scripts/bootstrap_mas_build_env.sh`.
+- Antes de firmar o subir a App Store, valida el entorno completo con `scripts/validate_macos_release_env.sh`.
 - Puedes ajustar estos valores con:
   - `--category-uti`
   - `--min-system-version`

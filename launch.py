@@ -121,15 +121,15 @@ def run_mobile(mobile_args: list[str]) -> None:
                         cmd.extend(["--dart-define", f"SdkRoot={sdk_root}"])
     cmd.extend(mobile_args)
     try:
-        subprocess.run(cmd, cwd=str(project_dir), check=True)
+        proc = subprocess.run(cmd, cwd=str(project_dir), check=False)
     except FileNotFoundError:
         raise SystemExit("flutter no está instalado o no está en PATH")
-    except subprocess.CalledProcessError as exc:
+    if proc.returncode != 0:
         cmd_str = " ".join(cmd)
-        raise SystemExit(
-            f"flutter run falló con código {exc.returncode}.\n"
-            f"Comando: {cmd_str}"
-        ) from exc
+        print(f"[mobile] flutter run falló con código {proc.returncode}.")
+        print(f"[mobile] Comando: {cmd_str}")
+        print("[mobile] Revisa el log anterior de Flutter/Xcode/Gradle para la causa real.")
+        return
 
 
 def _local_lan_ip() -> str:

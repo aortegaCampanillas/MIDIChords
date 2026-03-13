@@ -1,4 +1,4 @@
-package com.example.mobile_flutter
+package com.FPAlanTuring.FreeMIDIChords
 
 import android.media.AudioAttributes
 import android.media.SoundPool

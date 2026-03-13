@@ -294,13 +294,17 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()
         self._on_mode_combo_changed(None)
-        self.refresh_devices()
-        self.connect_ports()
-        self.after(20, self._process_midi_queue)
+        self._startup_after_id: Optional[str] = self.after(0, self._complete_startup)
 
     def tr(self, key: str) -> str:
         language = self.config_data.get("language", "es")
         return UI_TEXTS.get(language, UI_TEXTS["en"]).get(key, key)
+
+    def _complete_startup(self) -> None:
+        self._startup_after_id = None
+        self.refresh_devices()
+        self.connect_ports()
+        self.after(20, self._process_midi_queue)
 
     def scale_name(self, canonical_name: str) -> str:
         language = self.config_data.get("language", "es")
@@ -1202,6 +1206,12 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
 
 
     def on_close(self) -> None:
+        if self._startup_after_id is not None:
+            try:
+                self.after_cancel(self._startup_after_id)
+            except Exception:
+                pass
+            self._startup_after_id = None
         if self.generation_space_release_after_id is not None:
             try:
                 self.after_cancel(self.generation_space_release_after_id)

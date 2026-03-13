@@ -11,6 +11,9 @@ Options:
   --bundle-id       CFBundleIdentifier for MIDIChords.app (required)
   --notary-profile  notarytool keychain profile name (required)
   --app-name        App name (default: MIDIChords)
+  --display-name    App display name in Info.plist (default: MIDI Piano & Guitar Chords)
+  --icon-png        Source PNG for AppIcon.icns (default: assets/app_logo.png)
+  --skip-icon       Do not generate/embed AppIcon.icns
   --skip-build      Do not run PyInstaller build
   --skip-notarize   Do not notarize/staple (sign only)
   -h, --help        Show this help
@@ -23,11 +26,45 @@ EOF
 }
 
 APP_NAME="MIDIChords"
+DISPLAY_NAME="MIDI Piano & Guitar Chords"
 IDENTITY=""
 BUNDLE_ID=""
 NOTARY_PROFILE=""
 SKIP_BUILD=0
 SKIP_NOTARIZE=0
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+ICON_PNG="assets/app_logo.png"
+SKIP_ICON=0
+
+check_supported_tk_runtime() {
+  if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    echo "Error: Python runtime not found: $PYTHON_BIN" >&2
+    exit 1
+  fi
+
+  local runtime_info py_exec tcl_ver tk_ver
+  runtime_info="$("$PYTHON_BIN" - <<'PY'
+import sys
+import tkinter
+
+print(f"{sys.executable}|{tkinter.TclVersion}|{tkinter.TkVersion}")
+PY
+)"
+  IFS='|' read -r py_exec tcl_ver tk_ver <<<"$runtime_info"
+
+  if [[ "${tcl_ver%%.*}" -ge 9 || "${tk_ver%%.*}" -ge 9 ]]; then
+    cat >&2 <<EOF
+Error: unsupported Tcl/Tk runtime detected for macOS packaging.
+Python: $py_exec
+Tcl: $tcl_ver
+Tk: $tk_ver
+
+Build the macOS app with a Python runtime linked against Tcl/Tk 8.6.
+Avoid Homebrew Python 3.14 + Tk 9.0 for signed macOS releases.
+EOF
+    exit 1
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -46,6 +83,18 @@ while [[ $# -gt 0 ]]; do
     --app-name)
       APP_NAME="${2:-}"
       shift 2
+      ;;
+    --display-name)
+      DISPLAY_NAME="${2:-}"
+      shift 2
+      ;;
+    --icon-png)
+      ICON_PNG="${2:-}"
+      shift 2
+      ;;
+    --skip-icon)
+      SKIP_ICON=1
+      shift
       ;;
     --skip-build)
       SKIP_BUILD=1
@@ -83,10 +132,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
 DMG_PATH="$ROOT_DIR/${APP_NAME}-macos.dmg"
 DMG_ROOT="$ROOT_DIR/dmg-root"
+ICONSET_TMP_DIR=""
+
+if [[ "$ICON_PNG" != /* ]]; then
+  ICON_PNG="$ROOT_DIR/$ICON_PNG"
+fi
 
 cd "$ROOT_DIR"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  check_supported_tk_runtime
   echo "Building ${APP_NAME}.app with PyInstaller..."
   pyinstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" app.py
 fi
@@ -99,6 +154,50 @@ fi
 echo "Setting bundle identifier: $BUNDLE_ID"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP_PATH/Contents/Info.plist" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE_ID" "$APP_PATH/Contents/Info.plist"
+
+echo "Setting display name: $DISPLAY_NAME"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $DISPLAY_NAME" "$APP_PATH/Contents/Info.plist" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $DISPLAY_NAME" "$APP_PATH/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName $DISPLAY_NAME" "$APP_PATH/Contents/Info.plist" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleName string $DISPLAY_NAME" "$APP_PATH/Contents/Info.plist"
+
+if [[ "$SKIP_ICON" -eq 0 ]]; then
+  if [[ ! -f "$ICON_PNG" ]]; then
+    echo "Error: icon source not found: $ICON_PNG" >&2
+    exit 1
+  fi
+  if ! command -v iconutil >/dev/null 2>&1 || ! command -v sips >/dev/null 2>&1 || ! command -v tiff2icns >/dev/null 2>&1 || ! command -v tiffutil >/dev/null 2>&1; then
+    echo "Error: macOS icon generation tools missing." >&2
+    exit 1
+  fi
+  ICONSET_TMP_DIR="$(mktemp -d "$ROOT_DIR/build/iconset-notary.XXXXXX")"
+  trap 'if [[ -n "$ICONSET_TMP_DIR" && -d "$ICONSET_TMP_DIR" ]]; then rm -rf "$ICONSET_TMP_DIR"; fi' EXIT
+  ICONSET_DIR="$ICONSET_TMP_DIR/AppIcon.iconset"
+  mkdir -p "$ICONSET_DIR"
+  sips -z 16 16 "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+  mkdir -p "$APP_PATH/Contents/Resources"
+  if ! iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns" >/dev/null 2>&1; then
+    TIFF_TMP_DIR="$ICONSET_TMP_DIR/tiff"
+    mkdir -p "$TIFF_TMP_DIR"
+    for size in 16 32 128 256 512 1024; do
+      sips -s format tiff -z "$size" "$size" "$ICON_PNG" --out "$TIFF_TMP_DIR/${size}.tiff" >/dev/null
+    done
+    tiffutil -cat "$TIFF_TMP_DIR"/*.tiff -out "$TIFF_TMP_DIR/multi.tiff" >/dev/null
+    tiff2icns "$TIFF_TMP_DIR/multi.tiff" >/dev/null
+    cp "$TIFF_TMP_DIR/multi.icns" "$APP_PATH/Contents/Resources/AppIcon.icns"
+  fi
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon" "$APP_PATH/Contents/Info.plist" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP_PATH/Contents/Info.plist"
+fi
 
 echo "Signing app bundle..."
 codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
@@ -131,4 +230,3 @@ echo
 echo "Done."
 echo "App: $APP_PATH"
 echo "DMG: $DMG_PATH"
-

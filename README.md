@@ -8,6 +8,8 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 - `midichords`: librería Python común (teoría musical, audio y lógica compartida)
 - `assets`: recursos gráficos y muestras de audio compartidas
 
+Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDIChords/CHANGELOG.md)
+
 ## Estructura
 
 ```text

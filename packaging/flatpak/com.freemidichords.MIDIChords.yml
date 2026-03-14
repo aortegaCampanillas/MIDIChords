@@ -25,6 +25,20 @@ modules:
         url: https://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz
         sha256: 47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def
   - python-deps.json
+  # sounddevice se compila aparte con PortAudio (incluye y lib) para que se genere _sounddevice.
+  - name: python3-sounddevice
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "sounddevice==0.5.1"
+    build-options:
+      env:
+        CFLAGS: "-I/app/include"
+        LDFLAGS: "-L/app/lib"
+        PKG_CONFIG_PATH: "/app/lib/pkgconfig"
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/80/2d/b04ae180312b81dbb694504bee170eada5372242e186f6298139fd3a0513/sounddevice-0.5.1.tar.gz
+        sha256: 09ca991daeda8ce4be9ac91e15a9a81c8f81efa6b695a348c9171ea0c16cb041
   - name: midichords-launcher
     buildsystem: simple
     build-commands:

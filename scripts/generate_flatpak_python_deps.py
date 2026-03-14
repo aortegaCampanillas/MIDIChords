@@ -36,6 +36,9 @@ SPECS = [
     PackageSpec("pyinstaller", "6.19.0"),
 ]
 
+# sounddevice se compila en el manifiesto principal con PortAudio (CFLAGS/LDFLAGS).
+EXCLUDE_FROM_DEPS = {"sounddevice"}
+
 WHEEL_FIRST = {"meson-python", "numpy", "python-rtmidi", "pyinstaller"}
 WHEEL_SUFFIXES = {
     "numpy": "cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
@@ -94,6 +97,8 @@ def package_module(spec: PackageSpec, file_info: dict) -> dict:
 def main() -> None:
     modules = []
     for spec in SPECS:
+        if spec.name in EXCLUDE_FROM_DEPS:
+            continue
         data = fetch_release(spec)
         file_info = select_file(spec, data)
         modules.append(package_module(spec, file_info))

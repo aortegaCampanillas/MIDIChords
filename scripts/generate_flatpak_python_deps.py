@@ -21,6 +21,7 @@ class PackageSpec:
 
 SPECS = [
     PackageSpec("setuptools", "82.0.1"),
+    PackageSpec("flit-core", "3.12.0"),
     PackageSpec("packaging", "23.2"),
     PackageSpec("setuptools-scm", "9.2.2"),
     PackageSpec("altgraph", "0.17.5"),

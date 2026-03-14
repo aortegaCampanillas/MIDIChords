@@ -17,21 +17,20 @@ OUTPUT = ROOT / "packaging" / "flatpak" / "python-deps.json"
 class PackageSpec:
     name: str
     version: str
-    mode: str
 
 
 SPECS = [
-    PackageSpec("mido", "1.3.2", "py3-none-any"),
-    PackageSpec("packaging", "23.2", "py3-none-any"),
-    PackageSpec("altgraph", "0.17.5", "py3-none-any"),
-    PackageSpec("pyinstaller-hooks-contrib", "2026.3", "py3-none-any"),
-    PackageSpec("setuptools", "82.0.1", "py3-none-any"),
-    PackageSpec("pycparser", "3.0", "py3-none-any"),
-    PackageSpec("sounddevice", "0.5.1", "py3-none-any"),
-    PackageSpec("pyinstaller", "6.19.0", "py3-none-any"),
-    PackageSpec("cffi", "2.0.0", "cp312-manylinux-x86_64"),
-    PackageSpec("numpy", "2.1.3", "cp312-manylinux-x86_64"),
-    PackageSpec("python-rtmidi", "1.5.8", "cp312-manylinux-x86_64"),
+    PackageSpec("mido", "1.3.2"),
+    PackageSpec("packaging", "23.2"),
+    PackageSpec("altgraph", "0.17.5"),
+    PackageSpec("pyinstaller-hooks-contrib", "2026.3"),
+    PackageSpec("setuptools", "82.0.1"),
+    PackageSpec("pycparser", "3.0"),
+    PackageSpec("sounddevice", "0.5.1"),
+    PackageSpec("pyinstaller", "6.19.0"),
+    PackageSpec("cffi", "2.0.0"),
+    PackageSpec("numpy", "2.1.3"),
+    PackageSpec("python-rtmidi", "1.5.8"),
 ]
 
 
@@ -43,20 +42,6 @@ def fetch_release(spec: PackageSpec) -> dict:
 
 def select_file(spec: PackageSpec, data: dict) -> dict:
     files = data["urls"]
-    if spec.mode == "py3-none-any":
-        for item in files:
-            if item["packagetype"] == "bdist_wheel" and item["filename"].endswith("py3-none-any.whl"):
-                return item
-    elif spec.mode == "cp312-manylinux-x86_64":
-        for item in files:
-            filename = item["filename"]
-            if (
-                item["packagetype"] == "bdist_wheel"
-                and "cp312-cp312" in filename
-                and "manylinux" in filename
-                and "x86_64" in filename
-            ):
-                return item
     for item in files:
         if item["packagetype"] == "sdist" and item["filename"].endswith(".tar.gz"):
             return item
@@ -86,7 +71,13 @@ def main() -> None:
         data = fetch_release(spec)
         file_info = select_file(spec, data)
         modules.append(package_module(spec, file_info))
-    OUTPUT.write_text(json.dumps(modules, indent=2) + "\n", encoding="utf-8")
+    payload = {
+        "name": "python3-dependencies",
+        "buildsystem": "simple",
+        "build-commands": [],
+        "modules": modules,
+    }
+    OUTPUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {OUTPUT}")
 
 

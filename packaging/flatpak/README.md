@@ -37,10 +37,6 @@ La vía más realista es:
 
 Se usa `com.freemidichords.MIDIChords` para que la app pueda verificarse en Flathub a partir del dominio `freemidichords.com`.
 
-## Siguiente paso
+## Publicar en Flathub
 
-Antes de enviar la app a Flathub conviene validar:
-
-- prueba local con `flatpak-builder`
-- si `sounddevice` necesita `portaudio` adicional dentro del runtime Flatpak
-- cambiar el `source` local del manifiesto por un tarball público basado en tag
+Guía paso a paso: **[FLATHUB.md](FLATHUB.md)**. Incluye crear el release en GitHub, fork de flathub, uso del manifiesto `com.freemidichords.MIDIChords.flathub.yml` (origen Git) y apertura del PR contra la rama `new-pr`.

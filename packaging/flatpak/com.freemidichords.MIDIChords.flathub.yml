@@ -1,3 +1,6 @@
+# Manifiesto para Flathub: usa origen Git (tag) en lugar de dir local.
+# Copiar como com.freemidichords.MIDIChords.yml en el repo flathub/com.freemidichords.MIDIChords
+# y actualizar el tag/commit en midichords-launcher al release que quieras publicar.
 id: com.freemidichords.MIDIChords
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
@@ -14,8 +17,6 @@ finish-args:
   - --filesystem=xdg-data/applications:ro
   - --share=network
 modules:
-  # Primero PortAudio, después dependencias Python, para que sounddevice
-  # pueda compilar su extensión nativa contra la librería ya instalada.
   - name: portaudio
     buildsystem: autotools
     config-opts:
@@ -25,7 +26,6 @@ modules:
         url: https://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz
         sha256: 47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def
   - python-deps.json
-  # sounddevice se compila aparte con PortAudio (incluye y lib) para que se genere _sounddevice.
   - name: python3-sounddevice
     buildsystem: simple
     build-commands:
@@ -42,20 +42,18 @@ modules:
   - name: midichords-launcher
     buildsystem: simple
     build-commands:
-      # Instalar código de la app en /app/share/midichords (sin PyInstaller:
-      # así _sounddevice y el resto de deps se usan desde site-packages del Flatpak).
       - install -d /app/share/midichords
       - cp -r midichords apps app.py launch.py assets /app/share/midichords/
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml
       - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/1024x1024/apps/com.freemidichords.MIDIChords.png
       - install -Dm644 LICENSE -t ${FLATPAK_DEST}/share/licenses/com.freemidichords.MIDIChords/midichords-launcher
-      # Wrapper que ejecuta la app con el Python del Flatpak y PYTHONPATH correcto
       - |
         printf '%s\n' '#!/bin/sh' \
           'export PYTHONPATH="/app/lib/python3.12/site-packages"' \
           'cd /app/share/midichords && exec python3 app.py "$@"' > /app/bin/midichords
       - chmod 755 /app/bin/midichords
     sources:
-      - type: dir
-        path: ../../
+      - type: git
+        url: https://github.com/aortegaCampanillas/MIDIChords
+        tag: v1.0.0

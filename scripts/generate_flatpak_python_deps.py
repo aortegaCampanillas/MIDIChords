@@ -36,9 +36,9 @@ SPECS = [
     PackageSpec("pyinstaller", "6.19.0"),
 ]
 
-WHEEL_FIRST = {"meson-python"}
-EXTRA_REQUIREMENTS = {
-    "numpy": [PackageSpec("meson-python", "0.18.0")],
+WHEEL_FIRST = {"meson-python", "numpy"}
+WHEEL_SUFFIXES = {
+    "numpy": "cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
 }
 
 
@@ -51,10 +51,13 @@ def fetch_release(spec: PackageSpec) -> dict:
 def select_file(spec: PackageSpec, data: dict) -> dict:
     files = data["urls"]
     if spec.name in WHEEL_FIRST:
+        preferred_suffix = WHEEL_SUFFIXES.get(spec.name)
         for item in files:
             if (
                 item["packagetype"] == "bdist_wheel"
-                and item["filename"].endswith("py3-none-any.whl")
+                and item["filename"].endswith(
+                    preferred_suffix or "py3-none-any.whl"
+                )
             ):
                 return item
     for item in files:
@@ -64,39 +67,25 @@ def select_file(spec: PackageSpec, data: dict) -> dict:
 
 
 def install_command(spec: PackageSpec) -> str:
-    requirements = EXTRA_REQUIREMENTS.get(spec.name, []) + [spec]
-    requirement_args = " ".join(
-        f'"{requirement.name}=={requirement.version}"' for requirement in requirements
-    )
     return (
         'pip3 install --verbose --ignore-installed --no-deps --exists-action=i '
         '--no-build-isolation --no-index --find-links="file://${PWD}" '
-        f"--prefix=${{FLATPAK_DEST}} {requirement_args}"
+        f'--prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
     )
 
 
 def package_module(spec: PackageSpec, file_info: dict) -> dict:
-    sources = [
-        {
-            "type": "file",
-            "url": file_info["url"],
-            "sha256": file_info["digests"]["sha256"],
-        }
-    ]
-    for extra_spec in EXTRA_REQUIREMENTS.get(spec.name, []):
-        extra_info = select_file(extra_spec, fetch_release(extra_spec))
-        sources.append(
-            {
-                "type": "file",
-                "url": extra_info["url"],
-                "sha256": extra_info["digests"]["sha256"],
-            }
-        )
     return {
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
         "build-commands": [install_command(spec)],
-        "sources": sources,
+        "sources": [
+            {
+                "type": "file",
+                "url": file_info["url"],
+                "sha256": file_info["digests"]["sha256"],
+            }
+        ],
     }
 
 

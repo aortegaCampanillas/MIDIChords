@@ -14,7 +14,8 @@ finish-args:
   - --filesystem=xdg-data/applications:ro
   - --share=network
 modules:
-  - python-deps.json
+  # Primero PortAudio, después dependencias Python, para que sounddevice
+  # pueda compilar su extensión nativa contra la librería ya instalada.
   - name: portaudio
     buildsystem: autotools
     config-opts:
@@ -23,11 +24,12 @@ modules:
       - type: archive
         url: https://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz
         sha256: 47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def
+  - python-deps.json
   - name: midichords-launcher
     buildsystem: simple
     build-commands:
       - export PYTHONPATH="/app/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}"
-      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" app.py
+      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" --hidden-import _sounddevice app.py
       - install -Dm755 dist/MIDIChords /app/bin/midichords
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml

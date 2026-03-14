@@ -33,7 +33,8 @@ modules:
       - install -Dm755 dist/MIDIChords /app/bin/midichords
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml
-      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/256x256/apps/com.freemidichords.MIDIChords.png
+      # El logo original es 1024x1024, por eso se instala en el tamaño 1024x1024.
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/1024x1024/apps/com.freemidichords.MIDIChords.png
     sources:
       - type: dir
         path: ../../

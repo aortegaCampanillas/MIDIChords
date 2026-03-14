@@ -28,13 +28,19 @@ modules:
   - name: midichords-launcher
     buildsystem: simple
     build-commands:
-      - export PYTHONPATH="/app/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}"
-      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" --hidden-import _sounddevice --additional-hooks-dir packaging/flatpak/pyinstaller-hooks app.py
-      - install -Dm755 dist/MIDIChords /app/bin/midichords
+      # Instalar código de la app en /app/share/midichords (sin PyInstaller:
+      # así _sounddevice y el resto de deps se usan desde site-packages del Flatpak).
+      - install -d /app/share/midichords
+      - cp -r midichords apps app.py launch.py assets /app/share/midichords/
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml
-      # El logo original es 1024x1024, por eso se instala en el tamaño 1024x1024.
       - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/1024x1024/apps/com.freemidichords.MIDIChords.png
+      # Wrapper que ejecuta la app con el Python del Flatpak y PYTHONPATH correcto
+      - |
+        printf '%s\n' '#!/bin/sh' \
+          'export PYTHONPATH="/app/lib/python3.12/site-packages"' \
+          'cd /app/share/midichords && exec python3 app.py "$@"' > /app/bin/midichords
+      - chmod 755 /app/bin/midichords
     sources:
       - type: dir
         path: ../../

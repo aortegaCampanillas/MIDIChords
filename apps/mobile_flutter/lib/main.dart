@@ -1649,9 +1649,13 @@ class _HomeScreenState extends State<HomeScreen>
     const margin = 16.0;
     const gap = 12.0;
     final width = math.min(screenSize.width - (margin * 2), 344.0);
+    final largeScreen = screenSize.shortestSide >= 700.0;
     final height = math.min(
-      math.max(screenSize.height * 0.205, 184.0),
-      236.0,
+      math.max(
+        screenSize.height * (largeScreen ? 0.255 : 0.225),
+        largeScreen ? 232.0 : 196.0,
+      ),
+      largeScreen ? 300.0 : 248.0,
     );
     var left = target.left;
     var top = target.bottom + gap;
@@ -5503,8 +5507,8 @@ class _HomeScreenState extends State<HomeScreen>
 	                                ),
 	                                label: Text(
 	                                  _metroRunning
-	                                      ? _ui('Detener metrónomo', 'Stop metronome')
-	                                      : _ui('Iniciar metrónomo', 'Start metronome'),
+	                                      ? _ui('Detener', 'Stop')
+	                                      : _ui('Iniciar', 'Start'),
 	                                ),
 	                              ),
 	                            ),
@@ -5697,7 +5701,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                         child: LayoutBuilder(
                           builder: (context, boxConstraints) {
                             final compactFooter = boxConstraints.maxWidth < 336;
@@ -5708,11 +5712,11 @@ class _HomeScreenState extends State<HomeScreen>
                                   _ui(selected.step.titleEs, selected.step.titleEn),
                                   style: const TextStyle(
                                     color: _text,
-                                    fontSize: 17,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Expanded(
                                   child: SingleChildScrollView(
                                     child: Text(
@@ -5724,7 +5728,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 if (compactFooter) ...<Widget>[
                                   Wrap(
                                     spacing: 8,

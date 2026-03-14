@@ -21,8 +21,8 @@ class PackageSpec:
 
 SPECS = [
     PackageSpec("setuptools", "82.0.1"),
-    PackageSpec("setuptools-scm", "9.2.2"),
     PackageSpec("packaging", "23.2"),
+    PackageSpec("setuptools-scm", "9.2.2"),
     PackageSpec("altgraph", "0.17.5"),
     PackageSpec("pycparser", "3.0"),
     PackageSpec("mido", "1.3.2"),

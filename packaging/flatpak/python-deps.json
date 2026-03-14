@@ -138,8 +138,8 @@
       "sources": [
         {
           "type": "file",
-          "url": "https://files.pythonhosted.org/packages/26/bd/fdb26366443620f1a8a4d4ec7bfa37d1fbbe7bf737b257c205bbcf95ba95/meson_python-0.18.0.tar.gz",
-          "sha256": "c56a99ec9df669a40662fe46960321af6e4b14106c14db228709c1628e23848d"
+          "url": "https://files.pythonhosted.org/packages/28/58/66db620a8a7ccb32633de9f403fe49f1b63c68ca94e5c340ec5cceeb9821/meson_python-0.18.0-py3-none-any.whl",
+          "sha256": "3b0fe051551cc238f5febb873247c0949cd60ded556efa130aa57021804868e2"
         }
       ]
     },

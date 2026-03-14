@@ -36,6 +36,8 @@ SPECS = [
     PackageSpec("pyinstaller", "6.19.0"),
 ]
 
+WHEEL_FIRST = {"meson-python"}
+
 
 def fetch_release(spec: PackageSpec) -> dict:
     url = f"https://pypi.org/pypi/{spec.name}/{spec.version}/json"
@@ -45,6 +47,13 @@ def fetch_release(spec: PackageSpec) -> dict:
 
 def select_file(spec: PackageSpec, data: dict) -> dict:
     files = data["urls"]
+    if spec.name in WHEEL_FIRST:
+        for item in files:
+            if (
+                item["packagetype"] == "bdist_wheel"
+                and item["filename"].endswith("py3-none-any.whl")
+            ):
+                return item
     for item in files:
         if item["packagetype"] == "sdist" and item["filename"].endswith(".tar.gz"):
             return item

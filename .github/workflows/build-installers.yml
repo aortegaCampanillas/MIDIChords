@@ -109,8 +109,8 @@ jobs:
               <Application Id="MIDIChords" Executable="MIDIChords.exe" EntryPoint="windows.fullTrustApplication">
                 <uap:VisualElements DisplayName="MIDIChords" Description="Acordes MIDI para piano y guitarra" Square44x44Logo="Assets\StoreLogo.png" Square150x150Logo="Assets\StoreLogo.png" BackgroundColor="transparent"/>
                 <Extensions>
-                  <desktop:Extension Category="windows.fullTrustProcess">
-                    <desktop:FullTrustProcess Executable="MIDIChords.exe"/>
+                  <desktop:Extension Category="windows.fullTrustProcess" Executable="MIDIChords.exe">
+                    <desktop:FullTrustProcess/>
                   </desktop:Extension>
                 </Extensions>
               </Application>

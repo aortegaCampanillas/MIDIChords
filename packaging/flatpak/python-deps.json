@@ -166,8 +166,8 @@
       "sources": [
         {
           "type": "file",
-          "url": "https://files.pythonhosted.org/packages/dd/ee/0f91965dcc471714c69df21e5ca3d94dc81411b7dee2d31ff1184bea07c9/python_rtmidi-1.5.8.tar.gz",
-          "sha256": "7f9ade68b068ae09000ecb562ae9521da3a234361ad5449e83fc734544d004fa"
+          "url": "https://files.pythonhosted.org/packages/f6/92/5a60f56dfb2740e644e932233928947423cd2101895319b331f84527eb31/python_rtmidi-1.5.8-cp312-cp312-manylinux_2_28_x86_64.whl",
+          "sha256": "cec30924e305f55284594ccf35a71dee7216fd308dfa2dec1b3ed03e6f243803"
         }
       ]
     },

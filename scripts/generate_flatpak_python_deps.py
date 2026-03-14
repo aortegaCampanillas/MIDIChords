@@ -36,9 +36,10 @@ SPECS = [
     PackageSpec("pyinstaller", "6.19.0"),
 ]
 
-WHEEL_FIRST = {"meson-python", "numpy"}
+WHEEL_FIRST = {"meson-python", "numpy", "python-rtmidi"}
 WHEEL_SUFFIXES = {
     "numpy": "cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "python-rtmidi": "cp312-cp312-manylinux_2_28_x86_64.whl",
 }
 
 

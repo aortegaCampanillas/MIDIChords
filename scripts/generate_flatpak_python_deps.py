@@ -20,17 +20,18 @@ class PackageSpec:
 
 
 SPECS = [
-    PackageSpec("mido", "1.3.2"),
+    PackageSpec("setuptools", "82.0.1"),
+    PackageSpec("setuptools-scm", "9.2.2"),
     PackageSpec("packaging", "23.2"),
     PackageSpec("altgraph", "0.17.5"),
-    PackageSpec("pyinstaller-hooks-contrib", "2026.3"),
-    PackageSpec("setuptools", "82.0.1"),
     PackageSpec("pycparser", "3.0"),
+    PackageSpec("mido", "1.3.2"),
     PackageSpec("sounddevice", "0.5.1"),
-    PackageSpec("pyinstaller", "6.19.0"),
     PackageSpec("cffi", "2.0.0"),
     PackageSpec("numpy", "2.1.3"),
     PackageSpec("python-rtmidi", "1.5.8"),
+    PackageSpec("pyinstaller-hooks-contrib", "2026.3"),
+    PackageSpec("pyinstaller", "6.19.0"),
 ]
 
 
@@ -53,7 +54,7 @@ def package_module(spec: PackageSpec, file_info: dict) -> dict:
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
         "build-commands": [
-            f'pip3 install --verbose --exists-action=i --no-index --find-links="file://${{PWD}}" --prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
+            f'pip3 install --verbose --exists-action=i --no-build-isolation --no-index --find-links="file://${{PWD}}" --prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
         ],
         "sources": [
             {

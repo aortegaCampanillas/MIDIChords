@@ -1,0 +1,66 @@
+name: Validate Flatpak
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/validate-flatpak.yml"
+      - "packaging/flatpak/**"
+      - "scripts/generate_flatpak_python_deps.py"
+      - "app.py"
+      - "apps/desktop/**"
+      - "midichords/**"
+      - "requirements.txt"
+      - "assets/**"
+  pull_request:
+    paths:
+      - ".github/workflows/validate-flatpak.yml"
+      - "packaging/flatpak/**"
+      - "scripts/generate_flatpak_python_deps.py"
+      - "app.py"
+      - "apps/desktop/**"
+      - "midichords/**"
+      - "requirements.txt"
+      - "assets/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-flatpak:
+    name: Validate Flatpak Manifest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate Flatpak Python dependencies
+        run: |
+          python3 scripts/generate_flatpak_python_deps.py
+          git diff --exit-code packaging/flatpak/python-deps.json
+
+      - name: Install Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils appstream
+
+      - name: Add Flathub remote
+        run: |
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Validate desktop file and metainfo
+        run: |
+          desktop-file-validate packaging/flatpak/com.freemidichords.MIDIChords.desktop
+          appstreamcli validate packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml
+
+      - name: Flatpak manifest check
+        run: |
+          flatpak-builder --force-clean --user --install-deps-from=flathub build-dir packaging/flatpak/com.freemidichords.MIDIChords.yml

@@ -80,13 +80,6 @@ jobs:
 
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
-      - name: Upload workflow artifact
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: MIDIChords-windows-installer-x64
-          path: MIDIChords-windows-installer-x64.exe
-
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -123,13 +116,6 @@ jobs:
           cp -R dist/MIDIChords.app dmg-root/
           ln -s /Applications dmg-root/Applications
           hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
-
-      - name: Upload workflow artifact
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: MIDIChords-macos-dmg
-          path: MIDIChords-macos.dmg
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -213,13 +199,6 @@ jobs:
           DESKTOP
 
           dpkg-deb --build "$PKGROOT" "MIDIChords-debian-amd64.deb"
-
-      - name: Upload workflow artifact
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: MIDIChords-debian-amd64
-          path: MIDIChords-debian-amd64.deb
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')

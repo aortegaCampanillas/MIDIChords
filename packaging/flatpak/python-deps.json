@@ -1,0 +1,156 @@
+[
+  {
+    "name": "python3-mido",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"mido==1.3.2\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/39/2c/df005c4b310dde2c834431032139bf2c3924f81798013feb052d1afd543b/mido-1.3.2-py3-none-any.whl",
+        "sha256": "9f5668d2eae78e43d54f4c651f8bf41a614eb23f98ce5179d3ddd984bf19eb58"
+      }
+    ]
+  },
+  {
+    "name": "python3-packaging",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"packaging==23.2\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/ec/1a/610693ac4ee14fcdf2d9bf3c493370e4f2ef7ae2e19217d7a237ff42367d/packaging-23.2-py3-none-any.whl",
+        "sha256": "8c491190033a9af7e1d931d0b5dacc2ef47509b34dd0de67ed209b5203fc88c7"
+      }
+    ]
+  },
+  {
+    "name": "python3-altgraph",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"altgraph==0.17.5\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/a9/ba/000a1996d4308bc65120167c21241a3b205464a2e0b58deda26ae8ac21d1/altgraph-0.17.5-py2.py3-none-any.whl",
+        "sha256": "f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597"
+      }
+    ]
+  },
+  {
+    "name": "python3-pyinstaller-hooks-contrib",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"pyinstaller-hooks-contrib==2026.3\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/ed/19/781352446af28755f16ce52b2d97f7a6f2d7974ac34c00ca5cd8c40c9098/pyinstaller_hooks_contrib-2026.3-py3-none-any.whl",
+        "sha256": "5ecd1068ad262afecadf07556279d2be52ca93a88b049fae17f1a2eb2969254a"
+      }
+    ]
+  },
+  {
+    "name": "python3-setuptools",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"setuptools==82.0.1\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl",
+        "sha256": "a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb"
+      }
+    ]
+  },
+  {
+    "name": "python3-pycparser",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"pycparser==3.0\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl",
+        "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"
+      }
+    ]
+  },
+  {
+    "name": "python3-sounddevice",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"sounddevice==0.5.1\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/06/d1/464b5fca3decdd0cfec8c47f7b4161a0b12972453201c1bf03811f367c5e/sounddevice-0.5.1-py3-none-any.whl",
+        "sha256": "e2017f182888c3f3c280d9fbac92e5dbddac024a7e3442f6e6116bd79dab8a9c"
+      }
+    ]
+  },
+  {
+    "name": "python3-pyinstaller",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"pyinstaller==6.19.0\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/c8/63/fd62472b6371d89dc138d40c36d87a50dc2de18a035803bbdc376b4ffac4/pyinstaller-6.19.0.tar.gz",
+        "sha256": "ec73aeb8bd9b7f2f1240d328a4542e90b3c6e6fbc106014778431c616592a865"
+      }
+    ]
+  },
+  {
+    "name": "python3-cffi",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"cffi==2.0.0\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/78/2d/7fa73dfa841b5ac06c7b8855cfc18622132e365f5b81d02230333ff26e9e/cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "sha256": "3e17ed538242334bf70832644a32a7aae3d83b57567f9fd60a26257e992b79ba"
+      }
+    ]
+  },
+  {
+    "name": "python3-numpy",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"numpy==2.1.3\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/9e/3e/3757f304c704f2f0294a6b8340fcf2be244038be07da4cccf390fa678a9f/numpy-2.1.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "2312b2aa89e1f43ecea6da6ea9a810d06aae08321609d8dc0d0eda6d946a541b"
+      }
+    ]
+  },
+  {
+    "name": "python3-python-rtmidi",
+    "buildsystem": "simple",
+    "build-commands": [
+      "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"python-rtmidi==1.5.8\""
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://files.pythonhosted.org/packages/f6/92/5a60f56dfb2740e644e932233928947423cd2101895319b331f84527eb31/python_rtmidi-1.5.8-cp312-cp312-manylinux_2_28_x86_64.whl",
+        "sha256": "cec30924e305f55284594ccf35a71dee7216fd308dfa2dec1b3ed03e6f243803"
+      }
+    ]
+  }
+]

@@ -1,0 +1,32 @@
+id: com.freemidichords.MIDIChords
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+command: midichords
+rename-desktop-file: com.freemidichords.MIDIChords.desktop
+rename-appdata-file: com.freemidichords.MIDIChords.metainfo.xml
+rename-icon: app_logo
+copy-icon: true
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=all
+  - --filesystem=xdg-config/MIDIChords:create
+  - --filesystem=xdg-data/applications:ro
+  - --share=network
+modules:
+  - packaging/flatpak/python-deps.json
+  - name: midichords-launcher
+    buildsystem: simple
+    build-commands:
+      - export PYTHONPATH="/app/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}"
+      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" app.py
+      - install -Dm755 dist/MIDIChords /app/bin/midichords
+      - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
+      - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/256x256/apps/com.freemidichords.MIDIChords.png
+    sources:
+      - type: dir
+        path: ../../

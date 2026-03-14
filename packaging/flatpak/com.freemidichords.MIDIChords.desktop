@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MIDIChords
+Comment=Real-time MIDI chord analyzer
+Exec=midichords
+Icon=com.freemidichords.MIDIChords
+Terminal=false
+Categories=Audio;Music;
+Keywords=MIDI;Chords;Piano;Guitar;Metronome;Music;
+StartupNotify=true

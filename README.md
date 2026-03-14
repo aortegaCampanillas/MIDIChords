@@ -35,6 +35,7 @@ Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDI
 - Dependencias desktop: `requirements.txt`
 - Node.js + `wrangler` para web local
 - Flutter (solo para móvil): 3.38+
+- Flatpak/Flathub: base preparada en `packaging/flatpak/`
 
 ## Instalación (Python)
 

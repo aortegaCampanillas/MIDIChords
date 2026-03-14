@@ -10,6 +10,8 @@ from typing import Optional
 import numpy as np
 import sounddevice as sd
 
+from midichords.core.app_constants import PROJECT_ROOT
+
 
 @dataclass
 class Voice:
@@ -72,9 +74,8 @@ class PianoAudioEngine:
         self.metronome_sample_accent: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample)
         self.metronome_sample_bar: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample, ratio=1.34)
         self.rng = np.random.default_rng()
-        project_root = Path(__file__).resolve().parent.parent.parent
         self.piano_sample_map = self._load_sample_bank(
-            project_root / "assets" / "samples" / "grand_piano",
+            PROJECT_ROOT / "assets" / "samples" / "grand_piano",
             {
                 48: "C3.mp3",
                 52: "E3.mp3",
@@ -87,7 +88,7 @@ class PianoAudioEngine:
             max_seconds=7.0,
         )
         self.guitar_sample_map = self._load_sample_bank(
-            project_root / "assets" / "samples" / "guitar_nylon",
+            PROJECT_ROOT / "assets" / "samples" / "guitar_nylon",
             {
                 40: "E2.mp3",
                 45: "A2.mp3",
@@ -368,10 +369,9 @@ class PianoAudioEngine:
             )
 
     def _load_default_metronome_sample(self) -> Optional[np.ndarray]:
-        project_root = Path(__file__).resolve().parent.parent.parent
         candidates = [
-            project_root / "assets" / "methronome.mp3",
-            project_root / "assets" / "metronome.mp3",
+            PROJECT_ROOT / "assets" / "metronome.mp3",
+            PROJECT_ROOT / "assets" / "samples" / "metronome.mp3",
         ]
         sample_path = next((p for p in candidates if p.exists()), None)
         if sample_path is None:

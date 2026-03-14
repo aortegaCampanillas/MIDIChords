@@ -996,8 +996,19 @@ class RenderMixin:
                 joinstyle=tk.ROUND,
             )
 
-        canvas.create_text(108, treble_top + line_space * 1.65, text="𝄞", font=("Times New Roman", 64), fill="#ffffff")
-        canvas.create_text(108, bass_top + line_space * 1.65, text="𝄢", font=("Times New Roman", 58), fill="#ffffff")
+        # Clave de sol y clave de fa: imagen si existe, si no texto con fuente que tenga símbolos (evita "?" en Linux/Flatpak).
+        treble_x, treble_y = 108, treble_top + line_space * 1.65
+        bass_x, bass_y = 108, bass_top + line_space * 1.65
+        if getattr(self, "treble_clef_image", None) is not None:
+            canvas.create_image(treble_x, treble_y, image=self.treble_clef_image, anchor="center")
+        else:
+            clef_font = getattr(self, "_clef_font_family", "serif")
+            canvas.create_text(treble_x, treble_y, text="𝄞", font=(clef_font, 64), fill="#ffffff")
+        if getattr(self, "bass_clef_image", None) is not None:
+            canvas.create_image(bass_x, bass_y, image=self.bass_clef_image, anchor="center")
+        else:
+            clef_font = getattr(self, "_clef_font_family", "serif")
+            canvas.create_text(bass_x, bass_y, text="𝄢", font=(clef_font, 58), fill="#ffffff")
 
         signature_count, prefer_flat_signature = self._staff_signature_context(display_notes)
         sharp_order_pcs = [6, 1, 8, 3, 10, 5, 0]  # F# C# G# D# A# E# B#

@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk
 from typing import Optional
 
@@ -20,7 +21,9 @@ from midichords.core.audio_engine import PianoAudioEngine
 from midichords.core.app_config import load_config_file, save_config_file
 from midichords.core.app_constants import (
     APP_LOGO_CANDIDATES,
+    BASS_CLEF_IMAGE_CANDIDATES,
     BRACE_IMAGE_CANDIDATES,
+    CLEF_FONT_FAMILIES,
     CONFIG_PATH,
     DEFAULT_CONFIG,
     GUITAR_IMAGE_CANDIDATES,
@@ -28,6 +31,7 @@ from midichords.core.app_constants import (
     METRONOME_IMAGE_CANDIDATES,
     PIANO_IMAGE_CANDIDATES,
     RIGHT_HAND_ICON_CANDIDATES,
+    TREBLE_CLEF_IMAGE_CANDIDATES,
 )
 from midichords.core.guitar_chord_cache import get_cached_variations, load_guitar_chord_cache
 from midichords.core.image_utils import fit_photo_image, pad_photo_image, prepare_icon_for_dark_ui, recolor_dark_pixels
@@ -60,12 +64,17 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.guitar_image: Optional[tk.PhotoImage] = None
         self.right_hand_icon_image: Optional[tk.PhotoImage] = None
         self.left_hand_icon_image: Optional[tk.PhotoImage] = None
+        self.treble_clef_image: Optional[tk.PhotoImage] = None
+        self.bass_clef_image: Optional[tk.PhotoImage] = None
+        self._clef_font_family: str = "serif"
         self.instrument_buttons_are_images = False
         self.scale_transport_buttons_are_images = False
         self.handedness_buttons_are_images = False
         self._load_brace_image()
         self._load_app_logo()
         self._load_instrument_icons()
+        self._load_clef_images()
+        self._resolve_clef_font()
 
         self.active_notes: set[int] = set()
         self.generated_preview_notes: set[int] = set()
@@ -1140,6 +1149,33 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
                 break
             except Exception:
                 continue
+
+    def _load_clef_images(self) -> None:
+        self.treble_clef_image = None
+        self.bass_clef_image = None
+        for path in TREBLE_CLEF_IMAGE_CANDIDATES:
+            if path.exists():
+                try:
+                    self.treble_clef_image = tk.PhotoImage(file=str(path))
+                    break
+                except tk.TclError:
+                    continue
+        for path in BASS_CLEF_IMAGE_CANDIDATES:
+            if path.exists():
+                try:
+                    self.bass_clef_image = tk.PhotoImage(file=str(path))
+                    break
+                except tk.TclError:
+                    continue
+
+    def _resolve_clef_font(self) -> None:
+        """Elige la primera fuente disponible que suele tener símbolos de clave (𝄞 𝄢)."""
+        available = {f.lower(): f for f in tkfont.families(self)}
+        for candidate in CLEF_FONT_FAMILIES:
+            if candidate.lower() in available:
+                self._clef_font_family = available[candidate.lower()]
+                return
+        self._clef_font_family = "serif"
 
     def _get_brace_image_for_height(self, target_height: int) -> Optional[tk.PhotoImage]:
         if self.brace_base_image is None or target_height <= 0:

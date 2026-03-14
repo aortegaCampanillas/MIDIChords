@@ -6,6 +6,8 @@ from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = PACKAGE_ROOT.parent
+# Raíz de recursos (imágenes, samples, cache). En Flatpak PROJECT_ROOT = /app/share/midichords.
+ASSETS_DIR = PROJECT_ROOT / "assets"
 
 
 def _resolve_config_path() -> Path:
@@ -74,6 +76,26 @@ LEFT_HAND_ICON_CANDIDATES = [
     PROJECT_ROOT / "assets" / "left_hand.png",
     PROJECT_ROOT / "assets" / "left_hand.gif",
     PROJECT_ROOT / "assets" / "left_hand.ppm",
+]
+
+# Fuentes que suelen incluir símbolos musicales (clave de sol 𝄞, clave de fa 𝄢).
+# En Linux/Flatpak "Times New Roman" a menudo no los tiene y se ve un "?".
+CLEF_FONT_FAMILIES = [
+    "Deja Vu Serif",
+    "FreeSerif",
+    "Times New Roman",
+    "Liberation Serif",
+    "serif",
+]
+
+TREBLE_CLEF_IMAGE_CANDIDATES = [
+    PROJECT_ROOT / "assets" / "treble_clef.png",
+    PROJECT_ROOT / "assets" / "treble_clef.gif",
+]
+
+BASS_CLEF_IMAGE_CANDIDATES = [
+    PROJECT_ROOT / "assets" / "bass_clef.png",
+    PROJECT_ROOT / "assets" / "bass_clef.gif",
 ]
 
 DEFAULT_CONFIG = {

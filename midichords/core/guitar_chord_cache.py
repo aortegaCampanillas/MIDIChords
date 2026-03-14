@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from midichords.core.app_constants import PROJECT_ROOT
 
-CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "assets" / "guitar_chord_cache.json"
+CACHE_PATH = PROJECT_ROOT / "assets" / "guitar_chord_cache.json"
 APP_SUFFIX_TO_SITE_TYPE = {
     "": "major",
     "5": "5",

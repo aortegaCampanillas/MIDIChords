@@ -48,10 +48,12 @@ const state = {
   metronomeTimerLastTs: 0,
   metronomeVolume: 100,
   currentBeat: -1,
+  metronomeDisplayBeat: -1,
   currentSubclick: 0,
   metronomeTickCount: 0,
   metronomeDirection: 1,
   metronomeMotionStartTs: 0,
+  metronomeVisualDelayTimer: null,
   midi: {
     enabled: false,
     access: null,
@@ -2562,7 +2564,7 @@ function drawMetronomeCanvas(ctx, width, height) {
     ctx.stroke();
   }
 
-  const current = ((Number(state.currentBeat) || 0) % beats + beats) % beats;
+  const current = ((Number(state.metronomeDisplayBeat) || 0) % beats + beats) % beats;
   const baseR = Math.max(7, Math.min(24, 30 - (beats * 0.75)));
   const maxRBySpacing = Math.max(6, (spacing * 0.42) - 2);
   const normalR = Math.min(baseR, maxRBySpacing);
@@ -4078,11 +4080,44 @@ function renderMetronomeDots() {
   for (let i = 0; i < state.beatsPerBar; i += 1) {
     const d = document.createElement("div");
     d.className = "dot";
-    if (i === state.currentBeat) d.classList.add("active");
+    if (i === state.metronomeDisplayBeat) d.classList.add("active");
     if (i === 0) d.classList.add("accent");
     d.textContent = String(i + 1);
     dots.appendChild(d);
   }
+}
+
+function metronomeVisualDelayMs() {
+  const ctx = state.metronomeCtx;
+  const latencySec = ctx
+    ? Math.max(Number(ctx.baseLatency) || 0, Number(ctx.outputLatency) || 0)
+    : 0;
+  return Math.max(18, Math.min(60, Math.round(latencySec * 1000) + 10));
+}
+
+function clearMetronomeVisualDelayTimer() {
+  if (state.metronomeVisualDelayTimer != null) {
+    clearTimeout(state.metronomeVisualDelayTimer);
+    state.metronomeVisualDelayTimer = null;
+  }
+}
+
+function syncMetronomeVisualBeat(beat) {
+  clearMetronomeVisualDelayTimer();
+  const delayMs = metronomeVisualDelayMs();
+  if (!state.metronomeRunning || delayMs <= 1) {
+    state.metronomeDisplayBeat = beat;
+    renderMetronomeDots();
+    if (state.mode === "metronome") renderStaff();
+    return;
+  }
+  state.metronomeVisualDelayTimer = setTimeout(() => {
+    state.metronomeVisualDelayTimer = null;
+    if (!state.metronomeRunning) return;
+    state.metronomeDisplayBeat = beat;
+    renderMetronomeDots();
+    if (state.mode === "metronome") renderStaff();
+  }, delayMs);
 }
 
 function metronomeStepMs() {
@@ -4166,7 +4201,8 @@ function metronomeTick() {
       state.currentBeat = (state.currentBeat + 1) % Math.max(1, state.beatsPerBar);
       state.metronomeDirection *= -1;
     }
-    state.metronomeMotionStartTs = performance.now();
+    state.metronomeMotionStartTs = performance.now() + metronomeVisualDelayMs();
+    syncMetronomeVisualBeat(state.currentBeat);
   }
 
   const accent = state.currentSubclick === 0;
@@ -4177,7 +4213,6 @@ function metronomeTick() {
     (barAccent ? 0.58 : 0.46) * metronomeVolumeGain(),
   );
 
-  renderMetronomeDots();
   updateMetronomeMotion();
   if (state.mode === "metronome") renderStaff();
 
@@ -4204,8 +4239,10 @@ async function toggleMetronome() {
     if (state.metronomeTimer != null) clearTimeout(state.metronomeTimer);
     state.metronomeTimer = null;
     state.currentBeat = -1;
+    state.metronomeDisplayBeat = -1;
     state.currentSubclick = 0;
     state.metronomeTickCount = 0;
+    clearMetronomeVisualDelayTimer();
     stopMetronomeAnimation();
     renderMetronomeDots();
     updateMetronomeMotion();
@@ -4221,10 +4258,11 @@ async function toggleMetronome() {
   void preloadAudioSamples();
   state.metronomeRunning = true;
   state.currentBeat = 0;
+  state.metronomeDisplayBeat = -1;
   state.currentSubclick = 0;
   state.metronomeTickCount = 0;
   state.metronomeDirection = 1;
-  state.metronomeMotionStartTs = performance.now();
+  state.metronomeMotionStartTs = performance.now() + metronomeVisualDelayMs();
   state.metronomeTimerRemaining = Math.max(0, (state.metronomeTimerMinutes * 60) + state.metronomeTimerSeconds);
   renderMetronomeDots();
   renderMetronomeTimerDisplay();

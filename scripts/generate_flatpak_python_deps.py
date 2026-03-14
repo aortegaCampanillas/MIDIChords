@@ -37,6 +37,7 @@ SPECS = [
 ]
 
 WHEEL_FIRST = {"meson-python"}
+PYTHONPATH_PACKAGES = {"numpy"}
 
 
 def fetch_release(spec: PackageSpec) -> dict:
@@ -61,12 +62,21 @@ def select_file(spec: PackageSpec, data: dict) -> dict:
 
 
 def package_module(spec: PackageSpec, file_info: dict) -> dict:
+    command = (
+        'pip3 install --verbose --ignore-installed --no-deps --exists-action=i '
+        '--no-build-isolation --no-index --find-links="file://${PWD}" '
+        f'--prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
+    )
+    if spec.name in PYTHONPATH_PACKAGES:
+        command = (
+            'env PYTHONPATH="${FLATPAK_DEST}/lib/python3.12/site-packages'
+            '${PYTHONPATH:+:$PYTHONPATH}" '
+            + command
+        )
     return {
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
-        "build-commands": [
-            f'pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links="file://${{PWD}}" --prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
-        ],
+        "build-commands": [command],
         "sources": [
             {
                 "type": "file",

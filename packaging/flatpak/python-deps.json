@@ -147,7 +147,7 @@
       "name": "python3-numpy",
       "buildsystem": "simple",
       "build-commands": [
-        "pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"numpy==2.1.3\""
+        "env PYTHONPATH=\"${FLATPAK_DEST}/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}\" pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"numpy==2.1.3\""
       ],
       "sources": [
         {

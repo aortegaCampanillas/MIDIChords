@@ -3,10 +3,6 @@ runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
 command: midichords
-rename-desktop-file: com.freemidichords.MIDIChords.desktop
-rename-appdata-file: com.freemidichords.MIDIChords.metainfo.xml
-rename-icon: app_logo
-copy-icon: true
 finish-args:
   - --share=ipc
   - --socket=fallback-x11

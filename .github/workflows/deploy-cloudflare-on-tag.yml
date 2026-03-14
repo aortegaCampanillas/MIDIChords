@@ -1,7 +1,9 @@
-name: Deploy Cloudflare (Tag)
+name: Deploy Cloudflare (Production)
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -17,8 +19,12 @@ jobs:
     name: Deploy Web to Cloudflare Pages
     runs-on: ubuntu-latest
     steps:
+      # Siempre desplegar desde main: así un tag (nuevo o movido) no despliega
+      # un commit antiguo y no rompe producción.
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: main
 
       - name: Prepare static web bundle
         run: |

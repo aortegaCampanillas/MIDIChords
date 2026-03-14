@@ -3326,9 +3326,15 @@ function renderStaff() {
 }
 
 async function loadMeta() {
-  const data = await fetchJson(`/api/meta?language=${state.language}`);
-  state.chordPatterns = data.chord_patterns || [];
-  state.scalePatterns = data.scale_patterns || [];
+  try {
+    const data = await fetchJson(`/api/meta?language=${state.language}`);
+    state.chordPatterns = data.chord_patterns || [];
+    state.scalePatterns = data.scale_patterns || [];
+  } catch (err) {
+    console.warn("Failed to load /api/meta:", err);
+    state.chordPatterns = state.chordPatterns || [];
+    state.scalePatterns = state.scalePatterns || [];
+  }
   buildSelectors();
 }
 

@@ -95,7 +95,7 @@ jobs:
           <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
             <Identity Name="Antonioortega.FreeMIDIPianoGuitarChords" Publisher="CN=E70C548D-768A-4F80-B0D6-41DB1F7A402F" Version="$ver" ProcessorArchitecture="x64"/>
             <Properties>
-              <DisplayName>Free MIDI Piano Guitar Chords</DisplayName>
+              <DisplayName>Free MIDI Piano&amp;Guitar Chords</DisplayName>
               <PublisherDisplayName>Antonio ortega</PublisherDisplayName>
               <Logo>Assets\StoreLogo.png</Logo>
             </Properties>
@@ -110,7 +110,7 @@ jobs:
             </Resources>
             <Applications>
               <Application Id="MIDIChords" Executable="MIDIChords.exe" EntryPoint="windows.fullTrustApplication">
-                <uap:VisualElements DisplayName="Free MIDI Piano Guitar Chords" Description="Acordes MIDI para piano y guitarra" Square44x44Logo="Assets\StoreLogo.png" Square150x150Logo="Assets\StoreLogo.png" BackgroundColor="transparent"/>
+                <uap:VisualElements DisplayName="Free MIDI Piano&amp;Guitar Chords" Description="Acordes MIDI para piano y guitarra" Square44x44Logo="Assets\StoreLogo.png" Square150x150Logo="Assets\StoreLogo.png" BackgroundColor="transparent"/>
                 <Extensions>
                   <desktop:Extension Category="windows.fullTrustProcess" Executable="MIDIChords.exe">
                     <desktop:FullTrustProcess/>

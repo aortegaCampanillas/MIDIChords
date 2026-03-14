@@ -9,6 +9,13 @@ PROJECT_ROOT = PACKAGE_ROOT.parent
 
 
 def _resolve_config_path() -> Path:
+    # Instalación de solo lectura (Flatpak: /app): usar siempre XDG para config.
+    try:
+        if PROJECT_ROOT.resolve().is_relative_to(Path("/app")):
+            config_root = os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")
+            return Path(config_root) / "MIDIChords" / "config.json"
+    except (ValueError, OSError):
+        pass
     if not getattr(sys, "frozen", False):
         return PROJECT_ROOT / "config.json"
     if sys.platform == "darwin":

@@ -49,6 +49,7 @@ jobs:
           AppId={{A4F55F54-4AA1-4A4F-B112-0F7A2755CE16}
           AppName=MIDIChords
           AppVersion=${{ github.ref_name }}
+          AppVerName=MIDIChords ${{ github.ref_name }}
           AppPublisher=Antonio Ortega González
           DefaultDirName={autopf}\MIDIChords
           DefaultGroupName=MIDIChords

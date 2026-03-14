@@ -17,7 +17,7 @@ finish-args:
   - --filesystem=xdg-data/applications:ro
   - --share=network
 modules:
-  - packaging/flatpak/python-deps.json
+  - python-deps.json
   - name: midichords-launcher
     buildsystem: simple
     build-commands:

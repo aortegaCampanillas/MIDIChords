@@ -54,7 +54,7 @@ def package_module(spec: PackageSpec, file_info: dict) -> dict:
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
         "build-commands": [
-            f'pip3 install --verbose --exists-action=i --no-build-isolation --no-index --find-links="file://${{PWD}}" --prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
+            f'pip3 install --verbose --ignore-installed --exists-action=i --no-build-isolation --no-index --find-links="file://${{PWD}}" --prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
         ],
         "sources": [
             {

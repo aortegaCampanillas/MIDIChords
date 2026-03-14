@@ -1714,9 +1714,13 @@ class _HomeScreenState extends State<HomeScreen>
     final yTop = math.max(44.0, size.height * 0.30);
     final yBot = math.min(size.height - 56.0, yTop + 74.0);
     final axisY = yBot + 18.0;
-    final top = axisY + ((size.height - axisY) * 0.5) - 30.0;
-    final clampedTop = top.clamp(axisY + 44.0, size.height - 78.0);
-    return Rect.fromLTRB(left + 120.0, clampedTop, right - 120.0, clampedTop + 60.0);
+    final fontSize = math.min(44.0, size.height * 0.24);
+    final centerY = axisY + ((size.height - axisY) * 0.5);
+    final rectHeight = math.max(52.0, fontSize + 10.0);
+    final top = (centerY - (rectHeight / 2)).clamp(axisY + 56.0, size.height - rectHeight - 16.0);
+    final rectWidth = math.min(220.0, math.max(160.0, size.width * 0.26));
+    final centerX = (left + right) / 2;
+    return Rect.fromLTWH(centerX - (rectWidth / 2), top, rectWidth, rectHeight);
   }
 
   Rect _metronomeCenterButtonRect(Size size) {
@@ -2707,14 +2711,21 @@ class _HomeScreenState extends State<HomeScreen>
 
   Set<int> _generationPlayingNotesForStaff() {
     if (_tabIndex != 1) return <int>{};
-    final rh = <int>{
+    final rawNotes = <int>{
       ..._heldChordPlayers.keys,
       ..._heldChordNativeNotes,
-      ..._generationInputStaffNotes,
     };
-    if (_instrumentView == 'guitar') return rh;
-    final lh = rh.map((n) => n - 12).where((n) => n >= 0);
-    return <int>{...rh, ...lh};
+    if (_instrumentView == 'guitar') {
+      return <int>{...rawNotes, ..._generationInputStaffNotes};
+    }
+    final staffNotes = <int>{..._generationInputStaffNotes};
+    for (final note in rawNotes) {
+      final mapped = _generationStaffNoteForPitch(note, includeBass: true);
+      if (mapped != null) {
+        staffNotes.add(mapped);
+      }
+    }
+    return staffNotes;
   }
 
   bool _isShiftPressed() {

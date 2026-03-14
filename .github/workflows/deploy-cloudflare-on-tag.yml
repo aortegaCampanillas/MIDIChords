@@ -33,6 +33,7 @@ jobs:
           test -f apps/web/pages-dist/_worker.js
 
       - name: Deploy to Cloudflare Pages
+        id: deploy_primary
         uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -41,3 +42,47 @@ jobs:
             pages deploy apps/web/pages-dist
             --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
             --branch=main
+
+      - name: Smoke test production API
+        id: smoke_primary
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          url='https://freemidichords.com/api/meta?language=es'
+          for attempt in $(seq 1 18); do
+            echo "Smoke test attempt ${attempt}/18: ${url}"
+            if body="$(curl -fsS "$url")" && echo "$body" | grep -q '"chord_patterns"'; then
+              echo "Production API is healthy."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production API did not become healthy after deploy."
+          exit 1
+
+      - name: Retry Cloudflare Pages deploy
+        if: steps.smoke_primary.outcome != 'success'
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy apps/web/pages-dist
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=main
+
+      - name: Verify production API after retry
+        if: steps.smoke_primary.outcome != 'success'
+        run: |
+          set -euo pipefail
+          url='https://freemidichords.com/api/meta?language=es'
+          for attempt in $(seq 1 18); do
+            echo "Post-retry smoke test attempt ${attempt}/18: ${url}"
+            if body="$(curl -fsS "$url")" && echo "$body" | grep -q '"chord_patterns"'; then
+              echo "Production API is healthy after retry."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production API still failing after retry."
+          exit 1

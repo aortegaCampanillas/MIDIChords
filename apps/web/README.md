@@ -30,6 +30,13 @@ Producción:
 gh workflow run deploy-cloudflare-on-tag.yml --ref main
 ```
 
+Ese workflow no da el deploy por válido solo porque `wrangler` termine bien. Después:
+
+- comprueba `https://freemidichords.com/api/meta?language=es`
+- exige que la respuesta incluya `chord_patterns`
+- si Cloudflare deja producción en un estado roto o incompleto, repite el deploy una vez
+- si después del reintento sigue fallando, el workflow termina en error
+
 Preview de una rama:
 
 ```bash
@@ -73,6 +80,14 @@ Deploy a producción:
 ```bash
 wrangler pages deploy /tmp/midichords-pages-dist --project-name=midichords --branch=main
 ```
+
+Comprobación manual recomendada después del deploy:
+
+```bash
+curl -fsS 'https://freemidichords.com/api/meta?language=es'
+```
+
+La respuesta debe ser JSON e incluir `chord_patterns` y `scale_patterns`. Si devuelve `404`, el frontend cargará pero los combos de generación y escalas quedarán vacíos.
 
 Nota: si `wrangler` falla en entorno no interactivo pidiendo `CLOUDFLARE_API_TOKEN`, usa el workflow de GitHub Actions; es el camino más fiable en este repo.
 

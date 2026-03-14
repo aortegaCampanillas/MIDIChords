@@ -147,13 +147,18 @@
       "name": "python3-numpy",
       "buildsystem": "simple",
       "build-commands": [
-        "env PYTHONPATH=\"${FLATPAK_DEST}/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}\" pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"numpy==2.1.3\""
+        "pip3 install --verbose --ignore-installed --no-deps --exists-action=i --no-build-isolation --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"meson-python==0.18.0\" \"numpy==2.1.3\""
       ],
       "sources": [
         {
           "type": "file",
           "url": "https://files.pythonhosted.org/packages/25/ca/1166b75c21abd1da445b97bf1fa2f14f423c6cfb4fc7c4ef31dccf9f6a94/numpy-2.1.3.tar.gz",
           "sha256": "aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761"
+        },
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/28/58/66db620a8a7ccb32633de9f403fe49f1b63c68ca94e5c340ec5cceeb9821/meson_python-0.18.0-py3-none-any.whl",
+          "sha256": "3b0fe051551cc238f5febb873247c0949cd60ded556efa130aa57021804868e2"
         }
       ]
     },

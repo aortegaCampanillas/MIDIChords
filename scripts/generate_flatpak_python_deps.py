@@ -37,7 +37,9 @@ SPECS = [
 ]
 
 WHEEL_FIRST = {"meson-python"}
-PYTHONPATH_PACKAGES = {"numpy"}
+EXTRA_REQUIREMENTS = {
+    "numpy": [PackageSpec("meson-python", "0.18.0")],
+}
 
 
 def fetch_release(spec: PackageSpec) -> dict:
@@ -61,29 +63,40 @@ def select_file(spec: PackageSpec, data: dict) -> dict:
     raise RuntimeError(f"No suitable file found for {spec.name} {spec.version}")
 
 
-def package_module(spec: PackageSpec, file_info: dict) -> dict:
-    command = (
+def install_command(spec: PackageSpec) -> str:
+    requirements = EXTRA_REQUIREMENTS.get(spec.name, []) + [spec]
+    requirement_args = " ".join(
+        f'"{requirement.name}=={requirement.version}"' for requirement in requirements
+    )
+    return (
         'pip3 install --verbose --ignore-installed --no-deps --exists-action=i '
         '--no-build-isolation --no-index --find-links="file://${PWD}" '
-        f'--prefix=${{FLATPAK_DEST}} "{spec.name}=={spec.version}"'
+        f"--prefix=${{FLATPAK_DEST}} {requirement_args}"
     )
-    if spec.name in PYTHONPATH_PACKAGES:
-        command = (
-            'env PYTHONPATH="${FLATPAK_DEST}/lib/python3.12/site-packages'
-            '${PYTHONPATH:+:$PYTHONPATH}" '
-            + command
+
+
+def package_module(spec: PackageSpec, file_info: dict) -> dict:
+    sources = [
+        {
+            "type": "file",
+            "url": file_info["url"],
+            "sha256": file_info["digests"]["sha256"],
+        }
+    ]
+    for extra_spec in EXTRA_REQUIREMENTS.get(spec.name, []):
+        extra_info = select_file(extra_spec, fetch_release(extra_spec))
+        sources.append(
+            {
+                "type": "file",
+                "url": extra_info["url"],
+                "sha256": extra_info["digests"]["sha256"],
+            }
         )
     return {
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
-        "build-commands": [command],
-        "sources": [
-            {
-                "type": "file",
-                "url": file_info["url"],
-                "sha256": file_info["digests"]["sha256"],
-            }
-        ],
+        "build-commands": [install_command(spec)],
+        "sources": sources,
     }
 
 

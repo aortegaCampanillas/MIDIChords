@@ -43,6 +43,10 @@ Si la Store rechaza el paquete al subirlo:
 
 - **MinVersion:** la Store no acepta paquetes con `MinVersion` ≤ 10.0.17134.0. El workflow genera el manifest con `MinVersion="10.0.17763.0"` para cumplir el requisito.
 - **PublisherDisplayName:** debe coincidir **exactamente** con el nombre del anunciante en Partner Center (como aparece en tu perfil de desarrollador). Si falla la validación, revisa en Partner Center cómo está escrito y ajústalo en el workflow si hace falta.
+- **Identidad de paquete (Store):** el manifest debe usar la **identidad asignada por la Store** a tu app, no valores genéricos:
+  - **Identity Name:** el que indica Partner Center (p. ej. `Antonioortega.FreeMIDIPianoGuitarChords`).
+  - **Publisher:** el CN que asigna la Store (p. ej. `CN=E70C548D-768A-4F80-B0D6-41DB1F7A402F`), no tu nombre real.
+  - **DisplayName:** un nombre para mostrar que tengas **reservado** en la ficha de la app (si la Store dice que "MIDIChords" no está reservado, reserva ese nombre en la identidad de la app o usa el que sí tengas reservado, p. ej. "Free MIDI Piano Guitar Chords"). El workflow usa los valores que la Store indicó en la validación; si cambias la identidad en Partner Center, actualiza `.github/workflows/build-installers.yml` (paso "Build MSIX package") para que coincidan.
 - **runFullTrust:** si aparece una advertencia de que la funcionalidad restringida `runFullTrust` requiere aprobación, suele bastar con declararla en el envío (en la sección de capacidades/declaraciones del paquete) y aceptar la revisión. Para apps de escritorio es habitual que la aprueben.
 
 ### Resumen

@@ -359,7 +359,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\n\nFRAMEWORKS_DIR=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\nSIGNING_IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\nif [ -z \"$SIGNING_IDENTITY\" ] || [ ! -d \"$FRAMEWORKS_DIR\" ]; then\n  exit 0\nfi\n\nfind \"$FRAMEWORKS_DIR\" -maxdepth 1 -type d -name '*.framework' | while IFS= read -r framework; do\n  binary_name=\"$(basename \"$framework\" .framework)\"\n  binary_path=\"$framework/$binary_name\"\n  if [ -f \"$binary_path\" ]; then\n    codesign --force --sign \"$SIGNING_IDENTITY\" --preserve-metadata=identifier,entitlements,flags --timestamp=none \"$framework\"\n  fi\ndone\n";
+			shellScript = "set -euo pipefail\n\nFRAMEWORKS_DIR=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\nPRODUCTS_DIR=\"${BUILT_PRODUCTS_DIR}\"\nSIGNING_IDENTITY=\"${EXPANDED_CODE_SIGN_IDENTITY:-}\"\nENGINE_VARIANT=\"ios-release\"\nif [ \"${CONFIGURATION}\" = \"Debug\" ]; then\n  ENGINE_VARIANT=\"ios\"\nfi\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  FLUTTER_SLICE_DIR=\"${FLUTTER_ROOT}/bin/cache/artifacts/engine/${ENGINE_VARIANT}/Flutter.xcframework/ios-arm64_x86_64-simulator\"\nelse\n  FLUTTER_SLICE_DIR=\"${FLUTTER_ROOT}/bin/cache/artifacts/engine/${ENGINE_VARIANT}/Flutter.xcframework/ios-arm64\"\nfi\nif [ -d \"${FLUTTER_SLICE_DIR}/Flutter.framework\" ]; then\n  mkdir -p \"$FRAMEWORKS_DIR\"\n  rsync --delete -av \"${FLUTTER_SLICE_DIR}/Flutter.framework\" \"$FRAMEWORKS_DIR/\"\n  rsync --delete -av \"${FLUTTER_SLICE_DIR}/Flutter.framework\" \"$PRODUCTS_DIR/\"\nfi\nif [ -z \"$SIGNING_IDENTITY\" ] || [ ! -d \"$FRAMEWORKS_DIR\" ]; then\n  exit 0\nfi\n\nfind \"$FRAMEWORKS_DIR\" -maxdepth 1 -type d -name '*.framework' | while IFS= read -r framework; do\n  binary_name=\"$(basename \"$framework\" .framework)\"\n  binary_path=\"$framework/$binary_name\"\n  if [ -f \"$binary_path\" ]; then\n    codesign --force --sign \"$SIGNING_IDENTITY\" --preserve-metadata=identifier,entitlements,flags --timestamp=none \"$framework\"\n  fi\ndone\n";
 			showEnvVarsInLog = 0;
 		};
 		EF9F5744FCD1E4DA1D99BB5A /* [CP] Check Pods Manifest.lock */ = {
@@ -497,6 +497,14 @@
 				DEVELOPMENT_TEAM = 977G5A733H;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64\"",
+					"$(inherited)",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64_x86_64-simulator\"",
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -506,6 +514,14 @@
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter\"",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter\"",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -704,6 +720,14 @@
 				DEVELOPMENT_TEAM = 977G5A733H;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64\"",
+					"$(inherited)",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator\"",
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -713,6 +737,14 @@
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter\"",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter\"",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -734,6 +766,14 @@
 				DEVELOPMENT_TEAM = 977G5A733H;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64\"",
+					"$(inherited)",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64_x86_64-simulator\"",
+					"$(inherited)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -743,6 +783,14 @@
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/swift",
 					/usr/lib/swift,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Flutter\"",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"\"/opt/homebrew/share/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64_x86_64-simulator/Flutter.framework/Flutter\"",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.FPAlanTuring.FreeMIDIChords;
 				PRODUCT_NAME = "$(TARGET_NAME)";

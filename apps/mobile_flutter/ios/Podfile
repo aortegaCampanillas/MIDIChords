@@ -58,6 +58,29 @@ post_install do |installer|
           '$(SDKROOT)/usr/lib/swift',
           '/usr/lib/swift',
         ]
+        next unless native_target.name == 'Runner'
+
+        flutter_root_dir = flutter_root
+        engine_variant = config.name == 'Debug' ? 'ios' : 'ios-release'
+        device_framework_dir = "#{flutter_root_dir}/bin/cache/artifacts/engine/#{engine_variant}/Flutter.xcframework/ios-arm64"
+        simulator_framework_dir = "#{flutter_root_dir}/bin/cache/artifacts/engine/#{engine_variant}/Flutter.xcframework/ios-arm64_x86_64-simulator"
+        config.build_settings['FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]'] = [
+          "\"#{device_framework_dir}\"",
+          '$(inherited)',
+        ].join(' ')
+        config.build_settings['FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]'] = [
+          "\"#{simulator_framework_dir}\"",
+          '$(inherited)',
+        ].join(' ')
+        config.build_settings['OTHER_LDFLAGS[sdk=iphoneos*]'] = [
+          '$(inherited)',
+          "\"#{device_framework_dir}/Flutter.framework/Flutter\"",
+        ].join(' ')
+        config.build_settings['OTHER_LDFLAGS[sdk=iphonesimulator*]'] = [
+          '$(inherited)',
+          "\"#{simulator_framework_dir}/Flutter.framework/Flutter\"",
+        ].join(' ')
+        config.build_settings.delete('OTHER_LDFLAGS')
       end
     end
     aggregate_target.user_project.save

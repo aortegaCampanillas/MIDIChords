@@ -115,7 +115,8 @@ jobs:
           </Package>
           "@
           $manifest | Set-Content -Path msix_stage\AppxManifest.xml -Encoding UTF8
-          $sdkBin = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          $sdkBin = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | Where-Object { $_.Name -match '^\d+\.\d+\.\d+' } | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          if (-not $sdkBin) { throw "Windows SDK bin not found" }
           & "$sdkBin\x64\MakeAppx.exe" pack /d msix_stage /p MIDIChords-windows-x64.msix /l
 
       - name: Upload to GitHub Release

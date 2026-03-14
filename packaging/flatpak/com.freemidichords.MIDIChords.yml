@@ -29,7 +29,7 @@ modules:
     buildsystem: simple
     build-commands:
       - export PYTHONPATH="/app/lib/python3.12/site-packages${PYTHONPATH:+:$PYTHONPATH}"
-      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" --hidden-import _sounddevice --collect-binaries sounddevice app.py
+      - pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets:assets" --hidden-import _sounddevice --additional-hooks-dir packaging/flatpak/pyinstaller-hooks app.py
       - install -Dm755 dist/MIDIChords /app/bin/midichords
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml

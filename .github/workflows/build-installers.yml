@@ -92,7 +92,7 @@ jobs:
           Copy-Item -Path assets\app_logo.png -Destination msix_stage\Assets\StoreLogo.png
           $manifest = @"
           <?xml version="1.0" encoding="utf-8"?>
-          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10">
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
             <Identity Name="MIDIChords" Publisher="CN=Antonio Ortega Gonzalez" Version="$ver" ProcessorArchitecture="x64"/>
             <Properties>
               <DisplayName>MIDIChords</DisplayName>
@@ -102,6 +102,9 @@ jobs:
             <Dependencies>
               <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.14393.0" MaxVersionTested="10.0.22621.0"/>
             </Dependencies>
+            <Capabilities>
+              <rescap:Capability Name="runFullTrust"/>
+            </Capabilities>
             <Resources>
               <Resource Language="en-us"/>
             </Resources>

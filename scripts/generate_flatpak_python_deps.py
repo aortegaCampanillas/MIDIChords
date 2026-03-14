@@ -29,6 +29,7 @@ SPECS = [
     PackageSpec("mido", "1.3.2"),
     PackageSpec("sounddevice", "0.5.1"),
     PackageSpec("cffi", "2.0.0"),
+    PackageSpec("meson-python", "0.18.0"),
     PackageSpec("numpy", "2.1.3"),
     PackageSpec("python-rtmidi", "1.5.8"),
     PackageSpec("pyinstaller-hooks-contrib", "2026.3"),

@@ -17,6 +17,16 @@
       }
     },
     {
+      "name": "Desktop Qt Detection: MIDIChords (experimental)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/desktop_qt/main.py",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "Web: MIDIChords",
       "type": "debugpy",
       "request": "launch",

@@ -205,6 +205,19 @@ Notas:
   - `--category-uti`
   - `--min-system-version`
   - `--icon-png` (o `--skip-icon` si ya lo gestionas externamente)
+
+### Rama `feature/qt-desktop` (migración a Qt)
+
+Para preparar una futura versión compatible con Mac App Store sin Tkinter, existe la rama `feature/qt-desktop`, donde se está explorando una UI basada en **Qt (PySide6)**:
+
+- Dependencia nueva: `PySide6` añadida a `requirements.txt`.
+- Ventana base para el modo Detection en Qt:
+  - `midichords/qt_app.py` → clase `QtDetectionWindow` y función `run_qt_detection_app()`.
+- Lanzador experimental:
+  - `apps/desktop_qt/main.py` → entrypoint que llama a `run_qt_detection_app()`.
+  - Configuración VS Code: **“Desktop Qt Detection: MIDIChords (experimental)”** en `.vscode/launch.json`.
+
+La UI Qt todavía **no sustituye** a la app Tkinter ni está lista para producción, pero sirve como base para migrar gradualmente el modo Detection (y más adelante el resto de modos) reutilizando el core de audio, MIDI y teoría musical.
 - Para guardar certificados/perfiles/keys dentro del proyecto sin subirlos a git, usa `signing/local/` (documentado en `signing/README.md`).
 
 ## VS Code launch

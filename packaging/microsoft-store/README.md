@@ -46,8 +46,16 @@ Si la Store rechaza el paquete al subirlo:
 - **Identidad de paquete (Store):** el manifest debe usar la **identidad asignada por la Store** a tu app, no valores genéricos:
   - **Identity Name:** el que indica Partner Center (p. ej. `Antonioortega.FreeMIDIPianoGuitarChords`).
   - **Publisher:** el CN que asigna la Store (p. ej. `CN=E70C548D-768A-4F80-B0D6-41DB1F7A402F`), no tu nombre real.
-  - **DisplayName:** un nombre para mostrar que tengas **reservado** en la ficha de la app (si la Store dice que "MIDIChords" no está reservado, reserva ese nombre en la identidad de la app o usa el que sí tengas reservado, p. ej. "Free MIDI Piano Guitar Chords"). El workflow usa los valores que la Store indicó en la validación; si cambias la identidad en Partner Center, actualiza `.github/workflows/build-installers.yml` (paso "Build MSIX package") para que coincidan.
-- **runFullTrust:** si aparece una advertencia de que la funcionalidad restringida `runFullTrust` requiere aprobación, suele bastar con declararla en el envío (en la sección de capacidades/declaraciones del paquete) y aceptar la revisión. Para apps de escritorio es habitual que la aprueben.
+  - **DisplayName:** debe ser **exactamente** el nombre que tienes reservado para la app en Partner Center. En **Partner Center → Tu app → Administración de la aplicación → Identidad de la aplicación** (o **Product management → App identity**) verás el **nombre de la aplicación** reservado; el `DisplayName` del manifest tiene que coincidir con ese texto. El workflow usa `MIDIChords`. Si la Store dice que ese nombre no está reservado, entra en **Identidad de la aplicación**, revisa o edita el **nombre de la aplicación** hasta que sea exactamente `MIDIChords` (o el que quieras mostrar) y guarda; luego regenera el MSIX con ese mismo nombre en el workflow si lo cambiaste.
+### runFullTrust (capacidad restringida)
+
+Si al subir el MSIX aparece la **advertencia** de que las capacidades restringidas (p. ej. `runFullTrust`) requieren aprobación:
+
+- Es una **advertencia**, no un error de validación: puedes seguir con el envío.
+- En el mismo flujo de envío (submission) suele haber una sección de **declaraciones** o **capacidades** del paquete donde debes **declarar** el uso de capacidades restringidas y, si lo pide, **justificar** por qué la app necesita `runFullTrust` (por ejemplo: "App de escritorio Win32 empaquetada como MSIX; necesita ejecución con plena confianza para acceso a MIDI y audio").
+- La Store revisa estas declaraciones; para aplicaciones de escritorio (Desktop Bridge) es habitual que aprueben `runFullTrust` tras esa revisión. Si te piden más datos, responde con el motivo técnico (acceso a APIs de sistema, MIDI, etc.).
+
+No hace falta quitar `runFullTrust` del manifest: es necesaria para que la app de escritorio funcione correctamente.
 
 ### Resumen
 

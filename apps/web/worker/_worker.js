@@ -660,6 +660,24 @@ export default {
     if (pathname === "/api/generate/guitar-variations" && request.method === "POST") return json({ variations: [] });
     if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
 
-    return env.ASSETS.fetch(request);
+    const assetResp = await env.ASSETS.fetch(request);
+
+    // Evita que Cloudflare/cliente se queden con CSS/JS viejos tras desplegar.
+    // (En local no pasa porque no hay cache CDN.)
+    if (
+      pathname === "/" ||
+      pathname.endsWith(".html") ||
+      pathname.startsWith("/static/")
+    ) {
+      const headers = new Headers(assetResp.headers);
+      headers.set("cache-control", "no-store");
+      return new Response(assetResp.body, {
+        status: assetResp.status,
+        statusText: assetResp.statusText,
+        headers,
+      });
+    }
+
+    return assetResp;
   },
 };

@@ -1,0 +1,20 @@
+---
+description: Contrato API web (Worker Cloudflare)
+globs: apps/web/worker/**/*
+alwaysApply: false
+---
+
+# API web: mantener contrato
+
+Al editar `apps/web/worker/`:
+
+- **Endpoints** que debe exponer el Worker (ver PROJECT_SPEC.md y apps/web/README.md):
+  - `GET /api/health` → `{ "status": "ok" }`
+  - `GET /api/meta?language=...` → `{ chord_patterns, scale_patterns }`
+  - `POST /api/detect` → body `{ notes[], language?, accidental? }`
+  - `POST /api/generate/chord` → body `{ root_pc, suffix, inversion, language?, accidental? }`
+  - `POST /api/generate/scale` → body `{ tonic_pc, pattern_name, language?, accidental? }`
+  - `POST /api/generate/guitar-variations` → body según uso en frontend
+  - `POST /api/feedback` → reenvío opcional (env)
+- **CORS**: responder a OPTIONS en `/api/*` con headers `access-control-allow-origin`, `access-control-allow-methods`, `access-control-allow-headers`.
+- **Respuestas**: JSON; códigos 200/204 para éxito, 404 para rutas API desconocidas. No cambiar nombres de campos que usa el frontend (`apps/web/static/app.js`) sin actualizar también el JS.

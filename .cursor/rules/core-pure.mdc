@@ -1,0 +1,14 @@
+---
+description: Reglas para midichords/core (teoría y servicios sin UI)
+globs: midichords/core/**/*.py
+alwaysApply: false
+---
+
+# Core: sin dependencias de UI
+
+Al editar módulos en `midichords/core/`:
+
+- **music_theory.py**: Solo depende de `i18n` (NOTE_NAMES). No importar tkinter, PySide6 ni ningún módulo de UI o audio. Las funciones deben ser puras o con dependencias mínimas (rutas en app_constants).
+- **music_service.py**: API de alto nivel para escritorio y web. Usar solo `music_theory` e `i18n`. No importar Tk, canvas ni audio_engine aquí; la capa de uso (mixins, worker) se encarga de reproducir sonido o dibujar.
+- **app_constants.py** / **app_config.py**: Rutas y configuración; sin lógica de negocio musical.
+- Mantener **compatibilidad**: cualquier cambio en `analyze_chord_notes`, `generate_chord`, `detect_chord`, `generate_scale` o en los formatos de list_chord_patterns/list_scale_patterns puede afectar al Worker web y al frontend; comprobar que el contrato (nombres de parámetros, estructura de respuestas) se mantenga o se documente.

@@ -1,0 +1,12 @@
+---
+description: Contexto del proyecto MIDIChords para agentes IA
+alwaysApply: true
+---
+
+# MIDIChords — Guía para agentes
+
+- **Documentación principal para agentes**: lee `AGENTS.md` en la raíz del proyecto antes de cambiar código. Ahí se describe la estructura del monorepo, puntos de entrada, paquete `midichords` (core, mixins, UI) y dónde está cada funcionalidad.
+- **Ejecución**: desktop con `python launch.py desktop` (o config "Desktop: MIDIChords" en launch.json); web con `python launch.py web --host 127.0.0.1 --port 8000`; tests con `python -m unittest discover -s tests` desde la raíz.
+- **Lógica compartida**: está en `midichords/` (Python). La app de escritorio es Tkinter (`midichords/main_app.py` + mixins en `midichords/mixins/`). No asumir Qt salvo que se trabaje en una rama que lo use.
+- **Idioma por defecto**: español (`es`) en UI y nombres de notas; ver `midichords/core/i18n.py` y `music_service.note_name(..., language="es")`.
+- **Responder al usuario en español** salvo que pida otro idioma.

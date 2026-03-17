@@ -1,6 +1,6 @@
 # MIDIChords Monorepo
 
-Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas:
+Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas. **Documentación**: [AGENTS.md](AGENTS.md) (para agentes IA), [PROJECT_SPEC.md](PROJECT_SPEC.md) (especificación para regenerar el proyecto).
 
 - `apps/desktop`: aplicación de escritorio (Tkinter, Python)
 - `apps/web`: aplicación web (Cloudflare Worker + frontend JS)
@@ -9,6 +9,11 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 - `assets`: recursos gráficos y muestras de audio compartidas
 
 Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDIChords/CHANGELOG.md)
+
+## Descargas
+
+- **iOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
+- **Windows (Microsoft Store)**: [Free MIDI Piano&Guitar Chords](https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare)
 
 ## Estructura
 

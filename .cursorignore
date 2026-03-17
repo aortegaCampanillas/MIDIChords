@@ -1,0 +1,26 @@
+# Entornos y dependencias (evitar indexar)
+.venv/
+.venv-mas/
+venv/
+node_modules/
+.wrangler/
+
+# Build y artefactos
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Cachés y cobertura
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Material de firma y secrets (no exponer)
+signing/local/
+.certs/
+.env
+.env.*
+config.json

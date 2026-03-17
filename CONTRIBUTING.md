@@ -6,11 +6,13 @@ Thanks for contributing.
 
 1. Create a branch from `main`.
 2. Keep changes small and self-contained.
-3. Verify that `app.py` compiles:
+3. Run tests from the **project root**:
 
 ```bash
-python3 -m py_compile app.py
+python -m unittest discover -s tests -p "test_*.py"
 ```
+
+Optionally verify that `app.py` compiles: `python3 -m py_compile app.py`.
 
 4. Open a Pull Request with a clear description:
 
@@ -23,3 +25,8 @@ python3 -m py_compile app.py
 - Clear and readable Python.
 - Avoid unnecessary dependencies.
 - Keep macOS compatibility.
+
+## For AI agents
+
+- Prefer Spanish for user-facing strings and default UI language (`es` in `midichords.core.i18n`).
+- Run the test command above before considering a change complete. See **AGENTS.md** for project structure and **PROJECT_SPEC.md** for product spec.

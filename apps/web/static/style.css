@@ -236,7 +236,7 @@ body.help-active * {
 
 .support-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 12px;
 }
 
@@ -254,6 +254,58 @@ body.help-active * {
 
 .feedback-modal-card {
   width: min(640px, 96vw);
+}
+
+.downloads-modal-card {
+  width: min(760px, 96vw);
+}
+
+.downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.downloads-card {
+  background: linear-gradient(170deg, #2a3443, #24303f);
+  border: 1px solid #4e5d74;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.downloads-title {
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.downloads-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.downloads-list a {
+  color: #6fd7ff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.downloads-list a:hover {
+  text-decoration: underline;
+}
+
+.downloads-pending {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.downloads-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .feedback-form {
@@ -311,6 +363,12 @@ body.help-active * {
 
 @media (max-width: 900px) {
   .support-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .downloads-grid {
     grid-template-columns: 1fr;
   }
 }

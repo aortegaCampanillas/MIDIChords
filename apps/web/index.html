@@ -254,6 +254,13 @@
             </p>
             <button id="feedbackOpenBtn" class="donate-btn feedback-open-btn" type="button">Enviar comentarios</button>
           </div>
+          <div class="support-card">
+            <h3 id="downloadsPanelTitle">Descargas</h3>
+            <p id="downloadsPanelText" class="muted">
+              Descarga la app para PC y móvil, o abre las tiendas oficiales.
+            </p>
+            <button id="downloadsOpenBtn" class="donate-btn feedback-open-btn" type="button">Ver descargas</button>
+          </div>
         </div>
       </section>
     </main>
@@ -294,6 +301,53 @@
             <span id="feedbackStatus" class="muted" aria-live="polite"></span>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div id="downloadsModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="downloadsModalTitle">
+      <div class="modal-card downloads-modal-card">
+        <h3 id="downloadsModalTitle">Descargas</h3>
+        <p id="downloadsModalIntro" class="muted">Elige tu plataforma para descargar la app.</p>
+        <div class="downloads-grid">
+          <div class="downloads-card">
+            <div id="downloadsPcTitle" class="downloads-title">PC/Mac</div>
+            <ul class="downloads-list">
+              <li>
+                <a id="downloadWindowsLink" href="https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare" target="_blank" rel="noopener noreferrer">
+                  Windows (Microsoft Store)
+                </a>
+              </li>
+              <li>
+                <a id="downloadMacosLink" href="https://github.com/aortegaCampanillas/FreeMIDIChords_Releases/releases/latest/download/MIDIChords-macos.dmg" target="_blank" rel="noopener noreferrer">
+                  macOS (.dmg) (GitHub Releases)
+                </a>
+              </li>
+              <li>
+                <a id="downloadLinuxDebLink" href="https://github.com/aortegaCampanillas/FreeMIDIChords_Releases/releases/latest/download/MIDIChords-debian-amd64.deb" target="_blank" rel="noopener noreferrer">
+                  Linux (.deb) (GitHub Releases)
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="downloads-card">
+            <div id="downloadsMobileTitle" class="downloads-title">Móvil</div>
+            <ul class="downloads-list">
+              <li>
+                <a id="downloadIosLink" href="https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776" target="_blank" rel="noopener noreferrer">
+                  iOS (App Store)
+                </a>
+              </li>
+              <li>
+                <span id="downloadAndroidPending" class="downloads-pending">
+                  Android (Google Play): pendiente de aprobación
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="downloads-actions">
+          <button id="downloadsCloseBtn" type="button" class="ghost">Cerrar</button>
+        </div>
       </div>
     </div>
 

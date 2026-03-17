@@ -198,6 +198,18 @@ const UI_TEXTS = {
     feedback_name: "Nombre",
     feedback_email: "Email",
     feedback_message: "Comentario",
+    downloads_panel_title: "Descargas",
+    downloads_panel_text: "Descarga la app para PC y móvil, o abre las tiendas oficiales.",
+    downloads_open: "Ver descargas",
+    downloads_modal_title: "Descargas",
+    downloads_modal_intro: "Elige tu plataforma para descargar la app.",
+    downloads_pc_title: "PC/Mac",
+    downloads_mobile_title: "Móvil",
+    downloads_windows_store: "Windows (Microsoft Store)",
+    downloads_macos_dmg: "macOS (.dmg) (GitHub Releases)",
+    downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
+    downloads_ios_appstore: "iOS (App Store)",
+    downloads_android_pending: "Android (Google Play): pendiente de aprobación",
     feedback_send: "Enviar comentario",
     feedback_sending: "Enviando...",
     feedback_ok: "Gracias. Comentario enviado.",
@@ -352,6 +364,18 @@ const UI_TEXTS = {
     feedback_name: "Name",
     feedback_email: "Email",
     feedback_message: "Comment",
+    downloads_panel_title: "Downloads",
+    downloads_panel_text: "Download the app for PC and mobile, or open the official stores.",
+    downloads_open: "View downloads",
+    downloads_modal_title: "Downloads",
+    downloads_modal_intro: "Choose your platform to download the app.",
+    downloads_pc_title: "PC/Mac",
+    downloads_mobile_title: "Mobile",
+    downloads_windows_store: "Windows (Microsoft Store)",
+    downloads_macos_dmg: "macOS (.dmg) (GitHub Releases)",
+    downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
+    downloads_ios_appstore: "iOS (App Store)",
+    downloads_android_pending: "Android (Google Play): pending approval",
     feedback_send: "Send feedback",
     feedback_sending: "Sending...",
     feedback_ok: "Thanks. Feedback sent.",
@@ -750,6 +774,18 @@ function hideFeedbackModal() {
   modal.classList.add("hidden");
 }
 
+function showDownloadsModal() {
+  const modal = el("downloadsModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+}
+
+function hideDownloadsModal() {
+  const modal = el("downloadsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
 function refreshHelpButtonState() {
   const helpBtn = el("helpToggle");
   if (!helpBtn) return;
@@ -1063,6 +1099,19 @@ function applyTranslations() {
   setText("feedbackMessageLabel", "feedback_message");
   setText("feedbackSubmit", "feedback_send");
   setText("feedbackCloseBtn", "close");
+  setText("downloadsPanelTitle", "downloads_panel_title");
+  setText("downloadsPanelText", "downloads_panel_text");
+  setText("downloadsOpenBtn", "downloads_open");
+  setText("downloadsModalTitle", "downloads_modal_title");
+  setText("downloadsModalIntro", "downloads_modal_intro");
+  setText("downloadsPcTitle", "downloads_pc_title");
+  setText("downloadsMobileTitle", "downloads_mobile_title");
+  setText("downloadWindowsLink", "downloads_windows_store");
+  setText("downloadMacosLink", "downloads_macos_dmg");
+  setText("downloadLinuxDebLink", "downloads_linux_deb");
+  setText("downloadIosLink", "downloads_ios_appstore");
+  setText("downloadAndroidPending", "downloads_android_pending");
+  setText("downloadsCloseBtn", "close");
   setText("helpToggle", "help_button");
   setText("midiStartupTitle", "midi_startup_title");
   setText("midiStartupText", "midi_startup_text");
@@ -4714,16 +4763,34 @@ function bindEvents() {
       showFeedbackModal();
     });
   }
+  const downloadsOpenBtn = el("downloadsOpenBtn");
+  if (downloadsOpenBtn) {
+    downloadsOpenBtn.addEventListener("click", () => {
+      showDownloadsModal();
+    });
+  }
   const feedbackCloseBtn = el("feedbackCloseBtn");
   if (feedbackCloseBtn) {
     feedbackCloseBtn.addEventListener("click", () => {
       hideFeedbackModal();
     });
   }
+  const downloadsCloseBtn = el("downloadsCloseBtn");
+  if (downloadsCloseBtn) {
+    downloadsCloseBtn.addEventListener("click", () => {
+      hideDownloadsModal();
+    });
+  }
   const feedbackModal = el("feedbackModal");
   if (feedbackModal) {
     feedbackModal.addEventListener("click", (event) => {
       if (event.target === feedbackModal) hideFeedbackModal();
+    });
+  }
+  const downloadsModal = el("downloadsModal");
+  if (downloadsModal) {
+    downloadsModal.addEventListener("click", (event) => {
+      if (event.target === downloadsModal) hideDownloadsModal();
     });
   }
   el("guitarHandedness").addEventListener("change", (e) => {
@@ -4795,6 +4862,14 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !el("downloadsModal")?.classList.contains("hidden")) {
+      hideDownloadsModal();
+      return;
+    }
+    if (event.key === "Escape" && !el("feedbackModal")?.classList.contains("hidden")) {
+      hideFeedbackModal();
+      return;
+    }
     if (event.key === "Escape" && state.help.active) {
       setHelpActive(false);
       return;

@@ -331,7 +331,7 @@ jobs:
       - name: Publish release in public repo (same tag)
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASES_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
           REPO: ${{ env.PUBLIC_RELEASES_REPO }}
           SOURCE_REPO: ${{ github.repository }}
         run: |

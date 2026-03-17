@@ -2,6 +2,11 @@ name: Build Installers
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de release a publicar (ej: v1.0.2). Si se deja vacío, no se sincroniza al repo público."
+        required: false
+        type: string
   push:
     tags:
       - 'v*'
@@ -127,9 +132,10 @@ jobs:
           & "$sdkBin\x64\MakeAppx.exe" pack /d msix_stage /p MIDIChords-windows-x64.msix /l
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
             MIDIChords-windows-installer-x64.exe
             MIDIChords-windows-x64.msix
@@ -166,9 +172,10 @@ jobs:
           hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: MIDIChords-macos.dmg
 
   build-debian:
@@ -249,14 +256,15 @@ jobs:
           dpkg-deb --build "$PKGROOT" "MIDIChords-debian-amd64.deb"
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: MIDIChords-debian-amd64.deb
 
   sync-public-release:
     name: Sync installers to public releases repo
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
     runs-on: ubuntu-latest
     needs:
       - build-windows
@@ -267,7 +275,7 @@ jobs:
       - name: Download release assets from this repo
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
           SOURCE_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail

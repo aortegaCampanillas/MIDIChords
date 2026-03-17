@@ -1,9 +1,8 @@
 name: Deploy Cloudflare (Production)
 
+# Producción solo con etiquetas: no se dispara con push a main.
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
   workflow_dispatch:

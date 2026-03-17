@@ -75,10 +75,10 @@ Abrir: `http://127.0.0.1:8000`
 
 Nota: `launch.py web` usa el mismo Worker de Cloudflare que producción (`wrangler dev`), para evitar diferencias entre local y Cloudflare.
 
-Despliegue a Cloudflare Pages:
+**Despliegue a producción (Cloudflare Pages):** solo se lanza al hacer **push de una etiqueta** `v*` (p. ej. `v1.0.1`), no con un push a `main`. Para dispararlo a mano: Actions → "Deploy Cloudflare (Production)" → Run workflow, o desde CLI con un tag existente:
 
 ```bash
-gh workflow run deploy-cloudflare-on-tag.yml --ref main
+gh workflow run deploy-cloudflare-on-tag.yml --ref v1.0.1
 ```
 
 Seguimiento:

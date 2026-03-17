@@ -6,6 +6,8 @@ Aplicación web servida con Cloudflare Worker (`apps/web/worker/_worker.js`) y a
 
 La web se publica en Cloudflare Pages, no con un `wrangler.toml` local dentro del repo.
 
+**Producción solo con etiquetas:** el workflow de producción (`deploy-cloudflare-on-tag.yml`) **no** se dispara con push a `main`; solo se ejecuta al hacer **push de una etiqueta** `v*` (p. ej. `v1.0.1`) o manualmente con *workflow_dispatch*.
+
 El flujo real de despliegue es:
 
 1. preparar un bundle estático temporal con:
@@ -24,10 +26,10 @@ Usar GitHub Actions, porque ya reutiliza los secrets del repositorio:
 - `CLOUDFLARE_ACCOUNT_ID`
 - variable `CLOUDFLARE_PAGES_PROJECT`
 
-Producción:
+Producción (se dispara al subir un tag; para lanzar a mano usa un tag existente o el botón Run workflow):
 
 ```bash
-gh workflow run deploy-cloudflare-on-tag.yml --ref main
+gh workflow run deploy-cloudflare-on-tag.yml --ref v1.0.1
 ```
 
 Ese workflow no da el deploy por válido solo porque `wrangler` termine bien. Después:
@@ -53,7 +55,7 @@ gh run watch <run_id>
 ### Cuándo usar cada workflow
 
 - `deploy-cloudflare-preview.yml`: previews de ramas que no son `main`
-- `deploy-cloudflare-on-tag.yml`: producción; también puede lanzarse manualmente con `workflow_dispatch` sobre `main`
+- `deploy-cloudflare-on-tag.yml`: producción; **solo** se dispara con push a etiquetas `v*` (no con push a `main`). También puede lanzarse manualmente con *workflow_dispatch*. Siempre despliega el estado actual de la rama `main`.
 
 ### Despliegue manual con Wrangler
 

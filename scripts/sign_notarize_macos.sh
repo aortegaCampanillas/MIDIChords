@@ -206,11 +206,16 @@ echo "Verifying app signature..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 echo "Building DMG..."
+# Evitar "Resource busy": desmontar si el volumen ya está montado y crear DMG en temp
+hdiutil detach "/Volumes/$APP_NAME" 2>/dev/null || true
 rm -rf "$DMG_ROOT" "$DMG_PATH"
 mkdir -p "$DMG_ROOT"
 cp -R "$APP_PATH" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
-hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
+DMG_TMP="${DMG_PATH}.tmp"
+rm -f "$DMG_TMP"
+hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_TMP"
+mv -f "$DMG_TMP" "$DMG_PATH"
 
 echo "Signing DMG..."
 codesign --force --timestamp --sign "$IDENTITY" "$DMG_PATH"

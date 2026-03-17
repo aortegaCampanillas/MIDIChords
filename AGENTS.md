@@ -141,6 +141,8 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
 
 - **"Sube etiqueta"** (o equivalente): hacer **commit** de los cambios pendientes, **push** a la rama actual y **mover la última etiqueta** (p. ej. `v1.0.1`) al último commit, con `git tag -f <tag>` y `git push --force origin <tag>`. Así se re-dispara el workflow de instaladores para esa versión.
 - **Despliegue a producción (web):** el deploy a Cloudflare Pages **solo** se lanza con **push de una etiqueta** `v*`, no con push a `main`. Ver `README.md` y `apps/web/README.md`.
+- **Changelog (obligatorio mantenerlo):** cuando se hace un cambio relevante, actualizar `CHANGELOG.md` (sección **Unreleased**) para que la próxima subida/release quede trazable. En particular:
+  - **iOS/App Store**: la etiqueta `v1.0.0` se usa para referenciar la build de iOS publicada **1.0.0 (2)**; no mover esa etiqueta sin actualizar `CHANGELOG.md` y sin una razón clara.
 
 ## Otros documentos
 

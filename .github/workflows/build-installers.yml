@@ -148,6 +148,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug vars (firma macOS)
+        run: echo "SIGN_MACOS=[${{ vars.SIGN_MACOS }}]" && if [ "${{ vars.SIGN_MACOS }}" = "true" ]; then echo "Se ejecutará firma y notarización"; else echo "Se generará DMG sin firma"; fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

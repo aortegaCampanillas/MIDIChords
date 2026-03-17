@@ -158,6 +158,22 @@ Opciones útiles:
 - `--skip-build`: reutiliza `dist/MIDIChords.app` ya generado.
 - `--skip-notarize`: solo firma localmente (sin envío a Apple).
 
+### Firma y notarización en CI (GitHub Actions)
+
+El workflow **Build Installers** puede firmar y notarizar el DMG de macOS si configuras estos **secrets** en el repo:
+
+| Secret | Descripción |
+|--------|-------------|
+| `MACOS_SIGNING_IDENTITY` | Nombre de la identidad de firma, ej. `Developer ID Application: Tu Nombre (TEAMID)` |
+| `MACOS_BUNDLE_ID` | Bundle ID, ej. `com.tudominio.midichords` |
+| `MACOS_CERTIFICATE_P12_BASE64` | Certificado Developer ID exportado en .p12, codificado en base64 |
+| `MACOS_CERTIFICATE_PASSWORD` | Contraseña del archivo .p12 |
+| `APPLE_ID` | Apple ID (email) para notarización |
+| `APPLE_APP_SPECIFIC_PASSWORD` | Contraseña de app para notarización |
+| `APPLE_TEAM_ID` | Team ID de Apple Developer |
+
+Si no configuras `MACOS_SIGNING_IDENTITY`, el job de macOS genera un DMG **sin firmar** (como hasta ahora). Con todos los secrets, el DMG se firma y notariza y se puede instalar sin problemas fuera de la App Store.
+
 ## Empaquetar para Mac App Store (MAS)
 
 Para subir a la Mac App Store, no uses DMG con `Developer ID`. Debes generar un `PKG` firmado para App Store con sandbox.

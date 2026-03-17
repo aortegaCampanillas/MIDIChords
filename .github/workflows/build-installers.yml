@@ -163,13 +163,44 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --windowed --name MIDIChords --add-data "assets:assets" app.py
 
-      - name: Build installer (.dmg)
+      - name: Build installer (.dmg) (sin firma)
+        if: ${{ secrets.MACOS_SIGNING_IDENTITY == '' }}
         run: |
           rm -rf dmg-root
           mkdir -p dmg-root
           cp -R dist/MIDIChords.app dmg-root/
           ln -s /Applications dmg-root/Applications
           hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
+
+      - name: Import certificate and sign + notarize
+        if: ${{ secrets.MACOS_SIGNING_IDENTITY != '' }}
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_BUNDLE_ID: ${{ secrets.MACOS_BUNDLE_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="actions"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$MACOS_CERTIFICATE_P12_BASE64" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          xcrun notarytool store-credentials "AC_NOTARY" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+          scripts/sign_notarize_macos.sh \
+            --skip-build \
+            --skip-icon \
+            --identity "$MACOS_SIGNING_IDENTITY" \
+            --bundle-id "$MACOS_BUNDLE_ID" \
+            --notary-profile "AC_NOTARY"
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')

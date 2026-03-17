@@ -3285,7 +3285,11 @@ class _HomeScreenState extends State<HomeScreen>
       return null;
     }
     if (Platform.isIOS) {
-      final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
+      final baseVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
+      // En iOS, el motor nativo puede saturar con algunos presets (especialmente piano).
+      // Atenuamos un poco para evitar clipping percibido.
+      final instrumentAttenuation = instrument == 'piano' ? 0.72 : 0.82;
+      final targetVolume = (baseVolume * instrumentAttenuation).clamp(0.0, 1.0);
       final ok = await _playIosSynthTone(
         midi: _safeMidi(midi),
         instrument: instrument,
@@ -3921,9 +3925,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _stopHeldChord() {
-    if (Platform.isIOS) {
-      unawaited(_stopIosSynth());
-    }
+    // En iOS, el sintetizador nativo no expone note-off por nota.
+    // Para evitar cortes bruscos al soltar, dejamos que la nota termine por duración.
     final uniquePlayers = _heldChordPlayers.values.toSet();
     for (final player in uniquePlayers) {
       unawaited(_safeStopDispose(player));
@@ -3934,9 +3937,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _stopHeldInputs() {
-    if (Platform.isIOS) {
-      unawaited(_stopIosSynth());
-    }
+    // En iOS, no parar el synth evita cortar el "release" de la nota.
     for (final entry in _heldInputPlayers.entries) {
       unawaited(_safeStopDispose(entry.value));
     }
@@ -3944,9 +3945,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _stopHeldMidiInputs() {
-    if (Platform.isIOS) {
-      unawaited(_stopIosSynth());
-    }
+    // En iOS, no parar el synth evita cortar el "release" de la nota.
     for (final entry in _heldMidiInputPlayers.entries) {
       unawaited(_safeStopDispose(entry.value));
     }
@@ -3978,20 +3977,21 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     if (Platform.isIOS) {
+      final volume = (0.92 * (instrument == 'piano' ? 0.72 : 0.82)).clamp(0.0, 1.0);
       final ok = chordNotes.length > 1
           ? await _playIosSynthChord(
               notes: chordNotes,
               instrument: instrument,
               durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
                   .round(),
-              volume: 0.92,
+              volume: volume,
             )
           : await _playIosSynthTone(
               midi: chordNotes.first,
               instrument: instrument,
               durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
                   .round(),
-              volume: 0.92,
+              volume: volume,
             );
       if (ok && mounted) {
         setState(() {});
@@ -4023,10 +4023,13 @@ class _HomeScreenState extends State<HomeScreen>
     required String instrument,
   }) async {
     _releaseHeldInputNote(midi);
+    final durationSeconds = Platform.isIOS
+        ? (instrument == 'guitar' ? 1.6 : 2.2)
+        : (instrument == 'guitar' ? 1.05 : 0.95);
     final player = await _playTone(
       midi: midi,
       instrument: instrument,
-      durationSeconds: instrument == 'guitar' ? 1.05 : 0.95,
+      durationSeconds: durationSeconds,
     );
     if (player != null) {
       _heldInputPlayers[midi] = player;
@@ -4038,10 +4041,13 @@ class _HomeScreenState extends State<HomeScreen>
     required String instrument,
   }) async {
     _releaseHeldMidiInputNote(midi);
+    final durationSeconds = Platform.isIOS
+        ? (instrument == 'guitar' ? 1.6 : 2.2)
+        : (instrument == 'guitar' ? 1.05 : 0.95);
     final player = await _playTone(
       midi: midi,
       instrument: instrument,
-      durationSeconds: instrument == 'guitar' ? 1.05 : 0.95,
+      durationSeconds: durationSeconds,
     );
     if (player != null) {
       _heldMidiInputPlayers[midi] = player;

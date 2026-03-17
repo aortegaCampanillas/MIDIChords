@@ -134,16 +134,6 @@ jobs:
             MIDIChords-windows-installer-x64.exe
             MIDIChords-windows-x64.msix
 
-      - name: Upload artifacts for public release sync
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-windows
-          if-no-files-found: error
-          path: |
-            MIDIChords-windows-installer-x64.exe
-            MIDIChords-windows-x64.msix
-
   build-macos:
     name: Build macOS Installer
     runs-on: macos-latest
@@ -180,14 +170,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: MIDIChords-macos.dmg
-
-      - name: Upload artifacts for public release sync
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-macos
-          if-no-files-found: error
-          path: MIDIChords-macos.dmg
 
   build-debian:
     name: Build Debian Package
@@ -272,14 +254,6 @@ jobs:
         with:
           files: MIDIChords-debian-amd64.deb
 
-      - name: Upload artifacts for public release sync
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-debian
-          if-no-files-found: error
-          path: MIDIChords-debian-amd64.deb
-
   sync-public-release:
     name: Sync installers to public releases repo
     if: startsWith(github.ref, 'refs/tags/v')
@@ -290,10 +264,22 @@ jobs:
       - build-debian
 
     steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      - name: Download release assets from this repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          SOURCE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          gh release download "$TAG" \
+            --repo "$SOURCE_REPO" \
+            --dir out \
+            --pattern 'MIDIChords-*.dmg' \
+            --pattern 'MIDIChords-*.exe' \
+            --pattern 'MIDIChords-*.msix' \
+            --pattern 'MIDIChords-*.deb'
+          ls -la out
 
       - name: Publish release in public repo (same tag)
         env:
@@ -303,10 +289,6 @@ jobs:
           SOURCE_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-
-          # Flatten artifacts into a single folder
-          mkdir -p out
-          cp -v artifacts/**/** out/
 
           # Create the release if it doesn't exist yet (this also creates the tag in the target repo).
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then

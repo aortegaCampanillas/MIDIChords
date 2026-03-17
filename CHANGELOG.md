@@ -36,6 +36,12 @@ Disponible en:
 
 Estos cambios son los que entrarán en la **próxima subida** respecto a `v1.0.0` (iOS **1.0.0 (2)**).
 
+### iOS (Flutter)
+
+- Audio del piano menos “cortado” al soltar la tecla (release más natural).
+- Reducción de saturación/clipping percibido en iOS (atenuación de ganancia, especialmente en piano).
+- Preparada la próxima build de iOS: **1.0.1 (3)**.
+
 ### Web (Cloudflare Pages)
 
 - Nuevo panel **Descargas** (PC/Mac y móvil) con ventana/modal y enlaces actualizados.

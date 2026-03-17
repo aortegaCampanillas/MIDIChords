@@ -197,15 +197,16 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 
-          echo "Identidades de firma disponibles (usa el nombre exacto en MACOS_SIGNING_IDENTITY):"
-          security find-identity -v -p codesigning
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$SIGNING_IDENTITY" ]; then echo "No se encontró identidad Developer ID Application"; security find-identity -v -p codesigning; exit 1; fi
+          echo "Usando identidad: $SIGNING_IDENTITY"
 
           xcrun notarytool store-credentials "AC_NOTARY" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD"
 
           scripts/sign_notarize_macos.sh \
             --skip-build \
             --skip-icon \
-            --identity "$MACOS_SIGNING_IDENTITY" \
+            --identity "$SIGNING_IDENTITY" \
             --bundle-id "$MACOS_BUNDLE_ID" \
             --notary-profile "AC_NOTARY"
 

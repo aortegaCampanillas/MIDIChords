@@ -213,9 +213,10 @@ mkdir -p "$DMG_ROOT"
 cp -R "$APP_PATH" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
 DMG_TMP="${DMG_PATH}.tmp"
-rm -f "$DMG_TMP"
+rm -f "$DMG_TMP" "$DMG_TMP.dmg"
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_TMP"
-mv -f "$DMG_TMP" "$DMG_PATH"
+# hdiutil añade .dmg al path si no termina en .dmg
+mv -f "$DMG_TMP.dmg" "$DMG_PATH"
 
 echo "Signing DMG..."
 codesign --force --timestamp --sign "$IDENTITY" "$DMG_PATH"

@@ -70,3 +70,6 @@ dmg-root/
 *.spec
 scripts/entitlements.mas.generated.plist
 scripts/build_ejecutado_manualmente.txt
+
+# Local flathub submission workspace (no debe versionarse)
+flathub-submission/

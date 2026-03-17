@@ -361,7 +361,7 @@ body.help-active * {
   filter: brightness(1.04);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 700px) {
   .support-grid {
     grid-template-columns: 1fr;
   }

@@ -10,3 +10,4 @@ alwaysApply: true
 - **Lógica compartida**: está en `midichords/` (Python). La app de escritorio es Tkinter (`midichords/main_app.py` + mixins en `midichords/mixins/`). No asumir Qt salvo que se trabaje en una rama que lo use.
 - **Idioma por defecto**: español (`es`) en UI y nombres de notas; ver `midichords/core/i18n.py` y `music_service.note_name(..., language="es")`.
 - **Responder al usuario en español** salvo que pida otro idioma.
+- **"Sube etiqueta"**: commit de cambios, push a la rama actual y mover la última etiqueta al último commit (`git tag -f <tag>` + `git push --force origin <tag>`). Ver AGENTS.md → Convenciones del usuario.

@@ -164,7 +164,7 @@ jobs:
           pyinstaller --noconfirm --clean --windowed --name MIDIChords --add-data "assets:assets" app.py
 
       - name: Build installer (.dmg) (sin firma)
-        if: ${{ secrets.MACOS_SIGNING_IDENTITY == '' }}
+        if: ${{ vars.SIGN_MACOS != 'true' }}
         run: |
           rm -rf dmg-root
           mkdir -p dmg-root
@@ -173,7 +173,7 @@ jobs:
           hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
 
       - name: Import certificate and sign + notarize
-        if: ${{ secrets.MACOS_SIGNING_IDENTITY != '' }}
+        if: ${{ vars.SIGN_MACOS == 'true' }}
         env:
           MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}

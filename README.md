@@ -172,7 +172,12 @@ El workflow **Build Installers** puede firmar y notarizar el DMG de macOS si con
 | `APPLE_APP_SPECIFIC_PASSWORD` | Contraseña de app para notarización |
 | `APPLE_TEAM_ID` | Team ID de Apple Developer |
 
-Si no configuras `MACOS_SIGNING_IDENTITY`, el job de macOS genera un DMG **sin firmar** (como hasta ahora). Con todos los secrets, el DMG se firma y notariza y se puede instalar sin problemas fuera de la App Store.
+Además, en **Settings → Secrets and variables → Actions → Variables** crea una variable:
+
+- **Name**: `SIGN_MACOS`  
+- **Value**: `true`
+
+Si no existe la variable `SIGN_MACOS` o no es `true`, el job de macOS genera un DMG **sin firmar**. Con la variable en `true` y todos los secrets configurados, el DMG se firma y notariza.
 
 ## Empaquetar para Mac App Store (MAS)
 

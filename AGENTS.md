@@ -137,6 +137,10 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
 - **Notas sobrantes**: notas que no pertenecen al acorde detectado (según el mejor ajuste armónico).
 - **PROJECT_ROOT**: raíz de recursos (assets, samples, config); ver `app_constants`.
 
+## Convenciones del usuario
+
+- **"Sube etiqueta"** (o equivalente): hacer **commit** de los cambios pendientes, **push** a la rama actual y **mover la última etiqueta** (p. ej. `v1.0.1`) al último commit, con `git tag -f <tag>` y `git push --force origin <tag>`. Así se re-dispara el workflow de instaladores para esa versión.
+
 ## Otros documentos
 
 - **CONTRIBUTING.md**: ramas, estilo, cómo hacer PRs.

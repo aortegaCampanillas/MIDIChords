@@ -1,0 +1,9 @@
+/index.html
+  Cache-Control: no-store
+
+/
+  Cache-Control: no-store
+
+/static/*
+  Cache-Control: no-store
+

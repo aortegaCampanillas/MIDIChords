@@ -32,6 +32,8 @@ jobs:
           cp apps/web/index.html apps/web/pages-dist/index.html
           cp -R apps/web/static/. apps/web/pages-dist/static/
           cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
+          # Cloudflare Pages headers (evita cache de HTML/CSS/JS tras deploy)
+          if [ -f apps/web/_headers ]; then cp apps/web/_headers apps/web/pages-dist/_headers; fi
           test -f apps/web/pages-dist/index.html
           test -f apps/web/pages-dist/static/app.js
           test -f apps/web/pages-dist/static/style.css

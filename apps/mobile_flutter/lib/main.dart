@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_audio_capture/flutter_audio_capture.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1818,6 +1820,51 @@ class _HomeScreenState extends State<HomeScreen>
                         return;
                       }
                       setDialogState(() => selectedLanguage = value);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      final versionText = snapshot.hasData
+                          ? 'v${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                          : '...';
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _ui('Versión de la app', 'App version'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _muted,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            versionText,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _text,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextButton.icon(
+                            onPressed: () async {
+                              const webUrl = 'https://freemidichords.com/';
+                              final uri = Uri.parse(webUrl);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            icon: const Icon(Icons.language, size: 18),
+                            label: Text(_ui('Visitar la web', 'Visit website')),
+                            style: TextButton.styleFrom(
+                              foregroundColor: _accent,
+                            ),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ],

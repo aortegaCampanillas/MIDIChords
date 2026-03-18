@@ -660,7 +660,18 @@ export default {
     if (pathname === "/api/generate/guitar-variations" && request.method === "POST") return json({ variations: [] });
     if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
 
-    const assetResp = await env.ASSETS.fetch(request);
+    // Cloudflare Pages puede fallar resolviendo assets estáticos si van con querystring
+    // (p.ej. /static/style.css?v=... para cache-busting). Para assets, sirve siempre
+    // el mismo recurso ignorando `search`.
+    let assetRequest = request;
+    if (pathname.startsWith("/static/") && url.search) {
+      const cleanUrl = new URL(url);
+      cleanUrl.search = "";
+      cleanUrl.hash = "";
+      assetRequest = new Request(cleanUrl.toString(), request);
+    }
+
+    const assetResp = await env.ASSETS.fetch(assetRequest);
 
     // Evita que Cloudflare/cliente se queden con CSS/JS viejos tras desplegar.
     // (En local no pasa porque no hay cache CDN.)

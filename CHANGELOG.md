@@ -42,6 +42,10 @@ Estos cambios son los que entrarán en la **próxima subida** respecto a `v1.0.0
 - Reducción de saturación/clipping percibido en iOS (atenuación de ganancia, especialmente en piano).
 - Preparada la próxima build de iOS: **1.0.1 (3)**.
 
+### Android (Flutter)
+
+- Corregido el panel izquierdo del metrónomo en Android 14 (ej. UMIDIGI G9C).
+
 ### Web (Cloudflare Pages)
 
 - Nuevo panel **Descargas** (PC/Mac y móvil) con ventana/modal y enlaces actualizados.

@@ -5458,6 +5458,7 @@ class _HomeScreenState extends State<HomeScreen>
 	                      constraints.maxHeight,
 	                    );
 	                    return Stack(
+	                      fit: StackFit.expand,
 	                      children: <Widget>[
 	                        CustomPaint(
 	                          painter: _MiniMetronomePainter(

@@ -1717,7 +1717,12 @@ class _HomeScreenState extends State<HomeScreen>
     final fontSize = math.min(44.0, size.height * 0.24);
     final centerY = axisY + ((size.height - axisY) * 0.5);
     final rectHeight = math.max(52.0, fontSize + 10.0);
-    final top = (centerY - (rectHeight / 2)).clamp(axisY + 56.0, size.height - rectHeight - 16.0);
+    final rawTop = centerY - (rectHeight / 2);
+    final minTop = axisY + 56.0;
+    final maxTop = size.height - rectHeight - 16.0;
+    // En algunos dispositivos/tamaños (Android 14) el rango puede invertirse
+    // y `clamp` lanza ArgumentError si min > max.
+    final top = maxTop >= minTop ? rawTop.clamp(minTop, maxTop) : math.max(0.0, math.min(rawTop, maxTop));
     final rectWidth = math.min(220.0, math.max(160.0, size.width * 0.26));
     final centerX = (left + right) / 2;
     return Rect.fromLTWH(centerX - (rectWidth / 2), top, rectWidth, rectHeight);

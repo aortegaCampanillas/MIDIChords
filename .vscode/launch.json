@@ -6,12 +6,11 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
-      "args": [
-        "desktop"
-      ],
+      "args": ["desktop"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
       "env": {
         "MIDICHORDS_FORCE_MIDI_OPEN": "1"
       }
@@ -32,6 +31,7 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
       "env": {
         "MIDICHORDS_FEEDBACK_TO": "aortega98@gmail.com"
       }
@@ -49,7 +49,8 @@
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python"
     }
   ],
   "inputs": [

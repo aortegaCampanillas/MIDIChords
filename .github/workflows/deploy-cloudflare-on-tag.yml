@@ -96,3 +96,26 @@ jobs:
           done
           echo "Production API still failing after retry."
           exit 1
+
+      - name: Notify maintainer on failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
+        run: |
+          if [ -z "${RESEND_API_KEY}" ]; then echo "RESEND_API_KEY not set, skipping email"; exit 0; fi
+          python3 -c "
+          import os, json, urllib.request
+          url = os.environ.get('GITHUB_SERVER_URL', 'https://github.com') + '/' + os.environ.get('GITHUB_REPOSITORY', '') + '/actions/runs/' + os.environ.get('GITHUB_RUN_ID', '')
+          payload = {
+            'from': os.environ.get('NOTIFY_FROM', 'MIDIChords <onboarding@resend.dev>'),
+            'to': ['aortega98@gmail.com'],
+            'subject': f\"GitHub Action falló: {os.environ.get('GITHUB_WORKFLOW', '')} #\" + os.environ.get('GITHUB_RUN_ID', ''),
+            'html': f\"<p>El workflow <strong>{os.environ.get('GITHUB_WORKFLOW', '')}</strong> falló.</p><p><a href='{url}'>Ver run</a></p>\"
+          }
+          r = urllib.request.Request('https://api.resend.com/emails',
+            data=json.dumps(payload).encode(),
+            headers={'Authorization': f\"Bearer {os.environ['RESEND_API_KEY']}\", 'Content-Type': 'application/json'},
+            method='POST')
+          urllib.request.urlopen(r)
+          "

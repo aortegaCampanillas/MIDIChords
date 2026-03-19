@@ -32,15 +32,15 @@ Disponible en:
 - Verificación del despliegue de producción web para detectar estados rotos donde faltaba `/api/meta`.
 - Varios problemas de enlace y configuración del proyecto iOS Flutter.
 
-## [Unreleased] - Cambios desde [1.0.0]
+## [1.0.1] - 2026-02-20
 
-Estos cambios son los que entrarán en la **próxima subida** respecto a `v1.0.0` (iOS **1.0.0 (2)**).
+Cambios respecto a `v1.0.0` (iOS **1.0.0 (2)**).
 
 ### iOS (Flutter)
 
 - Audio del piano menos “cortado” al soltar la tecla (release más natural).
 - Reducción de saturación/clipping percibido en iOS (atenuación de ganancia, especialmente en piano).
-- Preparada la próxima build de iOS: **1.0.1 (3)**.
+- Build de iOS: **1.0.1 (3)** / **1.0.1 (4)**.
 
 ### Android (Flutter)
 
@@ -61,9 +61,15 @@ Estos cambios son los que entrarán en la **próxima subida** respecto a `v1.0.0
 - Fixes de creación de DMG en macOS CI (`hdiutil` “Resource busy” y nombre temporal `.tmp.dmg`).
 - Deploy de Cloudflare producción solo con **tags `v*`** (no en cada push a `main`).
 - Publicación de instaladores en GitHub Releases y sincronización al repo público `FreeMIDIChords_Releases`.
+- Notificación por correo al mantener cuando falla un workflow (Resend).
 
 ### Repo / mantenimiento
 
 - Eliminado el submódulo roto `flathub-submission` y añadido a `.gitignore` como carpeta local.
 
+## [Unreleased] - Cambios desde [1.0.1]
+
+_(Próximos cambios.)_
+
 [1.0.0]: https://github.com/aortegaCampanillas/MIDIChords/releases/tag/v1.0.0
+[1.0.1]: https://github.com/aortegaCampanillas/MIDIChords/releases/tag/v1.0.1

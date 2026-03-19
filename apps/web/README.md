@@ -18,9 +18,32 @@ El flujo real de despliegue es:
    - variable: `CLOUDFLARE_PAGES_PROJECT`
    - valor actual: `midichords`
 
-### Método recomendado
+### Desplegar sin GitHub Actions (local)
 
-Usar GitHub Actions, porque ya reutiliza los secrets del repositorio:
+Puedes publicar producción desde tu máquina con el mismo resultado que el workflow.
+
+**Opción recomendada: fichero de secretos (no se sube al repo)**
+
+1. Copia el ejemplo y rellena tus valores (el fichero real `.env.deploy` está en .gitignore):
+   ```bash
+   cp env.deploy.example .env.deploy
+   # Edita .env.deploy con tu CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID y CLOUDFLARE_PAGES_PROJECT
+   ```
+   También se busca `apps/web/.env.deploy`.
+2. Despliega (el comando lee las variables desde `.env.deploy`):
+   ```bash
+   python launch.py deploy-web
+   ```
+
+También se busca `.env.deploy` en la raíz del repo. Las variables de entorno ya definidas tienen prioridad sobre el fichero.
+
+**Sin fichero:** puedes exportar las variables en la shell y ejecutar `python launch.py deploy-web`, o usar `--project-name midichords` si solo falta el nombre del proyecto.
+
+El comando prepara el bundle en `apps/web/pages-dist`, aplica cache-busting con el SHA de git y ejecuta `wrangler pages deploy`. No hace smoke test; comprueba tú la URL de producción después.
+
+### Método recomendado (GitHub Actions)
+
+Usar GitHub Actions reutiliza los secrets del repositorio:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`

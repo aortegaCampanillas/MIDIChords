@@ -6,6 +6,8 @@ Thumbs.db
 config.json
 .env
 .env.*
+.env.deploy
+apps/web/.env.deploy
 .certs/
 
 # Local signing material (Apple certificates/profiles/keys)
@@ -46,6 +48,7 @@ htmlcov/
 # Node / frontend tooling
 node_modules/
 .wrangler/
+apps/web/pages-dist/
 
 # Flutter / Dart
 **/.dart_tool/

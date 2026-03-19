@@ -22,36 +22,7 @@ def run_web(host: str, port: int, reload: bool) -> None:
     if reload:
         print("[web] Nota: --reload se ignora; wrangler ya sirve en modo desarrollo.")
 
-    def _can_run(cmd: list[str], version_args: list[str]) -> bool:
-        try:
-            proc = subprocess.run(
-                [*cmd, *version_args],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=False,
-            )
-            return proc.returncode == 0
-        except OSError:
-            return False
-
-    wrangler_cmd: list[str] | None = None
-    version_args: list[str] | None = None
-    for candidate, v_args in (
-        (["wrangler"], ["--version"]),
-        (["npx", "--yes", "wrangler@4"], ["--version"]),
-        (["npx", "wrangler"], ["--version"]),
-    ):
-        if _can_run(candidate, v_args):
-            wrangler_cmd = candidate
-            version_args = v_args
-            break
-
-    if wrangler_cmd is None:
-        raise SystemExit(
-            "No se encontró wrangler en PATH ni vía npx. Instala Node.js y luego: "
-            "npm i -g wrangler"
-        )
-
+    wrangler_cmd = _get_wrangler_cmd()
     project_root = Path(__file__).resolve().parent
     cmd = [
         *wrangler_cmd,
@@ -65,11 +36,144 @@ def run_web(host: str, port: int, reload: bool) -> None:
         str(port),
     ]
     try:
-        if version_args is not None:
-            subprocess.run([*wrangler_cmd, *version_args], cwd=str(project_root), check=False)
         subprocess.run(cmd, cwd=str(project_root), check=True)
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"wrangler dev falló con código {exc.returncode}") from exc
+
+
+def _get_wrangler_cmd() -> list[str]:
+    def _can_run(cmd: list[str], version_args: list[str]) -> bool:
+        try:
+            proc = subprocess.run(
+                [*cmd, *version_args],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            return proc.returncode == 0
+        except OSError:
+            return False
+
+    for candidate, v_args in (
+        (["wrangler"], ["--version"]),
+        (["npx", "--yes", "wrangler@4"], ["--version"]),
+        (["npx", "wrangler"], ["--version"]),
+    ):
+        if _can_run(candidate, v_args):
+            return candidate
+    raise SystemExit(
+        "No se encontró wrangler en PATH ni vía npx. Instala Node.js y luego: npm i -g wrangler"
+    )
+
+
+def _load_deploy_secrets(project_root: Path) -> None:
+    """Carga CLOUDFLARE_* desde un fichero seguro si no están ya en el entorno."""
+    candidates = [
+        project_root / "apps" / "web" / ".env.deploy",
+        project_root / ".env.deploy",
+    ]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                if value.startswith(("'", '"')) and value[0] == value[-1]:
+                    value = value[1:-1]
+                if key and key not in os.environ and value:
+                    os.environ[key] = value
+            return
+        except OSError:
+            continue
+
+
+def run_deploy_web(project_name: str | None) -> None:
+    """Prepara el bundle estático y despliega a Cloudflare Pages (producción) sin GitHub Actions."""
+    import shutil
+
+    project_root = Path(__file__).resolve().parent
+    web_dir = project_root / "apps" / "web"
+    pages_dist = web_dir / "pages-dist"
+
+    # Cargar secretos desde fichero si existen (apps/web/.env.deploy o .env.deploy)
+    _load_deploy_secrets(project_root)
+
+    # Versión para cache-busting (mismo valor que en el workflow)
+    try:
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(project_root),
+                text=True,
+            ).strip()
+            or "local"
+        )
+    except Exception:
+        sha = "local"
+
+    print("[deploy-web] Preparando bundle en apps/web/pages-dist ...")
+    if pages_dist.exists():
+        shutil.rmtree(pages_dist)
+    (pages_dist / "static").mkdir(parents=True)
+
+    shutil.copy(web_dir / "index.html", pages_dist / "index.html")
+    shutil.copytree(web_dir / "static", pages_dist / "static", dirs_exist_ok=True)
+    shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
+    if (web_dir / "_headers").exists():
+        shutil.copy(web_dir / "_headers", pages_dist / "_headers")
+
+    index_path = pages_dist / "index.html"
+    index_path.write_text(
+        index_path.read_text()
+        .replace("/static/style.css", f"/static/style.css?v={sha}")
+        .replace("/static/app.js", f"/static/app.js?v={sha}")
+    )
+
+    for name in ("index.html", "static/app.js", "static/style.css", "_worker.js"):
+        if not (pages_dist / name).exists():
+            raise SystemExit(f"[deploy-web] Falta en el bundle: {name}")
+
+    proj = project_name or os.environ.get("CLOUDFLARE_PAGES_PROJECT")
+    if not proj:
+        raise SystemExit(
+            "[deploy-web] Nombre del proyecto no definido. "
+            "Usa --project-name <nombre> o la variable de entorno CLOUDFLARE_PAGES_PROJECT."
+        )
+    if not os.environ.get("CLOUDFLARE_API_TOKEN"):
+        raise SystemExit(
+            "[deploy-web] CLOUDFLARE_API_TOKEN no está definido. "
+            "Exporta el token en tu entorno (o usa el secret del repo en GitHub Actions)."
+        )
+    if not os.environ.get("CLOUDFLARE_ACCOUNT_ID"):
+        raise SystemExit(
+            "[deploy-web] CLOUDFLARE_ACCOUNT_ID no está definido. "
+            "Exporta el account ID en tu entorno."
+        )
+
+    wrangler_cmd = _get_wrangler_cmd()
+    cmd = [
+        *wrangler_cmd,
+        "pages",
+        "deploy",
+        str(pages_dist),
+        "--project-name",
+        proj,
+        "--branch",
+        "main",
+    ]
+    print("[deploy-web] Ejecutando:", " ".join(cmd))
+    try:
+        subprocess.run(cmd, cwd=str(project_root), check=True)
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(f"[deploy-web] wrangler pages deploy falló con código {exc.returncode}") from exc
+    print("[deploy-web] Despliegue completado. Comprueba la URL de producción.")
 
 
 def run_mobile(mobile_args: list[str]) -> None:
@@ -406,10 +510,20 @@ def _extract_mobile_ipad_launcher_flags(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="MIDIChords launcher")
-    parser.add_argument("target", choices=["desktop", "web", "mobile", "mobile-ipad"], nargs="?", default="desktop")
+    parser.add_argument(
+        "target",
+        choices=["desktop", "web", "mobile", "mobile-ipad", "deploy-web"],
+        nargs="?",
+        default="desktop",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
+    parser.add_argument(
+        "--project-name",
+        default=None,
+        help="Para deploy-web: nombre del proyecto en Cloudflare Pages (o usa CLOUDFLARE_PAGES_PROJECT).",
+    )
     parser.add_argument("--device", default=None, help="Device id/name para flutter run (iPad)")
     parser.add_argument(
         "--no-backend",
@@ -431,6 +545,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.target == "deploy-web":
+        run_deploy_web(project_name=args.project_name)
+        return
     if args.target == "web":
         run_web(host=args.host, port=args.port, reload=bool(args.reload))
         return

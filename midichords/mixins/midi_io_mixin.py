@@ -31,43 +31,19 @@ class MidiIOMixin:
         return self._is_frozen_app() or self._is_debug_session()
 
     def _scan_midi_inputs_isolated(self) -> tuple[list[str], Optional[str]]:
-        # In frozen bundles (PyInstaller), sys.executable points to the app binary.
-        # Spawning it with "-c" can relaunch GUI windows recursively.
-        if self._use_inprocess_midi():
-            try:
-                return [str(x) for x in mido.get_input_names()], None
-            except Exception as exc:
-                return [], str(exc)
+        """Lista entradas MIDI con `mido` en el proceso actual.
 
-        probe_code = (
-            "import json, mido; "
-            "print(json.dumps(mido.get_input_names(), ensure_ascii=False))"
-        )
+        Antes, en builds no congelados se usaba un subprocess con `sys.executable -c`.
+        Eso fallaba a menudo desde hilos de fondo (p. ej. refresco de Ajustes) porque
+        bajo depurador `sys.gettrace()` solo está activo en el hilo principal: el worker
+        creía que no era sesión de depuración, lanzaba el probe externo y podía vaciar
+        `input_names` mientras el bridge MIDI seguía funcionando.
+        Listar puertos en proceso es barato y evita ese desajuste.
+        """
         try:
-            proc = subprocess.run(
-                [sys.executable, "-c", probe_code],
-                capture_output=True,
-                text=True,
-                timeout=4,
-            )
+            return [str(x) for x in mido.get_input_names()], None
         except Exception as exc:
             return [], str(exc)
-        if proc.returncode != 0:
-            err = (proc.stderr or proc.stdout).strip()
-            if not err:
-                err = f"midi probe failed with exit code {proc.returncode}"
-            return [], err
-        out = proc.stdout.strip()
-        if not out:
-            return [], None
-        try:
-            raw = json.loads(out.splitlines()[-1])
-        except Exception as exc:
-            return [], f"invalid midi probe response: {exc}"
-        if not isinstance(raw, list):
-            return [], "invalid midi probe response type"
-        names = [str(x) for x in raw]
-        return names, None
     def refresh_devices(self) -> None:
         force_scan = os.environ.get(FORCE_RTMIDI_SCAN_ENV, "").strip() == "1"
         disable_scan = os.environ.get(DISABLE_RTMIDI_SCAN_ENV, "").strip() == "1"

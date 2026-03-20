@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import midichords.qt.tk_compat as tk
 from midichords.core.music_theory import CHORD_PATTERNS, ChordPattern, chord_patterns_for_ui
 from midichords.ui.widgets_qt import GrayRoundedButton
@@ -216,16 +218,22 @@ class GenerationMixin:
         max_inv = self._max_generation_inversion()
         self.generation_inversion = max(0, min(self.generation_inversion, max_inv))
     def _on_generation_root_clicked(self, pc: int) -> None:
-        self.generation_root_pc = pc
+        if int(pc) == int(self.generation_root_pc):
+            return
+        self.generation_root_pc = int(pc)
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
     def _on_generation_variant_clicked(self, suffix: str) -> None:
-        self.generation_pattern_suffix = suffix
+        if str(suffix) == str(self.generation_pattern_suffix):
+            return
+        self.generation_pattern_suffix = str(suffix)
         self._clamp_generation_inversion()
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
     def _on_generation_inversion_clicked(self, inversion: int) -> None:
-        self.generation_inversion = inversion
+        if int(inversion) == int(self.generation_inversion):
+            return
+        self.generation_inversion = int(inversion)
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
     def _close_generation_selection_overlay(self) -> None:
@@ -382,8 +390,11 @@ class GenerationMixin:
                 return pattern
         return CHORD_PATTERNS[0]
     def _update_generation_preview(self) -> None:
-        was_playing = self.generation_play_button_pressed or bool(self.generated_playing_notes)
-        if was_playing:
+        # No usar `generated_playing_notes` aquí: incluye notas sueltas (MIDI/clic) y al
+        # recalcular la vista previa no deben borrarse (p. ej. Qt puede refrescar combos
+        # y disparar esta función mientras el usuario mantiene teclas MIDI).
+        was_holding_generated_chord = self.generation_play_button_pressed or self.generation_play_space_pressed
+        if was_holding_generated_chord:
             self._stop_generated_playback()
 
         pattern = self._resolve_generation_pattern()
@@ -423,7 +434,9 @@ class GenerationMixin:
         else:
             self.generated_notes_var.set("-")
 
-        if was_playing and self.generation_play_button_pressed:
+        if was_holding_generated_chord and (
+            self.generation_play_button_pressed or self.generation_play_space_pressed
+        ):
             self._play_generated_chord()
 
         if self.generation_tab_active:
@@ -496,7 +509,22 @@ class GenerationMixin:
             self.redraw_keyboard()
             self.redraw_guitar_fretboard()
             self.redraw_staff()
-    def _trigger_generated_single_note(self, note: int) -> None:
+    def _trigger_generated_single_note(
+        self,
+        note: int,
+        *,
+        auto_clear_ms: Optional[int] = 520,
+        additive: bool = False,
+    ) -> None:
+        """Dispara una nota suelta en modo generación.
+
+        `auto_clear_ms`: si es un entero > 0, quita resaltado y corta audio de piano tras ese tiempo
+        (clic ratón / pentagrama). Si es `None`, el resaltado y el sostenido siguen hasta `note_off`
+        (p. ej. tecla MIDI mantenida).
+
+        `additive`: si es True, no vacía las demás notas en resaltado/audio (varias teclas MIDI a la vez).
+        Los clics de ratón/pentagrama usan False para sustituir la nota previa.
+        """
         if self.generation_tab_active and self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
             allowed_notes = set(self.guitar_selected_variation_notes)
         else:
@@ -506,19 +534,20 @@ class GenerationMixin:
                 allowed_notes |= {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
         if note not in allowed_notes:
             return
-        for after_id in list(self.generated_note_highlight_after.values()):
-            try:
-                self.after_cancel(after_id)
-            except Exception:
-                pass
-        self.generated_note_highlight_after.clear()
-        self.generated_playing_notes.clear()
-        if note in self.generated_note_highlight_after:
-            try:
-                self.after_cancel(self.generated_note_highlight_after[note])
-            except Exception:
-                pass
-            self.generated_note_highlight_after.pop(note, None)
+        if additive:
+            if note in self.generated_playing_notes:
+                return
+        else:
+            for after_id in list(self.generated_note_highlight_after.values()):
+                try:
+                    self.after_cancel(after_id)
+                except Exception:
+                    pass
+            self.generated_note_highlight_after.clear()
+            for n in list(self.generated_playing_notes):
+                if self.instrument_view != "guitar":
+                    self.audio_engine.note_off(n)
+            self.generated_playing_notes.clear()
         self.generated_playing_notes.add(note)
         if self.instrument_view == "guitar":
             self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
@@ -526,10 +555,11 @@ class GenerationMixin:
         else:
             self.audio_engine.note_on(note, 108)
             stop_audio = True
-        self.generated_note_highlight_after[note] = self.after(
-            520,
-            lambda n=note, s=stop_audio: self._clear_generated_note_highlight(n, stop_audio=s),
-        )
+        if auto_clear_ms is not None and int(auto_clear_ms) > 0:
+            self.generated_note_highlight_after[note] = self.after(
+                int(auto_clear_ms),
+                lambda n=note, s=stop_audio: self._clear_generated_note_highlight(n, stop_audio=s),
+            )
         if self.generation_tab_active:
             self.redraw_keyboard()
             self.redraw_guitar_fretboard()

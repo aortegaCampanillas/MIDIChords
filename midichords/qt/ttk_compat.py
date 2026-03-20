@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -117,7 +117,11 @@ class Combobox(QComboBox, _LayoutCompat):
         **_kwargs: Any,
     ) -> None:
         font_spec = _kwargs.pop("font", None)
+        postcommand = _kwargs.pop("postcommand", None)
         super().__init__(master)
+        self._postcommand: Callable[[], None] | None = (
+            cast(Callable[[], None], postcommand) if callable(postcommand) else None
+        )
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self._textvariable = textvariable
@@ -135,14 +139,34 @@ class Combobox(QComboBox, _LayoutCompat):
                 self.setCurrentText(current)
             self.currentTextChanged.connect(lambda v: textvariable.set(v))
 
+    def showPopup(self) -> None:  # type: ignore[override]
+        if self._postcommand is not None:
+            try:
+                self._postcommand()
+            except Exception:
+                pass
+        super().showPopup()
+
     def configure(self, **kwargs: Any) -> None:
+        if "postcommand" in kwargs:
+            pc = kwargs.pop("postcommand")
+            self._postcommand = cast(Callable[[], None], pc) if callable(pc) else None
         if "values" in kwargs:
             # Tk/ttk suelen actualizar sin re-disparar callbacks en bucles.
             # Para evitar recursión en el shim, bloqueamos señales durante el refresh.
             self.blockSignals(True)
             try:
                 self.clear()
-                self.addItems([str(v) for v in kwargs["values"]])
+                items = [str(v) for v in kwargs["values"]]
+                self.addItems(items)
+                # Tras `clear()`+`addItems()` Qt suele dejar el índice en 0 (p. ej. "").
+                # Solo enlazamos combo→var (`currentTextChanged`), no var→combo: si otro
+                # código repuebla `values` (p. ej. Ajustes al abrir un combo), el otro
+                # combobox parece “borrarse” aunque el StringVar siga bien.
+                if self._textvariable is not None:
+                    tv = str(self._textvariable.get())
+                    if tv in items:
+                        self.setCurrentText(tv)
             finally:
                 self.blockSignals(False)
         if "state" in kwargs:

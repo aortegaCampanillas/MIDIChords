@@ -442,6 +442,31 @@ class ScalesMixin:
         if candidates:
             return min(candidates, key=lambda n: abs(int(n) - target))
         return None
+
+    def _sync_scale_piano_staff_from_active_keys(self, active_notes: set[int]) -> None:
+        """En Escalas (piano), el pentagrama usa `staff_pressed_scale_notes`; MIDI solo
+        actualizaba `active_notes` en el teclado. Sincroniza cabezas del pentagrama con
+        las notas mantenidas por MIDI/ratón/sostenido (sin pisar un arrastre en el pentagrama)."""
+        if not self.scale_tab_active or self.scale_play_mode != "piano":
+            return
+        if getattr(self, "scale_staff_drag_active", False):
+            return
+        scale_pcs = {int(n) % 12 for n in self.scale_preview_notes}
+        new_staff: set[int] = set()
+        for n in active_notes:
+            ni = int(n)
+            if (ni % 12) not in scale_pcs:
+                continue
+            sn = self._scale_staff_note_for_pitch(ni)
+            if sn is not None:
+                new_staff.add(int(sn))
+        self.staff_pressed_scale_notes = new_staff
+        # Misma idea que el clic en teclado: una sola nota “cruda” para el resaltado fuera de rango.
+        if len(active_notes) == 1:
+            self.scale_input_raw_note = int(next(iter(active_notes)))
+        else:
+            self.scale_input_raw_note = None
+
     def _clear_scale_guitar_click_highlight(self, note: int) -> None:
         if note in self.scale_guitar_click_highlight_notes:
             self.scale_guitar_click_highlight_notes.discard(note)

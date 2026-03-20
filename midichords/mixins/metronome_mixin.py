@@ -222,11 +222,19 @@ class MetronomeMixin:
         fill = "#ff533d" if selected else "#8896a3"
         outline = "#ff7b69" if selected else "#99a8b5"
         text_color = "#ffffff"
-        btn.create_rectangle(4, 4, w - 4, h - 4, fill=fill, outline=outline, width=1.5)
         if bool(figure.get("triplet", False)):
-            btn.create_text(w / 2, 16, text="3", fill=text_color, font=("Helvetica", 11, "bold"))
-            btn.create_text(w / 2, h / 2 + 8, text=str(figure["glyph"]), fill=text_color, font=("Helvetica", 16, "bold"))
+            # Reservar franja superior para el "3" y dibujar el rectángulo por debajo (evita que el
+            # glifo invada el borde superior del widget / se solape con el layout en Qt).
+            top_band = max(12, min(22, int(h * 0.32)))
+            rect_top = top_band + 3
+            rect_bot = max(rect_top + 10, h - 4)
+            btn.create_rectangle(4, rect_top, w - 4, rect_bot, fill=fill, outline=outline, width=1.5)
+            btn.create_text(w / 2, top_band / 2 + 1, text="3", fill=text_color, font=("Helvetica", 10, "bold"))
+            glyph_y = (rect_top + rect_bot) / 2 + 1
+            glyph_size = min(16, max(11, int(min(w, rect_bot - rect_top) * 0.38)))
+            btn.create_text(w / 2, glyph_y, text=str(figure["glyph"]), fill=text_color, font=("Helvetica", glyph_size, "bold"))
         else:
+            btn.create_rectangle(4, 4, w - 4, h - 4, fill=fill, outline=outline, width=1.5)
             btn.create_text(w / 2, h / 2 + 2, text=str(figure["glyph"]), fill=text_color, font=("Helvetica", 18, "bold"))
     def _refresh_metronome_figure_buttons(self) -> None:
         for figure in self.metronome_click_figure_defs:

@@ -227,7 +227,11 @@ class InputDetectionMixin:
             self.audio_engine.note_off(note)
         self.sounding_notes = next_sounding
 
-        if next_active != self.active_notes:
+        prev_staff = set(getattr(self, "staff_pressed_scale_notes", set()))
+        self._sync_scale_piano_staff_from_active_keys(set(next_active))
+        staff_changed = set(getattr(self, "staff_pressed_scale_notes", set())) != prev_staff
+
+        if next_active != self.active_notes or staff_changed:
             self.active_notes = next_active
             self.update_music_views()
     def _note_on_from_source(self, note: int, velocity: int, source: str) -> None:
@@ -430,7 +434,9 @@ class InputDetectionMixin:
                             if int(n - 12) >= 0
                         }
                     if note_int in allowed_notes:
-                        self._trigger_generated_single_note(note_int)
+                        # MIDI sostenido: sin timeout de 520 ms; se limpia en note_off.
+                        # Varios note_on a la vez: acumular resaltado/audio hasta cada note_off.
+                        self._trigger_generated_single_note(note_int, auto_clear_ms=None, additive=True)
                     else:
                         self._show_forbidden_note_feedback(note_int)
                 elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):

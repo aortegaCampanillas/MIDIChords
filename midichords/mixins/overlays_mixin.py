@@ -367,8 +367,9 @@ class OverlaysMixin:
                 return
             setattr(self, "_settings_device_refreshing", True)
 
-            prev_in = in_var.get()
-            prev_out = out_var.get()
+            # Respaldo con config por si el combo y la var visual se desincronizan.
+            prev_in = in_var.get() or str(self.config_data.get("midi_input", ""))
+            prev_out = out_var.get() or str(self.config_data.get("audio_output", ""))
 
             def worker() -> None:
                 self.refresh_devices()

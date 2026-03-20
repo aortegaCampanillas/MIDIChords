@@ -182,8 +182,15 @@ class QtCanvas(QWidget):
         self._canvas_handlers: dict[str, Callable[[Any], None]] = {}
         self._pressed = False
 
+        # Tk suele pasar width+height como tamaño inicial; con `setFixedSize` el canvas
+        # no puede crecer en QGridLayout aunque la columna tenga stretch (p. ej. sliders
+        # BPM/volumen del metrónomo). Usamos mínimos para respetar expansión horizontal.
         if width and height:
-            self.setFixedSize(int(width), int(height))
+            self.setMinimumSize(int(width), int(height))
+        elif height:
+            self.setMinimumHeight(int(height))
+        elif width:
+            self.setMinimumWidth(int(width))
         if cursor:
             self._apply_cursor(cursor)
 

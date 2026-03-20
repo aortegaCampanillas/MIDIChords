@@ -6,6 +6,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- `.gitignore`: ignora capturas de depuración UI en `assets/` (patrones tipo `generation_full_*.png`, `overlay_mode_*.png`, `*_smoke.png`, …) y carpeta `assets/ui-debug-captures/` con `README.md` para uso local.
 - Escritorio: modo trazas **`/verbose`**, **`--verbose`** o **`-v`** en `launch.py desktop` (y equivalente **`MIDICHORDS_VERBOSE=1`**); salida en **stderr** centrada en **audio** y **MIDI**. La configuración **Desktop: MIDIChords** en `.vscode/launch.json` arranca con `/verbose`.
 
 ### Documentado
@@ -18,6 +19,16 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- Escritorio (Qt): **Ajustes** — al refrescar la lista de dispositivos al abrir el combo de **entrada MIDI** o **salida de audio**, el otro combo parecía perder la selección: tras `clear()`/`addItems()` el `QComboBox` no se re-sincronizaba con el `StringVar` (solo existía enlace combo→var). `ttk.Combobox.configure(values=…)` vuelve a aplicar `setCurrentText` desde la variable si el valor sigue en la lista; el refresco de Ajustes usa la config como respaldo si la var va vacía.
+- Escritorio (Qt): **Metrónomo** — fila **Temporizador** en dos líneas (checkbox + título / minutos y segundos) para que etiquetas y spinboxes no se pisen en paneles estrechos; figuras con **tresillo** dibujan el **"3"** en una franja superior y el rectángulo de color por debajo (sin invadir el borde del botón).
+- Escritorio (Qt): **Metrónomo** — la fila del play y el botón de sonido MIDI dejaban de lado a lado y se solapaban; la fila usa `grid` con columna extensible (como los sliders de volumen/tempo) en lugar de `pack` en un `QHBoxLayout` poco fiable aquí.
+- Escritorio: **Escalas** (piano) — al tocar con MIDI, la nota se marcaba en el teclado pero no en el pentagrama: `staff_pressed_scale_notes` solo se actualizaba con clic en teclado/pentagrama. Tras cada refresco de notas activas se sincroniza el pentagrama con MIDI/ratón/sostenido (sin interferir mientras se arrastra en el pentagrama).
+- Escritorio: **Generación** — al mantener notas por MIDI (o varias a la vez), el resaltado en teclado/pentagrama dejaba de mostrarse o solo quedaba una nota: `_update_generation_preview()` trataba cualquier `generated_playing_notes` como “reproducir acorde” y llamaba a `_stop_generated_playback()` al refrescar la vista previa (p. ej. al actualizar combos en Qt). Solo se interrumpe ahora el play mantenido con botón o barra espaciadora; añadidas salidas tempranas si raíz/variante/inversión no cambian.
+- Escritorio (Qt): **Ajustes** — el combo de entrada MIDI podía quedar vacío aunque el teclado sonara: el refresco en segundo plano usaba un probe MIDI por subprocess donde `sys.gettrace()` no refleja el depurador, fallaba y vaciaba la lista; el listado de puertos pasa a hacerse siempre con `mido.get_input_names()` en proceso. El `Combobox` Qt ahora ejecuta `postcommand` al desplegar (como Tk), para refrescar al abrir la lista.
+- Escritorio (Qt): **Escalas** — el slider de BPM entre **−** y **+** no se veía: con `sticky="ew"` el grid Qt usaba una alineación que dejaba el canvas al ancho mínimo (1 px). Sticky `ew` / `ns` (relleno) ahora usa alineación 0 para estirar a la celda (afecta a otros sliders con el mismo patrón).
+- Escritorio (Qt): sliders del **metrónomo** (tempo, volumen, compás) y similares — `QtCanvas` ya no usa `setFixedSize` con `width`+`height` (solo tamaño mínimo), de modo que la franja entre **−** y **+** puede ocupar todo el ancho del panel.
+- Escritorio: en **Generación**, al mantener pulsada una tecla MIDI el resaltado del teclado ya no desaparece a los ~520 ms; solo se quita al **soltar** la nota (`note_off`). Los clics en teclado/pentagrama siguen usando el timeout corto.
+- Escritorio: en **Generación** con MIDI, al pulsar varias notas del acorde se resaltan y suenan **todas** a la vez (cada una hasta su `note_off`); el ratón sigue sustituyendo la vista previa y envía `note_off` en piano a las notas que dejan de mostrarse.
 - Escritorio (migración Qt): aviso `QObject::startTimer: Timers can only be used with threads started with QThread` — `after()` y el refresco de dispositivos en **Configuración** ya no crean `QTimer` desde hilos `threading` (se reenvía al hilo GUI con `run_on_main_thread`).
 - Escritorio (migración Qt): el shim `place()` ahora respeta `x` / `y` / `width` / `height` como Tk, de modo que los paneles izquierdo y derecho sobre el canvas superior vuelven a posicionarse y mostrarse (antes solo se usaba `relx`/`relwidth`).
 - Escritorio (migración Qt): `pack_forget` quita el widget del `QLayout` del padre (no solo `hide()`); pestañas de modo no empaquetadas se ocultan al inicio para que no tapen el panel derecho; `RoundedPanel` expone `sizeHint`/`minimumSizeHint` para que el panel inferior (piano) reciba altura en el `QVBoxLayout`.

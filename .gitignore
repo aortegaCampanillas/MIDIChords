@@ -76,3 +76,29 @@ scripts/build_ejecutado_manualmente.txt
 
 # Local flathub submission workspace (no debe versionarse)
 flathub-submission/
+
+# Capturas de depuración UI (Qt/Tk): guardar aquí; el contenido no se versiona
+assets/ui-debug-captures/**
+!assets/ui-debug-captures/README.md
+
+# PNG de depuración sueltos en assets/ (no confundir con brace/guitar/piano/metronome reales)
+/assets/*_smoke.png
+/assets/*_grab*.png
+/assets/detection_*.png
+/assets/generation_*.png
+/assets/guitar_canvas_*.png
+/assets/guitar_gen_*.png
+/assets/guitar_scales_*.png
+/assets/guitar_solM*.png
+/assets/guitar_left_after*.png
+/assets/guitar_right_after*.png
+/assets/guitar_*_labels_after*.png
+/assets/metronome_full_*.png
+/assets/metronome_left_*.png
+/assets/metronome_right_*.png
+/assets/overlay_mode_*.png
+/assets/overlay_mode_after*.png
+/assets/overlay_mode_card_*.png
+/assets/scale_result_*.png
+/assets/scales_full_*.png
+/assets/staff_title_*.png

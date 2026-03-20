@@ -113,6 +113,11 @@ def _parse_grid_sticky(sticky: str) -> tuple[Qt.AlignmentFlag, bool, bool]:
         return Qt.AlignmentFlag(0), True, True
     h_fill = "e" in s and "w" in s
     v_fill = "n" in s and "s" in s
+    # QGridLayout: con alignment != 0 el hijo NO se estira a la celda (usa sizeHint/mínimo).
+    # Sticky ew / ns / combinaciones de relleno deben usar 0 para llenar la celda
+    # (p. ej. sliders BPM/volumen: si no, un canvas con minWidth=1 queda invisible).
+    if h_fill or v_fill:
+        return Qt.AlignmentFlag(0), h_fill, v_fill
     a = Qt.AlignmentFlag(0)
     if "n" in s:
         a |= Qt.AlignmentFlag.AlignTop
@@ -129,14 +134,6 @@ def _parse_grid_sticky(sticky: str) -> tuple[Qt.AlignmentFlag, bool, bool]:
             a |= Qt.AlignmentFlag.AlignVCenter
         if not (a & (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignRight)):
             a |= Qt.AlignmentFlag.AlignHCenter
-        # "ew" (fill horizontal) en Qt no debe llevar AlignLeft|AlignRight
-        # simultáneamente: puede colapsar el layout en algunos casos.
-        if h_fill:
-            a &= ~(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignRight)
-            a |= Qt.AlignmentFlag.AlignHCenter
-        if v_fill:
-            a &= ~(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignBottom)
-            a |= Qt.AlignmentFlag.AlignVCenter
     return a, h_fill, v_fill
 
 

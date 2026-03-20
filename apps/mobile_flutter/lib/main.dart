@@ -6136,6 +6136,44 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  /// Misma lógica que `RenderMixin._piano_fingering_for_count` (escritorio).
+  List<int> _pianoFingeringRight(int count) {
+    final n = math.max(1, count);
+    switch (n) {
+      case 1:
+        return <int>[1];
+      case 2:
+        return <int>[1, 3];
+      case 3:
+        return <int>[1, 3, 5];
+      case 4:
+        return <int>[1, 2, 4, 5];
+      case 5:
+        return <int>[1, 2, 3, 4, 5];
+      default:
+        return List<int>.generate(n, (i) => math.min(5, i + 1));
+    }
+  }
+
+  /// Mano izquierda: dedos de grave a agudo (p. ej. tríada Do 5-3-1).
+  List<int> _pianoFingeringLeft(int count) {
+    final n = math.max(1, count);
+    switch (n) {
+      case 1:
+        return <int>[5];
+      case 2:
+        return <int>[5, 3];
+      case 3:
+        return <int>[5, 3, 1];
+      case 4:
+        return <int>[5, 3, 2, 1];
+      case 5:
+        return <int>[5, 4, 3, 2, 1];
+      default:
+        return List<int>.generate(n, (i) => math.max(1, 5 - i));
+    }
+  }
+
   Widget _buildPianoStrip(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final midiRange = List<int>.generate(37, (i) => 48 + i); // C3..C6
@@ -6158,11 +6196,19 @@ class _HomeScreenState extends State<HomeScreen>
         : const <int>[];
     final rhFinger = <int, int>{};
     final lhFinger = <int, int>{};
-    for (int i = 0; i < chordRh.length; i += 1) {
-      rhFinger[chordRh[i]] = math.min(5, i + 1);
+    if (chordRh.isNotEmpty) {
+      final rhSorted = List<int>.from(chordRh)..sort();
+      final rhTpl = _pianoFingeringRight(rhSorted.length);
+      for (var i = 0; i < rhSorted.length; i += 1) {
+        rhFinger[rhSorted[i]] = rhTpl[i];
+      }
     }
-    for (int i = 0; i < chordLh.length; i += 1) {
-      lhFinger[chordLh[i]] = math.max(1, 5 - i);
+    if (chordLh.isNotEmpty) {
+      final lhSorted = List<int>.from(chordLh)..sort();
+      final lhTpl = _pianoFingeringLeft(lhSorted.length);
+      for (var i = 0; i < lhSorted.length; i += 1) {
+        lhFinger[lhSorted[i]] = lhTpl[i];
+      }
     }
 
     Widget marker({

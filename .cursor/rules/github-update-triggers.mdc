@@ -1,0 +1,31 @@
+---
+description: Disparar commit, push y opcionalmente CHANGELOG cuando el usuario pida subir cambios a GitHub
+alwaysApply: true
+---
+
+# Peticiones explícitas: GitHub, commit, push, “actualizar cambios”
+
+**Ámbito:** aplica **solo** cuando el mensaje del usuario es una **petición directa** de subir trabajo al repositorio o sincronizar con GitHub. **No** actúes solo porque aparezcan palabras sueltas en un debate técnico o en código citado.
+
+## Frases disparadoras (ES / EN, ejemplos)
+
+Trata como petición de **operación git** si dice cosas como: *actualiza cambios*, *actualiza github*, *sube los cambios*, *haz commit*, *commit y push*, *push*, *sincroniza con el repo*, *sube a github*, *guarda en git*, *update github*, *commit and push*, etc.
+
+## Qué hacer según la intención
+
+### A) “Actualiza cambios”, “deja listo para release”, “documenta y sube”, o mezcla explícita changelog + github
+
+1. Sigue el flujo completo de **`.cursor/rules/release-changelog-agent.mdc`**: `git status` / `git diff`, clasificar por app (móvil, web, escritorio, core, empaquetado), editar **`CHANGELOG.md` → Unreleased**, luego **`git add`**, **`git commit`**, **`git push`** (rama actual).
+
+### B) Solo “haz commit y push” / “sube” **sin** pedir documentación de release
+
+1. `git status` y `git diff` / `--cached`.
+2. Si hay cambios **relevantes de producto** y aún **no** están reflejados en **Unreleased** (`AGENTS.md`), añade **una o más líneas** en el CHANGELOG antes del commit (criterio: bugfix/feature visible al usuario → al menos un bullet por ámbito afectado).
+3. Si el diff es solo chore/docs ya cubierto o trivial, puedes hacer **commit sin** nuevas líneas de CHANGELOG.
+4. **`git add`** (respeta `.gitignore`; no subas secretos), **`git commit`** con mensaje claro, **`git push`**.
+
+## Reglas de seguridad
+
+- **No** uses `git push --force` ni `push --force-with-lease` salvo que el usuario lo pida **explícitamente** (p. ej. tras “sube etiqueta” / mover tag: ver `AGENTS.md`).
+- Si el árbol está **limpio** y ya está todo commiteado, informa y ofrece **`git push`** si hay commits locales sin publicar.
+- Pide permisos de terminal/git cuando haga falta en Cursor.

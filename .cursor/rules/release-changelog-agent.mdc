@@ -1,0 +1,57 @@
+---
+description: Analizar cambios git pendientes, documentar en CHANGELOG por app (móvil/web/escritorio/…) y commit+push
+alwaysApply: false
+---
+
+# Flujo agente: documentar release (CHANGELOG + commit + push)
+
+Cuando el usuario pida **documentar la próxima release**, **preparar changelog desde el diff**, o similar, **ejecuta este flujo completo** (salvo que pida explícitamente no hacer commit/push).
+
+## 1. Analizar qué ha cambiado
+
+Desde la **raíz del repo**:
+
+1. `git status` (rama, staged, unstaged, untracked).
+2. `git diff` (unstaged) y `git diff --cached` (staged). Si solo hay staged, basta con `--cached`.
+3. Opcional: si existe upstream, `git log @{u}..HEAD --oneline` para commits locales ya hechos pero no pusheados (menciónalos en el resumen si aportan contexto).
+
+No subas secretos: respeta `.gitignore` (no fuerces `config.json`, `.env`, claves, etc.).
+
+## 2. Clasificar por aplicación / ámbito
+
+Asigna **un prefijo coherente con el CHANGELOG** del repo (entre `**…**` y `:`):
+
+| Rutas típicas (coincidencia por prefijo) | Prefijo sugerido |
+|------------------------------------------|------------------|
+| `apps/mobile_flutter/` | **Móvil (Flutter)** |
+| `apps/web/` (worker, static, templates) | **Web** |
+| `midichords/` (UI Qt, mixins, main_app), `apps/desktop/`, `launch.py`, `app.py` (cuando afecten solo escritorio) | **Escritorio** |
+| `midichords/core/` (teoría, `music_service`, i18n compartido con worker), `tests/` que cubren lógica compartida | **Core / compartido** |
+| `packaging/`, `scripts/build_mas_pkg.sh`, `scripts/sign_*.sh`, `signing/` (doc mas), instaladores | **Empaquetado** (o **macOS App Store** si es solo MAS) |
+| Cambios que tocan **varias apps** a la vez (p. ej. core + flutter + web) | Varios bullets (uno por ámbito) o **Todas** si es transversal y no tiene sentido separar |
+
+**Heurística:** si solo cambian archivos bajo `apps/mobile_flutter/`, no mezcles con Escritorio. Si solo `apps/web/`, **Web**. Cambios en `midichords/` que también impactan API del worker → puedes usar **Core / compartido** y, si aplica, un segundo bullet **Web** si hay archivos bajo `apps/web/`.
+
+## 3. Redactar entradas en `CHANGELOG.md`
+
+- Solo la sección **`## Unreleased`**.
+- Subsecciones: **`### Añadido`**, **`### Mejorado`**, **`### Corregido`**, **`### Documentado`** — elige según la naturaleza del cambio (bugfix → Corregido, nueva feature → Añadido, etc.).
+- Formato de cada línea: `- **Prefijo**: descripción breve en español (una línea).`
+- Inserta cada bullet **al inicio** del bloque de esa subsección (justo después de `### Título\n\n`), igual que el resto de entradas recientes del archivo.
+- Si falta **`### Mejorado`** dentro de Unreleased y necesitas Mejorado, créala **antes** de `### Corregido` en ese bloque.
+
+Si **no hay cambios** que documentar (árbol limpio y sin diff), dilo y **no inventes** entradas; si aun así hay commits sin push, pregunta si quiere solo `git push`.
+
+## 4. Commit y push
+
+1. Incluye en el commit **todos los cambios pendientes** que sean parte del trabajo (`git add -A` o add selectivo si hay archivos que no deben subirse — nunca secrets).
+2. Mensaje recomendado: `chore(release): documentar cambios en CHANGELOG` (o similar, conciso).
+3. `git push` en la rama actual. **No** uses `push --force` salvo que el usuario lo pida explícitamente.
+
+## 5. Resumen al usuario
+
+Lista qué archivos tocaste, qué bullets añadiste (ámbito + sección) y resultado de push.
+
+---
+
+**Nota:** El script `scripts/document_release_changes.py` sigue disponible para uso manual; este flujo es el **preferido con agente** cuando se pide análisis automático del diff y commit/push.

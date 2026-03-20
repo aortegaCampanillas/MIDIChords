@@ -11,6 +11,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Documentado
 
+- Repo: reglas de agente Cursor — **`release-changelog-agent.mdc`** (analizar diff, **CHANGELOG** Unreleased por app, `commit`/`push`; invocable con `@release-changelog-agent`) y **`github-update-triggers.mdc`** (`alwaysApply`, reacciona a «actualiza cambios», «commit y push», etc.); script manual `scripts/document_release_changes.py`; ver `AGENTS.md`.
 - Móvil (Flutter): inventario operativo de dispositivos de prueba, ids confirmados de iPhone/iPad y tablet Android, y guía para arrancar simuladores/emuladores iOS y Android desde `apps/mobile_flutter/README.md`.
 - Móvil (Flutter): nuevo script `scripts/select_mobile_emulator.py` para listar simuladores/emuladores disponibles en macOS y arrancar el elegido desde terminal.
 - Móvil (Flutter): el selector de emuladores muestra por defecto solo los simuladores iOS documentados; `--all-ios` enseña el resto, y los AVD Android rotos ahora fallan con un mensaje claro antes de intentar arrancar.
@@ -21,6 +22,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- Móvil (Flutter): **Generación** (piano) — digitación de acordes alineada al escritorio: tríada mano derecha **1-3-5** y mano izquierda **5-3-1** (notas ordenadas de grave a agudo); antes se asignaban dedos por índice (1-2-3 / 5-4-3).
 - macOS App Store: `scripts/build_mas_pkg.sh` limpia atributos `com.apple.quarantine` también en `assets/` y en los recursos empaquetados del `.app` antes de firmar, evitando rechazos de App Store Connect como `code 91109`.
 - macOS release env: `scripts/validate_macos_release_env.sh` detecta de forma más robusta las identidades válidas del llavero.
 - Escritorio (Qt): **Ajustes** — al refrescar la lista de dispositivos al abrir el combo de **entrada MIDI** o **salida de audio**, el otro combo parecía perder la selección: tras `clear()`/`addItems()` el `QComboBox` no se re-sincronizaba con el `StringVar` (solo existía enlace combo→var). `ttk.Combobox.configure(values=…)` vuelve a aplicar `setCurrentText` desde la variable si el valor sigue en la lista; el refresco de Ajustes usa la config como respaldo si la var va vacía.

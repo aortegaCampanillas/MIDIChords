@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import tkinter as tk
+import midichords.qt.tk_compat as tk
 import time
 from midichords.core.music_theory import SCALE_PATTERNS, ScalePattern
-from midichords.ui.widgets import GrayRoundedButton
+from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class ScalesMixin:
@@ -281,6 +281,7 @@ class ScalesMixin:
                 buttons_frame,
                 text=self.note_name(pc, with_octave=False),
                 command=lambda p=pc: self._select_scale_tonic_from_overlay(p),
+                font_family=self.ui_font_family,
                 width=122,
                 height=74,
                 radius=28,
@@ -345,6 +346,7 @@ class ScalesMixin:
                     buttons_frame,
                     text=self.scale_name(pattern.name),
                     command=lambda n=pattern.name: self._select_scale_type_from_overlay(n),
+                    font_family=self.ui_font_family,
                     width=208,
                     height=64,
                     radius=24,

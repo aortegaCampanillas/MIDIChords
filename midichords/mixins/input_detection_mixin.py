@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import queue
 import time
-import tkinter as tk
+import midichords.qt.tk_compat as tk
 from typing import Optional
 
 from midichords.core.i18n import NOTE_NAMES

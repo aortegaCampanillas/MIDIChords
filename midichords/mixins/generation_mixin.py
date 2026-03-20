@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import tkinter as tk
+import midichords.qt.tk_compat as tk
 from midichords.core.music_theory import CHORD_PATTERNS, ChordPattern, chord_patterns_for_ui
-from midichords.ui.widgets import GrayRoundedButton
+from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class GenerationMixin:
@@ -282,6 +282,7 @@ class GenerationMixin:
                     buttons_frame,
                     text=str(label),
                     command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                    font_family=self.ui_font_family,
                     width=122,
                     height=74,
                     radius=28,
@@ -317,6 +318,7 @@ class GenerationMixin:
                         buttons_frame,
                         text=str(label),
                         command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                        font_family=self.ui_font_family,
                         width=160,
                         height=64,
                         radius=24,
@@ -345,6 +347,7 @@ class GenerationMixin:
                     buttons_frame,
                     text=str(label),
                     command=lambda v=value, k=kind: self._select_generation_overlay_value(k, v),
+                    font_family=self.ui_font_family,
                     width=160,
                     height=64,
                     radius=24,

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import time
-import tkinter as tk
-import tkinter.font as tkfont
+import midichords.qt.tk_compat as tk
+import midichords.qt.tkfont_compat as tkfont
 from midichords.core.music_theory import WHITE_PCS
 
 

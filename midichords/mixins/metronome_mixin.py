@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 import time
-import tkinter as tk
-from tkinter import ttk
+import midichords.qt.tk_compat as tk
+import midichords.qt.ttk_compat as ttk
 
 
 class MetronomeMixin:

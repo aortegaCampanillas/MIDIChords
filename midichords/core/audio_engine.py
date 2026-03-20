@@ -65,6 +65,7 @@ class PianoAudioEngine:
         self.guitar_preset = "steel_clean"
         self.output_device: Optional[int] = None
         self.stream: Optional[sd.OutputStream] = None
+        self._stream_lock = threading.Lock()
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
         self.click_voices: list[ClickVoice] = []
@@ -136,8 +137,11 @@ class PianoAudioEngine:
             self.start(output_device)
 
     def ensure_started(self) -> None:
-        if self.stream is None:
-            self.start(self.output_device)
+        # Evita que dos rutas (hilo de precalentamiento + primer note_on) arranquen
+        # el stream simultáneamente.
+        with self._stream_lock:
+            if self.stream is None:
+                self.start(self.output_device)
 
     def stop(self) -> None:
         with self.lock:

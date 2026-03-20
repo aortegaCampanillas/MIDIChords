@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import queue
 import time
-import tkinter as tk
+import midichords.qt.tk_compat as tk
 from typing import Optional
 
 import numpy as np

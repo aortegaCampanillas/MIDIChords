@@ -1,0 +1,872 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
+
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QFont, QFontMetrics, QPixmap
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QMainWindow, QSizePolicy
+
+from midichords.qt.qt_primitives import QtCanvas, QtBooleanVar, QtStringVar, _font_from_tk_tuple
+
+# ---- Constantes estilo tkinter (subset) ----
+LEFT = "left"
+RIGHT = "right"
+TOP = "top"
+BOTTOM = "bottom"
+X = "x"
+Y = "y"
+BOTH = "both"
+
+SUNKEN = "sunken"
+FLAT = "flat"
+ROUND = 1  # usado como valor booleano para capstyle/joinstyle en el código
+
+NORMAL = "normal"
+DISABLED = "disabled"
+
+# tkinter.Canvas.create_arc style (valores literales de tkinter)
+PIESLICE = "pieslice"
+ARC = "arc"
+CHORD = "chord"
+
+
+def _qt_grid_attach_widget(widget: QWidget, row: int, column: int, **kwargs: Any) -> None:
+    """Coloca un hijo en el QGridLayout del padre (equiv. aprox. a Tk grid + columnconfigure)."""
+    parent = widget.parentWidget()
+    if parent is None:
+        return
+    grid = parent.layout()
+    if grid is None or not isinstance(grid, QGridLayout):
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        parent.setLayout(grid)
+    _qt_apply_parent_frame_padding(parent, grid)
+    sticky_kw = str(kwargs.get("sticky", "") or "")
+    row_span = int(kwargs.get("rowspan", 1) or 1)
+    col_span = int(kwargs.get("columnspan", 1) or 1)
+    align, h_exp, v_exp = _parse_grid_sticky(sticky_kw)
+    hp = QSizePolicy.Policy.Expanding if h_exp else QSizePolicy.Policy.Preferred
+    vp = QSizePolicy.Policy.Expanding if v_exp else QSizePolicy.Policy.Preferred
+    if h_exp or v_exp:
+        widget.setSizePolicy(hp, vp)
+    if row_span > 1 or col_span > 1:
+        grid.addWidget(widget, int(row), int(column), row_span, col_span, align)
+    else:
+        grid.addWidget(widget, int(row), int(column), align)
+    for col, w in getattr(parent, "_tk_col_weights", {}).items():
+        grid.setColumnStretch(int(col), int(w))
+    for r, w in getattr(parent, "_tk_row_weights", {}).items():
+        grid.setRowStretch(int(r), int(w))
+    widget.setVisible(True)
+
+
+def _parse_ttk_padding(p: Any) -> tuple[int, int, int, int]:
+    """Convierte `padding` de ttk (1–4 valores) a (left, top, right, bottom)."""
+    if p is None:
+        return (0, 0, 0, 0)
+    if isinstance(p, (int, float)):
+        v = int(p)
+        return (v, v, v, v)
+    if isinstance(p, (tuple, list)):
+        seq = [int(x) for x in p]
+        n = len(seq)
+        if n == 0:
+            return (0, 0, 0, 0)
+        if n == 1:
+            v = seq[0]
+            return (v, v, v, v)
+        if n == 2:
+            x, y = seq[0], seq[1]
+            return (x, y, x, y)
+        if n == 3:
+            top, lr, bot = seq[0], seq[1], seq[2]
+            return (lr, top, lr, bot)
+        return (seq[0], seq[1], seq[2], seq[3])
+    try:
+        v = int(p)  # type: ignore[arg-type]
+        return (v, v, v, v)
+    except (TypeError, ValueError):
+        return (0, 0, 0, 0)
+
+
+def _qt_apply_parent_frame_padding(parent: QWidget, layout: Any) -> None:
+    """Aplica `padding` tipo ttk al layout del contenedor (si se definió en el Widget)."""
+    pads = getattr(parent, "_tk_frame_padding", None)
+    if pads is None:
+        return
+    l, t, r, b = pads
+    try:
+        layout.setContentsMargins(int(l), int(t), int(r), int(b))
+    except Exception:
+        pass
+
+
+def _parse_grid_sticky(sticky: str) -> tuple[Qt.AlignmentFlag, bool, bool]:
+    """Convierte sticky de Tk grid a alineación Qt y flags de expansión."""
+    s = (sticky or "").strip().lower()
+    if not s:
+        return Qt.AlignmentFlag.AlignCenter, False, False
+    if "nsew" in s:
+        return Qt.AlignmentFlag(0), True, True
+    h_fill = "e" in s and "w" in s
+    v_fill = "n" in s and "s" in s
+    a = Qt.AlignmentFlag(0)
+    if "n" in s:
+        a |= Qt.AlignmentFlag.AlignTop
+    if "s" in s:
+        a |= Qt.AlignmentFlag.AlignBottom
+    if "e" in s:
+        a |= Qt.AlignmentFlag.AlignRight
+    if "w" in s:
+        a |= Qt.AlignmentFlag.AlignLeft
+    if a == Qt.AlignmentFlag(0):
+        a = Qt.AlignmentFlag.AlignCenter
+    else:
+        if not (a & (Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignBottom)):
+            a |= Qt.AlignmentFlag.AlignVCenter
+        if not (a & (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignRight)):
+            a |= Qt.AlignmentFlag.AlignHCenter
+    return a, h_fill, v_fill
+
+
+def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
+    """Empaquetado estilo Tk: `padx`/`pady` son márgenes por widget (entre hermanos).
+
+    Antes se usaba `QBoxLayout.setSpacing(left+right)`, lo que unificaba mal el hueco
+    y el último `pack` lo sobrescribía (p. ej. ⚙ pegado a ♭, o #/♭ sin separación).
+    """
+    parent = widget.parentWidget()
+    if parent is None:
+        return
+    side = str(kwargs.get("side", TOP)).lower()
+    padx = kwargs.get("padx", 0)
+    pady = kwargs.get("pady", 0)
+    if isinstance(padx, tuple):
+        left_pad, right_pad = int(padx[0]), int(padx[1] if len(padx) > 1 else padx[0])
+    else:
+        left_pad = right_pad = int(padx or 0)
+    if isinstance(pady, tuple):
+        top_pad, bot_pad = int(pady[0]), int(pady[1] if len(pady) > 1 else pady[0])
+    else:
+        top_pad = bot_pad = int(pady or 0)
+    fill = str(kwargs.get("fill", "")).lower()
+    expand = bool(kwargs.get("expand", False))
+    stretch = 1 if expand else 0
+
+    if fill == X:
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+    elif fill == Y:
+        widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+    elif fill == BOTH:
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+    else:
+        widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+
+    layout = parent.layout()
+    if side in {LEFT, RIGHT}:
+        if layout is None or not isinstance(layout, QHBoxLayout):
+            layout = QHBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            parent.setLayout(layout)
+        else:
+            layout.setSpacing(0)
+        _qt_apply_parent_frame_padding(parent, layout)
+
+        if side == RIGHT:
+            if not getattr(parent, "_tk_pack_right_stretch", False):
+                layout.addStretch(1)
+                setattr(parent, "_tk_pack_right_stretch", True)
+            insert_at = 1
+            if left_pad > 0:
+                layout.insertSpacing(insert_at, left_pad)
+                insert_at += 1
+            layout.insertWidget(insert_at, widget, stretch)
+            insert_at += 1
+            if right_pad > 0:
+                layout.insertSpacing(insert_at, right_pad)
+        else:
+            if left_pad > 0:
+                layout.addSpacing(left_pad)
+            layout.addWidget(widget, stretch)
+            if right_pad > 0:
+                layout.addSpacing(right_pad)
+    else:
+        if layout is None or not isinstance(layout, QVBoxLayout):
+            layout = QVBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            parent.setLayout(layout)
+        else:
+            layout.setSpacing(0)
+        _qt_apply_parent_frame_padding(parent, layout)
+
+        anchor_kw = str(kwargs.get("anchor", "") or "").strip().lower()
+
+        def _vbox_alignment() -> Qt.AlignmentFlag:
+            if anchor_kw in {"w", "nw", "sw"}:
+                return Qt.AlignmentFlag.AlignLeft
+            if anchor_kw in {"e", "ne", "se"}:
+                return Qt.AlignmentFlag.AlignRight
+            if anchor_kw in {"center", "n", "s"}:
+                return Qt.AlignmentFlag.AlignHCenter
+            return Qt.AlignmentFlag(0)
+
+        valign = _vbox_alignment()
+
+        if side == BOTTOM:
+            if not getattr(parent, "_tk_pack_bottom_stretch", False):
+                layout.addStretch(1)
+                setattr(parent, "_tk_pack_bottom_stretch", True)
+            insert_at = 1
+            if top_pad > 0:
+                layout.insertSpacing(insert_at, top_pad)
+                insert_at += 1
+            if valign != Qt.AlignmentFlag(0):
+                layout.insertWidget(insert_at, widget, stretch, valign)
+            else:
+                layout.insertWidget(insert_at, widget, stretch)
+            insert_at += 1
+            if bot_pad > 0:
+                layout.insertSpacing(insert_at, bot_pad)
+        else:
+            if top_pad > 0:
+                layout.addSpacing(top_pad)
+            if valign != Qt.AlignmentFlag(0):
+                layout.addWidget(widget, stretch, valign)
+            else:
+                layout.addWidget(widget, stretch)
+            if bot_pad > 0:
+                layout.addSpacing(bot_pad)
+    widget.setVisible(True)
+
+
+def _qt_remove_widget_from_parent_layout(widget: QWidget) -> None:
+    """Si el padre tiene QLayout y contiene este widget, lo saca (necesario para place absoluto)."""
+    parent = widget.parentWidget()
+    if parent is None:
+        return
+    lay = parent.layout()
+    if lay is None:
+        return
+    for i in range(lay.count()):
+        item = lay.itemAt(i)
+        if item is None:
+            continue
+        if item.widget() is widget:
+            lay.takeAt(i)
+            return
+
+
+def _qt_pack_forget_widget(widget: QWidget) -> None:
+    """Equiv. a Tk pack_forget: quitar del layout del padre y ocultar."""
+    _qt_remove_widget_from_parent_layout(widget)
+    widget.setVisible(False)
+
+
+def _place_anchor_offset(anchor: str, w: int, h: int) -> tuple[int, int]:
+    """Desplazamiento top-left del hijo para que el punto de anclaje quede en (refx, refy)."""
+    a = (anchor or "nw").strip().lower()
+    if a in {"nw"}:
+        return 0, 0
+    if a in {"n", "north"}:
+        return int(round(-w / 2)), 0
+    if a in {"ne"}:
+        return -w, 0
+    if a in {"w", "west"}:
+        return 0, int(round(-h / 2))
+    if a in {"center", "c"}:
+        return int(round(-w / 2)), int(round(-h / 2))
+    if a in {"e", "east"}:
+        return -w, int(round(-h / 2))
+    if a in {"sw"}:
+        return 0, -h
+    if a in {"s", "south"}:
+        return int(round(-w / 2)), -h
+    if a in {"se"}:
+        return -w, -h
+    return 0, 0
+
+
+def _qt_place_widget(widget: QWidget, **kwargs: Any) -> None:
+    """Tk place: x/y o relx/rely + relwidth/relheight; respeta anchor (p. ej. selector de modo)."""
+    parent = widget.parentWidget()
+    if parent is None:
+        return
+    _qt_remove_widget_from_parent_layout(widget)
+    pw = max(0, int(parent.width()))
+    ph = max(0, int(parent.height()))
+    anchor = str(kwargs.get("anchor", "nw") or "nw")
+    has_abs = any(k in kwargs for k in ("x", "y", "width", "height"))
+    if has_abs:
+        ref_x = int(kwargs.get("x", 0))
+        ref_y = int(kwargs.get("y", 0))
+        w_raw = kwargs.get("width")
+        h_raw = kwargs.get("height")
+        w = max(1, int(w_raw) if w_raw is not None else max(1, pw - ref_x))
+        h = max(1, int(h_raw) if h_raw is not None else max(1, ph - ref_y))
+        dx, dy = _place_anchor_offset(anchor, w, h)
+        x = ref_x + dx
+        y = ref_y + dy
+    else:
+        relx = float(kwargs.get("relx", 0.0))
+        rely = float(kwargs.get("rely", 0.0))
+        relw = float(kwargs.get("relwidth", 1.0))
+        relh = float(kwargs.get("relheight", 1.0))
+        w = max(1, int(round(pw * relw)))
+        h = max(1, int(round(ph * relh)))
+        cx = pw * relx
+        cy = ph * rely
+        dx, dy = _place_anchor_offset(anchor, w, h)
+        x = int(round(cx + dx))
+        y = int(round(cy + dy))
+    widget.setGeometry(x, y, w, h)
+    widget.setVisible(True)
+    try:
+        widget.raise_()
+    except Exception:
+        pass
+
+
+class TclError(Exception):
+    pass
+
+
+class Event:
+    # Solo para tipos; no se usa en runtime.
+    def __init__(self, **_kwargs: Any) -> None:
+        pass
+
+
+class _BindMixin:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._qt_bindings: dict[str, Callable[[Any], Any]] = {}
+
+    def bind(self, sequence: str, func: Callable[[Any], Any], add: str | None = None) -> None:
+        # `add` se ignora: en Tk controla si se reemplaza o se acumula.
+        _ = add
+        self._qt_bindings[str(sequence)] = func
+
+    def _call_binding(self, sequence: str, event: Any) -> None:
+        cb = self._qt_bindings.get(sequence)
+        if cb is None:
+            return
+        try:
+            cb(event)
+        except TypeError:
+            cb()
+
+    # Hover (Enter/Leave)
+    def enterEvent(self, event) -> None:  # type: ignore[override]
+        super_method = getattr(super(), "enterEvent", None)
+        if callable(super_method):
+            super_method(event)
+        self._call_binding("<Enter>", event)
+
+    def leaveEvent(self, event) -> None:  # type: ignore[override]
+        super_method = getattr(super(), "leaveEvent", None)
+        if callable(super_method):
+            super_method(event)
+        self._call_binding("<Leave>", event)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        super_method = getattr(super(), "mousePressEvent", None)
+        if callable(super_method):
+            super_method(event)
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Tk usa <ButtonPress-1> o <Button-1>; no disparar ambos si existieran.
+            if "<ButtonPress-1>" in self._qt_bindings:
+                self._call_binding("<ButtonPress-1>", event)
+            else:
+                self._call_binding("<Button-1>", event)
+
+    def focusInEvent(self, event) -> None:  # type: ignore[override]
+        super_method = getattr(super(), "focusInEvent", None)
+        if callable(super_method):
+            super_method(event)
+        self._call_binding("<FocusIn>", event)
+
+    def focusOutEvent(self, event) -> None:  # type: ignore[override]
+        super_method = getattr(super(), "focusOutEvent", None)
+        if callable(super_method):
+            super_method(event)
+        self._call_binding("<FocusOut>", event)
+
+
+class Widget(_BindMixin, QWidget):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        requested_width = kwargs.get("width")
+        requested_height = kwargs.get("height")
+        args = list(args)
+        if args and isinstance(args[0], QMainWindow):
+            main = args[0]
+            central = main.centralWidget()
+            if central is None:
+                central = QWidget(main)
+                main.setCentralWidget(central)
+            args[0] = central
+        # Tk pasa opciones que Qt no reconoce; bg/borde sí los aplicamos (paneles, overlays).
+        bg_val = kwargs.pop("bg", None) or kwargs.pop("background", None)
+        hl_thick = kwargs.pop("highlightthickness", None)
+        hl_bgc = kwargs.pop("highlightbackground", None)
+        kwargs.pop("highlightcolor", None)
+        padding_raw = kwargs.pop("padding", None)
+        self._tk_frame_padding: tuple[int, int, int, int] | None = (
+            _parse_ttk_padding(padding_raw) if padding_raw is not None else None
+        )
+        if self._tk_frame_padding == (0, 0, 0, 0):
+            self._tk_frame_padding = None
+        for k in [
+            "bd",
+            "cursor",
+            "relief",
+            "padx",
+            "pady",
+            "width",
+            "height",
+            "highlightwidth",
+        ]:
+            kwargs.pop(k, None)
+        QWidget.__init__(self, *args, **kwargs)
+        _BindMixin.__init__(self)
+        self._bg: str = str(bg_val or "")
+        self._highlight_thickness: Any = hl_thick
+        self._highlight_background: Any = hl_bgc
+        # Pesos grid (Tk columnconfigure/rowconfigure weight)
+        self._tk_col_weights: dict[int, int] = {}
+        self._tk_row_weights: dict[int, int] = {}
+        if requested_width is not None:
+            try:
+                self.setMinimumWidth(int(requested_width))
+            except Exception:
+                pass
+        if requested_height is not None:
+            try:
+                self.setMinimumHeight(int(requested_height))
+            except Exception:
+                pass
+        self._apply_tk_frame_surface()
+
+    def _apply_tk_frame_surface(self) -> None:
+        """Fondo y borde tipo Tk (highlightthickness + highlightbackground)."""
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        bg = (self._bg or "").strip()
+        if not bg:
+            bg = "transparent"
+        try:
+            th = int(self._highlight_thickness) if self._highlight_thickness is not None else 0
+        except (TypeError, ValueError):
+            th = 0
+        hc = self._highlight_background
+        hc_s = str(hc).strip() if hc is not None else ""
+        if th > 0 and hc_s:
+            border = f"border: {th}px solid {hc_s};"
+        elif th > 0:
+            border = f"border: {th}px solid #888888;"
+        else:
+            border = ""
+        self.setStyleSheet(f"background-color: {bg}; {border}".strip())
+
+    @property
+    def master(self) -> Optional[QWidget]:
+        """Compat Tk: widget padre (`parentWidget()` en Qt)."""
+        return self.parentWidget()
+
+    def winfo_children(self) -> list[QWidget]:
+        return list(self.findChildren(QWidget))
+
+    def cget(self, key: str) -> str:
+        if key in {"background", "bg"}:
+            return self._bg
+        return ""
+
+    def configure(self, **kwargs: Any) -> None:
+        # Compat mínima para bg/fg y state.
+        if "bg" in kwargs:
+            self._bg = str(kwargs["bg"])
+        if "background" in kwargs:
+            self._bg = str(kwargs["background"])
+        if "highlightthickness" in kwargs:
+            self._highlight_thickness = kwargs["highlightthickness"]
+        if "highlightbackground" in kwargs:
+            self._highlight_background = kwargs["highlightbackground"]
+        if "padding" in kwargs:
+            pr = kwargs["padding"]
+            self._tk_frame_padding = _parse_ttk_padding(pr) if pr is not None else None
+            if self._tk_frame_padding == (0, 0, 0, 0):
+                self._tk_frame_padding = None
+            lay = self.layout()
+            if lay is not None:
+                _qt_apply_parent_frame_padding(self, lay)
+        if any(
+            k in kwargs
+            for k in ("bg", "background", "highlightthickness", "highlightbackground")
+        ):
+            self._apply_tk_frame_surface()
+        if "state" in kwargs:
+            st = str(kwargs["state"])
+            self.setEnabled(st != DISABLED and st != "disabled" and st != "disabled")
+        self.update()
+
+    # Layout: pack/grid/place muy simplificado (funcional, no pixel-perfect).
+    def _ensure_pack_layout(self) -> QVBoxLayout:
+        layout = self.layout()
+        if layout is None:
+            layout = QVBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+            self.setLayout(layout)
+        if not isinstance(layout, QVBoxLayout):
+            # Caso raro: fallback a QVBoxLayout.
+            new_layout = QVBoxLayout()
+            new_layout.setContentsMargins(0, 0, 0, 0)
+            self.setLayout(new_layout)
+            layout = new_layout
+        return layout
+
+    def pack(self, **kwargs: Any) -> None:
+        qt_pack_attach(self, **kwargs)
+
+    def pack_forget(self) -> None:
+        _qt_pack_forget_widget(self)
+
+    def pack_propagate(self, _flag: bool) -> None:
+        # Tk usa pack_propagate para control de tamaño. En Qt no lo necesitamos.
+        return
+
+    def grid(self, row: int = 0, column: int = 0, **kwargs: Any) -> None:
+        _qt_grid_attach_widget(self, row, column, **kwargs)
+
+    def grid_remove(self) -> None:
+        self.setVisible(False)
+
+    def grid_forget(self) -> None:
+        self.setVisible(False)
+
+    def place(self, **kwargs: Any) -> None:
+        _qt_place_widget(self, **kwargs)
+
+    def focus_set(self) -> None:
+        self.setFocus()
+
+    def focus_get(self) -> Optional[QWidget]:
+        return self.parentWidget().focusWidget() if self.parentWidget() is not None else None
+
+    def destroy(self) -> None:
+        # Tk uses destroy() to remove widget. En Qt usamos deleteLater().
+        self.deleteLater()
+
+    def nametowidget(self, _name: str) -> QWidget:
+        raise KeyError(_name)
+
+    def winfo_class(self) -> str:
+        return self.__class__.__name__
+
+    def winfo_manager(self) -> str:
+        # Tk widget manager name; UiMixin usa "" para saber que no está colocado.
+        return ""
+
+    def columnconfigure(self, index: int, **_kwargs: Any) -> None:
+        if "weight" in _kwargs:
+            self._tk_col_weights[int(index)] = int(_kwargs["weight"])
+            lay = self.layout()
+            if isinstance(lay, QGridLayout):
+                lay.setColumnStretch(int(index), int(_kwargs["weight"]))
+
+    def rowconfigure(self, index: int, **_kwargs: Any) -> None:
+        if "weight" in _kwargs:
+            self._tk_row_weights[int(index)] = int(_kwargs["weight"])
+            lay = self.layout()
+            if isinstance(lay, QGridLayout):
+                lay.setRowStretch(int(index), int(_kwargs["weight"]))
+
+
+class Frame(Widget):
+    pass
+
+
+class Label(Widget):
+    def __init__(self, master: QWidget | None = None, text: str = "", **_kwargs: Any) -> None:
+        _frame_kw: dict[str, Any] = {}
+        for _k in (
+            "bg",
+            "background",
+            "highlightthickness",
+            "highlightbackground",
+            "highlightcolor",
+            "padding",
+            "width",
+            "height",
+        ):
+            if _k in _kwargs:
+                _frame_kw[_k] = _kwargs.pop(_k)
+        super().__init__(master, **_frame_kw)
+        self._textvariable: QtStringVar | None = _kwargs.pop("textvariable", None)
+        self._wraplength: int | None = None
+        wraplength = _kwargs.pop("wraplength", None)
+        initial = str(self._textvariable.get()) if self._textvariable is not None else text
+        self._label = QLabel(initial, self)
+        self._label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        # Sin esto el QLabel hijo recibe el clic y el `tk.Label` padre no dispara `<Button-1>` (p. ej. ⚙).
+        self._label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        if wraplength is not None:
+            try:
+                wl = int(wraplength)
+                if wl > 0:
+                    self._wraplength = wl
+                    self._label.setWordWrap(True)
+                    self._label.setMaximumWidth(wl)
+            except (TypeError, ValueError):
+                pass
+        self._apply_label_alignment(_kwargs)
+        self._apply_label_style(_kwargs)
+        cur = str(_kwargs.get("cursor", "") or "")
+        if cur in {"hand2", "hand1"}:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        if self._textvariable is not None:
+
+            def _sync_var(*_args: Any) -> None:
+                self._label.setText(str(self._textvariable.get()))
+                self._refresh_label_minsize()
+                self.updateGeometry()
+
+            self._textvariable.trace_add("write", _sync_var)
+        self._label.setGeometry(0, 0, self.width(), self.height())
+        self._refresh_label_minsize()
+
+    def _apply_label_alignment(self, spec: dict[str, Any]) -> None:
+        anchor = str(spec.get("anchor", "w") or "w").lower()
+        justify = str(spec.get("justify", "left") or "left").lower()
+        ha = Qt.AlignmentFlag.AlignLeft
+        if anchor in {"center", "c"}:
+            ha = Qt.AlignmentFlag.AlignHCenter
+        elif anchor in {"e", "right"}:
+            ha = Qt.AlignmentFlag.AlignRight
+        va = Qt.AlignmentFlag.AlignVCenter
+        if anchor in {"n", "nw", "ne"}:
+            va = Qt.AlignmentFlag.AlignTop
+        elif anchor in {"s", "sw", "se"}:
+            va = Qt.AlignmentFlag.AlignBottom
+        if justify == "center":
+            ha = Qt.AlignmentFlag.AlignHCenter
+        self._label.setAlignment(ha | va)
+
+    def _refresh_label_minsize(self) -> None:
+        # QLabel sin layout propio: hint mínimo para no colapsar en QLayout.
+        fm = QFontMetrics(self._label.font())
+        text = self._label.text() or " "
+        max_w = int(self._label.maximumWidth())
+        uses_wrap = bool(self._label.wordWrap()) and max_w < 16777215 - 1000
+
+        if uses_wrap:
+            w = max(1, max_w)
+            br = fm.boundingRect(QRect(0, 0, w, 10_000_000), Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, text)
+            self.setMinimumSize(w + 8, max(br.height() + 8, fm.height() + 4))
+        else:
+            tw = max(1, fm.horizontalAdvance(text))
+            th = max(1, fm.height())
+            self.setMinimumSize(tw + 8, th + 4)
+
+    def _apply_label_style(self, spec: dict[str, Any]) -> None:
+        fg = spec.get("fg") or spec.get("foreground")
+        if fg is not None:
+            self._label.setStyleSheet(f"color: {fg}; background: transparent;")
+        font_spec = spec.get("font")
+        if font_spec is not None:
+            self._label.setFont(_font_from_tk_tuple(font_spec))
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._label.setGeometry(0, 0, self.width(), self.height())
+
+    def configure(self, **kwargs: Any) -> None:
+        text = kwargs.get("text")
+        if text is not None:
+            self._label.setText(str(text))
+            self._refresh_label_minsize()
+        if "wraplength" in kwargs:
+            wl_raw = kwargs.get("wraplength")
+            try:
+                wl = int(wl_raw) if wl_raw is not None else 0
+            except (TypeError, ValueError):
+                wl = 0
+            if wl > 0:
+                self._wraplength = wl
+                self._label.setWordWrap(True)
+                self._label.setMaximumWidth(wl)
+            else:
+                self._wraplength = None
+                self._label.setWordWrap(False)
+                self._label.setMaximumWidth(16777215)
+            self._refresh_label_minsize()
+        self._apply_label_alignment(kwargs)
+        self._apply_label_style(kwargs)
+        if "cursor" in kwargs and str(kwargs["cursor"]) in {"hand2", "hand1"}:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        super().configure(**kwargs)
+
+
+class Button(Widget):
+    def __init__(self, master: QWidget | None = None, text: str = "", command: Callable[[], None] | None = None, **_kwargs: Any) -> None:
+        super().__init__(master)
+        self._btn = QPushButton(text, self)
+        self._btn.clicked.connect(command or (lambda: None))
+        self._btn.setGeometry(0, 0, self.width(), self.height())
+        self.setFixedSize(self._btn.size())
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._btn.setGeometry(0, 0, self.width(), self.height())
+
+    def configure(self, **kwargs: Any) -> None:
+        if "text" in kwargs:
+            self._btn.setText(str(kwargs["text"]))
+        super().configure(**kwargs)
+
+
+class Entry(Widget):
+    def __init__(self, master: QWidget | None = None, textvariable: QtStringVar | None = None, **_kwargs: Any) -> None:
+        super().__init__(master)
+        self._entry = QLineEdit(self)
+        self._entry.setGeometry(0, 0, self.width(), self.height())
+        self._entry.textChanged.connect(lambda v: textvariable.set(v) if textvariable is not None else None)
+        self._textvariable = textvariable
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._entry.setGeometry(0, 0, self.width(), self.height())
+
+    def configure(self, **kwargs: Any) -> None:
+        if "state" in kwargs:
+            self.setEnabled(str(kwargs["state"]) != DISABLED)
+        super().configure(**kwargs)
+
+    def focus_set(self) -> None:
+        self._entry.setFocus()
+
+
+class Canvas(QtCanvas):
+    def __init__(self, master: QWidget | None = None, **kwargs: Any) -> None:
+        if isinstance(master, QMainWindow):
+            central = master.centralWidget()
+            if central is None:
+                central = QWidget(master)
+                master.setCentralWidget(central)
+            master = central
+        requested_width = kwargs.get("width")
+        requested_height = kwargs.get("height")
+        kwargs.pop("relief", None)
+        super().__init__(master, **kwargs)
+        if requested_width is not None:
+            try:
+                self.setMinimumWidth(int(requested_width))
+            except Exception:
+                pass
+        if requested_height is not None:
+            try:
+                self.setMinimumHeight(int(requested_height))
+            except Exception:
+                pass
+
+    # Layout helpers (subset tk)
+    def pack(self, **_kwargs: Any) -> None:
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        side = str(_kwargs.get("side", TOP)).lower()
+        fill = str(_kwargs.get("fill", "")).lower()
+        expand = bool(_kwargs.get("expand", False))
+        stretch = 1 if expand else 0
+        if fill == X:
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        elif fill == Y:
+            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        elif fill == BOTH:
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        else:
+            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        layout = parent.layout()
+        if side in {LEFT, RIGHT}:
+            if layout is None or not isinstance(layout, QHBoxLayout):
+                layout = QHBoxLayout()
+                layout.setContentsMargins(0, 0, 0, 0)
+                parent.setLayout(layout)
+            if side == RIGHT:
+                if not getattr(parent, "_tk_pack_right_stretch", False):
+                    layout.addStretch(1)
+                    setattr(parent, "_tk_pack_right_stretch", True)
+                layout.addWidget(self, stretch)
+            else:
+                layout.addWidget(self, stretch)
+        else:
+            if layout is None or not isinstance(layout, QVBoxLayout):
+                layout = QVBoxLayout()
+                layout.setContentsMargins(0, 0, 0, 0)
+                parent.setLayout(layout)
+            layout.addWidget(self, stretch)
+        self.setVisible(True)
+
+    def pack_forget(self) -> None:
+        _qt_pack_forget_widget(self)
+
+    def grid(self, row: int = 0, column: int = 0, **_kwargs: Any) -> None:
+        _qt_grid_attach_widget(self, row, column, **_kwargs)
+
+    def grid_remove(self) -> None:
+        self.setVisible(False)
+
+    def grid_forget(self) -> None:
+        self.setVisible(False)
+
+    def place(self, **kwargs: Any) -> None:
+        _qt_place_widget(self, **kwargs)
+
+    def destroy(self) -> None:
+        self.deleteLater()
+
+    def configure(self, **_kwargs: Any) -> None:
+        self.update()
+
+
+# ---- Variables ----
+StringVar = QtStringVar
+BooleanVar = QtBooleanVar
+
+
+class PhotoImage:
+    def __init__(self, file: str | None = None, width: int | None = None, height: int | None = None, **_kwargs: Any) -> None:
+        if file:
+            self._pixmap = QPixmap(file)
+        else:
+            w = int(width or 1)
+            h = int(height or 1)
+            self._pixmap = QPixmap(w, h)
+            self._pixmap.fill(Qt.GlobalColor.transparent)
+
+    def width(self) -> int:
+        return int(self._pixmap.width())
+
+    def height(self) -> int:
+        return int(self._pixmap.height())
+
+    def zoom(self, x: int, y: int) -> "PhotoImage":
+        w = max(1, self.width() * int(x))
+        h = max(1, self.height() * int(y))
+        out = PhotoImage(width=w, height=h)
+        out._pixmap = self._pixmap.scaled(w, h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        return out
+
+    def subsample(self, x: int, y: int) -> "PhotoImage":
+        w = max(1, self.width() // int(max(1, x)))
+        h = max(1, self.height() // int(max(1, y)))
+        out = PhotoImage(width=w, height=h)
+        out._pixmap = self._pixmap.scaled(w, h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        return out
+
+    def toPixmap(self) -> QPixmap:
+        return self._pixmap
+
+
+# Alias para compat de imports que usan `tk.Misc`, etc.
+Misc = QWidget
+

@@ -8,14 +8,18 @@ import subprocess
 import sys
 import threading
 import time
-import tkinter as tk
-from tkinter import font as tkfont
-from tkinter import ttk
 from typing import Optional
 
 import mido
 import numpy as np
 import sounddevice as sd
+
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget
+
+from midichords.qt import QtSchedulerMixin, QtStringVar
+import midichords.qt.tk_compat as tk
 
 from midichords.core.audio_engine import PianoAudioEngine
 from midichords.core.app_config import load_config_file, save_config_file
@@ -37,7 +41,7 @@ from midichords.core.guitar_chord_cache import get_cached_variations, load_guita
 from midichords.core.image_utils import fit_photo_image, pad_photo_image, prepare_icon_for_dark_ui, recolor_dark_pixels
 from midichords.core.i18n import SCALE_NAME_TEXTS, UI_TEXTS
 from midichords.core.music_theory import CHORD_PATTERNS, SCALE_PATTERNS, WHITE_PCS, ChordPattern
-from midichords.ui.widgets import GrayRoundedButton, GreenRoundedButton, RoundedChoiceButton
+from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, RoundedChoiceButton
 from midichords.mixins.tuner_mixin import TunerMixin
 from midichords.mixins.metronome_mixin import MetronomeMixin
 from midichords.mixins.scales_mixin import ScalesMixin
@@ -48,24 +52,36 @@ from midichords.mixins.ui_mixin import UiMixin
 from midichords.mixins.render_mixin import RenderMixin
 from midichords.mixins.overlays_mixin import OverlaysMixin
 
-class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, MetronomeMixin, ScalesMixin, GenerationMixin, MidiIOMixin, InputDetectionMixin, tk.Tk):
+class MidiChordAnalyzerApp(
+    UiMixin,
+    RenderMixin,
+    OverlaysMixin,
+    TunerMixin,
+    MetronomeMixin,
+    ScalesMixin,
+    GenerationMixin,
+    MidiIOMixin,
+    InputDetectionMixin,
+    QtSchedulerMixin,
+    QMainWindow,
+):
     def __init__(self) -> None:
         super().__init__()
-        self.geometry("1300x800")
-        self.minsize(980, 620)
+        self.setGeometry(0, 0, 1300, 800)
+        self.setMinimumSize(980, 620)
 
         self.config_data = dict(DEFAULT_CONFIG)
         self.load_config()
-        self.brace_base_image: Optional[tk.PhotoImage] = None
-        self.brace_image_cache: dict[tuple[int, int], tk.PhotoImage] = {}
-        self.app_logo_image: Optional[tk.PhotoImage] = None
-        self.piano_image: Optional[tk.PhotoImage] = None
-        self.metronome_image: Optional[tk.PhotoImage] = None
-        self.guitar_image: Optional[tk.PhotoImage] = None
-        self.right_hand_icon_image: Optional[tk.PhotoImage] = None
-        self.left_hand_icon_image: Optional[tk.PhotoImage] = None
-        self.treble_clef_image: Optional[tk.PhotoImage] = None
-        self.bass_clef_image: Optional[tk.PhotoImage] = None
+        self.brace_base_image: Optional[QPixmap] = None
+        self.brace_image_cache: dict[tuple[int, int], QPixmap] = {}
+        self.app_logo_image: Optional[QPixmap] = None
+        self.piano_image: Optional[QPixmap] = None
+        self.metronome_image: Optional[QPixmap] = None
+        self.guitar_image: Optional[QPixmap] = None
+        self.right_hand_icon_image: Optional[QPixmap] = None
+        self.left_hand_icon_image: Optional[QPixmap] = None
+        self.treble_clef_image: Optional[QPixmap] = None
+        self.bass_clef_image: Optional[QPixmap] = None
         self._clef_font_family: str = "serif"
         self.instrument_buttons_are_images = False
         self.scale_transport_buttons_are_images = False
@@ -131,7 +147,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.scale_tab_active = False
         self.metronome_tab_active = False
         self.tuner_tab_active = False
-        self.mode_var = tk.StringVar()
+        self.mode_var = QtStringVar()
         loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
         self.midi_input_sound_enabled = bool(self.config_data.get("midi_input_sound_enabled", True))
@@ -161,11 +177,12 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.staff_pressed_scale_degrees: set[int] = set()
         self.staff_scale_note_regions: list[tuple[int, float, float, float, float, float, float, int]] = []
         self.staff_generation_note_regions: list[tuple[int, float, float, float, float]] = []
-        self.scale_tonic_overlay: Optional[tk.Frame] = None
-        self.scale_type_overlay: Optional[tk.Frame] = None
-        self.generation_selection_overlay: Optional[tk.Frame] = None
-        self.settings_overlay: Optional[tk.Frame] = None
-        self.mode_selector_overlay: Optional[tk.Frame] = None
+        self.scale_tonic_overlay: Optional[QWidget] = None
+        self.scale_type_overlay: Optional[QWidget] = None
+        self.generation_selection_overlay: Optional[QWidget] = None
+        self.settings_overlay: Optional[QWidget] = None
+        self._settings_overlay_opened_ts: float = 0.0
+        self.mode_selector_overlay: Optional[QWidget] = None
         self.instrument_view = "piano"
         self.scale_play_mode = "piano"
         self.scale_metronome_only = False
@@ -280,6 +297,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self.tuner_pitch_hop = 256
 
         self._build_ui()
+        _qa = QApplication.instance()
+        if _qa is not None:
+            _qa.installEventFilter(self)
         loaded_instrument_view = str(
             self.config_data.get(
                 "generation_instrument_view",
@@ -313,6 +333,14 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._startup_after_id = None
         self.refresh_devices()
         self.connect_ports()
+        # Precalentar el OutputStream para que la primera tecla no bloquee la UI.
+        try:
+            threading.Thread(
+                target=self.audio_engine.ensure_started,
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
         self.after(20, self._process_midi_queue)
 
     def scale_name(self, canonical_name: str) -> str:
@@ -725,6 +753,7 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
                 self.guitar_variations_inner,
                 text=str(idx + 1),
                 command=lambda i=idx: self._select_guitar_variation(i),
+                font_family=self.ui_font_family,
                 width=40,
                 height=28,
                 radius=6,
@@ -1070,9 +1099,11 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                self.brace_base_image = tk.PhotoImage(file=str(path))
+                pm = QPixmap(str(path))
+                if not pm.isNull():
+                    self.brace_base_image = pm
                 return
-            except tk.TclError:
+            except Exception:
                 continue
 
     def _load_app_logo(self) -> None:
@@ -1081,10 +1112,11 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                self.app_logo_image = tk.PhotoImage(file=str(path))
-                self.iconphoto(True, self.app_logo_image)
+                pm = QPixmap(str(path))
+                if not pm.isNull():
+                    self.app_logo_image = pm
                 return
-            except tk.TclError:
+            except Exception:
                 continue
 
     def _load_instrument_icons(self) -> None:
@@ -1098,7 +1130,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                img = tk.PhotoImage(file=str(path))
+                img = QPixmap(str(path))
+                if img.isNull():
+                    continue
                 self.piano_image = fit_photo_image(img, max_w=86, max_h=34)
                 break
             except Exception:
@@ -1108,10 +1142,11 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                img = tk.PhotoImage(file=str(path))
+                img = QPixmap(str(path))
+                if img.isNull():
+                    continue
                 fitted = fit_photo_image(img, max_w=86, max_h=34)
-                prepare_icon_for_dark_ui(fitted, bg=(43, 47, 55), fg=(246, 246, 246))
-                self.metronome_image = fitted
+                self.metronome_image = prepare_icon_for_dark_ui(fitted, bg=(43, 47, 55), fg=(246, 246, 246))
                 break
             except Exception:
                 continue
@@ -1120,10 +1155,11 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                img = tk.PhotoImage(file=str(path))
+                img = QPixmap(str(path))
+                if img.isNull():
+                    continue
                 fitted = fit_photo_image(img, max_w=86, max_h=34)
-                recolor_dark_pixels(fitted, threshold=56, target=(255, 255, 255))
-                self.guitar_image = fitted
+                self.guitar_image = recolor_dark_pixels(fitted, threshold=56, target=(255, 255, 255))
                 break
             except Exception:
                 continue
@@ -1132,7 +1168,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                img = tk.PhotoImage(file=str(path))
+                img = QPixmap(str(path))
+                if img.isNull():
+                    continue
                 fitted = fit_photo_image(img, max_w=44, max_h=22)
                 self.right_hand_icon_image = pad_photo_image(fitted, pad_x=6, pad_y=4)
                 break
@@ -1143,7 +1181,9 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
             if not path.exists():
                 continue
             try:
-                img = tk.PhotoImage(file=str(path))
+                img = QPixmap(str(path))
+                if img.isNull():
+                    continue
                 fitted = fit_photo_image(img, max_w=44, max_h=22)
                 self.left_hand_icon_image = pad_photo_image(fitted, pad_x=6, pad_y=4)
                 break
@@ -1156,41 +1196,46 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         for path in TREBLE_CLEF_IMAGE_CANDIDATES:
             if path.exists():
                 try:
-                    self.treble_clef_image = tk.PhotoImage(file=str(path))
+                    pm = QPixmap(str(path))
+                    if not pm.isNull():
+                        self.treble_clef_image = pm
                     break
-                except tk.TclError:
+                except Exception:
                     continue
         for path in BASS_CLEF_IMAGE_CANDIDATES:
             if path.exists():
                 try:
-                    self.bass_clef_image = tk.PhotoImage(file=str(path))
+                    pm = QPixmap(str(path))
+                    if not pm.isNull():
+                        self.bass_clef_image = pm
                     break
-                except tk.TclError:
+                except Exception:
                     continue
 
     def _resolve_clef_font(self) -> None:
         """Elige la primera fuente disponible que suele tener símbolos de clave (𝄞 𝄢)."""
-        available = {f.lower(): f for f in tkfont.families(self)}
+        from PySide6.QtGui import QFontDatabase
+
+        available = {f.lower(): f for f in QFontDatabase().families()}
         for candidate in CLEF_FONT_FAMILIES:
             if candidate.lower() in available:
                 self._clef_font_family = available[candidate.lower()]
                 return
         self._clef_font_family = "serif"
 
-    def _get_brace_image_for_height(self, target_height: int) -> Optional[tk.PhotoImage]:
+    def _get_brace_image_for_height(self, target_height: int) -> Optional[QPixmap]:
         if self.brace_base_image is None or target_height <= 0:
             return None
-
-        base_h = self.brace_base_image.height()
+        base_h = int(self.brace_base_image.height())
         if base_h <= 0:
             return None
 
         best_zoom, best_sub = 1, 1
-        best_diff = abs(base_h - target_height)
+        best_diff = abs(base_h - int(target_height))
         for zoom in range(1, 6):
             for sub in range(1, 10):
                 h = max(1, (base_h * zoom) // sub)
-                diff = abs(h - target_height)
+                diff = abs(h - int(target_height))
                 if diff < best_diff:
                     best_zoom, best_sub = zoom, sub
                     best_diff = diff
@@ -1202,12 +1247,14 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         cached = self.brace_image_cache.get(key)
         if cached is not None:
             return cached
-
-        img = self.brace_base_image.zoom(best_zoom, best_zoom)
-        if best_sub > 1:
-            img = img.subsample(best_sub, best_sub)
-        self.brace_image_cache[key] = img
-        return img
+        base_w = int(self.brace_base_image.width())
+        # Escalar: en Tk sería zoom(best_zoom)/subsample(best_sub); aquí aplicamos el mismo factor.
+        scale = float(best_zoom) / float(best_sub)
+        new_w = max(1, int(round(base_w * scale)))
+        new_h = max(1, int(round(base_h * scale)))
+        pm = self.brace_base_image.scaled(new_w, new_h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)  # type: ignore[name-defined]
+        self.brace_image_cache[key] = pm
+        return pm
 
     def save_config(self) -> None:
         save_config_file(CONFIG_PATH, self.config_data)
@@ -1285,14 +1332,27 @@ class MidiChordAnalyzerApp(UiMixin, RenderMixin, OverlaysMixin, TunerMixin, Metr
         self._stop_tuner_reference_note()
         self._stop_staff_scale_note_playback()
         self.disconnect_ports()
-        self.destroy()
+        self.deleteLater()
+
+    # Qt: interceptar el cierre de ventana para ejecutar el apagado ordenado.
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        try:
+            self.on_close()
+        finally:
+            try:
+                event.accept()
+            except Exception:
+                pass
 
 
 def main() -> None:
-    app = MidiChordAnalyzerApp()
-    app.protocol("WM_DELETE_WINDOW", app.on_close)
-    app.update_music_views()
-    app.mainloop()
+    from PySide6.QtWidgets import QApplication
+
+    qt_app = QApplication.instance() or QApplication(sys.argv)
+    window = MidiChordAnalyzerApp()
+    window.update_music_views()
+    window.show()
+    raise SystemExit(qt_app.exec())
 
 
 if __name__ == "__main__":

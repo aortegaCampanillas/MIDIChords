@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import time
-import tkinter as tk
-import tkinter.font as tkfont
-from tkinter import ttk
+import midichords.qt.tk_compat as tk
+import midichords.qt.tkfont_compat as tkfont
+import midichords.qt.ttk_compat as ttk
 from typing import Optional
 
-from midichords.ui.widgets import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
+from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
 
 class UiMixin:
@@ -184,15 +184,15 @@ class UiMixin:
             anchor="w",
             text="",
             fill=self.color_text,
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
             0,
             20,
             anchor="e",
-            text="▾",
+            text="▼",
             fill=self.color_muted,
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
 
         def _mode_picker_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
@@ -276,7 +276,8 @@ class UiMixin:
             bg_color=self.color_surface_alt,
             border_color=self.color_border,
             border_width=1.2,
-            padding=(12, 12, 12, 12),
+            # Un poco menos de aire vertical que el panel izquierdo (panel de acordes más compacto).
+            padding=(10, 8, 10, 8),
         )
         def _layout_top_panels(_event: Optional[tk.Event] = None) -> None:
             self._draw_vertical_gradient(
@@ -309,10 +310,10 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
             anchor="w",
         )
-        self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.staff_canvas.pack(fill=tk.BOTH, expand=True)
 
         self.right_panel_title_label = tk.Label(
@@ -320,10 +321,10 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
             anchor="w",
         )
-        self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
         self.right_side_panel.pack(fill=tk.BOTH, expand=True)
         self.right_side_panel.columnconfigure(0, weight=1)
@@ -344,8 +345,8 @@ class UiMixin:
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
-            padx=5,
-            pady=5,
+            padx=4,
+            pady=3,
         )
         self.tab_generation_frame = tk.Frame(
             self.chord_panel,
@@ -380,15 +381,23 @@ class UiMixin:
             pady=6,
         )
         self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
+        # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
+        for _hidden_tab in (
+            self.tab_generation_frame,
+            self.tab_scale_frame,
+            self.tab_metronome_frame,
+            self.tab_tuner_frame,
+        ):
+            _hidden_tab.setVisible(False)
 
         self.chord_title_label = tk.Label(
             self.tab_detection_frame,
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 18, "bold"),
+            font=(self.ui_font_family, 22, "bold"),
         )
-        self.chord_title_label.pack(anchor="w", pady=(4, 8))
+        self.chord_title_label.pack(anchor="w", pady=(1, 3))
         self.detection_help_label = tk.Label(
             self.tab_detection_frame,
             text="",
@@ -397,14 +406,16 @@ class UiMixin:
             justify="left",
             anchor="w",
             wraplength=520,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 16),
         )
-        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 2))
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        self.detection_controls_row.pack(anchor="w", pady=(0, 8))
+        # Misma lógica que Tk: fila a ancho del panel; el botón MIDI crece y rellena el hueco a la derecha.
+        self.detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 2))
+        # Igual que generación: el audio va en ButtonPress + bind_all release; no llamar command al soltar (doble note_on en Qt).
         self.detection_play_btn = PlayTransportButton(
             self.detection_controls_row,
-            command=self._play_detection_panel,
+            command=lambda: None,
             width=58,
             height=34,
         )
@@ -414,27 +425,30 @@ class UiMixin:
             self.detection_controls_row,
             text="",
             command=self._clear_detection_panel,
+            font_family=self.ui_font_family,
             width=104,
             height=34,
             radius=14,
-            font_size=14,
+            font_size=15,
         )
         self.detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
         self.detection_midi_sound_toggle_btn = GrayRoundedButton(
             self.detection_controls_row,
             text="",
             command=self._toggle_midi_input_sound,
+            font_family=self.ui_font_family,
             width=220,
             height=34,
             radius=14,
-            font_size=12,
+            font_size=14,
             text_color="#e6edf7",
             selected_text_color="#1a222d",
             selected_fill_color="#f3bf2f",
             selected_outline_color="#c9961f",
             selected_border_width=2.0,
+            expand_h=True,
         )
-        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT)
+        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         self.chord_var = tk.StringVar(value="-")
         self.detection_result_canvas = tk.Canvas(
@@ -445,7 +459,7 @@ class UiMixin:
             bd=0,
             relief=tk.FLAT,
         )
-        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
         self.detection_result_inner = tk.Frame(
             self.detection_result_canvas,
             bg="#17273a",
@@ -474,7 +488,7 @@ class UiMixin:
                 dash=(3, 3),
                 tags="result_block_bg",
             )
-            pad = 12
+            pad = 10
             self.detection_result_canvas.coords(self._detection_result_window_id, pad, pad)
             self.detection_result_canvas.itemconfigure(
                 self._detection_result_window_id,
@@ -491,16 +505,16 @@ class UiMixin:
             textvariable=self.chord_var,
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 34, "bold"),
+            font=(self.ui_font_family, 42, "bold"),
         )
-        self.chord_label.pack(anchor="w", pady=(0, 12))
+        self.chord_label.pack(anchor="w", pady=(0, 4))
 
         self.notes_caption_label = tk.Label(
             self.detection_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 16, "bold"),
         )
         self.notes_caption_label.pack(anchor="w")
         self.notes_var = tk.StringVar(value="-")
@@ -510,15 +524,15 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 13),
+            font=(self.ui_mono_font_family, 16),
         )
-        self.notes_label.pack(anchor="w", pady=(6, 6))
+        self.notes_label.pack(anchor="w", pady=(1, 2))
         self.intervals_caption_label = tk.Label(
             self.detection_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 16, "bold"),
         )
         self.intervals_caption_label.pack(anchor="w")
         self.intervals_var = tk.StringVar(value="-")
@@ -528,17 +542,17 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 13),
+            font=(self.ui_mono_font_family, 16),
         )
-        self.intervals_label.pack(anchor="w", pady=(6, 10))
+        self.intervals_label.pack(anchor="w", pady=(1, 2))
         self.extra_notes_caption_label = tk.Label(
             self.detection_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 16, "bold"),
         )
-        self.extra_notes_caption_label.pack(anchor="w", pady=(0, 1))
+        self.extra_notes_caption_label.pack(anchor="w", pady=(0, 0))
         self.extra_notes_var = tk.StringVar(value="")
         self.extra_notes_label = tk.Label(
             self.detection_result_inner,
@@ -546,18 +560,18 @@ class UiMixin:
             bg="#17273a",
             fg="#ff5a5f",
             wraplength=420,
-            font=(self.ui_mono_font_family, 13, "bold"),
+            font=(self.ui_mono_font_family, 16, "bold"),
         )
-        self.extra_notes_label.pack(anchor="w", pady=(0, 8))
+        self.extra_notes_label.pack(anchor="w", pady=(0, 2))
 
         self.generated_title_label = tk.Label(
             self.tab_generation_frame,
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 18, "bold"),
+            font=(self.ui_font_family, 20, "bold"),
         )
-        self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 10))
+        self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
         self.generation_root_label = tk.Label(
             self.tab_generation_frame,
@@ -566,11 +580,12 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 13),
         )
-        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.generation_root_btn = GrayRoundedButton(
             self.tab_generation_frame,
             text="-",
             command=self.open_generation_root_dialog,
+            font_family=self.ui_font_family,
             width=320,
             height=40,
             radius=16,
@@ -578,7 +593,7 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.generation_root_btn.grid(row=1, column=1, sticky="ew", pady=(0, 8))
+        self.generation_root_btn.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         self.generation_variant_label = tk.Label(
             self.tab_generation_frame,
@@ -587,11 +602,12 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 13),
         )
-        self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.generation_variant_btn = GrayRoundedButton(
             self.tab_generation_frame,
             text="-",
             command=self.open_generation_variant_dialog,
+            font_family=self.ui_font_family,
             width=320,
             height=40,
             radius=16,
@@ -599,7 +615,7 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.generation_variant_btn.grid(row=2, column=1, sticky="ew", pady=(0, 8))
+        self.generation_variant_btn.grid(row=2, column=1, sticky="ew", pady=(0, 5))
 
         self.generation_inversion_label = tk.Label(
             self.tab_generation_frame,
@@ -608,11 +624,12 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 13),
         )
-        self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 6), padx=(0, 8))
+        self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 4), padx=(0, 8))
         self.generation_inversion_btn = GrayRoundedButton(
             self.tab_generation_frame,
             text="-",
             command=self.open_generation_inversion_dialog,
+            font_family=self.ui_font_family,
             width=320,
             height=40,
             radius=16,
@@ -620,7 +637,7 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 6))
+        self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 4))
 
         self.generated_chord_var = tk.StringVar(value="-")
         self.generated_chord_row = tk.Frame(
@@ -629,7 +646,7 @@ class UiMixin:
             bd=0,
             highlightthickness=0,
         )
-        self.generated_chord_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 4))
+        self.generated_chord_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 3))
 
         self.generation_play_btn = PlayTransportButton(
             self.generated_chord_row,
@@ -649,7 +666,7 @@ class UiMixin:
             bd=0,
             relief=tk.FLAT,
         )
-        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(4, 2))
+        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(2, 2))
         self.generation_result_inner = tk.Frame(
             self.generation_result_canvas,
             bg="#17273a",
@@ -695,16 +712,16 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self.generated_chord_inner_label = tk.Label(
             self.generation_result_inner,
             textvariable=self.generated_chord_var,
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 34, "bold"),
+            font=(self.ui_font_family, 38, "bold"),
         )
-        self.generated_chord_inner_label.pack(anchor="w", pady=(0, 8))
+        self.generated_chord_inner_label.pack(anchor="w", pady=(0, 5))
         self.generated_notes_caption_label.pack(anchor="w")
         self.generated_notes_var = tk.StringVar(value="-")
         self.generated_notes_label = tk.Label(
@@ -713,15 +730,15 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 15),
         )
-        self.generated_notes_label.pack(anchor="w", pady=(6, 6))
+        self.generated_notes_label.pack(anchor="w", pady=(3, 4))
         self.generated_intervals_caption_label = tk.Label(
             self.generation_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self.generated_intervals_caption_label.pack(anchor="w")
         self.generated_intervals_var = tk.StringVar(value="-")
@@ -731,9 +748,9 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 15),
         )
-        self.generated_intervals_label.pack(anchor="w", pady=(6, 0))
+        self.generated_intervals_label.pack(anchor="w", pady=(3, 0))
 
         self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
@@ -743,9 +760,9 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 18, "bold"),
+            font=(self.ui_font_family, 20, "bold"),
         )
-        self.scale_panel_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 10))
+        self.scale_panel_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
         self.scale_controls_row = tk.Frame(
             self.tab_scale_frame,
@@ -767,6 +784,7 @@ class UiMixin:
             self.scale_controls_row,
             text="⏱",
             command=lambda: self._set_scale_play_mode("metronome"),
+            font_family=self.ui_font_family,
             width=48,
             height=34,
             radius=14,
@@ -887,11 +905,12 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 13),
         )
-        self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.scale_tonic_btn = GrayRoundedButton(
             self.tab_scale_frame,
             text="C",
             command=self.open_scale_tonic_dialog,
+            font_family=self.ui_font_family,
             width=320,
             height=40,
             radius=16,
@@ -899,7 +918,7 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.scale_tonic_btn.grid(row=1, column=1, sticky="ew", pady=(0, 8))
+        self.scale_tonic_btn.grid(row=1, column=1, sticky="ew", pady=(0, 5))
 
         self.scale_type_selector_label = tk.Label(
             self.tab_scale_frame,
@@ -908,11 +927,12 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 13),
         )
-        self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 8), padx=(0, 8))
+        self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.scale_type_btn = GrayRoundedButton(
             self.tab_scale_frame,
             text=self.scale_pattern_name,
             command=self.open_scale_type_dialog,
+            font_family=self.ui_font_family,
             width=320,
             height=40,
             radius=16,
@@ -920,7 +940,7 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 8))
+        self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 5))
 
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,
@@ -989,16 +1009,16 @@ class UiMixin:
             textvariable=self.scale_name_var,
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 24, "bold"),
+            font=(self.ui_font_family, 28, "bold"),
         )
-        self.scale_name_label.pack(anchor="w", pady=(0, 8))
+        self.scale_name_label.pack(anchor="w", pady=(0, 5))
 
         self.scale_notes_caption_label = tk.Label(
             self.scale_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self.scale_notes_caption_label.pack(anchor="w")
         self.scale_notes_var = tk.StringVar(value="-")
@@ -1008,16 +1028,16 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 15),
         )
-        self.scale_notes_label.pack(anchor="w", pady=(6, 6))
+        self.scale_notes_label.pack(anchor="w", pady=(3, 4))
 
         self.scale_intervals_caption_label = tk.Label(
             self.scale_result_inner,
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self.scale_intervals_caption_label.pack(anchor="w")
         self.scale_intervals_var = tk.StringVar(value="-")
@@ -1027,16 +1047,16 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 14),
+            font=(self.ui_mono_font_family, 15),
         )
-        self.scale_intervals_label.pack(anchor="w", pady=(6, 0))
+        self.scale_intervals_label.pack(anchor="w", pady=(3, 0))
 
         self.tab_scale_frame.columnconfigure(0, weight=0)
         self.tab_scale_frame.columnconfigure(1, weight=1)
         self.tab_scale_frame.rowconfigure(5, weight=1)
 
         self.metronome_title_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_title_row.grid(row=0, column=0, sticky="w", pady=(4, 10))
+        self.metronome_title_row.grid(row=0, column=0, sticky="ew", pady=(4, 10))
         self.metronome_play_btn = PlayTransportButton(
             self.metronome_title_row,
             command=self._toggle_metronome,
@@ -1049,6 +1069,7 @@ class UiMixin:
             self.metronome_title_row,
             text="",
             command=self._toggle_midi_input_sound,
+            font_family=self.ui_font_family,
             width=220,
             height=34,
             radius=14,
@@ -1058,8 +1079,9 @@ class UiMixin:
             selected_fill_color="#f3bf2f",
             selected_outline_color="#c9961f",
             selected_border_width=2.0,
+            expand_h=True,
         )
-        self.metronome_midi_sound_toggle_btn.pack(side=tk.LEFT, padx=(8, 0))
+        self.metronome_midi_sound_toggle_btn.pack(side=tk.LEFT, padx=(8, 0), fill=tk.X, expand=True)
 
         self.metronome_volume_label = ttk.Label(self.tab_metronome_frame, text="", font=(self.ui_font_family, 15, "bold"), anchor="center")
         self.metronome_volume_label.grid(row=1, column=0, sticky="ew", pady=(0, 2))
@@ -1208,6 +1230,7 @@ class UiMixin:
             textvariable=self.metronome_timer_minutes_var,
             width=4,
             command=self._on_metronome_timer_fields_changed,
+            font=(self.ui_font_family, 14),
         )
         self.metronome_timer_minutes_spin.grid(row=0, column=3, sticky="w", padx=(4, 10))
         self.metronome_timer_minutes_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
@@ -1224,6 +1247,7 @@ class UiMixin:
             textvariable=self.metronome_timer_seconds_var,
             width=4,
             command=self._on_metronome_timer_fields_changed,
+            font=(self.ui_font_family, 14),
         )
         self.metronome_timer_seconds_spin.grid(row=0, column=5, sticky="w", padx=(4, 0))
         self.metronome_timer_seconds_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
@@ -1235,6 +1259,7 @@ class UiMixin:
             text="",
             variable=self.metronome_bar_accent_var,
             command=self._on_metronome_bar_accent_toggle,
+            font=(self.ui_font_family, 14, "bold"),
         )
         self.metronome_bar_accent_check.grid(row=10, column=0, sticky="w", pady=(6, 0))
         try:
@@ -1363,6 +1388,7 @@ class UiMixin:
             self.tab_tuner_frame,
             text="-",
             command=self.open_tuner_tuning_dialog,
+            font_family=self.ui_font_family,
             width=unified_green_width,
             height=unified_green_height,
             radius=unified_green_radius,
@@ -1372,7 +1398,14 @@ class UiMixin:
         self.tuner_input_label = ttk.Label(self.tab_tuner_frame, text="", anchor="center", justify="center")
         self.tuner_input_label.grid(row=2, column=0, sticky="ew", pady=(2, 2))
         self.tuner_input_var = tk.StringVar(value=self.tuner_input_name)
-        self.tuner_input_combo = ttk.Combobox(self.tab_tuner_frame, textvariable=self.tuner_input_var, state="readonly", values=[""], width=42)
+        self.tuner_input_combo = ttk.Combobox(
+            self.tab_tuner_frame,
+            textvariable=self.tuner_input_var,
+            state="readonly",
+            values=[""],
+            width=42,
+            font=(self.ui_font_family, 13),
+        )
         self.tuner_input_combo.grid(row=3, column=0, sticky="", pady=(0, 8))
         self.tuner_input_combo.bind("<<ComboboxSelected>>", self._on_tuner_input_changed)
         self.tuner_input_combo.configure(postcommand=self.refresh_devices)
@@ -1398,8 +1431,10 @@ class UiMixin:
             self.generation_accidental_switch,
             text="#",
             command=lambda: self._set_note_accidental("sharp"),
+            font_family=self.ui_font_family,
+            font_size=12,
             width=48,
-            height=34,
+            height=40,
             radius=12,
         )
         self.generation_accidental_sharp_btn.pack(side=tk.LEFT, padx=(0, 6))
@@ -1407,8 +1442,10 @@ class UiMixin:
             self.generation_accidental_switch,
             text="♭",
             command=lambda: self._set_note_accidental("flat"),
+            font_family=self.ui_font_family,
+            font_size=12,
             width=48,
-            height=34,
+            height=40,
             radius=12,
         )
         self.generation_accidental_flat_btn.pack(side=tk.LEFT)
@@ -1436,7 +1473,6 @@ class UiMixin:
             highlightbackground="#c5cad3",
         )
         self.keyboard_canvas.pack(fill=tk.X, expand=False)
-
         self.tuner_spectrum_canvas = tk.Canvas(
             self.instrument_canvas_holder,
             bg="#081425",
@@ -1456,12 +1492,17 @@ class UiMixin:
         self.guitar_variations_frame = tk.Frame(self.instrument_canvas_holder, bg=self.color_surface_alt)
         self.guitar_variations_inner = tk.Frame(self.guitar_variations_frame, bg=self.color_surface_alt)
         self.guitar_variations_inner.pack(anchor="center")
+        # Qt: hermanos sin pack siguen visibles y tapaban el teclado (solo fondo gris).
+        self.tuner_spectrum_canvas.setVisible(False)
+        self.guitar_canvas.setVisible(False)
+        self.guitar_variations_frame.setVisible(False)
 
         self.instrument_buttons_are_images = False
         self.piano_view_btn = GrayRoundedButton(
             self.instrument_view_switch_side,
             text="Piano",
             command=lambda: self._set_instrument_view("piano"),
+            font_family=self.ui_font_family,
             width=124,
             height=42,
             radius=20,
@@ -1478,6 +1519,7 @@ class UiMixin:
             self.instrument_view_switch_side,
             text="Guitarra",
             command=lambda: self._set_instrument_view("guitar"),
+            font_family=self.ui_font_family,
             width=124,
             height=42,
             radius=20,
@@ -1494,6 +1536,7 @@ class UiMixin:
             textvariable=self.guitar_handedness_var,
             state="readonly",
             width=10,
+            font=(self.ui_font_family, 13),
         )
         self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
 
@@ -1506,6 +1549,7 @@ class UiMixin:
             self.scale_transport_icons,
             text="#",
             command=lambda: self._set_note_accidental("sharp"),
+            font_family=self.ui_font_family,
             width=48,
             height=34,
             radius=12,
@@ -1515,6 +1559,7 @@ class UiMixin:
             self.scale_transport_icons,
             text="♭",
             command=lambda: self._set_note_accidental("flat"),
+            font_family=self.ui_font_family,
             width=48,
             height=34,
             radius=12,
@@ -1528,6 +1573,7 @@ class UiMixin:
             self.instrument_view_switch_side,
             text="Piano",
             command=lambda: self._set_scale_play_mode("piano"),
+            font_family=self.ui_font_family,
             width=124,
             height=42,
             radius=20,
@@ -1542,6 +1588,7 @@ class UiMixin:
             self.instrument_view_switch_side,
             text="Guitarra",
             command=lambda: self._set_scale_play_mode("guitar"),
+            font_family=self.ui_font_family,
             width=124,
             height=42,
             radius=20,
@@ -1605,6 +1652,10 @@ class UiMixin:
             )
             self.scale_bpm_value_label.pack(side=tk.LEFT)
             self._set_scale_bpm(self.scale_bpm_value, save=False)
+
+        # Marcos de transporte solo visibles en algunos modos; si no, en Qt quedarían encima del contenido.
+        self.instrument_switch_frame.setVisible(False)
+        self.scale_transport_frame.setVisible(False)
 
         self.staff_canvas.bind("<Configure>", lambda _event: self.redraw_staff())
         self.staff_canvas.bind("<Motion>", self._on_staff_motion)
@@ -2073,17 +2124,16 @@ class UiMixin:
             highlightbackground=self.color_border,
             bd=0,
         )
-        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.62)
+        # Más alto para que el icono/texto grandes no se desborden y
+        # no se solape con bordes de tarjetas vecinas.
+        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.68)
         self.mode_selector_overlay = overlay
         self._mode_selector_opened_ts = time.monotonic()
 
         cards_frame = tk.Frame(overlay, bg=self.color_surface_alt)
-        cards_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        cards_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=10)
         cards_frame.columnconfigure(0, weight=1)
         cards_frame.columnconfigure(1, weight=1)
-        cards_frame.rowconfigure(0, weight=1)
-        cards_frame.rowconfigure(1, weight=1)
-        cards_frame.rowconfigure(2, weight=1)
 
         mode_cards = {
             "detection": ("◎", "#ffa320"),
@@ -2097,6 +2147,11 @@ class UiMixin:
             icon_txt, icon_color = mode_cards[mode_key]
             options.append((mode_key, self._mode_label(mode_key), icon_txt, icon_color))
 
+        # Solo filas con tarjetas (evita fila vacía con stretch que deja un bloque oscuro abajo en Qt).
+        n_mode_rows = (len(options) + 1) // 2
+        for row_idx in range(n_mode_rows):
+            cards_frame.rowconfigure(row_idx, weight=1)
+
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
             card = tk.Frame(
                 cards_frame,
@@ -2106,30 +2161,35 @@ class UiMixin:
                 bd=0,
                 cursor="hand2",
             )
-            card.grid(row=idx // 2, column=idx % 2, sticky="nsew", padx=8, pady=8)
-            icon = tk.Label(card, text=icon_txt, bg=self.color_card, fg=icon_color, font=(self.ui_font_family, 30, "bold"), cursor="hand2")
-            icon.pack(pady=(10, 2))
+            card.grid(row=idx // 2, column=idx % 2, sticky="nsew", padx=6, pady=6)
+            icon = tk.Label(
+                card,
+                text=icon_txt,
+                fg=icon_color,
+                # Sin `bg`: el fondo del `Frame` se dibuja sólo en el contenedor exterior,
+                # para que el recuadro de selección no parezca rodear también el icono.
+                font=(self.ui_font_family, 56, "bold"),
+                cursor="hand2",
+                anchor="center",
+            )
+            icon.pack(pady=(12, 4), anchor="center")
             label = tk.Label(
                 card,
                 text=mode_text,
-                bg=self.color_card,
                 fg=self.color_text,
-                font=(self.ui_font_family, 16, "bold"),
+                font=(self.ui_font_family, 30, "bold"),
                 justify="center",
+                anchor="center",
                 cursor="hand2",
             )
-            label.pack(pady=(0, 10), padx=8)
+            label.pack(pady=(0, 10), padx=8, anchor="center")
 
             def on_enter(_e: tk.Event, c=card) -> None:
                 c.configure(bg=self.color_card_hover)
-                for child in c.winfo_children():
-                    child.configure(bg=self.color_card_hover)
 
             def on_leave(_e: tk.Event, c=card, is_current=(self.current_mode == mode_key)) -> None:
                 base = self.color_card
                 c.configure(bg=base)
-                for child in c.winfo_children():
-                    child.configure(bg=base)
                 c.configure(highlightbackground=self.color_accent if is_current else self.color_card)
 
             card.bind("<Enter>", on_enter)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import time
-import tkinter as tk
-from tkinter import ttk
+from typing import Any, Optional
+import midichords.qt.tk_compat as tk
+import midichords.qt.ttk_compat as ttk
 
-from midichords.ui.widgets import GrayRoundedButton
+from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class OverlaysMixin:
@@ -44,6 +45,7 @@ class OverlaysMixin:
                 buttons_frame,
                 text=text,
                 command=lambda k=key: self._select_tuner_tuning_from_overlay(k),
+                font_family=self.ui_font_family,
                 width=210,
                 height=64,
                 radius=24,
@@ -60,10 +62,8 @@ class OverlaysMixin:
         self._refresh_tuner_ui()
         self._close_tuner_tuning_overlay()
     def _is_widget_inside(self, parent: tk.Widget, child: object) -> bool:
-        current: Optional[tk.Widget]
-        if isinstance(child, tk.Widget):
-            current = child
-        elif isinstance(child, str):
+        current: Any = child
+        if isinstance(child, str):
             try:
                 resolved = parent.nametowidget(child)
             except Exception:
@@ -71,14 +71,21 @@ class OverlaysMixin:
             if not isinstance(resolved, tk.Widget):
                 return False
             current = resolved
-        else:
+        elif not isinstance(child, tk.Widget) and hasattr(child, "parentWidget"):
+            # Clic en QLabel interno, QComboBox, etc.: subir por la jerarquía Qt.
+            try:
+                current = child.parentWidget()
+            except Exception:
+                return False
+        elif not isinstance(child, tk.Widget):
             return False
         while current is not None:
             if current == parent:
                 return True
-            next_widget = getattr(current, "master", None)
-            if not isinstance(next_widget, tk.Widget):
-                return False
+            if isinstance(current, tk.Widget):
+                next_widget = current.master
+            else:
+                next_widget = current.parentWidget() if hasattr(current, "parentWidget") else None
             current = next_widget
         return False
     def _is_combobox_popdown_widget(self, widget: object) -> bool:
@@ -198,6 +205,11 @@ class OverlaysMixin:
         if self.settings_overlay is not None and not self._is_widget_inside(self.settings_overlay, widget):
             if self._is_combobox_popdown_widget(widget):
                 return
+            # Qt: el eventFilter de la app dispara bind_all por cada ancestro del clic; al abrir
+            # desde ⚙ el siguiente "receptor" es el Frame padre y cerraba el overlay al instante.
+            opened_ts = float(getattr(self, "_settings_overlay_opened_ts", 0.0) or 0.0)
+            if opened_ts > 0.0 and (time.monotonic() - opened_ts) < 0.28:
+                return
             if widget != self.config_icon_btn:
                 self._close_settings_overlay()
         if self.mode_selector_overlay is not None and not self._is_widget_inside(self.mode_selector_overlay, widget):
@@ -232,7 +244,6 @@ class OverlaysMixin:
             self._close_settings_overlay()
             return
 
-        self.refresh_devices()
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
@@ -246,6 +257,7 @@ class OverlaysMixin:
         )
         overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
         self.settings_overlay = overlay
+        self._settings_overlay_opened_ts = time.monotonic()
 
         frame = ttk.Frame(overlay, padding=14)
         frame.pack(fill=tk.BOTH, expand=True)
@@ -427,4 +439,5 @@ class OverlaysMixin:
         if self.settings_overlay is not None:
             self.settings_overlay.destroy()
             self.settings_overlay = None
+        self._settings_overlay_opened_ts = 0.0
         self._settings_save_callback = None

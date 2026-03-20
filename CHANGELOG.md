@@ -2,6 +2,30 @@
 
 Historial de versiones publicadas de MIDIChords.
 
+## Unreleased
+
+### Corregido
+
+- Escritorio (migración Qt): el shim `place()` ahora respeta `x` / `y` / `width` / `height` como Tk, de modo que los paneles izquierdo y derecho sobre el canvas superior vuelven a posicionarse y mostrarse (antes solo se usaba `relx`/`relwidth`).
+- Escritorio (migración Qt): `pack_forget` quita el widget del `QLayout` del padre (no solo `hide()`); pestañas de modo no empaquetadas se ocultan al inicio para que no tapen el panel derecho; `RoundedPanel` expone `sizeHint`/`minimumSizeHint` para que el panel inferior (piano) reciba altura en el `QVBoxLayout`.
+- Escritorio (migración Qt): `QtCanvas.itemconfigure` aplica `width`/`height` a ventanas de `create_window` (panel de resultados de detección); `Label` aplica `fg`/`font` y tamaño mínimo (icono ⚙); se ocultan al inicio los canvas de afinador/guitarra que no están en `pack` para no tapar el teclado.
+- Escritorio (migración Qt): `QtCanvas.create_arc` y constantes `tk.PIESLICE`/`ARC`/`CHORD` para dibujar el teclado (`redraw_keyboard`).
+- Escritorio (migración Qt): clics en canvas alineados con Tk (`<ButtonPress-1>` / `<ButtonRelease-1>`) y `mouseReleaseEvent` vuelve a notificar para teclado/pentagrama/guitarra.
+- Escritorio (migración Qt): play de detección sin `command` al soltar (evita segundo `_start_detection_hold` con `PlayTransportButton`).
+- Escritorio (migración Qt): `tk.Label` enlaza `textvariable` (`StringVar`) con el `QLabel` para notas/intervalos/acorde en detección (y similares).
+- Escritorio (migración Qt): botones #/♭ de la barra superior centrados y altura 40 px alineada al selector de modo; `Widget` respeta `<ButtonPress-1>` si está enlazado antes que `<Button-1>`.
+- Escritorio (migración Qt): botones personalizados (`RoundedChoiceButton`, `GrayRoundedButton`, `GreenRoundedButton`) usan `ui_font_family` y tamaños alineados al resto de la UI; #/♭ en barra superior a **12 pt bold** como `widgets.py` (Tk); `GreenRoundedButton` dibuja **♭** compuesto como en Tk.
+- Escritorio (migración Qt): `pack(padx=…/pady=…)` usa huecos por widget (`addSpacing` / `insertSpacing`) en lugar de `setSpacing` global, y los widgets Qt (`widgets_qt`) respetan `padx`; corrige separación #/♭ y el margen antes de ⚙.
+- Escritorio (migración Qt): panel derecho — `tk.Label` aplica `configure(wraplength=…)` (antes ignorado), alinea `anchor`/`justify`, y el tamaño mínimo con texto multilínea usa `TextWordWrap` (evita métricas de una sola línea enormes). Textos de resultados en **Generación** y **Escalas** unificados a **13 pt** como **Detección**. `ttk` usa `qt_pack_attach` para `pack`; `Combobox`, `Spinbox` y `Checkbutton` respetan `font=(familia, tamaño…)`.
+- Escritorio (migración Qt): fila **Detección** (play / Limpiar / Reproducir entrada MIDI) — `pack(fill=X)` en la fila, botón MIDI con `expand_h` + `pack(fill=X, expand=True)` para repartir el ancho; `pack(anchor=…)` en vertical respeta alineación (`AlignLeft`, etc.). Misma idea en la fila play + MIDI del **metrónomo** (`sticky=ew`).
+- Escritorio (migración Qt): panel derecho más legible — títulos **20 pt**, ayuda **15 pt**, resultado acorde **38 pt**, notas/intervalos **15 pt** (mono); menos `pady` entre bloques, `RoundedPanel` derecho con padding vertical **8**; generación/escalas alineados al mismo criterio.
+- Escritorio (migración Qt): icono **⚙** — el `QLabel` interno ya no intercepta el ratón (`WA_TransparentForMouseEvents`); `bind_all('<ButtonPress-1>')` se despacha vía `QApplication.installEventFilter`; `_is_widget_inside` sube por `parentWidget` y `Widget.master` para cerrar overlays al pulsar fuera.
+- Escritorio (migración Qt): selector de modo — `tk.Frame` aplica `bg` y borde `highlightthickness`/`highlightbackground` con `WA_StyledBackground` + `stylesheet`; `tk.Label` reenvía esas opciones al `Widget` para que el panel modal y las tarjetas tengan fondo visible (no solo iconos/texto).
+- Escritorio (migración Qt): `ttk.Frame(..., padding=…)` — el shim ya no pasa `padding` a `QWidget`; se traduce a `setContentsMargins` del `pack`/`grid` interno (p. ej. diálogo de ajustes).
+- Escritorio (migración Qt): selector de modo en canvas — `QtCanvas.coords()` actualiza posición de ítems `text`/`line`/`rect`/`oval`/`image` (antes solo ventanas; la flecha quedaba en x=0 y no se veía). Dibujo de texto con anclaje tipo Tk (`w`/`e`/…) vía `drawText(QRectF, flags)` + centrado vertical; fuente Tk con tamaño negativo → `setPixelSize`. Flecha **▼** y texto del modo a **15 pt bold**.
+- Escritorio (migración Qt): **Configuración (⚙)** — el `eventFilter` de la app despacha `bind_all('<ButtonPress-1>')` por cada ancestro del widget pulsado; tras abrir el overlay, el siguiente receptor era el `Frame` padre del icono y `_on_global_click_press` cerraba el diálogo al instante. Se ignora el cierre automático durante ~0,28 s tras abrir (`_settings_overlay_opened_ts`), como el selector de modo.
+- Escritorio (migración Qt): selector de modo (rejilla) — `rowconfigure` solo en filas con tarjetas (4 modos ya no dejan una fila vacía estirada abajo); icono y texto con `anchor="center"` y `pack(anchor="center")` para igualar el centrado de Tk y no pegar el glifo a la izquierda.
+
 ## [1.0.0] - 2026-03-14
 
 Primera versión 1.x publicada del proyecto.

@@ -185,8 +185,8 @@ Para subir a la Mac App Store, no uses DMG con `Developer ID`. Debes generar un 
 
 Requisitos previos:
 
-- Certificado `Mac App Distribution`
-- Certificado `Mac Installer Distribution`
+- Certificado `3rd Party Mac Developer Application` (o el nombre equivalente que muestre Apple en tu llavero para MAS)
+- Certificado `3rd Party Mac Developer Installer` (o el nombre equivalente que muestre Apple en tu llavero para MAS)
 - Provisioning profile de macOS App Store para tu `Bundle ID`
 - Python enlazado con `Tcl/Tk 8.6` para el build de escritorio. No uses Homebrew `python@3.14` con `Tk 9.0` para generar el binario de la Mac App Store.
 
@@ -194,8 +194,8 @@ Script disponible:
 
 ```bash
 scripts/build_mas_pkg.sh \
-  --app-dist-identity "Mac App Distribution: Tu Nombre (TEAMID)" \
-  --installer-identity "Mac Installer Distribution: Tu Nombre (TEAMID)" \
+  --app-dist-identity "3rd Party Mac Developer Application: Tu Nombre (TEAMID)" \
+  --installer-identity "3rd Party Mac Developer Installer: Tu Nombre (TEAMID)" \
   --bundle-id "com.tudominio.midichords" \
   --provisioning-profile "/ruta/a/TuPerfil.provisionprofile" \
   --version "1.0.0" \
@@ -218,7 +218,7 @@ Notas:
   - `LSApplicationCategoryType` (por defecto: `public.app-category.music`)
   - `LSMinimumSystemVersion` (por defecto: `12.0`)
   - `CFBundleIconFile` + `AppIcon.icns` generado desde `assets/app_logo.png`
-- El script elimina automáticamente atributos `com.apple.quarantine` del `.app` y del `.pkg`.
+- El script elimina automáticamente atributos `com.apple.quarantine` de `assets/`, del `.app` y del `.pkg` para evitar rechazos de App Store Connect como `code 91109`.
 - El script extrae del provisioning profile:
   - `com.apple.application-identifier`
   - `com.apple.developer.team-identifier`
@@ -227,11 +227,36 @@ Notas:
 - El nombre visible en App Store no debe incluir referencias a precio como `Free`; ese cambio se hace en App Store Connect, no en el bundle.
 - Si instalas el Python oficial de `python.org` para evitar Homebrew `Tk 9.0`, puedes preparar un entorno limpio con `scripts/bootstrap_mas_build_env.sh`.
 - Antes de firmar o subir a App Store, valida el entorno completo con `scripts/validate_macos_release_env.sh`.
+- `installer -store -pkg ...` puede pedir autorización interactiva del sistema. Si ejecutas el flujo desde un agente o terminal no interactiva, usa `--skip-store-validation`.
+- Si App Store Connect rechaza una build, vuelve a generar el `.pkg` con un `--build-number` nuevo antes de reenviarla.
+- Si existe un `dist/<AppName>.app` antiguo creado por `root` u otro usuario, elimínalo antes de reconstruir o usa temporalmente otro `--app-name`.
 - Puedes ajustar estos valores con:
   - `--category-uti`
   - `--min-system-version`
   - `--icon-png` (o `--skip-icon` si ya lo gestionas externamente)
 - Para guardar certificados/perfiles/keys dentro del proyecto sin subirlos a git, usa `signing/local/` (documentado en `signing/README.md`).
+
+### Subir el PKG con Transporter
+
+Flujo recomendado para este proyecto:
+
+1. Genera el paquete con `scripts/build_mas_pkg.sh` y, si estás en una terminal/agente no interactiva, añade `--skip-store-validation`.
+2. Abre la app **Transporter** en macOS.
+3. Inicia sesión con la cuenta que tenga acceso a App Store Connect para esta app.
+4. Arrastra el archivo `MIDIChords-macos-appstore.pkg` a la ventana de Transporter.
+5. Pulsa **Deliver**.
+6. Espera a que Transporter muestre la entrega como enviada; luego revisa App Store Connect hasta que la build aparezca en procesamiento o lista en TestFlight.
+
+Ruta local típica del archivo:
+
+```text
+/Users/aortega/desarrollo/MIDIChords/MIDIChords-macos-appstore.pkg
+```
+
+Notas:
+
+- Si una subida anterior con el mismo `build-number` fue rechazada, incrementa `--build-number` antes de volver a exportar el `.pkg`.
+- La app Transporter es la vía recomendada aquí. `xcrun iTMSTransporter` se deja solo como alternativa de diagnóstico o automatización, no como flujo principal.
 
 ## VS Code launch
 

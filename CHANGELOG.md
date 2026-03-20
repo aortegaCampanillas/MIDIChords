@@ -16,9 +16,13 @@ Historial de versiones publicadas de MIDIChords.
 - Móvil (Flutter): el selector de emuladores muestra por defecto solo los simuladores iOS documentados; `--all-ios` enseña el resto, y los AVD Android rotos ahora fallan con un mensaje claro antes de intentar arrancar.
 - Móvil (Flutter): el selector interactivo añade la opción `m` para expandir la lista iOS sin reinvocar el comando.
 - Móvil (Flutter): el selector añade la opción `d` y el modo `--devices` para listar dispositivos físicos móviles y lanzar la app directamente con `launch.py mobile -d <id>`.
+- macOS App Store: guía MAS actualizada con los nombres reales de certificados usados en este proyecto, nota sobre `--skip-store-validation` en entornos no interactivos, necesidad de subir con `build-number` nuevo tras un rechazo, y advertencia sobre bundles previos creados por `root`.
+- macOS App Store: la subida recomendada se documenta ahora con la app **Transporter** en modo manual (arrastrar `.pkg` y pulsar **Deliver**); `xcrun iTMSTransporter` queda como alternativa secundaria de diagnóstico.
 
 ### Corregido
 
+- macOS App Store: `scripts/build_mas_pkg.sh` limpia atributos `com.apple.quarantine` también en `assets/` y en los recursos empaquetados del `.app` antes de firmar, evitando rechazos de App Store Connect como `code 91109`.
+- macOS release env: `scripts/validate_macos_release_env.sh` detecta de forma más robusta las identidades válidas del llavero.
 - Escritorio (Qt): **Ajustes** — al refrescar la lista de dispositivos al abrir el combo de **entrada MIDI** o **salida de audio**, el otro combo parecía perder la selección: tras `clear()`/`addItems()` el `QComboBox` no se re-sincronizaba con el `StringVar` (solo existía enlace combo→var). `ttk.Combobox.configure(values=…)` vuelve a aplicar `setCurrentText` desde la variable si el valor sigue en la lista; el refresco de Ajustes usa la config como respaldo si la var va vacía.
 - Escritorio (Qt): **Metrónomo** — fila **Temporizador** en dos líneas (checkbox + título / minutos y segundos) para que etiquetas y spinboxes no se pisen en paneles estrechos; figuras con **tresillo** dibujan el **"3"** en una franja superior y el rectángulo de color por debajo (sin invadir el borde del botón).
 - Escritorio (Qt): **Metrónomo** — la fila del play y el botón de sonido MIDI dejaban de lado a lado y se solapaban; la fila usa `grid` con columna extensible (como los sliders de volumen/tempo) en lugar de `pack` en un `QHBoxLayout` poco fiable aquí.

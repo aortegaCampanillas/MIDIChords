@@ -108,7 +108,7 @@ else
   check_warn "No .p12/.pfx private key export found in signing/local/keys"
 fi
 
-identity_count="$(security find-identity -v -p codesigning 2>/dev/null | awk '/valid identities found/{print $1}')"
+identity_count="$(security find-identity -v -p codesigning 2>/dev/null | sed -nE 's/^[[:space:]]*([0-9]+) valid identities found$/\1/p' | tail -n 1)"
 identity_count="${identity_count:-0}"
 if [[ "$identity_count" -ge 1 ]]; then
   check_ok "Keychain has $identity_count valid code signing identity/identities"

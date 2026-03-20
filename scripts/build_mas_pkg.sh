@@ -89,6 +89,15 @@ EOF
   fi
 }
 
+clear_quarantine_attrs() {
+  local path="$1"
+  if [[ ! -e "$path" ]]; then
+    return 0
+  fi
+  xattr -cr "$path" 2>/dev/null || true
+  xattr -dr com.apple.quarantine "$path" 2>/dev/null || true
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --app-dist-identity)
@@ -210,6 +219,9 @@ cd "$ROOT_DIR"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   check_supported_tk_runtime
+  echo "Removing quarantine attributes from source assets before packaging..."
+  clear_quarantine_attrs "$ROOT_DIR/assets"
+  clear_quarantine_attrs "$ICON_PNG"
   echo "Building ${APP_NAME}.app with PyInstaller..."
   pyinstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" "$ENTRYPOINT"
 fi
@@ -309,6 +321,11 @@ fi
 echo "Embedding provisioning profile..."
 cp "$PROVISIONING_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
 
+echo "Removing quarantine attributes from packaged resources..."
+clear_quarantine_attrs "$APP_PATH/Contents/Resources"
+clear_quarantine_attrs "$APP_PATH/Contents/Frameworks"
+clear_quarantine_attrs "$APP_PATH/Contents/embedded.provisionprofile"
+
 echo "Reading provisioning profile entitlements..."
 if ! security cms -D -i "$PROVISIONING_PROFILE" > "$PROFILE_PLIST_TMP" 2>/dev/null; then
   if ! openssl smime -inform der -verify -noverify -in "$PROVISIONING_PROFILE" -out "$PROFILE_PLIST_TMP" >/dev/null 2>&1; then
@@ -363,8 +380,7 @@ cat >> "$ENTITLEMENTS_PATH" <<'EOF'
 EOF
 
 echo "Removing quarantine attributes from app bundle..."
-xattr -cr "$APP_PATH"
-xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
+clear_quarantine_attrs "$APP_PATH"
 
 echo "Signing app for Mac App Store..."
 codesign --force --deep --timestamp \

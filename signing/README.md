@@ -47,3 +47,10 @@ scripts/build_mas_pkg.sh \
   --allow-network \
   --allow-file-access
 ```
+
+Operational notes:
+
+- If you run the build from an agent or a non-interactive terminal, add `--skip-store-validation`. `installer -store` may require local authorization and block the flow.
+- If App Store Connect rejects a build, bump `--build-number` before re-uploading. Reusing the same failed build number can leave Transporter stuck on the previous failed processing state.
+- If App Store Connect reports `com.apple.quarantine` inside the package payload, clear extended attributes and rebuild. `scripts/build_mas_pkg.sh` now cleans `assets/`, the generated `.app`, and the final `.pkg` automatically.
+- Recommended upload flow for this repo: open the **Transporter** macOS app, sign in, drag `MIDIChords-macos-appstore.pkg`, and click **Deliver**. Keep `xcrun iTMSTransporter` only as a fallback/debug path.

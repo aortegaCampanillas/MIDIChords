@@ -4,8 +4,21 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+### Añadido
+
+- Escritorio: modo trazas **`/verbose`**, **`--verbose`** o **`-v`** en `launch.py desktop` (y equivalente **`MIDICHORDS_VERBOSE=1`**); salida en **stderr** centrada en **audio** y **MIDI**. La configuración **Desktop: MIDIChords** en `.vscode/launch.json` arranca con `/verbose`.
+
+### Documentado
+
+- Móvil (Flutter): inventario operativo de dispositivos de prueba, ids confirmados de iPhone/iPad y tablet Android, y guía para arrancar simuladores/emuladores iOS y Android desde `apps/mobile_flutter/README.md`.
+- Móvil (Flutter): nuevo script `scripts/select_mobile_emulator.py` para listar simuladores/emuladores disponibles en macOS y arrancar el elegido desde terminal.
+- Móvil (Flutter): el selector de emuladores muestra por defecto solo los simuladores iOS documentados; `--all-ios` enseña el resto, y los AVD Android rotos ahora fallan con un mensaje claro antes de intentar arrancar.
+- Móvil (Flutter): el selector interactivo añade la opción `m` para expandir la lista iOS sin reinvocar el comando.
+- Móvil (Flutter): el selector añade la opción `d` y el modo `--devices` para listar dispositivos físicos móviles y lanzar la app directamente con `launch.py mobile -d <id>`.
+
 ### Corregido
 
+- Escritorio (migración Qt): aviso `QObject::startTimer: Timers can only be used with threads started with QThread` — `after()` y el refresco de dispositivos en **Configuración** ya no crean `QTimer` desde hilos `threading` (se reenvía al hilo GUI con `run_on_main_thread`).
 - Escritorio (migración Qt): el shim `place()` ahora respeta `x` / `y` / `width` / `height` como Tk, de modo que los paneles izquierdo y derecho sobre el canvas superior vuelven a posicionarse y mostrarse (antes solo se usaba `relx`/`relwidth`).
 - Escritorio (migración Qt): `pack_forget` quita el widget del `QLayout` del padre (no solo `hide()`); pestañas de modo no empaquetadas se ocultan al inicio para que no tapen el panel derecho; `RoundedPanel` expone `sizeHint`/`minimumSizeHint` para que el panel inferior (piano) reciba altura en el `QVBoxLayout`.
 - Escritorio (migración Qt): `QtCanvas.itemconfigure` aplica `width`/`height` a ventanas de `create_window` (panel de resultados de detección); `Label` aplica `fg`/`font` y tamaño mínimo (icono ⚙); se ocultan al inicio los canvas de afinador/guitarra que no están en `pack` para no tapar el teclado.
@@ -94,6 +107,12 @@ Cambios respecto a `v1.0.0` (iOS **1.0.0 (2)**).
 ## [Unreleased] - Cambios desde [1.0.1]
 
 _(Próximos cambios.)_
+
+### Corregido
+
+- Escritorio (migración Qt): variaciones de guitarra cacheadas ahora se filtran/reordenan para que acordes como **SolM** no dibujen una cejilla con notas por delante (mezcla incoherente con cuerdas abiertas).
+- Escritorio (migración Qt): en **Escalas**, el panel derecho de “Notas/Intervalos” ahora muestra correctamente el subpanel (el shim ajusta también la altura del `create_window` interno del `scale_result_canvas`).
+- Escritorio (migración Qt): en **Generación** (modo guitarra) el panel inferior ya no recorta el `guitar_canvas`; `_fit_instrument_panel_height()` ajusta correctamente la altura en Qt (usa `self.height()` y fija el alto del panel).
 
 [1.0.0]: https://github.com/aortegaCampanillas/MIDIChords/releases/tag/v1.0.0
 [1.0.1]: https://github.com/aortegaCampanillas/MIDIChords/releases/tag/v1.0.1

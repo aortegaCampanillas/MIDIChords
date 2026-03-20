@@ -75,7 +75,10 @@ class Button(QPushButton, _LayoutCompat):
     def __init__(self, master=None, text: str = "", command: Callable[[], None] | None = None, **_kwargs: Any) -> None:
         super().__init__(text, master)
         if command is not None:
-            self.clicked.connect(command)
+            # En Qt `clicked` se emite al soltar; para que el feedback (p. ej.
+            # 🔊 de previsualización) ocurra al instante del pulsado, usamos
+            # la señal `pressed`.
+            self.pressed.connect(command)
 
     def configure(self, **kwargs: Any) -> None:
         if "state" in kwargs:
@@ -98,6 +101,9 @@ class Checkbutton(QCheckBox, _LayoutCompat):
     def configure(self, **kwargs: Any) -> None:
         if "state" in kwargs:
             self.setEnabled(str(kwargs["state"]) != "disabled")
+        if "text" in kwargs:
+            # Compat: en Tk/ttk se usa configure(text=...) para actualizar la etiqueta.
+            self.setText(str(kwargs["text"]))
 
 
 class Combobox(QComboBox, _LayoutCompat):

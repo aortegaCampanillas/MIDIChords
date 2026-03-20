@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import threading
 from typing import Any, Optional
 import midichords.qt.tk_compat as tk
 import midichords.qt.ttk_compat as ttk
@@ -359,19 +360,69 @@ class OverlaysMixin:
         ).grid(row=0, column=1, padx=(6, 0))
 
         def refresh_device_lists() -> None:
+            # En Qt no existe (o no se propaga) `postcommand` igual que en Tk.
+            # Para que el usuario vea dispositivos conectados "después de arrancar",
+            # actualizamos en segundo plano y luego aplicamos los valores en el hilo UI.
+            if getattr(self, "_settings_device_refreshing", False):
+                return
+            setattr(self, "_settings_device_refreshing", True)
+
             prev_in = in_var.get()
             prev_out = out_var.get()
-            self.refresh_devices()
-            in_combo["values"] = [""] + self.input_names
-            out_combo["values"] = [""] + self.audio_output_names
-            if prev_in in in_combo["values"]:
-                in_var.set(prev_in)
-            if prev_out in out_combo["values"]:
-                out_var.set(prev_out)
+
+            def worker() -> None:
+                self.refresh_devices()
+                new_inputs = list(self.input_names)
+                new_outputs = list(self.audio_output_names)
+
+                def apply() -> None:
+                    try:
+                        in_combo["values"] = [""] + new_inputs
+                        out_combo["values"] = [""] + new_outputs
+                        if prev_in in in_combo["values"]:
+                            in_var.set(prev_in)
+                        if prev_out in out_combo["values"]:
+                            out_var.set(prev_out)
+                    finally:
+                        setattr(self, "_settings_device_refreshing", False)
+
+                # No usar `self.after` desde el worker: en Qt crea QTimer en un hilo
+                # que no es el GUI y aparece "Timers can only be used with QThread".
+                try:
+                    from midichords.qt.qt_primitives import run_on_main_thread
+
+                    run_on_main_thread(apply)
+                except Exception:
+                    apply()
+
+            threading.Thread(target=worker, daemon=True).start()
 
         # Refresca dispositivos justo antes de abrir cada lista desplegable.
         in_combo.configure(postcommand=refresh_device_lists)
         out_combo.configure(postcommand=refresh_device_lists)
+        # Refresco inicial al abrir el diálogo (útil en Qt, donde `postcommand`
+        # puede no dispararse).
+        refresh_device_lists()
+        # Refrescamos también en bucles cortos mientras el overlay esté abierto,
+        # para que se vean dispositivos conectados/desconectados tras el arranque.
+        # (En Qt `postcommand` no es fiable y a veces el dispositivo tarda en
+        # aparecer tras conectarlo físicamente.)
+        self._settings_overlay_device_refresh_after_id = None
+
+        def _periodic_device_refresh(tries_left: int = 6) -> None:
+            if self.settings_overlay is None or tries_left <= 0:
+                self._settings_overlay_device_refresh_after_id = None
+                return
+            try:
+                refresh_device_lists()
+            except Exception:
+                pass
+            self._settings_overlay_device_refresh_after_id = self.after(
+                1500,
+                lambda: _periodic_device_refresh(tries_left - 1),
+            )
+
+        _periodic_device_refresh(tries_left=5)
 
         show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", False)))
         show_labels_chk = ttk.Checkbutton(
@@ -439,5 +490,12 @@ class OverlaysMixin:
         if self.settings_overlay is not None:
             self.settings_overlay.destroy()
             self.settings_overlay = None
+        aid = getattr(self, "_settings_overlay_device_refresh_after_id", None)
+        if aid is not None:
+            try:
+                self.after_cancel(aid)
+            except Exception:
+                pass
+            self._settings_overlay_device_refresh_after_id = None
         self._settings_overlay_opened_ts = 0.0
         self._settings_save_callback = None

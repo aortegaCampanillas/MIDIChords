@@ -39,7 +39,7 @@ La **lógica reutilizable** está en el paquete Python **`midichords`**. Las app
 
 | Objetivo              | Cómo ejecutar |
 |-----------------------|----------------|
-| App escritorio        | `python launch.py desktop` o `python app.py` (desde la raíz del repo). Equivalente: `python apps/desktop/main.py` si `PYTHONPATH` incluye la raíz. |
+| App escritorio        | `python launch.py desktop` o `python app.py` (desde la raíz del repo). Trazas **audio/MIDI** en stderr: `python launch.py desktop /verbose` (o `--verbose`/`-v`, o `MIDICHORDS_VERBOSE=1`). Equivalente: `python apps/desktop/main.py` si `PYTHONPATH` incluye la raíz. |
 | App web (local)       | `python launch.py web --host 127.0.0.1 --port 8000` (usa `wrangler dev`). Abrir `http://127.0.0.1:8000`. |
 | App Flutter           | `python launch.py mobile` (o `python launch.py mobile -d <device_id>`). Requiere Flutter y emulador/dispositivo. |
 | Tests Python          | `python -m pytest tests/` o `python -m unittest discover -s tests`. Los tests importan `midichords.*`. |

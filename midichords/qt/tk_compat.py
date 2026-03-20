@@ -14,6 +14,8 @@ LEFT = "left"
 RIGHT = "right"
 TOP = "top"
 BOTTOM = "bottom"
+HORIZONTAL = "horizontal"
+VERTICAL = "vertical"
 X = "x"
 Y = "y"
 BOTH = "both"
@@ -127,6 +129,14 @@ def _parse_grid_sticky(sticky: str) -> tuple[Qt.AlignmentFlag, bool, bool]:
             a |= Qt.AlignmentFlag.AlignVCenter
         if not (a & (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignRight)):
             a |= Qt.AlignmentFlag.AlignHCenter
+        # "ew" (fill horizontal) en Qt no debe llevar AlignLeft|AlignRight
+        # simultáneamente: puede colapsar el layout en algunos casos.
+        if h_fill:
+            a &= ~(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignRight)
+            a |= Qt.AlignmentFlag.AlignHCenter
+        if v_fill:
+            a &= ~(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignBottom)
+            a |= Qt.AlignmentFlag.AlignVCenter
     return a, h_fill, v_fill
 
 
@@ -176,7 +186,10 @@ def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
 
         if side == RIGHT:
             if not getattr(parent, "_tk_pack_right_stretch", False):
-                layout.addStretch(1)
+                # Tk no "consume" espacio por un stretch ficticio al hacer pack(side=RIGHT);
+                # en Qt ese stretch se queda y puede partir en dos el ancho de widgets
+                # (p. ej. panel de teclado/guitarra en modo generación).
+                layout.addStretch(0)
                 setattr(parent, "_tk_pack_right_stretch", True)
             insert_at = 1
             if left_pad > 0:
@@ -793,7 +806,7 @@ class Canvas(QtCanvas):
                 parent.setLayout(layout)
             if side == RIGHT:
                 if not getattr(parent, "_tk_pack_right_stretch", False):
-                    layout.addStretch(1)
+                    layout.addStretch(0)
                     setattr(parent, "_tk_pack_right_stretch", True)
                 layout.addWidget(self, stretch)
             else:

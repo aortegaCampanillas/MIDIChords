@@ -331,6 +331,12 @@ class MetronomeMixin:
     def _start_metronome(self) -> None:
         self._stop_metronome()
         self.metronome_running = True
+        # Arrancamos el stream de audio antes del primer tick para minimizar
+        # el desfase perceptible entre UI (bolas amarillas) y el click audible.
+        try:
+            self.audio_engine.ensure_started()
+        except Exception:
+            pass
         self.metronome_current_beat = 0
         self.metronome_current_subclick = 0
         self.metronome_tick_count = 0

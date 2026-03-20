@@ -14,7 +14,7 @@ import mido
 import numpy as np
 import sounddevice as sd
 
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget
 
@@ -41,6 +41,7 @@ from midichords.core.guitar_chord_cache import get_cached_variations, load_guita
 from midichords.core.image_utils import fit_photo_image, pad_photo_image, prepare_icon_for_dark_ui, recolor_dark_pixels
 from midichords.core.i18n import SCALE_NAME_TEXTS, UI_TEXTS
 from midichords.core.music_theory import CHORD_PATTERNS, SCALE_PATTERNS, WHITE_PCS, ChordPattern
+from midichords.core.verbose_log import is_verbose, vlog
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, RoundedChoiceButton
 from midichords.mixins.tuner_mixin import TunerMixin
 from midichords.mixins.metronome_mixin import MetronomeMixin
@@ -88,6 +89,28 @@ class MidiChordAnalyzerApp(
         self.handedness_buttons_are_images = False
         self._load_brace_image()
         self._load_app_logo()
+        # MacOS muestra el icono genérico de Python si no se define el icono de
+        # la ventana desde Qt. Aplicamos el logo como window icon.
+        if self.app_logo_image is not None and not self.app_logo_image.isNull():
+            try:
+                # Cmd-Tab en macOS a veces usa el icono de QApplication,
+                # por eso lo propagamos también.
+                base = self.app_logo_image
+                sizes = [16, 32, 64, 128, 256]
+                icon = QIcon()
+                for s in sizes:
+                    try:
+                        pm = base.scaled(s, s, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    except Exception:
+                        pm = base
+                    icon.addPixmap(pm)
+
+                self.setWindowIcon(icon)
+                qa = QApplication.instance()
+                if qa is not None:
+                    qa.setWindowIcon(icon)
+            except Exception:
+                pass
         self._load_instrument_icons()
         self._load_clef_images()
         self._resolve_clef_font()
@@ -399,12 +422,31 @@ class MidiChordAnalyzerApp(
             self.guitar_handedness_combo.pack_forget()
             self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
             self.keyboard_canvas.pack_forget()
+            # En Qt, `expand=False` + sizeHint pequeño puede dejar el canvas
+            # sin estirarse (se ve como si ocupara solo la mitad).
+            # Fijamos altura para conservar proporciones del diagrama.
+            try:
+                self.guitar_canvas.setFixedHeight(196)
+                self.guitar_canvas.setMinimumHeight(196)
+            except Exception:
+                pass
+            # En Qt, `expand=True` introduce "stretch" en el VBoxLayout y puede
+            # dejar el subpanel de variaciones sin altura visible.
             self.guitar_canvas.pack(fill=tk.X, expand=False)
             self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
         else:
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
+            # Igual que el caso guitarra: asegurar que el canvas rellene el ancho.
+            # Fijamos altura para que el teclado no se estire en generación.
+            try:
+                self.keyboard_canvas.setFixedHeight(156)
+                self.keyboard_canvas.setMinimumHeight(156)
+            except Exception:
+                pass
+            # En Qt, `expand=True` mete "stretch" y suele crear hueco arriba/abajo
+            # dentro del panel inferior. Para piano mantenemos el canvas con altura fija.
             self.keyboard_canvas.pack(fill=tk.X, expand=False)
         self._fit_instrument_panel_height()
         self._refresh_instrument_toggle_styles()
@@ -460,7 +502,14 @@ class MidiChordAnalyzerApp(
     def _on_guitar_handedness_combo_changed(self, _event: tk.Event) -> None:
         right_label = self.tr("handed_right")
         left_label = self.tr("handed_left")
-        selected = str(self.guitar_handedness_var.get())
+        # En Qt, el orden de señales puede hacer que `guitar_handedness_var`
+        # se actualice después del callback. Usamos el texto actual del combo
+        # para decidir con fiabilidad.
+        try:
+            selected = str(self.guitar_handedness_combo.currentText())
+        except Exception:
+            selected = str(self.guitar_handedness_var.get())
+
         if selected == left_label:
             self._set_guitar_handedness("left")
         else:
@@ -524,6 +573,15 @@ class MidiChordAnalyzerApp(
         target = left_label if self.guitar_handedness == "left" else right_label
         if str(self.guitar_handedness_var.get()) != target:
             self.guitar_handedness_var.set(target)
+            # Mantener sincronizado el combobox visual en Qt.
+            try:
+                self.guitar_handedness_combo.blockSignals(True)
+                self.guitar_handedness_combo.setCurrentText(target)
+            finally:
+                try:
+                    self.guitar_handedness_combo.blockSignals(False)
+                except Exception:
+                    pass
 
 
 
@@ -533,7 +591,9 @@ class MidiChordAnalyzerApp(
     def _compute_guitar_variations(self, root_pc: int, pattern: ChordPattern) -> list[dict]:
         cached = get_cached_variations(self.guitar_chord_cache, root_pc, pattern.suffix)
         if cached:
-            return cached
+            processed = self._postprocess_cached_guitar_variations(cached=cached, root_pc=root_pc, pattern=pattern)
+            if processed:
+                return processed
 
         tuning = [40, 45, 50, 55, 59, 64]  # E2 A2 D3 G3 B3 E4 (6->1)
         pcs = {(root_pc + interval) % 12 for interval in pattern.intervals}
@@ -577,9 +637,16 @@ class MidiChordAnalyzerApp(
                     open_count = sum(1 for f in frets if f == 0)
                     if fretted and (max(fretted) - min(fretted) > 4):
                         continue
-                    # Closed-position shapes (e.g. barre chords) should not keep open strings.
+                    # Las formas "cerradas" (posición > 0) a veces se muestran con notas
+                    # "por delante" si conservan cuerdas abiertas, especialmente en cejillas.
+                    # En vez de descartar cualquier forma con min(fretted) > 0 y open_count > 0,
+                    # lo refinamos: solo descartamos cuando la menor posición (min fret)
+                    # aparece en 2+ cuerdas (heurística de barre).
                     if fretted and min(fretted) > 0 and open_count > 0:
-                        continue
+                        min_fret = min(fretted)
+                        min_fret_count = sum(1 for f in fretted if f == min_fret)
+                        if min_fret_count >= 2:
+                            continue
 
                     key = tuple(frets)
                     if key in seen:
@@ -654,6 +721,111 @@ class MidiChordAnalyzerApp(
                     "string_notes": [None, None, None, None, None, None],
                 }
             )
+        return variations
+
+    def _postprocess_cached_guitar_variations(self, cached: list[dict], root_pc: int, pattern: ChordPattern) -> list[dict]:
+        """
+        Filtra y reordena variaciones cacheadas para alinearlas con el algoritmo de generación.
+        En particular, evita formas cerradas (min fretted > 0) que conservan cuerdas abiertas
+        (fret==0), porque se ve una cejilla pero aparecen notas por delante de ella.
+        """
+        tuning = [40, 45, 50, 55, 59, 64]  # E2 A2 D3 G3 B3 E4 (6->1)
+        pcs = {(root_pc + interval) % 12 for interval in pattern.intervals}
+
+        def _as_frets(v: object) -> Optional[list[int]]:
+            if not isinstance(v, list) or len(v) < 6:
+                return None
+            try:
+                out = [int(x) for x in v[:6]]
+            except Exception:
+                return None
+            if any(f < -1 for f in out):
+                return None
+            return out
+
+        candidate_shapes: list[tuple[tuple[int, int, int, int, int, int, int, int], dict]] = []
+        for entry in cached:
+            frets = _as_frets(entry.get("frets"))
+            if frets is None:
+                continue
+
+            fretted = [f for f in frets if f > 0]
+            open_count = sum(1 for f in frets if f == 0)
+            mute_count = sum(1 for f in frets if f < 0)
+
+            if fretted and (max(fretted) - min(fretted) > 4):
+                continue
+            # Mismo refinamiento que en `_compute_guitar_variations`: descartar solo
+            # cuando la menor posición (min fret) actúa como barre (2+ cuerdas).
+            if fretted and min(fretted) > 0 and open_count > 0:
+                min_fret = min(fretted)
+                min_fret_count = sum(1 for f in fretted if f == min_fret)
+                if min_fret_count >= 2:
+                    continue
+
+            sounding = [(i, f) for i, f in enumerate(frets) if f >= 0]
+            if len(sounding) < 3:
+                continue
+            notes = [tuning[i] + f for i, f in sounding]
+            note_pcs = {n % 12 for n in notes}
+            if root_pc not in note_pcs:
+                continue
+            if len(note_pcs) < min(3, len(pcs)):
+                continue
+
+            bass_pc = notes[0] % 12
+            span = (max(fretted) - min(fretted)) if fretted else 0
+            position = min(fretted) if fretted else 0
+            complexity = len({f for f in fretted})
+
+            sort_key = (
+                0 if position == 0 else 1,
+                position,
+                0 if bass_pc == root_pc else 1,
+                mute_count,
+                open_count,
+                span,
+                complexity,
+                -len(note_pcs),
+            )
+
+            fingers = self._assign_guitar_fingers(frets)
+            string_notes = [(tuning[i] + frets[i]) if frets[i] >= 0 else None for i in range(6)]
+            candidate_shapes.append(
+                (
+                    sort_key,
+                    {
+                        "frets": frets,
+                        "notes": notes,
+                        "fingers": fingers,
+                        "string_notes": string_notes,
+                    },
+                )
+            )
+
+        if not candidate_shapes:
+            return []
+
+        candidate_shapes.sort(key=lambda item: item[0])
+
+        by_position: set[int] = set()
+        variations: list[dict] = []
+        for _key, entry in candidate_shapes:
+            fretted = [f for f in entry["frets"] if f > 0]
+            pos = min(fretted) if fretted else 0
+            if pos in by_position:
+                continue
+            by_position.add(pos)
+            variations.append(entry)
+
+        chosen = {tuple(v["frets"]) for v in variations}
+        for _key, entry in candidate_shapes:
+            shape_key = tuple(entry["frets"])
+            if shape_key in chosen:
+                continue
+            variations.append(entry)
+            chosen.add(shape_key)
+
         return variations
 
     @staticmethod
@@ -1345,10 +1517,55 @@ class MidiChordAnalyzerApp(
                 pass
 
 
+def _argv_for_qt_and_verbose_env(argv: list[str]) -> list[str]:
+    """Quita flags de verbose del argv de Qt y activa MIDICHORDS_VERBOSE si vienen en CLI."""
+    if not argv:
+        return argv
+    out = [argv[0]]
+    for a in argv[1:]:
+        low = str(a).lower().replace("\\", "/")
+        if low in ("--verbose", "-v", "/verbose"):
+            os.environ["MIDICHORDS_VERBOSE"] = "1"
+            continue
+        out.append(a)
+    return out
+
+
 def main() -> None:
     from PySide6.QtWidgets import QApplication
 
-    qt_app = QApplication.instance() or QApplication(sys.argv)
+    qt_argv = _argv_for_qt_and_verbose_env(list(sys.argv))
+    qt_app = QApplication.instance() or QApplication(qt_argv)
+    # En macOS el Cmd-Tab a veces usa el icono de QApplication (no el de la ventana),
+    # así que lo fijamos antes de crear/show la UI.
+    try:
+        icon_pixmap: Optional[QPixmap] = None
+        for path in APP_LOGO_CANDIDATES:
+            if not path.exists():
+                continue
+            pm = QPixmap(str(path))
+            if not pm.isNull():
+                icon_pixmap = pm
+                break
+        if icon_pixmap is not None and not icon_pixmap.isNull():
+            sizes = [16, 32, 64, 128, 256]
+            icon = QIcon()
+            for s in sizes:
+                try:
+                    pm = icon_pixmap.scaled(
+                        s,
+                        s,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                except Exception:
+                    pm = icon_pixmap
+                icon.addPixmap(pm)
+            qt_app.setWindowIcon(icon)
+    except Exception:
+        pass
+    if is_verbose():
+        vlog("app", "Modo verbose activo (audio/MIDI en stderr). MIDICHORDS_VERBOSE=1")
     window = MidiChordAnalyzerApp()
     window.update_music_views()
     window.show()

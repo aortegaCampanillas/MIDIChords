@@ -11,6 +11,7 @@ import numpy as np
 import sounddevice as sd
 
 from midichords.core.app_constants import PROJECT_ROOT
+from midichords.core.verbose_log import vlog
 
 
 @dataclass
@@ -102,6 +103,20 @@ class PianoAudioEngine:
             max_seconds=4.0,
         )
 
+    @staticmethod
+    def _one_pole_lowpass(x: np.ndarray, alpha: float) -> np.ndarray:
+        """Filtro low-pass simple para suavizar el ruido del pick."""
+        if x.size == 0:
+            return x
+        a = float(max(0.0, min(1.0, alpha)))
+        y = np.empty_like(x)
+        y[0] = x[0]
+        # y[n] = y[n-1] + a * (x[n] - y[n-1])
+        for i in range(1, x.size):
+            prev = y[i - 1]
+            y[i] = prev + a * (x[i] - prev)
+        return y
+
     def set_preset(self, preset: str) -> None:
         if preset not in {"acoustic", "warm", "bright", "soft", "grand_sample"}:
             preset = "acoustic"
@@ -125,14 +140,25 @@ class PianoAudioEngine:
             device=output_device,
             dtype="float32",
             callback=self._audio_callback,
-            blocksize=0,
+            # Reducimos la latencia del callback para que el "click" del metrónomo
+            # y el ataque de notas cuadren mejor con la animación UI.
+            # (En algunos backends blocksize=0 elige un buffer más grande.)
+            blocksize=256,
             latency="low",
         )
         self.stream.start()
+        vlog(
+            "audio",
+            "OutputStream started: device=%s sample_rate=%s blocksize=256 channels=%s",
+            output_device,
+            self.sample_rate,
+            self.channels,
+        )
 
     def set_output_device(self, output_device: Optional[int]) -> None:
         restart_stream = self.stream is not None and self.output_device != output_device
         self.output_device = output_device
+        vlog("audio", "set_output_device: index=%s restart_stream=%s", output_device, restart_stream)
         if restart_stream:
             self.start(output_device)
 
@@ -141,6 +167,7 @@ class PianoAudioEngine:
         # el stream simultáneamente.
         with self._stream_lock:
             if self.stream is None:
+                vlog("audio", "ensure_started: opening stream (output_device=%s)", self.output_device)
                 self.start(self.output_device)
 
     def stop(self) -> None:
@@ -160,15 +187,18 @@ class PianoAudioEngine:
             except Exception:
                 pass
             self.stream = None
+        vlog("audio", "OutputStream stopped")
 
     def note_on(self, note: int, velocity: int) -> None:
         if velocity <= 0:
+            vlog("audio", "note_on treated as off: note=%s velocity=%s", note, velocity)
             self.note_off(note)
             return
         try:
             self.ensure_started()
         except Exception:
             return
+        vlog("audio", "note_on: note=%s velocity=%s preset=%s", note, velocity, self.preset)
         if self.preset == "grand_sample" and self.piano_sample_map:
             self._trigger_sample_voice(
                 note=note,
@@ -207,6 +237,7 @@ class PianoAudioEngine:
         return [-3.2, 0.0, 3.2]
 
     def note_off(self, note: int) -> None:
+        vlog("audio", "note_off: note=%s", note)
         with self.lock:
             voice = self.voices.get(note)
             if voice is not None:
@@ -226,6 +257,14 @@ class PianoAudioEngine:
             if level_gain <= 0.0:
                 return
             level = 2 if bar else (1 if accent else 0)
+            vlog(
+                "audio",
+                "metronome_click: accent=%s bar=%s level=%s volume_scale=%s",
+                accent,
+                bar,
+                level,
+                volume_scale,
+            )
             if self.metronome_sample is not None and len(self.metronome_sample) > 0:
                 if level >= 2 and self.metronome_sample_bar is not None:
                     sample = self.metronome_sample_bar
@@ -253,12 +292,23 @@ class PianoAudioEngine:
             self.ensure_started()
         except Exception:
             return
+        vlog(
+            "audio",
+            "pluck_guitar_note: note=%s velocity=%s duration=%s preset=%s",
+            note,
+            velocity,
+            duration_seconds,
+            self.guitar_preset,
+        )
+        # La guitarra sintética (noise+envolvente) suele quedar por debajo del
+        # piano en volumen percibido. Subimos el gain para igualar la dinámica.
+        guitar_gain_scale = 2.0
         if self.guitar_preset == "nylon_sample" and self.guitar_sample_map:
             self._trigger_sample_voice(
                 note=note,
                 velocity=velocity,
                 sample_bank=self.guitar_sample_map,
-                gain_mul=0.96,
+                gain_mul=0.96 * guitar_gain_scale,
                 decay=0.99994,
                 max_seconds=max(0.3, min(4.0, duration_seconds * 1.45)),
             )
@@ -267,24 +317,31 @@ class PianoAudioEngine:
         period = max(8, int(round(self.sample_rate / max(40.0, freq))))
         noise = self.rng.uniform(-1.0, 1.0, period).astype(np.float32)
         env_end = 0.35
-        gain_mul = 0.35
+        gain_mul = 0.35 * guitar_gain_scale
         decay = 0.9965 if freq < 180 else 0.9958
         duration_mul = 1.0
+        # Suavizamos el “white noise” del pick para que, al tocar varios acordes,
+        # no se perciba como hiss estático. Ajustado por preset para mantener carácter.
+        lowpass_alpha = 0.18  # steel_clean (default)
         if self.guitar_preset == "steel_bright":
             env_end = 0.28
-            gain_mul = 0.38
+            gain_mul = 0.38 * guitar_gain_scale
             decay = 0.9971 if freq < 180 else 0.9963
+            lowpass_alpha = 0.22
         elif self.guitar_preset == "nylon_warm":
             env_end = 0.46
-            gain_mul = 0.33
+            gain_mul = 0.33 * guitar_gain_scale
             decay = 0.9960 if freq < 180 else 0.9953
+            lowpass_alpha = 0.14
         elif self.guitar_preset == "muted_short":
             env_end = 0.25
-            gain_mul = 0.32
+            gain_mul = 0.32 * guitar_gain_scale
             decay = 0.9928 if freq < 180 else 0.9920
             duration_mul = 0.55
+            lowpass_alpha = 0.10
         # Short pick envelope at start.
         noise *= np.linspace(1.0, env_end, period, dtype=np.float32)
+        noise = self._one_pole_lowpass(noise, lowpass_alpha).astype(np.float32, copy=False)
         gain = max(0.08, min(0.9, velocity / 127.0)) * gain_mul
         remaining = max(1, int(duration_seconds * duration_mul * self.sample_rate))
         with self.lock:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Optional
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 from midichords.core.music_theory import WHITE_PCS
@@ -48,6 +49,18 @@ class RenderMixin:
         if flat_count < sharp_count:
             return int(flat_count), True
         return int(sharp_count), False
+
+    @staticmethod
+    def _key_signature_counts_for_tonic(tonic_pc: int, is_minor: bool) -> tuple[Optional[int], Optional[int]]:
+        """Returns (sharp_count, flat_count) for a tonic pitch class."""
+        tonic_pc = int(tonic_pc) % 12
+        if is_minor:
+            sharp_map = {4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
+            flat_map = {2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6}
+        else:
+            sharp_map = {7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7}
+            flat_map = {5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6}
+        return sharp_map.get(tonic_pc), flat_map.get(tonic_pc)
 
     @staticmethod
     def _tonic_letter_index(tonic_pc: int, prefer_flats: bool) -> int:
@@ -99,7 +112,16 @@ class RenderMixin:
         if root is None or pattern is None:
             return 0, False
         is_minor = self._is_minor_suffix(str(pattern.suffix))
-        return self._key_signature_count_for_tonic(root, is_minor)
+        # In deteccion, respetar el toggle sostenido/bemol del usuario.
+        prefer_flats = getattr(self, "note_accidental", "sharp") == "flat"
+        sharp_count, flat_count = self._key_signature_counts_for_tonic(root, is_minor)
+        if sharp_count is None and flat_count is None:
+            return 0, False
+        if prefer_flats:
+            count = flat_count if flat_count is not None else sharp_count
+            return int(count), True
+        count = sharp_count if sharp_count is not None else flat_count
+        return int(count), False
 
     def _instrument_display_notes(self) -> set[int]:
         if self.tuner_tab_active:
@@ -174,8 +196,10 @@ class RenderMixin:
         self.scale_guitar_tonic_regions = []
         self.scale_guitar_note_regions = []
         self.guitar_generation_note_regions = []
-        w = max(720, canvas.winfo_width())
-        h = max(180, canvas.winfo_height())
+        # Importante en Qt: si el widget real mide menos, forzar `h`/`w` mayores
+        # provoca que el dibujo quede recortado y se pierdan cuerdas/elementos.
+        w = max(1, int(canvas.winfo_width()))
+        h = max(1, int(canvas.winfo_height()))
         canvas.create_rectangle(0, 0, w, h, fill="#ffffff", outline="")
 
         frets = 16
@@ -197,7 +221,10 @@ class RenderMixin:
         strings_x1 = min(open_edge_x, board_far_x)
         strings_x2 = max(open_edge_x, board_far_x)
         board_y1 = 24
-        board_y2 = h - 14
+        # Dejar más margen inferior para que las cuerdas bajas queden
+        # siempre dentro del área oscura (en Qt a veces el último píxel se
+        # queda fuera del fill).
+        board_y2 = max(board_y1 + 10, h - 10)
         canvas.create_rectangle(board_x1, board_y1, board_x2, board_y2, fill="#34363c", outline="#4a4f58", width=1)
         canvas.create_rectangle(min(open_edge_x, nut_x), board_y1, max(open_edge_x, nut_x), board_y2, fill="#ffffff", outline="")
         canvas.create_line(nut_x, board_y1, nut_x, board_y2, fill="#c8b79f", width=3)
@@ -498,8 +525,9 @@ class RenderMixin:
                     generation_active_rh_notes.add(note_int)
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
         white_w = w / len(white_notes)
-        key_top = 8
-        key_bottom = h - 6
+        # Ajuste de proporción del teclado: menos altura y más presencia.
+        key_top = 10
+        key_bottom = h - 8
         black_h = int((key_bottom - key_top) * 0.58)
 
         white_index: dict[int, int] = {}

@@ -397,7 +397,7 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 22, "bold"),
         )
-        self.chord_title_label.pack(anchor="w", pady=(1, 3))
+        self.chord_title_label.pack(anchor="w", pady=(0, 2))
         self.detection_help_label = tk.Label(
             self.tab_detection_frame,
             text="",
@@ -408,9 +408,10 @@ class UiMixin:
             wraplength=520,
             font=(self.ui_font_family, 16),
         )
-        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 2))
+        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 1))
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
         # Misma lógica que Tk: fila a ancho del panel; el botón MIDI crece y rellena el hueco a la derecha.
+        # Margen inferior para separar los botones del bloque de resultados.
         self.detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 2))
         # Igual que generación: el audio va en ButtonPress + bind_all release; no llamar command al soltar (doble note_on en Qt).
         self.detection_play_btn = PlayTransportButton(
@@ -459,7 +460,8 @@ class UiMixin:
             bd=0,
             relief=tk.FLAT,
         )
-        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
+        # Margen superior para evitar que el subpanel toque visualmente la fila de botones.
+        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(2, 0))
         self.detection_result_inner = tk.Frame(
             self.detection_result_canvas,
             bg="#17273a",
@@ -488,7 +490,7 @@ class UiMixin:
                 dash=(3, 3),
                 tags="result_block_bg",
             )
-            pad = 10
+            pad = 8
             self.detection_result_canvas.coords(self._detection_result_window_id, pad, pad)
             self.detection_result_canvas.itemconfigure(
                 self._detection_result_window_id,
@@ -507,7 +509,7 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 42, "bold"),
         )
-        self.chord_label.pack(anchor="w", pady=(0, 4))
+        self.chord_label.pack(anchor="w", pady=(0, 2))
 
         self.notes_caption_label = tk.Label(
             self.detection_result_inner,
@@ -526,7 +528,7 @@ class UiMixin:
             wraplength=420,
             font=(self.ui_mono_font_family, 16),
         )
-        self.notes_label.pack(anchor="w", pady=(1, 2))
+        self.notes_label.pack(anchor="w", pady=(1, 1))
         self.intervals_caption_label = tk.Label(
             self.detection_result_inner,
             text="",
@@ -544,7 +546,7 @@ class UiMixin:
             wraplength=420,
             font=(self.ui_mono_font_family, 16),
         )
-        self.intervals_label.pack(anchor="w", pady=(1, 2))
+        self.intervals_label.pack(anchor="w", pady=(1, 1))
         self.extra_notes_caption_label = tk.Label(
             self.detection_result_inner,
             text="",
@@ -562,7 +564,7 @@ class UiMixin:
             wraplength=420,
             font=(self.ui_mono_font_family, 16, "bold"),
         )
-        self.extra_notes_label.pack(anchor="w", pady=(0, 2))
+        self.extra_notes_label.pack(anchor="w", pady=(0, 1))
 
         self.generated_title_label = tk.Label(
             self.tab_generation_frame,
@@ -661,12 +663,16 @@ class UiMixin:
         self.generation_result_canvas = tk.Canvas(
             self.tab_generation_frame,
             bg=self.color_surface_alt,
+            width=520,
             height=160,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
         )
-        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(2, 2))
+        # En Qt, si la altura de la ventana cambia, el QGridLayout puede repartir el "stretch"
+        # entre filas y acabar variando los huecos entre los botones superiores.
+        # Forzamos que la fila del canvas (row=5) sea la que absorbe el cambio de tamaño.
+        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(2, 2))
         self.generation_result_inner = tk.Frame(
             self.generation_result_canvas,
             bg="#17273a",
@@ -754,6 +760,13 @@ class UiMixin:
 
         self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
+        # Row stretching: que solo el subpanel de resultados (row=5) crezca con la altura.
+        self.tab_generation_frame.rowconfigure(0, weight=0)
+        self.tab_generation_frame.rowconfigure(1, weight=0)
+        self.tab_generation_frame.rowconfigure(2, weight=0)
+        self.tab_generation_frame.rowconfigure(3, weight=0)
+        self.tab_generation_frame.rowconfigure(4, weight=0)
+        self.tab_generation_frame.rowconfigure(5, weight=1)
 
         self.scale_panel_title_label = tk.Label(
             self.tab_scale_frame,
@@ -862,6 +875,9 @@ class UiMixin:
 
         self.scale_bpm_slider = tk.Canvas(
             self.scale_bpm_row,
+            # Qt: si el Canvas no tiene ancho mínimo solicitado, el layout puede
+            # colapsarlo (y entonces no se ve el "slice"/slider del BPM).
+            width=1,
             height=34,
             bg=panel_bg,
             highlightthickness=0,
@@ -997,6 +1013,7 @@ class UiMixin:
             self.scale_result_canvas.itemconfigure(
                 self._scale_result_window_id,
                 width=max(1, w - (pad * 2)),
+                height=max(1, h - (pad * 2)),
             )
             self.scale_result_canvas.tag_lower("result_block_bg")
 
@@ -1088,16 +1105,28 @@ class UiMixin:
         self.metronome_volume_row = ttk.Frame(self.tab_metronome_frame)
         self.metronome_volume_row.grid(row=2, column=0, sticky="ew", pady=(0, 8))
         self.metronome_volume_row.columnconfigure(1, weight=1)
-        self.metronome_volume_minus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_volume_minus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_volume_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.metronome_volume_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_volume_minus_btn, "−"))
         self.metronome_volume_minus_btn.bind("<Button-1>", self._on_metronome_volume_minus)
-        self.metronome_volume_slider_canvas = tk.Canvas(self.metronome_volume_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        # En Qt: si el Canvas no tiene ancho solicitado, el layout puede colapsarlo a 0 px
+        # (y el slider se dibuja pero no se ve). Añadimos un width mínimo.
+        self.metronome_volume_slider_canvas = tk.Canvas(
+            self.metronome_volume_row,
+            # Qt: dejamos un mínimo muy bajo para que el widget pueda crecer con
+            # el ancho del panel (la columna 1 tiene weight=1).
+            width=120,
+            height=34,
+            bg=self.color_surface_alt,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
         self.metronome_volume_slider_canvas.grid(row=0, column=1, sticky="ew")
         self.metronome_volume_slider_canvas.bind("<Configure>", lambda _e: self._draw_metronome_volume_slider())
         self.metronome_volume_slider_canvas.bind("<Button-1>", self._on_metronome_volume_slider_interact)
         self.metronome_volume_slider_canvas.bind("<B1-Motion>", self._on_metronome_volume_slider_interact)
-        self.metronome_volume_plus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_volume_plus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_volume_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
         self.metronome_volume_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_volume_plus_btn, "+"))
         self.metronome_volume_plus_btn.bind("<Button-1>", self._on_metronome_volume_plus)
@@ -1105,7 +1134,7 @@ class UiMixin:
         self.metronome_volume_value_label = tk.Label(
             self.metronome_volume_row,
             textvariable=self.metronome_volume_var,
-            bg=self.cget("background"),
+            bg=self.color_surface_alt,
             fg="#f3bf2f",
             font=(self.ui_font_family, 13, "bold"),
             width=7,
@@ -1119,16 +1148,24 @@ class UiMixin:
         self.metronome_slider_row = ttk.Frame(self.tab_metronome_frame)
         self.metronome_slider_row.grid(row=4, column=0, sticky="ew", pady=(0, 2))
         self.metronome_slider_row.columnconfigure(1, weight=1)
-        self.metronome_minus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_minus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.metronome_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_minus_btn, "−"))
         self.metronome_minus_btn.bind("<Button-1>", self._on_metronome_bpm_minus)
-        self.metronome_slider_canvas = tk.Canvas(self.metronome_slider_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        self.metronome_slider_canvas = tk.Canvas(
+            self.metronome_slider_row,
+            width=120,
+            height=34,
+            bg=self.color_surface_alt,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
         self.metronome_slider_canvas.grid(row=0, column=1, sticky="ew")
         self.metronome_slider_canvas.bind("<Configure>", lambda _e: self._draw_metronome_bpm_slider())
         self.metronome_slider_canvas.bind("<Button-1>", self._on_metronome_slider_interact)
         self.metronome_slider_canvas.bind("<B1-Motion>", self._on_metronome_slider_interact)
-        self.metronome_plus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_plus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
         self.metronome_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_plus_btn, "+"))
         self.metronome_plus_btn.bind("<Button-1>", self._on_metronome_bpm_plus)
@@ -1136,7 +1173,7 @@ class UiMixin:
         self.metronome_bpm_label = tk.Label(
             self.metronome_slider_row,
             textvariable=self.metronome_bpm_var,
-            bg=self.cget("background"),
+            bg=self.color_surface_alt,
             fg="#f3bf2f",
             font=(self.ui_font_family, 13, "bold"),
             width=7,
@@ -1162,16 +1199,24 @@ class UiMixin:
         self.metronome_meter_row = ttk.Frame(self.tab_metronome_frame)
         self.metronome_meter_row.grid(row=7, column=0, sticky="ew", pady=(0, 8))
         self.metronome_meter_row.columnconfigure(1, weight=1)
-        self.metronome_meter_minus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_meter_minus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_meter_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.metronome_meter_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_minus_btn, "−"))
         self.metronome_meter_minus_btn.bind("<Button-1>", self._on_metronome_meter_minus)
-        self.metronome_meter_canvas = tk.Canvas(self.metronome_meter_row, height=34, bg=self.cget("background"), highlightthickness=0, bd=0, cursor="hand2")
+        self.metronome_meter_canvas = tk.Canvas(
+            self.metronome_meter_row,
+            width=120,
+            height=34,
+            bg=self.color_surface_alt,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
         self.metronome_meter_canvas.grid(row=0, column=1, sticky="ew")
         self.metronome_meter_canvas.bind("<Configure>", lambda _e: self._draw_metronome_meter_slider())
         self.metronome_meter_canvas.bind("<Button-1>", self._on_metronome_meter_slider_interact)
         self.metronome_meter_canvas.bind("<B1-Motion>", self._on_metronome_meter_slider_interact)
-        self.metronome_meter_plus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.cget("background"), highlightthickness=0, bd=0)
+        self.metronome_meter_plus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
         self.metronome_meter_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
         self.metronome_meter_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_plus_btn, "+"))
         self.metronome_meter_plus_btn.bind("<Button-1>", self._on_metronome_meter_plus)
@@ -1179,7 +1224,7 @@ class UiMixin:
         self.metronome_meter_value_label = tk.Label(
             self.metronome_meter_row,
             textvariable=self.metronome_meter_var,
-            bg=self.cget("background"),
+            bg=self.color_surface_alt,
             fg="#f3bf2f",
             font=(self.ui_font_family, 13, "bold"),
             width=7,
@@ -1195,7 +1240,7 @@ class UiMixin:
                 self.metronome_clicks_row,
                 width=88,
                 height=64,
-                bg=self.cget("background"),
+                bg=self.color_surface_alt,
                 highlightthickness=0,
                 bd=0,
                 cursor="hand2",
@@ -1472,6 +1517,8 @@ class UiMixin:
             highlightthickness=1,
             highlightbackground="#c5cad3",
         )
+        # En Qt, `expand=True` introduce stretch vertical en VBoxLayout y
+        # puede dejar huecos arriba/abajo dentro del panel inferior.
         self.keyboard_canvas.pack(fill=tk.X, expand=False)
         self.tuner_spectrum_canvas = tk.Canvas(
             self.instrument_canvas_holder,
@@ -1692,23 +1739,54 @@ class UiMixin:
         value = str(text or "").strip()
         if value:
             widget.configure(text=value)
-            if widget.winfo_manager() == "":
-                if widget is self.left_panel_title_label:
-                    widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.staff_canvas)
-                else:
-                    widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.right_side_panel)
+            # Evita re-pack si el label ya está visible (en Qt shim, `winfo_manager()`
+            # no siempre refleja el estado real y puede provocar reordenamientos).
+            try:
+                if widget.isVisible():  # type: ignore[attr-defined]
+                    return
+            except Exception:
+                pass
+
+            if widget is self.left_panel_title_label:
+                widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.staff_canvas)
+            else:
+                widget.pack(fill=tk.X, anchor="w", pady=(0, 8), before=self.right_side_panel)
         elif widget.winfo_manager() != "":
-            widget.pack_forget()
+            # En Qt shim, `winfo_manager()` puede no reflejar correctamente
+            # el estado real. Aun así, para evitar espacio desperdiciado,
+            # aseguramos que el label se desmonte cuando el texto está vacío.
+            try:
+                widget.pack_forget()
+            except Exception:
+                try:
+                    widget.pack_forget()
+                except Exception:
+                    pass
+        else:
+            # Si no hay manager reportado, igualmente intentamos desmontar
+            # para garantizar que no ocupe espacio.
+            try:
+                widget.pack_forget()
+            except Exception:
+                try:
+                    widget.setVisible(False)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
 
     def _refresh_top_panel_titles(self) -> None:
         if self.metronome_tab_active:
-            left_title = self.tr("panel_metronome")
-            right_title = self.tr("panel_metronome_settings")
+            # En metronomo no hace falta el titulo en el panel izquierdo.
+            left_title = ""
+            # El texto "Configuración de Metrónomo" no es necesario en el panel derecho.
+            # Además, en Qt puede acabar desplazando/rompiendo el layout.
+            right_title = ""
         elif self.tuner_tab_active:
             left_title = self.tr("panel_tuner")
             right_title = self.tr("panel_tuner_settings")
         else:
-            left_title = self.tr("panel_staff")
+            # En modos de "staff" (deteccion/generacion/escalas) no mostramos
+            # el titulo para que el `staff_canvas` aproveche todo el alto.
+            left_title = ""
             right_title = ""
         self._set_panel_title(self.left_panel_title_label, left_title)
         self._set_panel_title(self.right_panel_title_label, right_title)
@@ -1810,15 +1888,87 @@ class UiMixin:
         if not hasattr(self, "instrument_panel") or not hasattr(self, "instrument_body_row"):
             return
         try:
-            self.update_idletasks()
-            body_height = int(self.instrument_body_row.winfo_reqheight())
+            # En Qt el shim no implementa siempre `update_idletasks()` ni
+            # `winfo_reqheight()`. Usamos alternativas robustas.
+            try:
+                self.update_idletasks()  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+            try:
+                body_height = int(self.instrument_body_row.winfo_reqheight())  # type: ignore[attr-defined]
+            except Exception:
+                # `sizeHint()` suele ser el equivalente más cercano a reqheight.
+                body_height = int(self.instrument_body_row.sizeHint().height())
             panel_height = max(80, body_height + 18)
-            window_height = max(1, int(self.winfo_height()))
+            # En Qt no existe `winfo_height()` (es un método Tk).
+            try:
+                window_height = max(1, int(self.winfo_height()))  # type: ignore[attr-defined]
+            except Exception:
+                # QMainWindow: altura real del widget.
+                window_height = max(1, int(self.height()))
             # Prevent the bottom instrument panel from consuming too much vertical space
             # and clipping the upper content when guitar controls are visible.
             max_panel_height = max(170, int(window_height * 0.42))
+
+            # En Qt a veces el layout calcula un reqheight demasiado pequeño
+            # para el modo guitarra (y recorta el `guitar_canvas`), haciendo
+            # que falten las 2 cuerdas inferiores. Aseguramos un mínimo realista
+            # según el alto del canvas de guitarra y el subpanel de variaciones.
+            if getattr(self, "instrument_view", None) == "guitar" and hasattr(self, "guitar_canvas"):
+                try:
+                    guitar_h = int(self.guitar_canvas.winfo_height())
+                except Exception:
+                    guitar_h = 0
+                try:
+                    variations_h = int(self.guitar_variations_frame.winfo_height())
+                except Exception:
+                    variations_h = 0
+
+                # Fallbacks: en Qt a veces el reqheight/winfo_height aún no está
+                # resuelto al ejecutar este método.
+                if guitar_h <= 0:
+                    try:
+                        guitar_h = int(self.guitar_canvas.sizeHint().height())
+                    except Exception:
+                        guitar_h = 196
+                if variations_h <= 0 and hasattr(self, "guitar_variations_frame"):
+                    try:
+                        variations_h = int(self.guitar_variations_frame.sizeHint().height())
+                    except Exception:
+                        variations_h = 28
+
+                # Aunque Qt informe una altura parcial/recortada en este punto,
+                # el canvas de guitarra tiene un alto "base" de 196px y el subpanel
+                # de variaciones (botones) ~28px. Forzamos mínimos para no recortar.
+                guitar_h = max(guitar_h, 196)
+                variations_h = max(variations_h, 28)
+
+                # Margen extra para separación visual entre canvas y botones.
+                min_required = max(0, guitar_h) + max(0, variations_h) + 12
+
+                # Forzamos reserva de altura para evitar recortes del `guitar_canvas`.
+                for target_name in ("instrument_canvas_holder", "instrument_body_row"):
+                    target = getattr(self, target_name, None)
+                    if target is not None:
+                        try:
+                            target.setMinimumHeight(min_required)
+                        except Exception:
+                            pass
+
+                panel_height = max(panel_height, min_required)
+                max_panel_height = max(max_panel_height, min_required)
+
             panel_height = min(panel_height, max_panel_height)
-            self.instrument_panel.configure(height=panel_height)
+            # En Qt, `configure(height=...)` en el shim no siempre fuerza
+            # el layout; fijar altura asegura que el panel no recorte el canvas.
+            try:
+                self.instrument_panel.setFixedHeight(panel_height)
+            except Exception:
+                try:
+                    self.instrument_panel.configure(height=panel_height)
+                except Exception:
+                    pass
         except Exception:
             pass
     def _refresh_right_panel_wraplengths(self, _event: Optional[tk.Event] = None) -> None:
@@ -1947,45 +2097,34 @@ class UiMixin:
         padx: int = 8,
         pady: tuple[int, int] = (2, 10),
     ) -> tk.Frame:
+        # Nuestro `tk_compat.Canvas` no implementa `yview`/`yview_scroll`
+        # (scrolling Tk). Para no crashear (y mantener scroll real),
+        # usamos `QScrollArea` directamente.
+        from PySide6.QtWidgets import QScrollArea, QVBoxLayout
+
         bg = bg or self.color_surface_alt
         wrapper = tk.Frame(parent, bg=bg)
         wrapper.pack(fill=tk.BOTH, expand=True, padx=padx, pady=pady)
 
-        canvas = tk.Canvas(
-            wrapper,
-            bg=bg,
-            highlightthickness=0,
-            bd=0,
-            relief=tk.FLAT,
-        )
-        scrollbar = ttk.Scrollbar(wrapper, orient=tk.VERTICAL, command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # Layout interno del wrapper para alojar el scroll area.
+        layout = wrapper.layout()
+        if layout is None:
+            layout = QVBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            wrapper.setLayout(layout)
 
-        content = tk.Frame(canvas, bg=bg)
-        window_id = canvas.create_window((0, 0), window=content, anchor="nw")
+        scroll_area = QScrollArea(wrapper)
+        scroll_area.setWidgetResizable(True)
+        try:
+            scroll_area.setFrameShape(QScrollArea.NoFrame)  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
-        def on_content_configure(_event: tk.Event) -> None:
-            canvas.configure(scrollregion=canvas.bbox("all"))
+        content = tk.Frame(scroll_area, bg=bg)
+        scroll_area.setWidget(content)
 
-        def on_canvas_configure(event: tk.Event) -> None:
-            canvas.itemconfigure(window_id, width=event.width)
-
-        def on_mousewheel(event: tk.Event) -> str:
-            return self._scroll_canvas_from_event(canvas, event)
-
-        self._register_scroll_target(wrapper, canvas)
-        wrapper.bind("<Destroy>", lambda e: self._unregister_scroll_target(wrapper), add="+")
-
-        content.bind("<Configure>", on_content_configure)
-        canvas.bind("<Configure>", on_canvas_configure)
-
-        for widget in (wrapper, canvas, content):
-            widget.bind("<MouseWheel>", on_mousewheel)
-            widget.bind("<Button-4>", on_mousewheel)
-            widget.bind("<Button-5>", on_mousewheel)
-
+        layout.addWidget(scroll_area)
         return content
     def _build_rounded_search_entry(self, parent: tk.Widget, placeholder: str) -> tuple[tk.StringVar, tk.Entry]:
         wrapper = tk.Frame(parent, bg=self.color_surface_alt)
@@ -2117,6 +2256,108 @@ class UiMixin:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
 
+        from PySide6.QtCore import QRect, Qt
+        from PySide6.QtGui import QColor, QFont, QPainter, QPen
+
+        class ModeCard(tk.Frame):  # type: ignore[misc]
+            def __init__(
+                self,
+                master: tk.Widget,
+                *,
+                selected: bool,
+                bg_color: str,
+                hover_bg_color: str,
+                border_color_selected: str,
+                border_color_normal: str,
+                border_width_selected: int = 2,
+                border_width_normal: int = 1,
+                padding: tuple[int, int, int, int] = (12, 12, 12, 12),
+                icon_txt: str,
+                icon_color: str,
+                text_txt: str,
+                text_color: str,
+                font_family: str,
+                icon_font_size: int = 56,
+                text_font_size: int = 30,
+            ) -> None:
+                # Sin highlight/border CSS: lo pintamos nosotros.
+                super().__init__(master, bg=bg_color, bd=0, highlightthickness=0, padding=padding)
+                self._selected = bool(selected)
+                self._bg_color = str(bg_color)
+                self._hover_bg_color = str(hover_bg_color)
+                self._border_color_selected = str(border_color_selected)
+                self._border_color_normal = str(border_color_normal)
+                self._border_width_selected = int(border_width_selected)
+                self._border_width_normal = int(border_width_normal)
+                self._hover = False
+                self._icon_txt = str(icon_txt)
+                self._icon_color = str(icon_color)
+                self._text_txt = str(text_txt)
+                self._text_color = str(text_color)
+                self._font_family = str(font_family)
+                self._icon_font_size = int(icon_font_size)
+                self._text_font_size = int(text_font_size)
+                self.setCursor(tk.Qt.CursorShape.PointingHandCursor if hasattr(tk, "Qt") else None)  # type: ignore[attr-defined]
+
+            def set_hover(self, hovering: bool) -> None:
+                self._hover = bool(hovering)
+                self.update()
+
+            def paintEvent(self, _event) -> None:  # type: ignore[override]
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+                bg = self._hover_bg_color if self._hover else self._bg_color
+                painter.fillRect(self.rect(), QColor(bg))
+
+                # Solo dibujamos borde cuando está seleccionada.
+                # Así evitamos el "recuadro fino" en tarjetas no seleccionadas.
+                if self._selected:
+                    bw = self._border_width_selected
+                    bcolor = self._border_color_selected
+                    pen = QPen(QColor(bcolor), float(bw))
+                    painter.setPen(pen)
+
+                    # Trazo pegado al borde exterior.
+                    r = self.rect().adjusted(0, 0, -1, -1)
+                    painter.drawRect(QRect(r.left(), r.top(), r.width(), r.height()))
+
+                # Pintamos icono + texto directamente para evitar artefactos
+                # de bordes en widgets hijos (`tk_compat.Label`).
+                w = int(self.width())
+                h = int(self.height())
+                icon_rect = QRect(0, int(h * 0.10), w, int(h * 0.42))
+                text_rect = QRect(0, int(h * 0.44), w, int(h * 0.56))
+
+                # Icono
+                icon_font = QFont(self._font_family, self._icon_font_size)
+                icon_font.setBold(True)
+                painter.setFont(icon_font)
+                painter.setPen(QColor(self._icon_color))
+                painter.drawText(icon_rect, int(Qt.AlignmentFlag.AlignCenter), self._icon_txt)
+
+                # Texto
+                text_font_size = self._text_font_size
+                text_font = QFont(self._font_family, text_font_size)
+                text_font.setBold(True)
+                painter.setFont(text_font)
+                painter.setPen(QColor(self._text_color))
+
+                # Ajuste para que el texto vaya en una sola línea.
+                # Si no cabe, reducimos tamaño en proporción.
+                metrics = painter.fontMetrics()
+                max_w = max(1, int(text_rect.width()) - 10)
+                text_w = float(metrics.horizontalAdvance(self._text_txt))
+                if text_w > max_w:
+                    scale = max_w / max(1e-6, text_w)
+                    text_font_size = max(14, int(round(text_font_size * scale)))
+                    text_font = QFont(self._font_family, text_font_size)
+                    text_font.setBold(True)
+                    painter.setFont(text_font)
+
+                painter.drawText(text_rect, int(Qt.AlignmentFlag.AlignCenter), self._text_txt)
+                painter.end()
+
         overlay = tk.Frame(
             self,
             bg=self.color_surface_alt,
@@ -2153,50 +2394,36 @@ class UiMixin:
             cards_frame.rowconfigure(row_idx, weight=1)
 
         for idx, (mode_key, mode_text, icon_txt, icon_color) in enumerate(options):
-            card = tk.Frame(
+            selected = self.current_mode == mode_key
+            card = ModeCard(
                 cards_frame,
-                bg=self.color_card,
-                highlightthickness=2 if self.current_mode == mode_key else 1,
-                highlightbackground=self.color_accent if self.current_mode == mode_key else self.color_card,
-                bd=0,
-                cursor="hand2",
+                selected=selected,
+                bg_color=self.color_card,
+                hover_bg_color=self.color_card_hover,
+                border_color_selected=self.color_accent,
+                # Borde normal del mismo color que el fondo => no se aprecia.
+                border_color_normal=self.color_card,
+                border_width_selected=2,
+                border_width_normal=1,
+                padding=(14, 14, 14, 14),
+                icon_txt=icon_txt,
+                icon_color=icon_color,
+                text_txt=mode_text,
+                text_color=self.color_text,
+                font_family=self.ui_font_family,
             )
+            card.setCursor(tk.Qt.CursorShape.PointingHandCursor)  # type: ignore[attr-defined]
             card.grid(row=idx // 2, column=idx % 2, sticky="nsew", padx=6, pady=6)
-            icon = tk.Label(
-                card,
-                text=icon_txt,
-                fg=icon_color,
-                # Sin `bg`: el fondo del `Frame` se dibuja sólo en el contenedor exterior,
-                # para que el recuadro de selección no parezca rodear también el icono.
-                font=(self.ui_font_family, 56, "bold"),
-                cursor="hand2",
-                anchor="center",
-            )
-            icon.pack(pady=(12, 4), anchor="center")
-            label = tk.Label(
-                card,
-                text=mode_text,
-                fg=self.color_text,
-                font=(self.ui_font_family, 30, "bold"),
-                justify="center",
-                anchor="center",
-                cursor="hand2",
-            )
-            label.pack(pady=(0, 10), padx=8, anchor="center")
 
             def on_enter(_e: tk.Event, c=card) -> None:
-                c.configure(bg=self.color_card_hover)
+                c.set_hover(True)
 
-            def on_leave(_e: tk.Event, c=card, is_current=(self.current_mode == mode_key)) -> None:
-                base = self.color_card
-                c.configure(bg=base)
-                c.configure(highlightbackground=self.color_accent if is_current else self.color_card)
+            def on_leave(_e: tk.Event, c=card) -> None:
+                c.set_hover(False)
 
             card.bind("<Enter>", on_enter)
             card.bind("<Leave>", on_leave)
             card.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
-            icon.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
-            label.bind("<Button-1>", lambda _e, mk=mode_key: self._apply_mode(mk))
     def _close_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self.mode_selector_overlay.destroy()

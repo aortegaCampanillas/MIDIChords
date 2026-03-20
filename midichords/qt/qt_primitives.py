@@ -3,9 +3,43 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from PySide6.QtCore import QObject, QPointF, QRect, QRectF, Qt, QTimer, QEvent
+from PySide6.QtCore import QObject, QPointF, QRect, QRectF, Qt, QTimer, QEvent, QThread, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QMouseEvent, QPainter, QPen, QBrush, QPolygonF
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QApplication
+
+# Invocador lazy: ejecuta callbacks en el hilo de la GUI (QTimer/widgets no son seguros en otros hilos).
+_main_thread_invoker: Optional["_MainThreadInvoker"] = None
+
+
+class _MainThreadInvoker(QObject):
+    """Reenvía `fn()` al hilo donde vive QApplication (event loop Qt)."""
+
+    _invoke = Signal(object)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._invoke.connect(self._run, Qt.ConnectionType.QueuedConnection)
+
+    @Slot(object)
+    def _run(self, fn: object) -> None:
+        if callable(fn):
+            fn()
+
+
+def run_on_main_thread(fn: Callable[[], None]) -> None:
+    """Ejecuta `fn` en el hilo GUI; si ya estamos ahí, llama directamente."""
+    app = QApplication.instance()
+    if app is None:
+        fn()
+        return
+    if QThread.currentThread() == app.thread():
+        fn()
+        return
+    global _main_thread_invoker
+    if _main_thread_invoker is None:
+        _main_thread_invoker = _MainThreadInvoker()
+        _main_thread_invoker.moveToThread(app.thread())
+    _main_thread_invoker._invoke.emit(fn)
 
 
 def _color(value: Any, default: QColor | None = None) -> QColor:
@@ -65,10 +99,12 @@ def _qt_canvas_text_rect_and_flags(
 
     a = anchor
     if a == "w":
-        rect = QRectF(x, 0.0, cw - x, ch)
+        # Tk anchor="w": izquierda en x y el centro vertical en y.
+        rect = QRectF(x, y - th * 0.5, max(1.0, cw - x), th)
         flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
     elif a == "e":
-        rect = QRectF(0.0, 0.0, x, ch)
+        # Tk anchor="e": derecha en x y el centro vertical en y.
+        rect = QRectF(0.0, y - th * 0.5, max(1.0, x), th)
         flags = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
     elif a == "nw":
         rect = QRectF(x, y, cw - x, ch - y)
@@ -769,6 +805,17 @@ class QtSchedulerMixin:
         self._qt_bg: str = ""
 
     def after(self, ms: int, callback: Callable[[], None]) -> str:
+        # QTimer solo es válido en el hilo que tiene el event loop Qt (normalmente el GUI).
+        app = QApplication.instance()
+        if app is not None and QThread.currentThread() != app.thread():
+
+            def _defer() -> None:
+                self.after(ms, callback)
+
+            run_on_main_thread(_defer)
+            self._qt_after_seq += 1
+            return f"defer-{self._qt_after_seq}"
+
         self._qt_after_seq += 1
         timer_id = str(self._qt_after_seq)
         timer = QTimer()

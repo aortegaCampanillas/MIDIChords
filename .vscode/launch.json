@@ -6,7 +6,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
-      "args": ["desktop"],
+      "args": ["desktop", "/verbose"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,

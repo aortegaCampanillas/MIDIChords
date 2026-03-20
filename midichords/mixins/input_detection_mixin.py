@@ -7,6 +7,7 @@ from typing import Optional
 
 from midichords.core.i18n import NOTE_NAMES
 from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, format_intervals
+from midichords.core.verbose_log import vlog
 
 
 class InputDetectionMixin:
@@ -410,9 +411,35 @@ class InputDetectionMixin:
             except queue.Empty:
                 break
 
+            vlog("midi", "in: %s", message)
+
             if self.generation_tab_active:
+                # En generación, la entrada MIDI debe respetar las notas
+                # permitidas del acorde (y/o la variante de guitarra),
+                # igual que se hace en los clics del teclado con ratón.
                 if message.type == "note_on" and message.velocity > 0:
-                    self._show_forbidden_note_feedback(message.note)
+                    note_int = int(message.note)
+                    if self.instrument_view == "guitar" and getattr(self, "guitar_selected_variation_notes", None):
+                        allowed_notes = set(self.guitar_selected_variation_notes)
+                    else:
+                        allowed_notes = set(self.generated_preview_notes)
+                        # Permitir notas mano izquierda (clave de fa): una octava abajo.
+                        allowed_notes |= {
+                            int(n - 12)
+                            for n in set(self.generated_preview_notes)
+                            if int(n - 12) >= 0
+                        }
+                    if note_int in allowed_notes:
+                        self._trigger_generated_single_note(note_int)
+                    else:
+                        self._show_forbidden_note_feedback(note_int)
+                elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
+                    note_int = int(message.note)
+                    if note_int in self.generated_playing_notes:
+                        self._clear_generated_note_highlight(
+                            note_int,
+                            stop_audio=(self.instrument_view != "guitar"),
+                        )
                 continue
 
             if self.current_mode == "detection":

@@ -508,7 +508,22 @@ def _extract_mobile_ipad_launcher_flags(
     return cleaned, no_backend, api_base
 
 
-def parse_args() -> argparse.Namespace:
+def _normalize_verbose_cli(argv: list[str]) -> list[str]:
+    """Acepta --verbose, -v y /verbose (estilo Windows) como equivalentes."""
+    out: list[str] = []
+    for item in argv:
+        low = item.lower().replace("\\", "/")
+        if low in ("/verbose", "--verbose", "-v"):
+            out.append("--verbose")
+        else:
+            out.append(item)
+    return out
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = _normalize_verbose_cli(list(argv))
     parser = argparse.ArgumentParser(description="MIDIChords launcher")
     parser.add_argument(
         "target",
@@ -535,12 +550,31 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Para mobile-ipad: URL base API existente (ej: http://192.168.1.100:8000).",
     )
-    args, extra = parser.parse_known_args()
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Trazas en stderr (audio, MIDI). Equivale a /verbose.",
+    )
+    args, extra = parser.parse_known_args(argv)
     # Unknown args are forwarded to flutter when target is mobile/mobile-ipad.
     if extra and extra[0] == "--":
         extra = extra[1:]
     args.mobile_args = extra
     return args
+
+
+def _strip_verbose_flags_from_sys_argv() -> None:
+    """Evita que QApplication reciba --verbose o /verbose (ya interpretados aquí)."""
+    if len(sys.argv) <= 1:
+        return
+    keep: list[str] = [sys.argv[0]]
+    for a in sys.argv[1:]:
+        low = a.lower().replace("\\", "/")
+        if low in ("--verbose", "-v", "/verbose"):
+            continue
+        keep.append(a)
+    sys.argv[:] = keep
 
 
 def main() -> None:
@@ -577,6 +611,10 @@ def main() -> None:
             api_base_override=final_api_base,
         )
         return
+    # Escritorio (target por defecto): verbose + argv limpio para QApplication.
+    if args.verbose:
+        os.environ["MIDICHORDS_VERBOSE"] = "1"
+    _strip_verbose_flags_from_sys_argv()
     run_desktop()
 
 

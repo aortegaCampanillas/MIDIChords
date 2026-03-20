@@ -12,6 +12,7 @@ import mido
 import sounddevice as sd
 
 from midichords.core.app_constants import DISABLE_RTMIDI_SCAN_ENV, FORCE_MIDI_OPEN_ENV, FORCE_RTMIDI_SCAN_ENV
+from midichords.core.verbose_log import vlog
 
 
 class MidiIOMixin:
@@ -118,6 +119,16 @@ class MidiIOMixin:
                 self.tuner_input_var.set(self.tuner_input_name)
             elif self.tuner_input_var.get() not in self.tuner_input_combo["values"]:
                 self.tuner_input_var.set("")
+        vlog(
+            "midi",
+            "refresh_devices: midi_inputs=%s (backend_ok=%s) audio_outputs=%s probe=%s",
+            len(self.input_names),
+            self.midi_backend_available,
+            len(self.audio_output_names),
+            (self.midi_backend_warning or "")[:120],
+        )
+        if self.input_names:
+            vlog("midi", "  MIDI in: %s", " | ".join(self.input_names[:12]) + (" …" if len(self.input_names) > 12 else ""))
     def connect_ports(self) -> None:
         self.disconnect_ports()
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
@@ -127,6 +138,13 @@ class MidiIOMixin:
         audio_name = self.config_data.get("audio_output", "")
         audio_error: Optional[str] = None
         allow_midi_open = os.environ.get(FORCE_MIDI_OPEN_ENV, "").strip() == "1"
+        vlog(
+            "midi",
+            "connect_ports: midi_input=%r audio_output=%r allow_midi_open=%s",
+            input_name,
+            audio_name,
+            allow_midi_open,
+        )
 
         if input_name:
             if self.midi_backend_available and allow_midi_open:
@@ -139,7 +157,9 @@ class MidiIOMixin:
                 else:
                     try:
                         self.midi_bridge_connected = self._start_midi_bridge(input_name)
+                        vlog("midi", "MIDI bridge start: name=%r ok=%s", input_name, self.midi_bridge_connected)
                     except Exception as exc:
+                        vlog("midi", "MIDI bridge error: %s", exc)
                         self.status_var.set(f"{self.tr('error_open_input')}: {exc}")
                         self.input_port = None
             else:
@@ -152,6 +172,7 @@ class MidiIOMixin:
                     )
 
         audio_device_index = self.audio_output_map.get(audio_name)
+        vlog("midi", "audio device index=%s map_hit=%s", audio_device_index, audio_name in self.audio_output_map)
         self.audio_engine.set_output_device(audio_device_index)
         if audio_name and audio_device_index is None:
             audio_error = self.tr("status_unavailable")
@@ -192,8 +213,10 @@ class MidiIOMixin:
                 self.input_port = mido.open_input(input_name, callback=self._on_midi_message)
                 self.midi_bridge_proc = None
                 self.midi_bridge_thread = None
+                vlog("midi", "open_input (in-process): %r", input_name)
                 return True
-            except Exception:
+            except Exception as exc:
+                vlog("midi", "open_input (in-process) failed: %s", exc)
                 self.input_port = None
                 return False
 
@@ -232,12 +255,15 @@ while True:
         except Exception:
             return False
         self.midi_bridge_proc = proc
+        vlog("midi", "MIDI bridge subprocess spawning: %r", input_name)
         self.midi_bridge_thread = threading.Thread(target=self._read_midi_bridge_output, daemon=True)
         self.midi_bridge_thread.start()
         time.sleep(0.1)
         if proc.poll() is not None:
             self._stop_midi_bridge()
+            vlog("midi", "MIDI bridge subprocess exited early (poll=%s)", proc.poll())
             return False
+        vlog("midi", "MIDI bridge subprocess running: %r", input_name)
         return True
     def _read_midi_bridge_output(self) -> None:
         proc = self.midi_bridge_proc

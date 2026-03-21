@@ -660,25 +660,25 @@ export default {
     if (pathname === "/api/generate/guitar-variations" && request.method === "POST") return json({ variations: [] });
     if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
 
-    // Assets bajo /static/: nunca pasar URL con ?query a env.ASSETS.fetch (en producción
-    // suele dar 404). No usar `new Request(cleanUrl, request)` como en fetch estándar:
-    // en workerd a veces se conserva la URL del request original y el manifest de Pages
-    // no resuelve el fichero.
-    let assetRequest = request;
-    if (pathname.startsWith("/static/") && (url.search || url.hash)) {
-      const cleanUrl = new URL(request.url);
-      cleanUrl.search = "";
-      cleanUrl.hash = "";
-      const fwd = new Headers();
-      for (const name of ["Range", "If-None-Match", "If-Modified-Since"]) {
-        const v = request.headers.get(name);
-        if (v) fwd.set(name, v);
-      }
-      const method = request.method === "HEAD" ? "HEAD" : "GET";
-      assetRequest = new Request(cleanUrl.toString(), { method, headers: fwd });
+    // Estáticos con ?v=… o #…: en Pages, env.ASSETS.fetch a menudo devuelve 404 aunque el
+    // fichero exista. Redirigir al recurso canónico (sin query) es fiable: el navegador
+    // y urllib (chequeo CI) siguen la 307 y cargan el asset.
+    if (
+      pathname.startsWith("/static/") &&
+      (url.search || url.hash) &&
+      (request.method === "GET" || request.method === "HEAD")
+    ) {
+      const target = `${url.origin}${pathname}`;
+      return new Response(null, {
+        status: 307,
+        headers: {
+          location: target,
+          "cache-control": "no-store",
+        },
+      });
     }
 
-    const assetResp = await env.ASSETS.fetch(assetRequest);
+    const assetResp = await env.ASSETS.fetch(request);
 
     // Evita que Cloudflare/cliente se queden con CSS/JS viejos tras desplegar.
     // (En local no pasa porque no hay cache CDN.)

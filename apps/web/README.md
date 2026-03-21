@@ -1,6 +1,6 @@
 # MIDIChords Web
 
-Aplicación web servida con Cloudflare Worker (`apps/web/worker/_worker.js`) y assets estáticos (`apps/web/index.html` + `apps/web/static`).
+Aplicación web servida con Cloudflare Worker (`apps/web/worker/_worker.js`) y assets estáticos (`apps/web/index.html` + `apps/web/static`). El worker redirige (**307**) las peticiones a `/static/*` que llevan query o fragmento hacia la URL canónica sin ellos, para que CSS/JS sigan cargando aunque el HTML cacheado enlace con `?v=…`.
 
 ## Despliegue a Cloudflare Pages
 

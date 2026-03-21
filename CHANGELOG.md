@@ -35,7 +35,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
-- **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` a `/static/style.css` ni `/static/app.js` en el despliegue (workflow y `launch.py deploy-web`); esas URLs con query daban **404** intermitente en producción y dejaban la página sin estilos ni JS. El worker pasa a `env.ASSETS.fetch` un `Request` mínimo (sin reutilizar el request del cliente como plantilla), de modo que si alguien sigue pidiendo estáticos con query o hash, siguen resolviéndose. La frescura tras cada deploy sigue apoyándose en `Cache-Control: no-store` (`_headers` + worker).
+- **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` en el despliegue (workflow y `launch.py deploy-web`). El worker responde **307** a `GET`/`HEAD` de `/static/*` con `?` o `#`, redirigiendo al recurso sin query (fiable frente a **404** de `ASSETS.fetch` con cache-bust antiguo en CDN/HTML cacheado). `Cache-Control: no-store` en esa respuesta y en estáticos/HTML (`_headers` + worker).
 
 - **CI / Flatpak**: el workflow **Validate Flatpak** solo se ejecuta con **Run workflow** (`workflow_dispatch`); se quitaron los disparadores automáticos en `main`, tags `v*` y PRs mientras no se publique en Flathub.
 

@@ -45,7 +45,10 @@ modules:
       - cp -r midichords apps app.py launch.py assets /app/share/midichords/
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.desktop /app/share/applications/com.freemidichords.MIDIChords.desktop
       - install -Dm644 packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml /app/share/metainfo/com.freemidichords.MIDIChords.metainfo.xml
-      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/1024x1024/apps/com.freemidichords.MIDIChords.png
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/48x48/apps/com.freemidichords.MIDIChords.png
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/128x128/apps/com.freemidichords.MIDIChords.png
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/256x256/apps/com.freemidichords.MIDIChords.png
+      - install -Dm644 assets/app_logo.png /app/share/icons/hicolor/512x512/apps/com.freemidichords.MIDIChords.png
       - install -Dm644 LICENSE -t ${FLATPAK_DEST}/share/licenses/com.freemidichords.MIDIChords/midichords-launcher
       - |
         printf '%s\n' '#!/bin/sh' \

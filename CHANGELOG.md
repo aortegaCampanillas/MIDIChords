@@ -6,7 +6,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
-- **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. El script resume el patrón **404 en `/static/*?v=…` con OK sin query** con un mensaje accionable. Si falla, correo vía **Resend** (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, variable **`WEB_HEALTH_ALERT_TO`**). El workflow muestra **aviso** si falta **`RESEND_API_KEY`**. El paso de correo usa **`continue-on-error`** e imprime el **cuerpo de error de Resend** (p. ej. 403) en el log. Ver `apps/web/README.md`.
+- **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. El script resume el patrón **404 en `/static/*?v=…` con OK sin query** con un mensaje accionable. Si falla, correo vía **Resend** (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, variable **`WEB_HEALTH_ALERT_TO`**). El workflow muestra **aviso** si falta **`RESEND_API_KEY`**. El paso de correo usa **`continue-on-error`** e imprime el **cuerpo de error de Resend** (p. ej. 403) en el log. La petición a la API incluye **`User-Agent`** explícito (requisito de Resend frente a 403/1010). Ver `apps/web/README.md`.
 
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 

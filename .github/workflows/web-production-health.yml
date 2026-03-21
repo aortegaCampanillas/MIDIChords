@@ -77,12 +77,14 @@ jobs:
                   f"<pre style='white-space:pre-wrap;font-size:12px'>{html.escape(log)}</pre>"
               ),
           }
+          # Resend bloquea peticiones sin User-Agent explícito (403 / error 1010) con algunos clientes HTTP.
           req = urllib.request.Request(
               "https://api.resend.com/emails",
               data=json.dumps(payload).encode(),
               headers={
                   "Authorization": f"Bearer {os.environ['RESEND_API_KEY']}",
                   "Content-Type": "application/json",
+                  "User-Agent": "MIDIChords-GitHub-Actions/1.0 (web-production-health)",
               },
               method="POST",
           )

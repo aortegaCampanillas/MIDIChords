@@ -38,6 +38,7 @@ jobs:
 
       - name: Email alert on failure
         if: failure()
+        continue-on-error: true
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           NOTIFY_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
@@ -51,6 +52,7 @@ jobs:
           import html
           import json
           import os
+          import urllib.error
           import urllib.request
           from pathlib import Path
 
@@ -84,6 +86,17 @@ jobs:
               },
               method="POST",
           )
-          urllib.request.urlopen(req)
+          try:
+              urllib.request.urlopen(req)
+          except urllib.error.HTTPError as e:
+              err_body = e.read().decode("utf-8", errors="replace")
+              print(f"::warning::Resend rechazó el envío: HTTP {e.code} {e.reason}")
+              print("--- Cuerpo de respuesta (Resend, para depuración) ---")
+              print(err_body or "(vacío)")
+              print("--- fin ---")
+              raise SystemExit(1) from e
+          except OSError as e:
+              print(f"::warning::Error de red al llamar a Resend: {e}")
+              raise SystemExit(1) from e
           print("Correo de aviso enviado.")
           PY

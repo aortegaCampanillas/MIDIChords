@@ -127,6 +127,59 @@ La respuesta debe ser JSON e incluir `chord_patterns` y `scale_patterns`. Si dev
 
 Nota: si `wrangler` falla en entorno no interactivo pidiendo `CLOUDFLARE_API_TOKEN`, usa el workflow de GitHub Actions; es el camino más fiable en este repo.
 
+## Google Search Console
+
+Estos pasos los ejecuta **quien administra el dominio** en [Google Search Console](https://search.google.com/search-console); no hay automatización en el repo más allá de tener ya **`robots.txt`**, **`sitemap.xml`** y metas en **`index.html`** (tras un deploy con etiqueta `v*`).
+
+### 1. Dar de alta la propiedad
+
+1. Entra en Search Console → **Añadir propiedad**.
+2. Elige uno de estos modos (recomendación según tu caso):
+   - **Prefijo de URL** `https://freemidichords.com/` — suele ser lo más rápido si solo importa la web HTTPS.
+   - **Dominio** `freemidichords.com` — incluye todas las variantes (http/https, subdominios); la verificación suele ser por **registro DNS TXT** en el proveedor del dominio (p. ej. Cloudflare).
+
+### 2. Verificar la propiedad
+
+Sigue el asistente de Google. Métodos habituales:
+
+| Método | Notas |
+|--------|--------|
+| **Etiqueta HTML** | Google te da un `<meta name="google-site-verification" content="…" />`. Colócalo en el `<head>` de **`apps/web/index.html`**, despliega de nuevo (tag `v*`) y pulsa *Verificar* en GSC. |
+| **Fichero HTML** | Sube el fichero que indique Google a la **raíz del bundle** de Pages (junto a `index.html`), igual que `robots.txt`, y vuelve a desplegar. |
+| **DNS** | Registro TXT en el DNS del dominio; obligatorio si elegiste propiedad tipo **Dominio**. |
+
+Hasta que la verificación no sea correcta, no podrás enviar el sitemap de forma fiable.
+
+### 3. Enviar el sitemap
+
+1. En la propiedad verificada, menú **Sitemaps**.
+2. En *Añadir un sitemap nuevo*, escribe: `sitemap.xml` (o la URL completa `https://freemidichords.com/sitemap.xml` si la interfaz lo pide así).
+3. Comprueba que el estado pase a **Correcto** (puede tardar horas el primer procesamiento).
+
+Comprobación rápida desde terminal (debe devolver XML, no error):
+
+```bash
+curl -fsSI 'https://freemidichords.com/sitemap.xml'
+curl -fsS 'https://freemidichords.com/robots.txt'
+```
+
+### 4. Revisar cobertura
+
+1. **Indexación** → **Páginas** (o *Cobertura* en vistas antiguas).
+2. Revisa **Correctas**, **Excluidas** y **Con errores**. Para una SPA de una sola URL relevante, lo normal es ver la **página principal** indexada; las exclusiones por *duplicado*, *canonical* o *redirección* pueden ser esperables según la configuración.
+3. Si aparece **No se ha podido rastrear** o **404**, confirma que el último deploy de producción incluye `index.html` y que `https://freemidichords.com/` responde **200**.
+
+### 5. Consultas y rendimiento
+
+1. **Rendimiento** (o **Resultados de la búsqueda**): consultas, impresiones, clics y posición media (con retraso de unos días).
+2. Usa filtros por **página** (`https://freemidichords.com/`) y por **consulta** para ver por qué términos aparece el sitio.
+3. **Experiencia de página** / **Core Web Vitals** (si está disponible en tu cuenta): sirve para detectar problemas de UX en dispositivos móviles o escritorio.
+
+### Comprobaciones previas al alta
+
+- El **sitemap** en producción lista la URL canónica: `https://freemidichords.com/`.
+- **`robots.txt`** no bloquea el rastreo de `/` y enlaza al sitemap (ya configurado en el repo).
+
 ## Ejecutar en local (igual que Cloudflare)
 
 Desde la raíz del repo:

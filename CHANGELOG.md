@@ -22,6 +22,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Documentado
 
+- **Web**: `apps/web/README.md` — guía **Google Search Console** (alta de propiedad, verificación, envío de `sitemap.xml`, cobertura, rendimiento/consultas y comprobaciones con `curl`).
 - **Flatpak / Flathub**: `FLATHUB.md` — build local: **`appstream-compose`** con Debian (SDK 24.08 + `flatpak-builder` antiguo) vía **`org.flatpak.Builder`**; no usar `--command=flatpak-builder` (el wrapper fija `FLATPAK_USER_DIR`); remoto **`flathub` en modo `--user`**; backports o `appstream-compose: false` en copia local.
 - macOS App Store: `signing/README.md` y `README.md` — flujo **`mas.env`** + **`./scripts/build_mas_store.sh`**; ejemplo manual de `build_mas_pkg.sh` con **`--skip-tk-check`**.
 - Escritorio (macOS): script **`scripts/build_mac_test_dmg.sh`** — genera **`MIDIChords-macos-test.dmg`** y `.app` para probar en un Mac sin certificado Developer ID; documentado en `README.md`.

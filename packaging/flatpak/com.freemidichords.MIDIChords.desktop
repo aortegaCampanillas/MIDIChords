@@ -6,6 +6,6 @@ Comment=Real-time MIDI chord analyzer
 Exec=midichords
 Icon=com.freemidichords.MIDIChords
 Terminal=false
-Categories=Audio;Music;
+Categories=AudioVideo;Audio;Music;
 Keywords=MIDI;Chords;Piano;Guitar;Metronome;Music;
 StartupNotify=true

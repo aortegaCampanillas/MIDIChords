@@ -59,7 +59,8 @@ jobs:
       - name: Validate desktop file and metainfo
         run: |
           desktop-file-validate packaging/flatpak/com.freemidichords.MIDIChords.desktop
-          appstreamcli validate packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml
+          # --no-net: los runners de GitHub a veces no resuelven bien URLs tras CDN (falsos url-not-reachable).
+          appstreamcli validate --no-net packaging/flatpak/com.freemidichords.MIDIChords.metainfo.xml
 
       - name: Flatpak manifest check
         run: |

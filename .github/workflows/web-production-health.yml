@@ -1,5 +1,6 @@
 # Comprueba cada hora que freemidichords.com sirve HTML, CSS, JS y /api/meta.
-# Si falla, envía correo vía Resend (mismo secret que otros workflows).
+# También se ejecuta al terminar con éxito "Deploy Cloudflare (Production)" (evita
+# solaparse con el deploy en curso). Si falla, envía correo vía Resend.
 name: Web production health
 
 on:
@@ -7,6 +8,16 @@ on:
     # Cada hora (UTC), minuto 12 para no coincidir con el arranque en punto
     - cron: "12 * * * *"
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Deploy Cloudflare (Production)"
+    types:
+      - completed
+
+# Una sola ejecución a la vez: si coinciden cron y post-deploy, la segunda espera.
+concurrency:
+  group: web-production-health
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -18,9 +29,17 @@ jobs:
   check-web-production:
     name: Check HTML, CSS, JS and API
     runs-on: ubuntu-latest
+    # Tras un deploy fallido no tiene sentido el chequeo “post-deploy”; cron y manual siguen.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Enfriar CDN tras despliegue (solo post-deploy)
+        if: github.event_name == 'workflow_run'
+        run: |
+          echo "Esperando 90s para propagación en Cloudflare tras el deploy..."
+          sleep 90
 
       # No usar `if: secrets.*` aquí: GitHub rechaza el workflow al parsearlo (422).
       - name: Aviso si falta secret RESEND_API_KEY

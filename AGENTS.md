@@ -85,6 +85,10 @@ La app de escritorio se lanza siempre desde `apps/desktop/main.py` → `midichor
 
 Widgets Tkinter reutilizables: `RoundedChoiceButton`, `RoundedPanel`, `GreenRoundedButton`, `GrayRoundedButton`, `PlayTransportButton`, etc. No contienen lógica de negocio; solo presentación y eventos básicos.
 
+## Versión de Python (escritorio)
+
+Para instalar **todo** `requirements.txt` (incl. **python-rtmidi**) en **Windows** hace falta **Python 3.12**: en PyPI, `python-rtmidi` 1.5.8 solo ofrece ruedas hasta `cp312` para `win_amd64`. Con **3.13**, NumPy/PySide6/mido/sounddevice suelen instalar, pero **no** hay rueda rtmidi (MIDI hardware falla hasta compilar o cambiar de versión de Python). **Python 3.14** suele fallar en varios paquetes nativos; el CI usa `python-version: '3.12'`.
+
 ## Cómo ejecutar tests
 
 Desde la **raíz del proyecto**, con el entorno virtual activado y dependencias instaladas:

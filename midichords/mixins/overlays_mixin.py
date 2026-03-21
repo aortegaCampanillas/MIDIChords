@@ -3,6 +3,10 @@ from __future__ import annotations
 import time
 import threading
 from typing import Any, Optional
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QScrollArea
+
 import midichords.qt.tk_compat as tk
 import midichords.qt.ttk_compat as ttk
 
@@ -10,6 +14,134 @@ from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class OverlaysMixin:
+    def _qt_append_dark_native_controls_stylesheet(self, root: Any) -> None:
+        """QLabel/QCheckBox/QSpinBox sin fg explícito heredan gris/negro del estilo nativo (p. ej. Windows)."""
+        if not hasattr(root, "setStyleSheet"):
+            return
+        fg = getattr(self, "color_text", "#e9edf2")
+        card = getattr(self, "color_card", "#3a4452")
+        border = getattr(self, "color_border", "#56627a")
+        extra = f"""
+            QLabel {{
+                color: {fg};
+                background-color: transparent;
+            }}
+            QCheckBox {{
+                color: {fg};
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+            }}
+            QSpinBox {{
+                background-color: {card};
+                color: {fg};
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 2px 8px;
+                min-height: 1.2em;
+            }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                background: {card};
+                border: none;
+                width: 16px;
+            }}
+        """
+        prev = (root.styleSheet() or "").strip()
+        root.setStyleSheet((prev + "\n" + extra).strip() if prev else extra.strip())
+
+    def _qt_style_scroll_area_viewport(self, content_root: Any) -> None:
+        """Viewport y QScrollArea: fondo alineado al panel (evita franjas claras)."""
+        bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        pw = content_root.parentWidget() if hasattr(content_root, "parentWidget") else None
+        if pw is None:
+            return
+        try:
+            pw.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        except Exception:
+            pass
+        pw.setStyleSheet(f"background-color: {bg};")
+        sa = pw.parentWidget()
+        if isinstance(sa, QScrollArea):
+            sa.setStyleSheet(
+                f"QScrollArea {{ border: none; background-color: {bg}; }}"
+                f" QScrollBar:vertical {{ background: {bg}; width: 12px; }}"
+                f" QScrollBar::handle:vertical {{ background: {getattr(self, 'color_border', '#56627a')}; min-height: 24px; border-radius: 4px; }}"
+            )
+
+    def _qt_style_settings_form(self, form: Any) -> None:
+        """Tema oscuro coherente con la app (Qt/Windows: evita texto negro sobre gris del estilo nativo)."""
+        if not hasattr(form, "setStyleSheet"):
+            return
+        bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        fg = getattr(self, "color_text", "#e9edf2")
+        card = getattr(self, "color_card", "#3a4452")
+        border = getattr(self, "color_border", "#56627a")
+        hover_border = getattr(self, "color_border_hover", "#6a7a98")
+        btn_bg = getattr(self, "color_card_hover", "#465465")
+        form.setStyleSheet(
+            f"""
+            QWidget {{
+                background-color: {bg};
+                color: {fg};
+            }}
+            QLabel {{
+                color: {fg};
+                background-color: transparent;
+            }}
+            QComboBox {{
+                background-color: {card};
+                color: {fg};
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 4px 8px;
+                min-height: 1.2em;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {hover_border};
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 24px;
+                border: none;
+                background: transparent;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {card};
+                color: {fg};
+                selection-background-color: {btn_bg};
+                selection-color: {fg};
+                border: 1px solid {border};
+                outline: 0;
+            }}
+            QCheckBox {{
+                color: {fg};
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+            }}
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {fg};
+                border: 1px solid {border};
+                border-radius: 6px;
+                padding: 6px 16px;
+                min-width: 72px;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_border};
+                border: 1px solid {hover_border};
+            }}
+            QPushButton:pressed {{
+                background-color: {card};
+            }}
+            """
+        )
+
     def _close_tuner_tuning_overlay(self) -> None:
         if self.tuner_tuning_overlay is not None:
             self.tuner_tuning_overlay.destroy()
@@ -425,7 +557,7 @@ class OverlaysMixin:
 
         _periodic_device_refresh(tries_left=5)
 
-        show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", False)))
+        show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", True)))
         show_labels_chk = ttk.Checkbutton(
             frame,
             text=self.tr("settings_show_key_labels"),
@@ -486,6 +618,7 @@ class OverlaysMixin:
         frame.bind("<Escape>", close_dialog)
         frame.bind("<Return>", do_save)
         self._settings_save_callback = do_save
+        self._qt_style_settings_form(frame)
         overlay.focus_set()
     def _close_settings_overlay(self) -> None:
         if self.settings_overlay is not None:

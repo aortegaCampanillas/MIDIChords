@@ -36,7 +36,7 @@ Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDI
 
 ## Requisitos
 
-- Python 3.10+
+- **Python 3.12 o 3.13** para la app de escritorio. Con **3.14** suele fallar `pip install -r requirements.txt` (NumPy, PySide6, python-rtmidi sin rueda). **Windows:** `python-rtmidi` 1.5.8 en PyPI solo trae ruedas hasta **cp312**; con **3.13** el resto de paquetes instala, pero **no** hay rueda para rtmidi (entrada/salida MIDI real) hasta que el proyecto publique cp313 o uses **3.12** para un venv completo.
 - Dependencias desktop: `requirements.txt`
 - Node.js + `wrangler` para web local
 - Flutter (solo para móvil): 3.38+
@@ -50,6 +50,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 npm i -g wrangler
 ```
+
+**Windows:** si tienes varias versiones instaladas, crea el venv con 3.12 o 3.13 explícitamente, por ejemplo:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+(Si PowerShell bloquea `Activate.ps1`, puedes seguir usando `.\.venv\Scripts\python.exe` sin activar el entorno.)
 
 ## Ejecución unificada
 

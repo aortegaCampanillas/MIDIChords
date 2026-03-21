@@ -11,6 +11,9 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
       "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      },
       "env": {
         "MIDICHORDS_FORCE_MIDI_OPEN": "1"
       }
@@ -32,6 +35,9 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
       "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      },
       "env": {
         "MIDICHORDS_FEEDBACK_TO": "aortega98@gmail.com"
       }
@@ -50,7 +56,10 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
-      "python": "${workspaceFolder}/.venv/bin/python"
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      }
     }
   ],
   "inputs": [

@@ -20,7 +20,7 @@ La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend
 
 ## 2. Stack y requisitos
 
-- **Python 3.10+** para la librería compartida y la app de escritorio.
+- **Python 3.12 o 3.13** para la app de escritorio; **3.14** suele fallar al instalar dependencias nativas. En **Windows**, `python-rtmidi` (MIDI) solo tiene rueda PyPI hasta **3.12**; con 3.13 conviene **3.12** para un `requirements.txt` completo.
 - **Tkinter** para la UI de escritorio (incluido en Python estándar).
 - **Dependencias Python** (ejemplo): `mido`, `python-rtmidi`, `numpy`, `sounddevice` (ver `requirements.txt`).
 - **Web**: frontend HTML/JS/CSS estático; backend API en **Cloudflare Worker** (JavaScript). Desarrollo local con **wrangler** (`wrangler dev`).

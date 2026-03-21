@@ -51,18 +51,6 @@ class RenderMixin:
         return int(sharp_count), False
 
     @staticmethod
-    def _key_signature_counts_for_tonic(tonic_pc: int, is_minor: bool) -> tuple[Optional[int], Optional[int]]:
-        """Returns (sharp_count, flat_count) for a tonic pitch class."""
-        tonic_pc = int(tonic_pc) % 12
-        if is_minor:
-            sharp_map = {4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
-            flat_map = {2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6}
-        else:
-            sharp_map = {7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7}
-            flat_map = {5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6}
-        return sharp_map.get(tonic_pc), flat_map.get(tonic_pc)
-
-    @staticmethod
     def _tonic_letter_index(tonic_pc: int, prefer_flats: bool) -> int:
         tonic_pc = int(tonic_pc) % 12
         if prefer_flats:
@@ -112,16 +100,10 @@ class RenderMixin:
         if root is None or pattern is None:
             return 0, False
         is_minor = self._is_minor_suffix(str(pattern.suffix))
-        # In deteccion, respetar el toggle sostenido/bemol del usuario.
-        prefer_flats = getattr(self, "note_accidental", "sharp") == "flat"
-        sharp_count, flat_count = self._key_signature_counts_for_tonic(root, is_minor)
-        if sharp_count is None and flat_count is None:
-            return 0, False
-        if prefer_flats:
-            count = flat_count if flat_count is not None else sharp_count
-            return int(count), True
-        count = sharp_count if sharp_count is not None else flat_count
-        return int(count), False
+        # Detección: armadura y alteraciones en pentagrama = convención del acorde
+        # (menos accidentales; empate → sostenidos), igual que generación/escalas.
+        # El toggle #/♭ del usuario solo afecta al panel de detección (textos), v. InputDetectionMixin.
+        return self._key_signature_count_for_tonic(root, is_minor)
 
     def _instrument_display_notes(self) -> set[int]:
         if self.tuner_tab_active:
@@ -480,7 +462,8 @@ class RenderMixin:
         show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active) and (not self.scale_tab_active)
 
         w = max(100, canvas.winfo_width())
-        h = max(156, canvas.winfo_height())
+        # El alto del canvas lo fija la UI (p. ej. 124 en metrónomo, 156 en otros modos).
+        h = max(96, int(canvas.winfo_height()))
 
         low_note, high_note = 21, 108
         notes = list(range(low_note, high_note + 1))
@@ -639,7 +622,7 @@ class RenderMixin:
                 outline="#b7bec7",
                 width=1,
             )
-            show_label = self.config_data.get("show_keyboard_note_labels", False) and not self.scale_tab_active
+            show_label = self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active
             if show_label:
                 is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
                 label_color = "#0b2540" if (note in display_active_notes or is_generation_active) else "#5f5f5f"
@@ -831,7 +814,7 @@ class RenderMixin:
                 canvas.create_text(cx, cy, text=str(finger), fill="#101010", font=("Helvetica", 10, "bold"))
 
         canvas.create_rectangle(0, key_bottom, w, h, fill="#101010", outline="")
-        if not self.config_data.get("show_keyboard_note_labels", False) and not self.scale_tab_active:
+        if not self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active:
             for note in white_notes:
                 if note % 12 != 0:  # marcar C de cada octava
                     continue

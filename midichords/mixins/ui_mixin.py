@@ -410,7 +410,7 @@ class UiMixin:
         )
         self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 1))
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        # Misma lógica que Tk: fila a ancho del panel; el botón MIDI crece y rellena el hueco a la derecha.
+        # El botón MIDI solo ocupa el ancho del texto (no expande a todo el panel).
         # Margen inferior para separar los botones del bloque de resultados.
         self.detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 2))
         # Igual que generación: el audio va en ButtonPress + bind_all release; no llamar command al soltar (doble note_on en Qt).
@@ -438,7 +438,7 @@ class UiMixin:
             text="",
             command=self._toggle_midi_input_sound,
             font_family=self.ui_font_family,
-            width=220,
+            width=120,
             height=34,
             radius=14,
             font_size=14,
@@ -447,9 +447,9 @@ class UiMixin:
             selected_fill_color="#f3bf2f",
             selected_outline_color="#c9961f",
             selected_border_width=2.0,
-            expand_h=True,
+            shrink_to_text=True,
         )
-        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT)
 
         self.chord_var = tk.StringVar(value="-")
         self.detection_result_canvas = tk.Canvas(
@@ -1072,11 +1072,27 @@ class UiMixin:
         self.tab_scale_frame.columnconfigure(1, weight=1)
         self.tab_scale_frame.rowconfigure(5, weight=1)
 
-        self.metronome_title_row = ttk.Frame(self.tab_metronome_frame)
+        self._metronome_scroll_outer = tk.Frame(
+            self.tab_metronome_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self._metronome_scroll_outer.pack(fill=tk.BOTH, expand=True)
+        self._metronome_form_root = self._build_scrollable_area(
+            self._metronome_scroll_outer,
+            bg=self.color_surface_alt,
+            padx=0,
+            pady=(0, 8),
+        )
+        # Qt/Windows: ttk.Label → QLabel sin fg; QCheckBox/QSpinBox nativos en negro sobre gris.
+        self._qt_append_dark_native_controls_stylesheet(self._metronome_form_root)
+        self._qt_style_scroll_area_viewport(self._metronome_form_root)
+
+        self.metronome_title_row = ttk.Frame(self._metronome_form_root)
         self.metronome_title_row.grid(row=0, column=0, sticky="ew", pady=(4, 10))
-        # Qt: pack(fill=X)+HBox en esta fila podía solapar play y MIDI; grid con stretch
-        # en columna 1 es el mismo patrón que volumen/BPM del metrónomo.
-        self.metronome_title_row.columnconfigure(1, weight=1)
+        # Play + MIDI a la izquierda; columna 2 absorbe el hueco (el MIDI no se estira).
+        self.metronome_title_row.columnconfigure(2, weight=1)
         self.metronome_play_btn = PlayTransportButton(
             self.metronome_title_row,
             command=self._toggle_metronome,
@@ -1090,7 +1106,7 @@ class UiMixin:
             text="",
             command=self._toggle_midi_input_sound,
             font_family=self.ui_font_family,
-            width=220,
+            width=120,
             height=34,
             radius=14,
             font_size=12,
@@ -1099,17 +1115,23 @@ class UiMixin:
             selected_fill_color="#f3bf2f",
             selected_outline_color="#c9961f",
             selected_border_width=2.0,
-            expand_h=True,
+            shrink_to_text=True,
         )
-        self.metronome_midi_sound_toggle_btn.grid(row=0, column=1, sticky="ew")
+        self.metronome_midi_sound_toggle_btn.grid(row=0, column=1, sticky="w")
 
-        self.metronome_volume_label = ttk.Label(self.tab_metronome_frame, text="", font=(self.ui_font_family, 15, "bold"), anchor="center")
-        self.metronome_volume_label.grid(row=1, column=0, sticky="ew", pady=(0, 2))
-        self.metronome_volume_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_volume_row.grid(row=2, column=0, sticky="ew", pady=(0, 8))
-        self.metronome_volume_row.columnconfigure(1, weight=1)
+        self.metronome_volume_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_volume_row.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        self.metronome_volume_row.columnconfigure(2, weight=1)
+        self.metronome_volume_label = ttk.Label(
+            self.metronome_volume_row,
+            text="",
+            font=(self.ui_font_family, 15, "bold"),
+            anchor="e",
+            fg=self.color_text,
+        )
+        self.metronome_volume_label.grid(row=0, column=0, sticky="e", padx=(0, 8), pady=(0, 0))
         self.metronome_volume_minus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_volume_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.metronome_volume_minus_btn.grid(row=0, column=1, sticky="w", padx=(0, 8))
         self.metronome_volume_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_volume_minus_btn, "−"))
         self.metronome_volume_minus_btn.bind("<Button-1>", self._on_metronome_volume_minus)
         # En Qt: si el Canvas no tiene ancho solicitado, el layout puede colapsarlo a 0 px
@@ -1125,12 +1147,12 @@ class UiMixin:
             bd=0,
             cursor="hand2",
         )
-        self.metronome_volume_slider_canvas.grid(row=0, column=1, sticky="ew")
+        self.metronome_volume_slider_canvas.grid(row=0, column=2, sticky="ew")
         self.metronome_volume_slider_canvas.bind("<Configure>", lambda _e: self._draw_metronome_volume_slider())
         self.metronome_volume_slider_canvas.bind("<Button-1>", self._on_metronome_volume_slider_interact)
         self.metronome_volume_slider_canvas.bind("<B1-Motion>", self._on_metronome_volume_slider_interact)
         self.metronome_volume_plus_btn = tk.Canvas(self.metronome_volume_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_volume_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.metronome_volume_plus_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
         self.metronome_volume_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_volume_plus_btn, "+"))
         self.metronome_volume_plus_btn.bind("<Button-1>", self._on_metronome_volume_plus)
         self.metronome_volume_var = tk.StringVar(value="")
@@ -1143,16 +1165,21 @@ class UiMixin:
             width=7,
             anchor="center",
         )
-        self.metronome_volume_value_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+        self.metronome_volume_value_label.grid(row=1, column=2, sticky="", pady=(4, 0))
 
-        self.metronome_tempo_label = ttk.Label(self.tab_metronome_frame, text="", font=(self.ui_font_family, 15, "bold"), anchor="center")
-        self.metronome_tempo_label.grid(row=3, column=0, sticky="ew", pady=(0, 2))
-
-        self.metronome_slider_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_slider_row.grid(row=4, column=0, sticky="ew", pady=(0, 2))
-        self.metronome_slider_row.columnconfigure(1, weight=1)
+        self.metronome_slider_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_slider_row.grid(row=2, column=0, sticky="ew", pady=(0, 2))
+        self.metronome_slider_row.columnconfigure(2, weight=1)
+        self.metronome_tempo_label = ttk.Label(
+            self.metronome_slider_row,
+            text="",
+            font=(self.ui_font_family, 15, "bold"),
+            anchor="e",
+            fg=self.color_text,
+        )
+        self.metronome_tempo_label.grid(row=0, column=0, sticky="e", padx=(0, 8), pady=(0, 0))
         self.metronome_minus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.metronome_minus_btn.grid(row=0, column=1, sticky="w", padx=(0, 8))
         self.metronome_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_minus_btn, "−"))
         self.metronome_minus_btn.bind("<Button-1>", self._on_metronome_bpm_minus)
         self.metronome_slider_canvas = tk.Canvas(
@@ -1164,12 +1191,12 @@ class UiMixin:
             bd=0,
             cursor="hand2",
         )
-        self.metronome_slider_canvas.grid(row=0, column=1, sticky="ew")
+        self.metronome_slider_canvas.grid(row=0, column=2, sticky="ew")
         self.metronome_slider_canvas.bind("<Configure>", lambda _e: self._draw_metronome_bpm_slider())
         self.metronome_slider_canvas.bind("<Button-1>", self._on_metronome_slider_interact)
         self.metronome_slider_canvas.bind("<B1-Motion>", self._on_metronome_slider_interact)
         self.metronome_plus_btn = tk.Canvas(self.metronome_slider_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.metronome_plus_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
         self.metronome_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_plus_btn, "+"))
         self.metronome_plus_btn.bind("<Button-1>", self._on_metronome_bpm_plus)
         self.metronome_bpm_var = tk.StringVar(value="")
@@ -1179,31 +1206,23 @@ class UiMixin:
             bg=self.color_surface_alt,
             fg="#f3bf2f",
             font=(self.ui_font_family, 13, "bold"),
-            width=7,
             anchor="center",
         )
-        self.metronome_bpm_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+        self.metronome_bpm_label.grid(row=1, column=2, sticky="", pady=(4, 0))
 
-        self.metronome_info_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_info_row.grid(row=5, column=0, sticky="ew", pady=(2, 10))
-        self.metronome_info_row.columnconfigure(0, weight=1)
-        self.metronome_preset_var = tk.StringVar(value="")
-        self.metronome_preset_label = ttk.Label(
-            self.metronome_info_row,
-            textvariable=self.metronome_preset_var,
-            font=(self.ui_font_family, 14, "bold"),
-            anchor="center",
-            justify="center",
+        self.metronome_meter_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_meter_row.grid(row=3, column=0, sticky="ew", pady=(4, 8))
+        self.metronome_meter_row.columnconfigure(2, weight=1)
+        self.metronome_meter_label = ttk.Label(
+            self.metronome_meter_row,
+            text="",
+            font=(self.ui_font_family, 15, "bold"),
+            anchor="e",
+            fg=self.color_text,
         )
-        self.metronome_preset_label.grid(row=0, column=0, sticky="ew")
-
-        self.metronome_meter_label = ttk.Label(self.tab_metronome_frame, text="", font=(self.ui_font_family, 15, "bold"), anchor="center")
-        self.metronome_meter_label.grid(row=6, column=0, sticky="ew", pady=(2, 2))
-        self.metronome_meter_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_meter_row.grid(row=7, column=0, sticky="ew", pady=(0, 8))
-        self.metronome_meter_row.columnconfigure(1, weight=1)
+        self.metronome_meter_label.grid(row=0, column=0, sticky="e", padx=(0, 8), pady=(0, 0))
         self.metronome_meter_minus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_meter_minus_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.metronome_meter_minus_btn.grid(row=0, column=1, sticky="w", padx=(0, 8))
         self.metronome_meter_minus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_minus_btn, "−"))
         self.metronome_meter_minus_btn.bind("<Button-1>", self._on_metronome_meter_minus)
         self.metronome_meter_canvas = tk.Canvas(
@@ -1215,12 +1234,12 @@ class UiMixin:
             bd=0,
             cursor="hand2",
         )
-        self.metronome_meter_canvas.grid(row=0, column=1, sticky="ew")
+        self.metronome_meter_canvas.grid(row=0, column=2, sticky="ew")
         self.metronome_meter_canvas.bind("<Configure>", lambda _e: self._draw_metronome_meter_slider())
         self.metronome_meter_canvas.bind("<Button-1>", self._on_metronome_meter_slider_interact)
         self.metronome_meter_canvas.bind("<B1-Motion>", self._on_metronome_meter_slider_interact)
         self.metronome_meter_plus_btn = tk.Canvas(self.metronome_meter_row, width=34, height=34, bg=self.color_surface_alt, highlightthickness=0, bd=0)
-        self.metronome_meter_plus_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.metronome_meter_plus_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
         self.metronome_meter_plus_btn.bind("<Configure>", lambda _e: self._draw_circle_step_button(self.metronome_meter_plus_btn, "+"))
         self.metronome_meter_plus_btn.bind("<Button-1>", self._on_metronome_meter_plus)
         self.metronome_meter_var = tk.StringVar(value="")
@@ -1233,18 +1252,19 @@ class UiMixin:
             width=7,
             anchor="center",
         )
-        self.metronome_meter_value_label.grid(row=1, column=1, sticky="", pady=(4, 0))
+        self.metronome_meter_value_label.grid(row=1, column=2, sticky="", pady=(4, 0))
 
         self.metronome_clicks_label = ttk.Label(
-            self.tab_metronome_frame,
+            self._metronome_form_root,
             text="",
             font=(self.ui_font_family, 15, "bold"),
             anchor="w",
+            fg=self.color_text,
         )
         # Antes no tenía grid: en Qt quedaba suelta y solapaba play/MIDI o la fila de figuras.
-        self.metronome_clicks_label.grid(row=8, column=0, sticky="ew", padx=(2, 0), pady=(4, 2))
-        self.metronome_clicks_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_clicks_row.grid(row=9, column=0, sticky="ew", pady=(0, 4))
+        self.metronome_clicks_label.grid(row=4, column=0, sticky="ew", padx=(2, 0), pady=(4, 2))
+        self.metronome_clicks_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_clicks_row.grid(row=5, column=0, sticky="ew", pady=(0, 4))
         n_fig = len(self.metronome_click_figure_defs)
         for col in range(n_fig):
             self.metronome_clicks_row.columnconfigure(col, weight=1)
@@ -1259,16 +1279,16 @@ class UiMixin:
                 bd=0,
                 cursor="hand2",
             )
-            btn.grid(row=0, column=col, sticky="nsew", padx=3, pady=(4, 2))
+            # ew: reparten ancho; sin n/s el alto sigue el mínimo del canvas (~68), no crece con la ventana.
+            btn.grid(row=0, column=col, sticky="ew", padx=3, pady=(4, 2))
             key = str(figure["key"])
             btn.bind("<Button-1>", lambda _e, k=key: self._select_metronome_click_figure(k))
             btn.bind("<Configure>", lambda _e, k=key: self._draw_metronome_figure_button(k))
             self.metronome_figure_buttons[key] = btn
 
-        self.metronome_timer_row = ttk.Frame(self.tab_metronome_frame)
-        self.metronome_timer_row.grid(row=10, column=0, sticky="ew", pady=(8, 2))
-        # Dos filas: título + tiempo (evita solapamiento en paneles estrechos).
-        self.metronome_timer_row.columnconfigure(5, weight=1)
+        self.metronome_timer_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_timer_row.grid(row=6, column=0, sticky="ew", pady=(8, 4))
+        self.metronome_timer_row.columnconfigure(1, weight=1)
         self.metronome_timer_enabled_var = tk.BooleanVar(value=self.metronome_timer_enabled)
         self.metronome_timer_check = ttk.Checkbutton(
             self.metronome_timer_row,
@@ -1276,53 +1296,84 @@ class UiMixin:
             variable=self.metronome_timer_enabled_var,
             command=self._on_metronome_timer_toggle,
         )
-        self.metronome_timer_check.grid(row=0, column=0, rowspan=2, sticky="nw", pady=(2, 0))
-        self.metronome_timer_label = ttk.Label(self.metronome_timer_row, text="", font=(self.ui_font_family, 15, "bold"))
-        self.metronome_timer_label.grid(row=0, column=1, columnspan=5, sticky="w", padx=(6, 8), pady=(0, 6))
+        self.metronome_timer_check.grid(row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 0))
+        self.metronome_timer_label = ttk.Label(
+            self.metronome_timer_row,
+            text="",
+            font=(self.ui_font_family, 15, "bold"),
+            fg=self.color_text,
+        )
+        self.metronome_timer_label.grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(0, 6))
 
-        self.metronome_timer_minutes_label = ttk.Label(self.metronome_timer_row, text="", font=(self.ui_font_family, 14, "bold"))
-        self.metronome_timer_minutes_label.grid(row=1, column=1, sticky="w", padx=(6, 8))
+        self.metronome_timer_fields = ttk.Frame(self.metronome_timer_row)
+        self.metronome_timer_fields.grid(row=1, column=1, sticky="ew", padx=(0, 8), pady=(0, 4))
+
+        self.metronome_timer_minutes_label = ttk.Label(
+            self.metronome_timer_fields,
+            text="",
+            font=(self.ui_font_family, 14, "bold"),
+            fg=self.color_text,
+        )
+        self.metronome_timer_minutes_label.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.metronome_timer_minutes_var = tk.StringVar(value=str(self.metronome_timer_minutes))
         self.metronome_timer_minutes_spin = ttk.Spinbox(
-            self.metronome_timer_row,
+            self.metronome_timer_fields,
             from_=0,
             to=99,
             increment=1,
             textvariable=self.metronome_timer_minutes_var,
-            width=4,
+            width=5,
             command=self._on_metronome_timer_fields_changed,
             font=(self.ui_font_family, 14),
         )
-        self.metronome_timer_minutes_spin.grid(row=1, column=2, sticky="w", padx=(0, 20))
+        self.metronome_timer_minutes_spin.grid(row=0, column=1, sticky="w", padx=(0, 28))
         self.metronome_timer_minutes_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
         self.metronome_timer_minutes_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
 
-        self.metronome_timer_seconds_label = ttk.Label(self.metronome_timer_row, text="", font=(self.ui_font_family, 14, "bold"))
-        self.metronome_timer_seconds_label.grid(row=1, column=3, sticky="w", padx=(0, 8))
+        self.metronome_timer_seconds_label = ttk.Label(
+            self.metronome_timer_fields,
+            text="",
+            font=(self.ui_font_family, 14, "bold"),
+            fg=self.color_text,
+        )
+        self.metronome_timer_seconds_label.grid(row=0, column=2, sticky="w", padx=(0, 8))
         self.metronome_timer_seconds_var = tk.StringVar(value=str(self.metronome_timer_seconds))
         self.metronome_timer_seconds_spin = ttk.Spinbox(
-            self.metronome_timer_row,
+            self.metronome_timer_fields,
             from_=0,
             to=59,
             increment=1,
             textvariable=self.metronome_timer_seconds_var,
-            width=4,
+            width=5,
             command=self._on_metronome_timer_fields_changed,
             font=(self.ui_font_family, 14),
         )
-        self.metronome_timer_seconds_spin.grid(row=1, column=4, sticky="w", padx=(0, 8))
+        self.metronome_timer_seconds_spin.grid(row=0, column=3, sticky="w", padx=(0, 8))
         self.metronome_timer_seconds_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
         self.metronome_timer_seconds_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
 
         self.metronome_bar_accent_var = tk.BooleanVar(value=self.metronome_bar_accent_enabled)
+        self.metronome_bar_accent_row = ttk.Frame(self._metronome_form_root)
+        self.metronome_bar_accent_row.grid(row=7, column=0, sticky="ew", pady=(10, 14))
+        self.metronome_bar_accent_row.columnconfigure(1, weight=1)
         self.metronome_bar_accent_check = ttk.Checkbutton(
-            self.tab_metronome_frame,
+            self.metronome_bar_accent_row,
             text="",
             variable=self.metronome_bar_accent_var,
             command=self._on_metronome_bar_accent_toggle,
             font=(self.ui_font_family, 14, "bold"),
         )
-        self.metronome_bar_accent_check.grid(row=11, column=0, sticky="w", pady=(6, 0))
+        self.metronome_bar_accent_check.grid(row=0, column=0, sticky="w", padx=(0, 8), pady=(0, 0))
+        self.metronome_bar_accent_label = ttk.Label(
+            self.metronome_bar_accent_row,
+            text="",
+            font=(self.ui_font_family, 14, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=280,
+            fg=self.color_text,
+        )
+        self.metronome_bar_accent_label.grid(row=0, column=1, sticky="ew", pady=(0, 4))
         try:
             self.metronome_bar_accent_check.configure(style="Metronome.TCheckbutton")
             style = ttk.Style()
@@ -1330,7 +1381,7 @@ class UiMixin:
         except Exception:
             pass
 
-        self.tab_metronome_frame.columnconfigure(0, weight=1)
+        self._metronome_form_root.columnconfigure(0, weight=1)
 
         self.tuner_gain_label = ttk.Label(self.tab_tuner_frame, text="", font=(self.ui_font_family, 15, "bold"), anchor="center", justify="center")
         self.tuner_gain_label.grid(row=4, column=0, sticky="ew", pady=(2, 2))
@@ -1517,7 +1568,8 @@ class UiMixin:
             bg_color=self.color_surface_alt,
             border_color=self.color_border,
             border_width=1.2,
-            padding=(12, 12, 12, 6),
+            # Aire vertical moderado; el panel inferior no debe “hincharse” más de lo necesario.
+            padding=(12, 8, 12, 4),
         )
         self.instrument_panel.pack(fill=tk.X, expand=False)
         self.instrument_body_row = tk.Frame(self.instrument_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0)
@@ -1837,7 +1889,9 @@ class UiMixin:
         self.metronome_timer_label.configure(text=self.tr("label_metronome_timer"))
         self.metronome_timer_minutes_label.configure(text=self.tr("label_metronome_minutes"))
         self.metronome_timer_seconds_label.configure(text=self.tr("label_metronome_seconds"))
-        self.metronome_bar_accent_check.configure(text=self.tr("label_metronome_bar_accent"))
+        self.metronome_bar_accent_check.configure(text="")
+        if hasattr(self, "metronome_bar_accent_label"):
+            self.metronome_bar_accent_label.configure(text=self.tr("label_metronome_bar_accent"))
         self.tuner_tuning_label.configure(text=self.tr("label_tuner_tuning"))
         self.tuner_input_label.configure(text=self.tr("label_tuner_input"))
         self.tuner_gain_label.configure(text=self.tr("label_tuner_input_gain"))
@@ -1904,6 +1958,34 @@ class UiMixin:
         if not hasattr(self, "instrument_panel") or not hasattr(self, "instrument_body_row"):
             return
         try:
+            is_guitar = getattr(self, "instrument_view", None) == "guitar"
+            if not is_guitar:
+                for target_name in ("instrument_canvas_holder", "instrument_body_row"):
+                    target = getattr(self, target_name, None)
+                    if target is not None:
+                        try:
+                            target.setMinimumHeight(0)
+                        except Exception:
+                            pass
+
+            metro_compact = bool(
+                getattr(self, "metronome_tab_active", False)
+                and getattr(self, "instrument_view", None) == "piano"
+                and hasattr(self, "keyboard_canvas")
+            )
+            if hasattr(self, "keyboard_canvas"):
+                try:
+                    kb_vis = bool(self.keyboard_canvas.isVisible())
+                except Exception:
+                    kb_vis = True
+                if kb_vis and getattr(self, "instrument_view", None) == "piano":
+                    kh = 124 if metro_compact else 156
+                    try:
+                        self.keyboard_canvas.setFixedHeight(kh)
+                        self.keyboard_canvas.setMinimumHeight(kh)
+                    except Exception:
+                        pass
+
             # En Qt el shim no implementa siempre `update_idletasks()` ni
             # `winfo_reqheight()`. Usamos alternativas robustas.
             try:
@@ -1916,7 +1998,8 @@ class UiMixin:
             except Exception:
                 # `sizeHint()` suele ser el equivalente más cercano a reqheight.
                 body_height = int(self.instrument_body_row.sizeHint().height())
-            panel_height = max(80, body_height + 18)
+            slack = 10 if getattr(self, "metronome_tab_active", False) else 14
+            panel_height = max(80, body_height + slack)
             # En Qt no existe `winfo_height()` (es un método Tk).
             try:
                 window_height = max(1, int(self.winfo_height()))  # type: ignore[attr-defined]
@@ -1931,7 +2014,7 @@ class UiMixin:
             # para el modo guitarra (y recorta el `guitar_canvas`), haciendo
             # que falten las 2 cuerdas inferiores. Aseguramos un mínimo realista
             # según el alto del canvas de guitarra y el subpanel de variaciones.
-            if getattr(self, "instrument_view", None) == "guitar" and hasattr(self, "guitar_canvas"):
+            if is_guitar and hasattr(self, "guitar_canvas"):
                 try:
                     guitar_h = int(self.guitar_canvas.winfo_height())
                 except Exception:
@@ -2018,6 +2101,13 @@ class UiMixin:
                     widget.configure(wraplength=result_wrap)
                 except Exception:
                     pass
+
+        accent_wrap = max(200, panel_width - 72)
+        try:
+            if hasattr(self, "metronome_bar_accent_label"):
+                self.metronome_bar_accent_label.configure(wraplength=accent_wrap)
+        except Exception:
+            pass
     def _clear_detection_panel(self) -> None:
         self._stop_detection_preview()
         self._clear_live_input_state()
@@ -2547,6 +2637,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
+            self.instrument_view_switch_side.pack_forget()
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()

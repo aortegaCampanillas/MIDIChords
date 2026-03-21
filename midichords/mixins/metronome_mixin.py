@@ -39,7 +39,7 @@ class MetronomeMixin:
         self.scale_bpm_value_label.configure(text=f"{self.scale_bpm_value} {self.tr('scale_bpm_short')}")
         self._draw_scale_bpm_slider()
         if hasattr(self, "metronome_bpm_var"):
-            self.metronome_bpm_var.set(f"{self.metronome_bpm} {self.tr('scale_bpm_short')}")
+            self.metronome_bpm_var.set(self._metronome_bpm_value_label_text(self.metronome_bpm))
         if hasattr(self, "metronome_slider_canvas"):
             self._draw_metronome_bpm_slider()
         if save:
@@ -59,6 +59,12 @@ class MetronomeMixin:
         bpm = int(round(self.scale_bpm_min + ratio * (self.scale_bpm_max - self.scale_bpm_min)))
         self._set_scale_bpm(bpm)
         return "break"
+    def _metronome_bpm_value_label_text(self, bpm: int) -> str:
+        bpm = max(1, min(300, int(bpm)))
+        lang = str(self.config_data.get("language", "es"))
+        preset = self._metronome_preset_text(bpm, lang)
+        return f"{bpm} {self.tr('scale_bpm_short')} ({preset})"
+
     def _metronome_preset_text(self, bpm: int, language: str) -> str:
         # Rangos de tempo con nombres musicales tradicionales.
         labels_es = [
@@ -97,8 +103,7 @@ class MetronomeMixin:
         self.metronome_volume_var.set(f"{self.metronome_volume}%")
         if hasattr(self, "scale_metronome_volume_var"):
             self.scale_metronome_volume_var.set(f"{self.metronome_volume}%")
-        self.metronome_bpm_var.set(f"{bpm} {self.tr('scale_bpm_short')}")
-        self.metronome_preset_var.set(self._metronome_preset_text(bpm, str(self.config_data.get("language", "es"))))
+        self.metronome_bpm_var.set(self._metronome_bpm_value_label_text(bpm))
         self.metronome_meter_var.set(str(self.metronome_beats_per_bar))
         self.metronome_timer_enabled_var.set(self.metronome_timer_enabled)
         self.metronome_timer_minutes_var.set(str(self.metronome_timer_minutes))

@@ -378,10 +378,13 @@ class GrayRoundedButton(_QtWidgetBase):
         selected_outline_color: str = "#f3bf2f",
         selected_border_width: float = 2.2,
         expand_h: bool = False,
+        shrink_to_text: bool = False,
     ) -> None:
         super().__init__(master)
         self._expand_h = bool(expand_h)
+        self._shrink_to_text = bool(shrink_to_text)
         h, w = int(height), int(width)
+        self._fixed_h = h
         if self._expand_h:
             self.setFixedHeight(h)
             self.setMinimumWidth(w)
@@ -409,6 +412,14 @@ class GrayRoundedButton(_QtWidgetBase):
 
     def set_text(self, text: str) -> None:
         self._text = str(text)
+        if not self._expand_h and self._shrink_to_text:
+            f = _font(self._font_family, self._font_size, bold=True)
+            fm = QFontMetricsF(f)
+            s = self._text if self._text else " "
+            tw = float(fm.horizontalAdvance(s))
+            pad = 28.0
+            new_w = max(96.0, tw + pad)
+            self.setFixedSize(int(round(new_w)), int(self._fixed_h))
         self.update()
 
     def set_selected(self, selected: bool) -> None:

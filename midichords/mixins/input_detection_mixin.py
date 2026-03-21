@@ -138,6 +138,8 @@ class InputDetectionMixin:
         # Duplicates across octaves are valid (e.g., left-hand reinforcement).
         extras: set[int] = {int(note) for note in chord_notes if (int(note) % 12) not in expected_pcs}
 
+        # Lista de notas en panel de detección: respetar #/♭ del usuario (NOTE_NAMES / alias bemol).
+        # El nombre del acorde (tónica/bajo) sigue con escritura por grados (_spell_detection_note_name).
         map_oct: dict[int, str] = {}
         map_no_oct: dict[int, str] = {}
         for note in chord_notes:
@@ -145,24 +147,18 @@ class InputDetectionMixin:
             pc = note_int % 12
             degree = degree_by_pc.get(pc)
             if degree is None:
-                map_oct[note_int] = self.note_name(note_int, with_octave=True)
-                map_no_oct[note_int] = self.note_name(note_int, with_octave=False)
+                map_oct[note_int] = self.note_name(
+                    note_int, with_octave=True, prefer_flat=prefer_flats
+                )
+                map_no_oct[note_int] = self.note_name(
+                    note_int, with_octave=False, prefer_flat=prefer_flats
+                )
                 continue
-            map_oct[note_int] = self._spell_detection_note_name(
-                root_pc=int(root),
-                target_pc=pc,
-                degree=int(degree),
-                prefer_flats=prefer_flats,
-                midi_note=note_int,
-                with_octave=True,
+            map_oct[note_int] = self.note_name(
+                note_int, with_octave=True, prefer_flat=prefer_flats
             )
-            map_no_oct[note_int] = self._spell_detection_note_name(
-                root_pc=int(root),
-                target_pc=pc,
-                degree=int(degree),
-                prefer_flats=prefer_flats,
-                midi_note=note_int,
-                with_octave=False,
+            map_no_oct[note_int] = self.note_name(
+                note_int, with_octave=False, prefer_flat=prefer_flats
             )
         return chord, extras, map_oct, map_no_oct
 

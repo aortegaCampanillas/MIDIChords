@@ -30,7 +30,7 @@ La vía más realista es:
 
 1. construir un Flatpak que empaquete un binario PyInstaller reproducible
 2. regenerar `python-deps.json` cuando cambien versiones
-3. mover el manifiesto final al toplevel del repo de Flathub
+3. en el **PR de nueva app**, el manifiesto y `flathub.json` van en la **raíz** de la rama (no en subcarpeta)
 4. verificar el ID `com.freemidichords.MIDIChords` desde `freemidichords.com`
 
 ## ID elegido

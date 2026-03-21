@@ -28,6 +28,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **CI / Flatpak**: workflow **Validate Flatpak** — `flatpak remote-add` usa **`--user`** y URL `dl.flathub.org` (en GitHub Actions el remoto de sistema fallaba con *ConfigureRemote not allowed*).
+- **Flatpak / Flathub**: guía `FLATHUB.md` y comentarios del manifiesto — en el PR de nueva app los archivos van en la **raíz** de la rama (requisito Flathub para `detect-appid`); el fork del PR [#8089](https://github.com/flathub/flathub/pull/8089) se reestructuró en consecuencia.
 - macOS App Store: `build_mas_store.sh` **omite por defecto** `installer -store` (`MAS_SKIP_STORE_VALIDATION` por defecto `1`); aviso en `build_mas_pkg.sh` si se ejecuta y se queda colgado.
 - macOS App Store: `scripts/build_mas_pkg.sh` usa **`$PYTHON_BIN -m PyInstaller`** en lugar del comando `pyinstaller` en PATH; mensaje claro si falta el módulo.
 - macOS App Store / **Escritorio (Qt)**: arranque del `.app` PyInstaller — se fija **`QT_PLUGIN_PATH`** antes de importar PySide6 (`apps/desktop/darwin_frozen_bootstrap.py`) y **`PROJECT_ROOT`** usa **`sys._MEIPASS`** en binario `frozen` para localizar `assets/`; evita el cierre inmediato en Dock sin crash log que suele dar Qt sin plugins en bundle firmado/sandbox.

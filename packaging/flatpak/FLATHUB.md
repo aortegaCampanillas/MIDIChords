@@ -27,24 +27,21 @@ git checkout -b add-com.freemidichords.MIDIChords new-pr
 
 ### 3. Añadir los archivos de la app
 
-En el repo `flathub` crea la carpeta de la app y copia los archivos necesarios:
+Los requisitos de Flathub exigen el **manifiesto y `flathub.json` en la raíz** de la rama del PR (no dentro de una subcarpeta). Copia los tres archivos **al toplevel** del clon de `flathub`:
 
 ```bash
-mkdir -p com.freemidichords.MIDIChords
 cp /ruta/a/MIDIChords/packaging/flatpak/com.freemidichords.MIDIChords.flathub.yml \
-   com.freemidichords.MIDIChords/com.freemidichords.MIDIChords.yml
-cp /ruta/a/MIDIChords/packaging/flatpak/flathub.json \
-   com.freemidichords.MIDIChords/
-cp /ruta/a/MIDIChords/packaging/flatpak/python-deps.json \
-   com.freemidichords.MIDIChords/
+   ./com.freemidichords.MIDIChords.yml
+cp /ruta/a/MIDIChords/packaging/flatpak/flathub.json ./
+cp /ruta/a/MIDIChords/packaging/flatpak/python-deps.json ./
 ```
 
-**Importante:** En `com.freemidichords.MIDIChords.yml` (el que usa Flathub) el tag del módulo `midichords-launcher` debe coincidir con el release que creaste (p. ej. `v1.0.1`). Ábrelo y, si hace falta, cambia la ref/tag al tag real.
+**Importante:** En `com.freemidichords.MIDIChords.yml` el tag del módulo `midichords-launcher` debe coincidir con el release (p. ej. `v1.0.1`).
 
 ### 4. Commit y PR
 
 ```bash
-git add com.freemidichords.MIDIChords/
+git add com.freemidichords.MIDIChords.yml flathub.json python-deps.json
 git commit -m "Add com.freemidichords.MIDIChords"
 git push origin add-com.freemidichords.MIDIChords
 ```
@@ -55,11 +52,11 @@ En GitHub: abre un **Pull Request** contra la rama **`new-pr`** del repo `flathu
 
 ### 5. Comprobar build y linter (opcional pero recomendado)
 
-En tu máquina, con el manifest que está en `com.freemidichords.MIDIChords/`:
+En tu máquina, con el manifest en la **raíz** del clon:
 
 ```bash
 flatpak install -y flathub org.flatpak.Builder
-flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest com.freemidichords.MIDIChords/com.freemidichords.MIDIChords.yml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest com.freemidichords.MIDIChords.yml
 ```
 
 Si hay errores, corrígelos antes de abrir el PR o en el PR según indiquen los revisores.

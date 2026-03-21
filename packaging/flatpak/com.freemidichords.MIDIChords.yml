@@ -3,7 +3,7 @@ runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
 command: midichords
-appstream-compose: false
+appstream-compose: true
 finish-args:
   - --share=ipc
   - --socket=fallback-x11

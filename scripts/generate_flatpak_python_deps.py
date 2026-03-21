@@ -39,7 +39,7 @@ SPECS = [
 # sounddevice se compila en el manifiesto principal con PortAudio (CFLAGS/LDFLAGS).
 EXCLUDE_FROM_DEPS = {"sounddevice"}
 
-WHEEL_FIRST = {"meson-python", "numpy", "python-rtmidi", "pyinstaller"}
+WHEEL_FIRST = {"meson-python", "numpy", "python-rtmidi", "pyinstaller", "setuptools-scm"}
 WHEEL_SUFFIXES = {
     "numpy": "cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
     "python-rtmidi": "cp312-cp312-manylinux_2_28_x86_64.whl",
@@ -92,11 +92,6 @@ def package_module(spec: PackageSpec, file_info: dict) -> dict:
             }
         ],
     }
-    # El SDK trae setuptools antiguo; sin esto el sdist de setuptools-scm falla al construir.
-    if spec.name == "setuptools-scm":
-        mod["build-options"] = {
-            "env": {"PYTHONPATH": "/app/lib/python3.12/site-packages"}
-        }
     return mod
 
 

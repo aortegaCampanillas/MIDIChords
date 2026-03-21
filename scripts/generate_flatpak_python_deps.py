@@ -80,7 +80,7 @@ def install_command(spec: PackageSpec) -> str:
 
 
 def package_module(spec: PackageSpec, file_info: dict) -> dict:
-    return {
+    mod: dict = {
         "name": f"python3-{spec.name}",
         "buildsystem": "simple",
         "build-commands": [install_command(spec)],
@@ -92,6 +92,12 @@ def package_module(spec: PackageSpec, file_info: dict) -> dict:
             }
         ],
     }
+    # El SDK trae setuptools antiguo; sin esto el sdist de setuptools-scm falla al construir.
+    if spec.name == "setuptools-scm":
+        mod["build-options"] = {
+            "env": {"PYTHONPATH": "/app/lib/python3.12/site-packages"}
+        }
+    return mod
 
 
 def main() -> None:

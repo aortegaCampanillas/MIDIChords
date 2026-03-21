@@ -21,6 +21,12 @@
   <url type="homepage">https://freemidichords.com/</url>
   <url type="bugtracker">https://github.com/aortegaCampanillas/MIDIChords/issues</url>
   <url type="vcs-browser">https://github.com/aortegaCampanillas/MIDIChords</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window (promotional graphic from project assets)</caption>
+      <image>https://raw.githubusercontent.com/aortegaCampanillas/MIDIChords/v1.0.1/assets/play-store/google-play-feature-graphic-1024x500.png</image>
+    </screenshot>
+  </screenshots>
   <branding>
     <color type="primary" scheme_preference="light">#d4a62b</color>
     <color type="primary" scheme_preference="dark">#d4a62b</color>

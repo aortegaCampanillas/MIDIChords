@@ -105,19 +105,6 @@ def run_deploy_web(project_name: str | None) -> None:
     # Cargar secretos desde fichero si existen (apps/web/.env.deploy o .env.deploy)
     _load_deploy_secrets(project_root)
 
-    # Versión para cache-busting (mismo valor que en el workflow)
-    try:
-        sha = (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"],
-                cwd=str(project_root),
-                text=True,
-            ).strip()
-            or "local"
-        )
-    except Exception:
-        sha = "local"
-
     print("[deploy-web] Preparando bundle en apps/web/pages-dist ...")
     if pages_dist.exists():
         shutil.rmtree(pages_dist)
@@ -128,13 +115,6 @@ def run_deploy_web(project_name: str | None) -> None:
     shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
     if (web_dir / "_headers").exists():
         shutil.copy(web_dir / "_headers", pages_dist / "_headers")
-
-    index_path = pages_dist / "index.html"
-    index_path.write_text(
-        index_path.read_text()
-        .replace("/static/style.css", f"/static/style.css?v={sha}")
-        .replace("/static/app.js", f"/static/app.js?v={sha}")
-    )
 
     for name in ("index.html", "static/app.js", "static/style.css", "_worker.js"):
         if not (pages_dist / name).exists():

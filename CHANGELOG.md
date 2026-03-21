@@ -6,6 +6,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. Si falla, correo vía **Resend** (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, variable de repo opcional **`WEB_HEALTH_ALERT_TO`**). Ver `apps/web/README.md`.
+
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 
 - **Repo**: `.gitignore` ignora `.venv-build-dmg/` (venv local opcional para scripts de build DMG).
@@ -29,8 +31,12 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` a `/static/style.css` ni `/static/app.js` en el despliegue (workflow y `launch.py deploy-web`); esas URLs con query daban **404** intermitente en producción y dejaban la página sin estilos ni JS. El worker pasa a `env.ASSETS.fetch` un `Request` mínimo (sin reutilizar el request del cliente como plantilla), de modo que si alguien sigue pidiendo estáticos con query o hash, siguen resolviéndose. La frescura tras cada deploy sigue apoyándose en `Cache-Control: no-store` (`_headers` + worker).
+
+- **CI / Flatpak**: el workflow **Validate Flatpak** solo se ejecuta con **Run workflow** (`workflow_dispatch`); se quitaron los disparadores automáticos en `main`, tags `v*` y PRs mientras no se publique en Flathub.
+
 - **Flatpak**: el manifiesto instalaba dependencias Python del generador salvo **PySide6**; la app de escritorio importa Qt y fallaba con `ModuleNotFoundError`. Añadido módulo **`pyside6.json`** (wheels PyPI 6.10.2, x86_64 y aarch64) en los YAML de empaquetado; **`requirements.txt`** fija `PySide6==6.10.2`. El PR a Flathub debe incluir **`pyside6.json`** en la raíz (documentado en `FLATHUB.md`). **`pyside6.json`**: `pip` exige nombres de wheel válidos (PEP 427); se quitan `dest-filename` cortos y se instala con globs (`shiboken6-*.whl`, …).
-- **CI / Flatpak**: workflow **Validate Flatpak** — `flatpak remote-add` usa **`--user`** y URL `dl.flathub.org` (en GitHub Actions el remoto de sistema fallaba con *ConfigureRemote not allowed*); `appstreamcli validate` con **`--no-net`** para evitar falsos positivos de URL desde los runners; `.desktop` con **`Categories=AudioVideo;Audio;Music;`** (requisito de `desktop-file-validate`); disparador **`push` de etiquetas `v*`** además de `main` y PRs (alineado con **Build Installers**).
+- **CI / Flatpak**: workflow **Validate Flatpak** — `flatpak remote-add` usa **`--user`** y URL `dl.flathub.org` (en GitHub Actions el remoto de sistema fallaba con *ConfigureRemote not allowed*); `appstreamcli validate` con **`--no-net`** para evitar falsos positivos de URL desde los runners; `.desktop` con **`Categories=AudioVideo;Audio;Music;`** (requisito de `desktop-file-validate`). _(En **Unreleased** arriba: disparadores automáticos desactivados.)_
 - **Flatpak / Flathub**: guía `FLATHUB.md` y comentarios del manifiesto — en el PR de nueva app los archivos van en la **raíz** de la rama (requisito Flathub para `detect-appid`); presentación Flathub [#8160](https://github.com/flathub/flathub/pull/8160) (PR [#8089](https://github.com/flathub/flathub/pull/8089) anterior cerrado por revisores). Manifiesto: sin `finish-args` de filesystem innecesarios (linter Flathub); fuente git con **`commit`** además del tag (documentado en `FLATHUB.md`). `python-deps.json`: **setuptools-scm** desde wheel PyPI (evita fallo del sdist con setuptools del SDK); **metainfo** con `<screenshots>` (URL en GitHub) para el linter de repo Flathub. **`appstream-compose: true`** para generar el catálogo AppStream y evitar `appstream-missing-appinfo-file` en el build de Flathub; CI instala **`appstream-compose`**. Iconos en **48/128/256/512** px bajo `hicolor` para que `appstreamcli compose` no falle con `icon-not-found`.
 - macOS App Store: `build_mas_store.sh` **omite por defecto** `installer -store` (`MAS_SKIP_STORE_VALIDATION` por defecto `1`); aviso en `build_mas_pkg.sh` si se ejecuta y se queda colgado.
 - macOS App Store: `scripts/build_mas_pkg.sh` usa **`$PYTHON_BIN -m PyInstaller`** en lugar del comando `pyinstaller` en PATH; mensaje claro si falta el módulo.
@@ -119,7 +125,7 @@ Cambios respecto a `v1.0.0` (iOS **1.0.0 (2)**).
 - Enlaces de descarga directos para artefactos en GitHub (`/releases/latest/download/...`).
 - Endurecimiento del despliegue para evitar caché de CSS/JS:
   - `Cache-Control: no-store` para HTML y `/static/*`.
-  - Cache-busting en `index.html` con `?v=${GITHUB_SHA}` en `style.css` y `app.js`.
+  - Se añadió cache-busting con `?v=${GITHUB_SHA}` en estáticos; **más tarde se retiró** (provocaba 404 en Pages; ver corrección en **Unreleased** arriba).
 - Ajuste de responsive: mantener **3 columnas** del panel inferior hasta 700px.
 
 ### CI / Releases (desktop)

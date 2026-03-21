@@ -1,0 +1,80 @@
+# Comprueba cada hora que freemidichords.com sirve HTML, CSS, JS y /api/meta.
+# Si falla, envía correo vía Resend (mismo secret que otros workflows).
+name: Web production health
+
+on:
+  schedule:
+    # Cada hora (UTC), minuto 12 para no coincidir con el arranque en punto
+    - cron: "12 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  check-web-production:
+    name: Check HTML, CSS, JS and API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run production web health checks
+        run: |
+          set -euo pipefail
+          python3 scripts/check_production_web_health.py 2>&1 | tee web-health.log
+
+      - name: Email alert on failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
+          ALERT_TO: ${{ vars.WEB_HEALTH_ALERT_TO }}
+        run: |
+          if [ -z "${RESEND_API_KEY}" ]; then
+            echo "RESEND_API_KEY not set — no se puede enviar correo de aviso."
+            exit 0
+          fi
+          python3 << 'PY'
+          import html
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          log = Path("web-health.log").read_text(encoding="utf-8", errors="replace")
+          run_url = (
+              os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+              + "/"
+              + os.environ.get("GITHUB_REPOSITORY", "")
+              + "/actions/runs/"
+              + os.environ.get("GITHUB_RUN_ID", "")
+          )
+          alert_to = (os.environ.get("ALERT_TO") or "").strip() or "aortega98@gmail.com"
+          payload = {
+              "from": os.environ.get("NOTIFY_FROM", "MIDIChords <onboarding@resend.dev>"),
+              "to": [alert_to],
+              "subject": "MIDIChords: la web en producción no pasa el chequeo de salud",
+              "html": (
+                  "<p>El chequeo horario de <strong>freemidichords.com</strong> "
+                  "(HTML, CSS, JS y <code>/api/meta</code>) ha fallado.</p>"
+                  f"<p><a href='{html.escape(run_url)}'>Ver ejecución en GitHub Actions</a></p>"
+                  "<p>Detalle (stderr / salida del script):</p>"
+                  f"<pre style='white-space:pre-wrap;font-size:12px'>{html.escape(log)}</pre>"
+              ),
+          }
+          req = urllib.request.Request(
+              "https://api.resend.com/emails",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "Authorization": f"Bearer {os.environ['RESEND_API_KEY']}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          urllib.request.urlopen(req)
+          print("Correo de aviso enviado.")
+          PY

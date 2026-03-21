@@ -1,31 +1,9 @@
+# Validación del manifiesto Flatpak (usa el remoto flathub solo para dependencias del SDK).
+# Deshabilitado en push/PR mientras no se publique en Flathub: ejecutar a mano cuando haga falta.
 name: Validate Flatpak
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
-    paths:
-      - ".github/workflows/validate-flatpak.yml"
-      - "packaging/flatpak/**"
-      - "scripts/generate_flatpak_python_deps.py"
-      - "app.py"
-      - "apps/desktop/**"
-      - "midichords/**"
-      - "requirements.txt"
-      - "assets/**"
-  pull_request:
-    paths:
-      - ".github/workflows/validate-flatpak.yml"
-      - "packaging/flatpak/**"
-      - "scripts/generate_flatpak_python_deps.py"
-      - "app.py"
-      - "apps/desktop/**"
-      - "midichords/**"
-      - "requirements.txt"
-      - "assets/**"
 
 permissions:
   contents: read

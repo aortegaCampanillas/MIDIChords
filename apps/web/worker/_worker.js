@@ -660,15 +660,22 @@ export default {
     if (pathname === "/api/generate/guitar-variations" && request.method === "POST") return json({ variations: [] });
     if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
 
-    // Cloudflare Pages puede fallar resolviendo assets estáticos si van con querystring
-    // (p.ej. /static/style.css?v=... para cache-busting). Para assets, sirve siempre
-    // el mismo recurso ignorando `search`.
+    // Assets bajo /static/: nunca pasar URL con ?query a env.ASSETS.fetch (en producción
+    // suele dar 404). No usar `new Request(cleanUrl, request)` como en fetch estándar:
+    // en workerd a veces se conserva la URL del request original y el manifest de Pages
+    // no resuelve el fichero.
     let assetRequest = request;
-    if (pathname.startsWith("/static/") && url.search) {
-      const cleanUrl = new URL(url);
+    if (pathname.startsWith("/static/") && (url.search || url.hash)) {
+      const cleanUrl = new URL(request.url);
       cleanUrl.search = "";
       cleanUrl.hash = "";
-      assetRequest = new Request(cleanUrl.toString(), request);
+      const fwd = new Headers();
+      for (const name of ["Range", "If-None-Match", "If-Modified-Since"]) {
+        const v = request.headers.get(name);
+        if (v) fwd.set(name, v);
+      }
+      const method = request.method === "HEAD" ? "HEAD" : "GET";
+      assetRequest = new Request(cleanUrl.toString(), { method, headers: fwd });
     }
 
     const assetResp = await env.ASSETS.fetch(assetRequest);

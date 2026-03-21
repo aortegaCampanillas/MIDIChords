@@ -10,6 +10,10 @@ Este directorio prepara la base para publicar MIDIChords en Flathub.
 - `python-deps.json`: dependencias Python fijadas para Flatpak
 - `flathub.json`: limita la build a `x86_64` por ahora
 
+## CI (GitHub Actions)
+
+El workflow **Validate Flatpak** (`.github/workflows/validate-flatpak.yml`) **solo se lanza a mano** (*Run workflow* / `workflow_dispatch`): no corre en push ni en PRs mientras no se priorice Flathub.
+
 ## Estado actual
 
 La base ya está preparada para una build Flatpak reproducible:

@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""
+Comprueba que la web en producción sirve HTML, CSS y JS correctamente.
+
+Uso:
+  python3 scripts/check_production_web_health.py
+  WEB_BASE_URL=https://ejemplo.com python3 scripts/check_production_web_health.py
+
+Sale con código 0 si todo va bien; distinto de 0 y mensajes en stderr si falla.
+Pensado para GitHub Actions (cron horario) y pruebas locales.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from html.parser import HTMLParser
+from typing import Any
+from urllib.parse import urljoin, urlparse
+
+
+DEFAULT_BASE = "https://freemidichords.com"
+TIMEOUT_SEC = 45
+USER_AGENT = "MIDIChords-WebHealthCheck/1.0"
+
+
+def pick_static_url(urls: list[str], needle: str) -> str | None:
+    """Elige la primera URL cuyo path contenga `needle` (p. ej. 'style.css')."""
+    for u in urls:
+        path = urlparse(u).path
+        if needle in path.replace("\\", "/"):
+            return u
+    return None
+
+
+class AssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stylesheet_hrefs: list[str] = []
+        self.script_srcs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        a = {k: v or "" for k, v in attrs}
+        if tag == "link" and a.get("rel", "").lower() == "stylesheet":
+            href = a.get("href", "").strip()
+            if href:
+                self.stylesheet_hrefs.append(href)
+        if tag == "script":
+            src = a.get("src", "").strip()
+            if src:
+                self.script_srcs.append(src)
+
+
+def _request(
+    url: str,
+    *,
+    method: str = "GET",
+    data: bytes | None = None,
+) -> tuple[int, dict[str, str], bytes]:
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method=method,
+        headers={"User-Agent": USER_AGENT, "Accept": "*/*"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_SEC) as resp:
+            status = resp.getcode() or 200
+            headers = {k.lower(): v for k, v in resp.headers.items()}
+            body = resp.read()
+    except urllib.error.HTTPError as e:
+        body = e.read() if hasattr(e, "read") else b""
+        headers = {k.lower(): v for k, v in e.headers.items()} if e.headers else {}
+        return e.code, headers, body
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"No se pudo conectar a {url!r}: {e}") from e
+    return status, headers, body
+
+
+def _fail(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Comprueba HTML/CSS/JS de la web en producción.")
+    parser.add_argument(
+        "--base-url",
+        default=os.environ.get("WEB_BASE_URL", DEFAULT_BASE).rstrip("/"),
+        help=f"Origen HTTPS (por defecto: {DEFAULT_BASE} o env WEB_BASE_URL)",
+    )
+    parser.add_argument(
+        "--skip-api",
+        action="store_true",
+        help="No comprobar GET /api/meta (solo HTML/CSS/JS).",
+    )
+    args = parser.parse_args()
+    base = args.base_url
+    failures: list[str] = []
+
+    # --- Documento principal ---
+    index_url = f"{base}/"
+    try:
+        status, headers, html_bytes = _request(index_url)
+    except RuntimeError as e:
+        _fail(str(e))
+        return 1
+
+    ct = (headers.get("content-type") or "").lower()
+    if status != 200:
+        failures.append(f"GET {index_url} → HTTP {status}")
+    if "text/html" not in ct:
+        failures.append(f"GET {index_url} → Content-Type inesperado: {ct!r}")
+
+    try:
+        html = html_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        html = ""
+
+    if "<html" not in html.lower() and "<!doctype" not in html.lower():
+        failures.append(f"GET {index_url} → cuerpo no parece HTML (primeros bytes no reconocidos)")
+
+    p = AssetParser()
+    try:
+        p.feed(html)
+        p.close()
+    except Exception as e:
+        failures.append(f"Error parseando HTML: {e}")
+
+    css_urls = [urljoin(index_url, h) for h in p.stylesheet_hrefs]
+    js_urls = [urljoin(index_url, h) for h in p.script_srcs]
+
+    css_url = pick_static_url(css_urls, "style.css")
+    js_url = pick_static_url(js_urls, "app.js")
+
+    if not css_url:
+        failures.append(
+            "No se encontró <link rel=stylesheet> a un recurso que contenga 'style.css' en la ruta."
+        )
+    if not js_url:
+        failures.append(
+            "No se encontró <script src=…> a un recurso que contenga 'app.js' en la ruta."
+        )
+
+    # --- CSS ---
+    if css_url:
+        try:
+            st, hdrs, raw = _request(css_url)
+        except RuntimeError as e:
+            failures.append(str(e))
+        else:
+            cth = (hdrs.get("content-type") or "").lower()
+            if st != 200:
+                failures.append(f"GET {css_url} → HTTP {st}")
+            if "text/css" not in cth and "stylesheet" not in cth:
+                failures.append(f"GET {css_url} → Content-Type inesperado: {cth!r}")
+            if len(raw) < 200:
+                failures.append(f"GET {css_url} → respuesta demasiado corta ({len(raw)} bytes); posible error vacío")
+            text = raw.decode("utf-8", errors="replace").lstrip()
+            if text.startswith("<!") or text.lower().startswith("<html"):
+                failures.append(f"GET {css_url} → el cuerpo parece HTML, no CSS")
+
+    # --- JS ---
+    if js_url:
+        try:
+            st, hdrs, raw = _request(js_url)
+        except RuntimeError as e:
+            failures.append(str(e))
+        else:
+            cth = (hdrs.get("content-type") or "").lower()
+            if st != 200:
+                failures.append(f"GET {js_url} → HTTP {st}")
+            if "javascript" not in cth and "ecmascript" not in cth and "jscript" not in cth:
+                failures.append(f"GET {js_url} → Content-Type inesperado: {cth!r}")
+            if len(raw) < 500:
+                failures.append(f"GET {js_url} → respuesta demasiado corta ({len(raw)} bytes)")
+            text = raw.decode("utf-8", errors="replace").lstrip()
+            if text.startswith("<!") or text.lower().startswith("<html"):
+                failures.append(f"GET {js_url} → el cuerpo parece HTML, no JavaScript")
+
+    # --- API (worker) ---
+    if not args.skip_api:
+        meta_url = f"{base}/api/meta?language=es"
+        try:
+            st, hdrs, raw = _request(meta_url)
+        except RuntimeError as e:
+            failures.append(str(e))
+        else:
+            if st != 200:
+                failures.append(f"GET {meta_url} → HTTP {st}")
+            try:
+                data: Any = json.loads(raw.decode("utf-8"))
+            except json.JSONDecodeError:
+                failures.append(f"GET {meta_url} → respuesta no es JSON válido")
+            else:
+                if not isinstance(data.get("chord_patterns"), list) or len(data["chord_patterns"]) < 1:
+                    failures.append(
+                        f"GET {meta_url} → JSON sin chord_patterns usable (la app quedaría vacía)"
+                    )
+
+    if failures:
+        _fail("Comprobación de salud web: FALLO")
+        for line in failures:
+            _fail(f"  - {line}")
+        return 1
+
+    print(
+        f"OK: {index_url} (HTML), CSS ({css_url}), JS ({js_url})"
+        + ("" if args.skip_api else f", API {base}/api/meta")
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

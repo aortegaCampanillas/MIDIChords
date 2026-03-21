@@ -34,9 +34,6 @@ jobs:
           cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
           # Cloudflare Pages headers (evita cache de HTML/CSS/JS tras deploy)
           if [ -f apps/web/_headers ]; then cp apps/web/_headers apps/web/pages-dist/_headers; fi
-          # Cache-busting: evita que /static/style.css quede viejo en CDN/cliente
-          perl -pi -e "s#/static/style\\.css#/static/style.css?v=${GITHUB_SHA}#g" apps/web/pages-dist/index.html
-          perl -pi -e "s#/static/app\\.js#/static/app.js?v=${GITHUB_SHA}#g" apps/web/pages-dist/index.html
           test -f apps/web/pages-dist/index.html
           test -f apps/web/pages-dist/static/app.js
           test -f apps/web/pages-dist/static/style.css

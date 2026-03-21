@@ -20,12 +20,18 @@ import urllib.error
 import urllib.request
 from html.parser import HTMLParser
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 
 DEFAULT_BASE = "https://freemidichords.com"
 TIMEOUT_SEC = 45
 USER_AGENT = "MIDIChords-WebHealthCheck/1.0"
+
+
+def strip_query_and_fragment(url: str) -> str:
+    """Misma ruta sin ?query ni #fragment (p. ej. cache-bust en producción rota)."""
+    p = urlparse(url)
+    return urlunparse((p.scheme, p.netloc, p.path, p.params, "", ""))
 
 
 def pick_static_url(urls: list[str], needle: str) -> str | None:
@@ -83,6 +89,84 @@ def _request(
 
 def _fail(msg: str) -> None:
     print(msg, file=sys.stderr)
+
+
+def _static_body_looks_wrong_mime(
+    raw: bytes, headers: dict[str, str], *, kind: str
+) -> tuple[bool, list[str]]:
+    """Devuelve (es_válido, lista_errores_si_no)."""
+    errs: list[str] = []
+    cth = (headers.get("content-type") or "").lower()
+    if kind == "css":
+        if "text/css" not in cth and "stylesheet" not in cth:
+            errs.append(f"Content-Type inesperado: {cth!r}")
+    else:
+        if (
+            "javascript" not in cth
+            and "ecmascript" not in cth
+            and "jscript" not in cth
+        ):
+            errs.append(f"Content-Type inesperado: {cth!r}")
+    text = raw.decode("utf-8", errors="replace").lstrip()
+    if text.startswith("<!") or text.lower().startswith("<html"):
+        errs.append("el cuerpo parece HTML, no el recurso esperado")
+    return (len(errs) == 0, errs)
+
+
+def validate_static_asset(
+    url: str,
+    *,
+    kind: str,
+    min_len: int,
+) -> list[str]:
+    """
+    Comprueba GET de un estático. Si la URL con ?v= da 404 pero la misma ruta sin query
+    responde bien, devuelve un solo mensaje accionable (despliegue / worker).
+    """
+    try:
+        st, hdrs, raw = _request(url)
+    except RuntimeError as e:
+        return [str(e)]
+
+    clean = strip_query_and_fragment(url)
+    has_qf = clean != url
+
+    def ok_response(status: int, h: dict[str, str], body: bytes) -> bool:
+        if status != 200:
+            return False
+        if len(body) < min_len:
+            return False
+        good, _ = _static_body_looks_wrong_mime(body, h, kind=kind)
+        return good
+
+    if ok_response(st, hdrs, raw):
+        return []
+
+    if st == 404 and has_qf:
+        try:
+            st2, hdrs2, raw2 = _request(clean)
+        except RuntimeError:
+            st2 = -1
+            hdrs2 = {}
+            raw2 = b""
+        if ok_response(st2, hdrs2, raw2):
+            label = "CSS" if kind == "css" else "JavaScript"
+            return [
+                f"{label}: el HTML enlaza {url!r} → HTTP 404; sin query {clean!r} → OK. "
+                "Los navegadores cargan la URL del HTML (con ?v=), así que la página queda rota. "
+                "Despliega producción con el workflow que ya no añade ?v= al index, o revisa "
+                "el worker (_worker.js) y env.ASSETS.fetch en Cloudflare Pages."
+            ]
+
+    errs: list[str] = []
+    if st != 200:
+        errs.append(f"GET {url} → HTTP {st}")
+    _, mime_errs = _static_body_looks_wrong_mime(raw, hdrs, kind=kind)
+    for m in mime_errs:
+        errs.append(f"GET {url} → {m}")
+    if len(raw) < min_len:
+        errs.append(f"GET {url} → respuesta demasiado corta ({len(raw)} bytes)")
+    return errs
 
 
 def main() -> int:
@@ -147,39 +231,11 @@ def main() -> int:
 
     # --- CSS ---
     if css_url:
-        try:
-            st, hdrs, raw = _request(css_url)
-        except RuntimeError as e:
-            failures.append(str(e))
-        else:
-            cth = (hdrs.get("content-type") or "").lower()
-            if st != 200:
-                failures.append(f"GET {css_url} → HTTP {st}")
-            if "text/css" not in cth and "stylesheet" not in cth:
-                failures.append(f"GET {css_url} → Content-Type inesperado: {cth!r}")
-            if len(raw) < 200:
-                failures.append(f"GET {css_url} → respuesta demasiado corta ({len(raw)} bytes); posible error vacío")
-            text = raw.decode("utf-8", errors="replace").lstrip()
-            if text.startswith("<!") or text.lower().startswith("<html"):
-                failures.append(f"GET {css_url} → el cuerpo parece HTML, no CSS")
+        failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
 
     # --- JS ---
     if js_url:
-        try:
-            st, hdrs, raw = _request(js_url)
-        except RuntimeError as e:
-            failures.append(str(e))
-        else:
-            cth = (hdrs.get("content-type") or "").lower()
-            if st != 200:
-                failures.append(f"GET {js_url} → HTTP {st}")
-            if "javascript" not in cth and "ecmascript" not in cth and "jscript" not in cth:
-                failures.append(f"GET {js_url} → Content-Type inesperado: {cth!r}")
-            if len(raw) < 500:
-                failures.append(f"GET {js_url} → respuesta demasiado corta ({len(raw)} bytes)")
-            text = raw.decode("utf-8", errors="replace").lstrip()
-            if text.startswith("<!") or text.lower().startswith("<html"):
-                failures.append(f"GET {js_url} → el cuerpo parece HTML, no JavaScript")
+        failures.extend(validate_static_asset(js_url, kind="js", min_len=500))
 
     # --- API (worker) ---
     if not args.skip_api:
@@ -190,16 +246,22 @@ def main() -> int:
             failures.append(str(e))
         else:
             if st != 200:
-                failures.append(f"GET {meta_url} → HTTP {st}")
-            try:
-                data: Any = json.loads(raw.decode("utf-8"))
-            except json.JSONDecodeError:
-                failures.append(f"GET {meta_url} → respuesta no es JSON válido")
+                failures.append(
+                    f"GET {meta_url} → HTTP {st} "
+                    "(revisa despliegue Cloudflare Pages y que _worker.js atienda /api/*)"
+                )
             else:
-                if not isinstance(data.get("chord_patterns"), list) or len(data["chord_patterns"]) < 1:
-                    failures.append(
-                        f"GET {meta_url} → JSON sin chord_patterns usable (la app quedaría vacía)"
-                    )
+                try:
+                    data: Any = json.loads(raw.decode("utf-8"))
+                except json.JSONDecodeError:
+                    failures.append(f"GET {meta_url} → respuesta no es JSON válido")
+                else:
+                    if not isinstance(data.get("chord_patterns"), list) or len(
+                        data["chord_patterns"]
+                    ) < 1:
+                        failures.append(
+                            f"GET {meta_url} → JSON sin chord_patterns usable (la app quedaría vacía)"
+                        )
 
     if failures:
         _fail("Comprobación de salud web: FALLO")

@@ -12,6 +12,20 @@ _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 
 
+class TestStripQuery(unittest.TestCase):
+    def test_strip_query_and_fragment(self) -> None:
+        self.assertEqual(
+            _mod.strip_query_and_fragment(
+                "https://ex.com/static/x.css?v=1&x=2#h"
+            ),
+            "https://ex.com/static/x.css",
+        )
+        self.assertEqual(
+            _mod.strip_query_and_fragment("https://ex.com/static/x.css"),
+            "https://ex.com/static/x.css",
+        )
+
+
 class TestAssetParser(unittest.TestCase):
     def test_finds_stylesheet_and_script(self) -> None:
         p = _mod.AssetParser()

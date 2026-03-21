@@ -79,7 +79,7 @@ gh run watch <run_id>
 
 - `deploy-cloudflare-preview.yml`: previews de ramas que no son `main`
 - `deploy-cloudflare-on-tag.yml`: producción; **solo** se dispara con push a etiquetas `v*` (no con push a `main`). También puede lanzarse manualmente con *workflow_dispatch*. Siempre despliega el estado actual de la rama `main`.
-- `web-production-health.yml`: **comprobación horaria** (cron, UTC) de que producción sirve HTML, CSS, `app.js` y `GET /api/meta?language=es`. Si falla, envía correo vía **Resend** (`RESEND_API_KEY` en secrets; remitente opcional `NOTIFY_FROM_EMAIL`). Destinatario por defecto **aortega98@gmail.com**; variable de repo opcional **`WEB_HEALTH_ALERT_TO`** para otro email. También se puede lanzar a mano desde *Actions* → *Run workflow*. En GitHub, el **cron solo corre en la rama por defecto** del repositorio (p. ej. `main`).
+- `web-production-health.yml`: **comprobación horaria** (cron, UTC) de que producción sirve HTML, CSS, `app.js` y `GET /api/meta?language=es`. Si falla, envía correo vía **Resend** (**obligatorio** añadir el secret **`RESEND_API_KEY`** en el repositorio; si falta, el workflow muestra aviso y no puede enviar correo). Remitente opcional `NOTIFY_FROM_EMAIL`. Destinatario por defecto **aortega98@gmail.com**; variable de repo opcional **`WEB_HEALTH_ALERT_TO`**. También *Run workflow*. En GitHub, el **cron solo corre en la rama por defecto** (p. ej. `main`).
 
 ### Monitorización local
 

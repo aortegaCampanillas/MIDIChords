@@ -22,6 +22,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Aviso si falta secret RESEND_API_KEY
+        if: ${{ secrets.RESEND_API_KEY == '' }}
+        run: |
+          echo "::warning::Define el secret RESEND_API_KEY (Settings → Secrets and variables → Actions) para recibir correo cuando falle el chequeo. Sin él el job sigue fallando pero no se envía aviso."
+
       - name: Run production web health checks
         run: |
           set -euo pipefail

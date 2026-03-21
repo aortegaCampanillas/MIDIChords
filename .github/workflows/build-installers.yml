@@ -7,6 +7,15 @@ on:
         description: "Tag de release a publicar (ej: v1.0.2). Si se deja vacío, no se sincroniza al repo público."
         required: false
         type: string
+      checkout_ref:
+        description: "Ref a compilar (commit/tag/rama). Vacío = rama por defecto o el ref del evento. Con tag p. ej. v1.0.1 debe coincidir con el código que quieres empaquetar."
+        required: false
+        type: string
+      msix_revision:
+        description: "Solo MSIX (Microsoft Store): cuarto segmento de versión (0–65535). 0 = auto (v1.0.1 → 1.0.1.0). Usa 1, 2… para reenviar a la Store sin cambiar el tag semver."
+        required: false
+        default: "0"
+        type: string
   push:
     tags:
       - 'v*'
@@ -22,10 +31,15 @@ jobs:
   build-windows:
     name: Build Windows Installer
     runs-on: windows-latest
+    env:
+      RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.checkout_ref != '' && inputs.checkout_ref || inputs.tag != '' && inputs.tag || github.ref) || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -54,8 +68,8 @@ jobs:
           [Setup]
           AppId={{A4F55F54-4AA1-4A4F-B112-0F7A2755CE16}
           AppName=MIDIChords
-          AppVersion=${{ github.ref_name }}
-          AppVerName=MIDIChords ${{ github.ref_name }}
+          AppVersion=${{ env.RELEASE_REF_NAME }}
+          AppVerName=MIDIChords ${{ env.RELEASE_REF_NAME }}
           AppPublisher=Antonio Ortega González
           DefaultDirName={autopf}\MIDIChords
           DefaultGroupName=MIDIChords
@@ -89,10 +103,26 @@ jobs:
 
       - name: Build MSIX package
         shell: pwsh
+        env:
+          MSIX_REVISION: ${{ inputs.msix_revision || '0' }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          $ver = $tag.TrimStart('v') -replace '^(\d+\.\d+\.\d+)$','$1.0'
-          if ($ver -notmatch '^\d+\.\d+\.\d+\.\d+$') { $ver = "1.0.0.0" }
+          $tag = $env:RELEASE_REF_NAME
+          $tag = $tag -replace '^refs/tags/',''
+          $bare = $tag.TrimStart('v')
+          $revIn = $env:MSIX_REVISION
+          if ([string]::IsNullOrWhiteSpace($revIn)) { $revIn = "0" }
+          $revNum = 0
+          [void][int]::TryParse($revIn, [ref]$revNum)
+          if ($revNum -lt 0) { $revNum = 0 }
+          if ($revNum -gt 65535) { $revNum = 65535 }
+          if ($bare -match '^(\d+)\.(\d+)\.(\d+)$') {
+            $a, $b, $c = $Matches[1], $Matches[2], $Matches[3]
+            $ver = "$a.$b.$c.$revNum"
+          } else {
+            $ver = $bare -replace '^(\d+\.\d+\.\d+)$','$1.0'
+            if ($ver -notmatch '^\d+\.\d+\.\d+\.\d+$') { $ver = "1.0.0.0" }
+          }
+          Write-Host "MSIX Package Version: $ver (tag=$tag msix_revision=$revNum)"
           New-Item -ItemType Directory -Force -Path msix_stage\Assets | Out-Null
           Copy-Item -Path dist\MIDIChords.exe -Destination msix_stage\MIDIChords.exe
           Copy-Item -Path assets\app_logo.png -Destination msix_stage\Assets\StoreLogo.png
@@ -167,10 +197,15 @@ jobs:
   build-macos:
     name: Build macOS Installer
     runs-on: macos-latest
+    env:
+      RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.checkout_ref != '' && inputs.checkout_ref || inputs.tag != '' && inputs.tag || github.ref) || github.ref }}
 
       - name: Debug vars (firma macOS)
         run: echo "SIGN_MACOS=[${{ vars.SIGN_MACOS }}]" && if [ "${{ vars.SIGN_MACOS }}" = "true" ]; then echo "Se ejecutará firma y notarización"; else echo "Se generará DMG sin firma"; fi
@@ -267,10 +302,15 @@ jobs:
   build-debian:
     name: Build Debian Package
     runs-on: ubuntu-latest
+    env:
+      RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.checkout_ref != '' && inputs.checkout_ref || inputs.tag != '' && inputs.tag || github.ref) || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -290,8 +330,12 @@ jobs:
 
       - name: Compute version
         id: ver
+        env:
+          REF_NAME: ${{ env.RELEASE_REF_NAME }}
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          if [[ "${REF_NAME}" == v* ]]; then
+            VERSION="${REF_NAME#v}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
             VERSION="0.0.${GITHUB_RUN_NUMBER}"

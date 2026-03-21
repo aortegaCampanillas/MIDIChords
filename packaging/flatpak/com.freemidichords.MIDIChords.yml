@@ -10,8 +10,6 @@ finish-args:
   - --socket=wayland
   - --socket=pulseaudio
   - --device=all
-  - --filesystem=xdg-config/MIDIChords:create
-  - --filesystem=xdg-data/applications:ro
   - --share=network
 modules:
   # Primero PortAudio, después dependencias Python, para que sounddevice

@@ -14,8 +14,6 @@ finish-args:
   - --socket=wayland
   - --socket=pulseaudio
   - --device=all
-  - --filesystem=xdg-config/MIDIChords:create
-  - --filesystem=xdg-data/applications:ro
   - --share=network
 modules:
   - name: portaudio
@@ -58,3 +56,4 @@ modules:
       - type: git
         url: https://github.com/aortegaCampanillas/MIDIChords
         tag: v1.0.1
+        # En el PR de Flathub añade `commit: <sha>` (mismo que `git rev-parse v1.0.1^{}` en el remoto); el linter lo exige junto al tag.

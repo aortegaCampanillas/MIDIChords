@@ -36,7 +36,11 @@ cp /ruta/a/MIDIChords/packaging/flatpak/flathub.json ./
 cp /ruta/a/MIDIChords/packaging/flatpak/python-deps.json ./
 ```
 
-**Importante:** En `com.freemidichords.MIDIChords.yml` el tag del módulo `midichords-launcher` debe coincidir con el release (p. ej. `v1.0.1`).
+**Importante:** En `com.freemidichords.MIDIChords.yml` el módulo `midichords-launcher` debe tener **`tag`** y **`commit`** (el linter de Flathub lo exige). El `commit` es el SHA al que apunta el tag en GitHub, p. ej.:
+
+`git ls-remote https://github.com/aortegaCampanillas/MIDIChords 'refs/tags/v1.0.1^{}'`
+
+En el repo MIDIChords el template `com.freemidichords.MIDIChords.flathub.yml` deja el `commit` como comentario: cópialo al YAML del PR y rellena el SHA antes de abrir o actualizar el PR.
 
 ### 4. Commit y PR
 

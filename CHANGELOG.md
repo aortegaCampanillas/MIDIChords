@@ -9,6 +9,8 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. El script resume el patrón **404 en `/static/*?v=…` con OK sin query** con un mensaje accionable. Si falla, correo vía **Resend** (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, variable **`WEB_HEALTH_ALERT_TO`**). El workflow muestra **aviso** si falta **`RESEND_API_KEY`**. El paso de correo usa **`continue-on-error`** e imprime el **cuerpo de error de Resend** (p. ej. 403) en el log. La petición a la API incluye **`User-Agent`** explícito (requisito de Resend frente a 403/1010). Envío centralizado en **`scripts/send_resend_health_alert.py`** con varios remitentes de respaldo (`notifications@freemidichords.com`, `onboarding@resend.dev`). Ver `apps/web/README.md`.
 - **Web (CI)**: **`web-production-health`** también se dispara al **terminar con éxito** el workflow **Deploy Cloudflare (Production)** (`workflow_run`), espera **90 s** antes del chequeo, y usa **`concurrency`** para no solaparse con el cron horario.
 
+- **Web**: favicon e **apple-touch-icon** en pestañas y al guardar en pantalla de inicio (`/static/favicon.png` desde el logo del proyecto).
+
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 
 - **Repo**: `.gitignore` ignora `.venv-build-dmg/` (venv local opcional para scripts de build DMG).

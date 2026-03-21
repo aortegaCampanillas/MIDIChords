@@ -22,10 +22,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # No usar `if: secrets.*` aquí: GitHub rechaza el workflow al parsearlo (422).
       - name: Aviso si falta secret RESEND_API_KEY
-        if: ${{ secrets.RESEND_API_KEY == '' }}
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
-          echo "::warning::Define el secret RESEND_API_KEY (Settings → Secrets and variables → Actions) para recibir correo cuando falle el chequeo. Sin él el job sigue fallando pero no se envía aviso."
+          if [ -z "${RESEND_API_KEY}" ]; then
+            echo "::warning::Define el secret RESEND_API_KEY (Settings → Secrets and variables → Actions) para recibir correo cuando falle el chequeo. Sin él el job sigue fallando pero no se envía aviso."
+          fi
 
       - name: Run production web health checks
         run: |

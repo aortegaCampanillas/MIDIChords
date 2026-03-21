@@ -43,62 +43,12 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           NOTIFY_FROM: ${{ vars.NOTIFY_FROM_EMAIL }}
           ALERT_TO: ${{ vars.WEB_HEALTH_ALERT_TO }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           if [ -z "${RESEND_API_KEY}" ]; then
             echo "RESEND_API_KEY not set — no se puede enviar correo de aviso."
             exit 0
           fi
-          python3 << 'PY'
-          import html
-          import json
-          import os
-          import urllib.error
-          import urllib.request
-          from pathlib import Path
-
-          log = Path("web-health.log").read_text(encoding="utf-8", errors="replace")
-          run_url = (
-              os.environ.get("GITHUB_SERVER_URL", "https://github.com")
-              + "/"
-              + os.environ.get("GITHUB_REPOSITORY", "")
-              + "/actions/runs/"
-              + os.environ.get("GITHUB_RUN_ID", "")
-          )
-          alert_to = (os.environ.get("ALERT_TO") or "").strip() or "aortega98@gmail.com"
-          payload = {
-              "from": os.environ.get("NOTIFY_FROM", "MIDIChords <onboarding@resend.dev>"),
-              "to": [alert_to],
-              "subject": "MIDIChords: la web en producción no pasa el chequeo de salud",
-              "html": (
-                  "<p>El chequeo horario de <strong>freemidichords.com</strong> "
-                  "(HTML, CSS, JS y <code>/api/meta</code>) ha fallado.</p>"
-                  f"<p><a href='{html.escape(run_url)}'>Ver ejecución en GitHub Actions</a></p>"
-                  "<p>Detalle (stderr / salida del script):</p>"
-                  f"<pre style='white-space:pre-wrap;font-size:12px'>{html.escape(log)}</pre>"
-              ),
-          }
-          # Resend bloquea peticiones sin User-Agent explícito (403 / error 1010) con algunos clientes HTTP.
-          req = urllib.request.Request(
-              "https://api.resend.com/emails",
-              data=json.dumps(payload).encode(),
-              headers={
-                  "Authorization": f"Bearer {os.environ['RESEND_API_KEY']}",
-                  "Content-Type": "application/json",
-                  "User-Agent": "MIDIChords-GitHub-Actions/1.0 (web-production-health)",
-              },
-              method="POST",
-          )
-          try:
-              urllib.request.urlopen(req)
-          except urllib.error.HTTPError as e:
-              err_body = e.read().decode("utf-8", errors="replace")
-              print(f"::warning::Resend rechazó el envío: HTTP {e.code} {e.reason}")
-              print("--- Cuerpo de respuesta (Resend, para depuración) ---")
-              print(err_body or "(vacío)")
-              print("--- fin ---")
-              raise SystemExit(1) from e
-          except OSError as e:
-              print(f"::warning::Error de red al llamar a Resend: {e}")
-              raise SystemExit(1) from e
-          print("Correo de aviso enviado.")
-          PY
+          python3 scripts/send_resend_health_alert.py web-health.log

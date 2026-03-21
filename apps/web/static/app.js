@@ -702,6 +702,37 @@ function tr(key) {
   return lang[key] || UI_TEXTS.es[key] || key;
 }
 
+const SEO_META = {
+  es: {
+    title: "MIDI Piano & Guitar Chords — Acordes, escalas, metrónomo y MIDI gratis",
+    description:
+      "Herramienta online gratuita: detecta y genera acordes en piano y guitarra, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador.",
+  },
+  en: {
+    title: "MIDI Piano & Guitar Chords — Chords, scales, metronome & free MIDI tool",
+    description:
+      "Free online tool: detect and generate piano and guitar chords, scales, metronome and tuner. Use a MIDI keyboard or mouse. Runs in your browser, no install.",
+  },
+};
+
+function setMetaContent(selector, content) {
+  const node = document.querySelector(selector);
+  if (node) node.setAttribute("content", content);
+}
+
+function applySeoMeta() {
+  const m = SEO_META[state.language] || SEO_META.es;
+  document.title = m.title;
+  document.documentElement.lang = state.language;
+  setMetaContent('meta[name="description"]', m.description);
+  setMetaContent('meta[property="og:title"]', m.title);
+  setMetaContent('meta[property="og:description"]', m.description);
+  setMetaContent('meta[name="twitter:title"]', m.title);
+  setMetaContent('meta[name="twitter:description"]', m.description);
+  const ogLoc = document.querySelector('meta[property="og:locale"]');
+  if (ogLoc) ogLoc.setAttribute("content", state.language === "es" ? "es_ES" : "en_US");
+}
+
 function midiButtonTooltipForState(status = null) {
   const current = status || (state.midi.enabled ? "on" : "off");
   if (current === "secure_required") return tr("midi_requires_secure");
@@ -4801,6 +4832,7 @@ function bindEvents() {
     state.language = e.target.value;
     await loadMeta();
     applyTranslations();
+    applySeoMeta();
     renderInstrument();
     if (state.mode === "detection") await runDetection();
     if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
@@ -5126,6 +5158,7 @@ async function main() {
   }
 
   applyTranslations();
+  applySeoMeta();
 
   try {
     await runGenerateChord();

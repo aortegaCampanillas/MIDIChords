@@ -11,6 +11,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (CI)**: **`web-production-health`** también se dispara al **terminar con éxito** el workflow **Deploy Cloudflare (Production)** (`workflow_run`), espera **90 s** antes del chequeo, y usa **`concurrency`** para no solaparse con el cron horario.
 
 - **Web**: favicon e **apple-touch-icon** en pestañas y al guardar en pantalla de inicio (`/static/favicon.png` desde el logo del proyecto).
+- **Web (SEO)**: `index.html` con **meta description**, **canonical**, **Open Graph**, **Twitter Card**, **JSON-LD** (`WebApplication`); **`robots.txt`** y **`sitemap.xml`** en la raíz del bundle (workflows de Cloudflare + `launch.py deploy-web`); imagen social **`/static/og-image.png`**. **`app.js`** actualiza `document.documentElement.lang`, título y metas al cambiar idioma (**`applySeoMeta()`**).
 
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 

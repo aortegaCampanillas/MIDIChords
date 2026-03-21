@@ -107,6 +107,8 @@ mkdir -p /tmp/midichords-pages-dist/static
 cp apps/web/index.html /tmp/midichords-pages-dist/index.html
 cp -R apps/web/static/. /tmp/midichords-pages-dist/static/
 cp apps/web/worker/_worker.js /tmp/midichords-pages-dist/_worker.js
+[ -f apps/web/robots.txt ] && cp apps/web/robots.txt /tmp/midichords-pages-dist/robots.txt
+[ -f apps/web/sitemap.xml ] && cp apps/web/sitemap.xml /tmp/midichords-pages-dist/sitemap.xml
 ```
 
 Deploy a producción:

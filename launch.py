@@ -115,6 +115,10 @@ def run_deploy_web(project_name: str | None) -> None:
     shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
     if (web_dir / "_headers").exists():
         shutil.copy(web_dir / "_headers", pages_dist / "_headers")
+    for extra in ("robots.txt", "sitemap.xml"):
+        p = web_dir / extra
+        if p.exists():
+            shutil.copy(p, pages_dist / extra)
 
     for name in ("index.html", "static/app.js", "static/style.css", "_worker.js"):
         if not (pages_dist / name).exists():

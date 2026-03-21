@@ -37,6 +37,8 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/80/2d/b04ae180312b81dbb694504bee170eada5372242e186f6298139fd3a0513/sounddevice-0.5.1.tar.gz
         sha256: 09ca991daeda8ce4be9ac91e15a9a81c8f81efa6b695a348c9171ea0c16cb041
+  # PySide6 (Qt): wheels PyPI; orden shiboken6 → Essentials → Addons → meta (requirements.txt).
+  - pyside6.json
   - name: midichords-launcher
     buildsystem: simple
     build-commands:

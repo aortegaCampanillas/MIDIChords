@@ -34,23 +34,41 @@ These files are ignored by git via:
 - repository `.gitignore`
 - `signing/.gitignore`
 
+### Flujo recomendado: `signing/local/mas.env` + `build_mas_store.sh`
+
+1. `cp scripts/mas-env.example signing/local/mas.env`
+2. Edita `mas.env` (identidades, `MAS_BUNDLE_ID`, ruta del `.provisionprofile`, **versión** y **build** nuevos tras un rechazo).
+3. Desde la raíz del repo:
+
+```bash
+chmod +x scripts/build_mas_store.sh
+./scripts/build_mas_store.sh
+```
+
+El wrapper pasa `--allow-network`, `--allow-file-access` y por defecto **`--skip-tk-check`** (la app usa Qt; el chequeo Tcl/Tk era para builds antiguos). Para forzar el chequeo Tcl/Tk 8.6: `MAS_SKIP_TK_CHECK=0` en `mas.env`.
+
+Salida: `MIDIChords-macos-appstore.pkg` (y `dist/MIDIChords.app`). Sube el `.pkg` con **Transporter**.
+
+### Comando largo (equivalente manual)
+
 Example command using a local profile from this folder:
 
 ```bash
 scripts/build_mas_pkg.sh \
-  --app-dist-identity "3rd Party Mac Developer Application: Antonio Ortega González (977G5A733H)" \
-  --installer-identity "3rd Party Mac Developer Installer: Antonio Ortega González (977G5A733H)" \
-  --bundle-id "com.FPAlanTuring.FreeMIDIChords" \
-  --provisioning-profile "signing/local/profiles/Free_MIDI_Chords.provisionprofile" \
-  --version "1.0.0" \
-  --build-number "1" \
+  --app-dist-identity "3rd Party Mac Developer Application: …" \
+  --installer-identity "3rd Party Mac Developer Installer: …" \
+  --bundle-id "com.example.midichords" \
+  --provisioning-profile "signing/local/profiles/TuPerfil.provisionprofile" \
+  --version "1.0.1" \
+  --build-number "4" \
   --allow-network \
-  --allow-file-access
+  --allow-file-access \
+  --skip-tk-check
 ```
 
 Operational notes:
 
-- If you run the build from an agent or a non-interactive terminal, add `--skip-store-validation`. `installer -store` may require local authorization and block the flow.
+- `installer -store` (validación local MAS) often hangs or waits for authorization. **`./scripts/build_mas_store.sh` skips it by default** (`MAS_SKIP_STORE_VALIDATION=1`). The `.pkg` is already signed; **Transporter** validates on upload. To force local validation: `MAS_SKIP_STORE_VALIDATION=0` in `mas.env` or `--skip-store-validation` omitted when calling `build_mas_pkg.sh` directly.
 - If App Store Connect rejects a build, bump `--build-number` before re-uploading. Reusing the same failed build number can leave Transporter stuck on the previous failed processing state.
 - If App Store Connect reports `com.apple.quarantine` inside the package payload, clear extended attributes and rebuild. `scripts/build_mas_pkg.sh` now cleans `assets/`, the generated `.app`, and the final `.pkg` automatically.
 - Recommended upload flow for this repo: open the **Transporter** macOS app, sign in, drag `MIDIChords-macos-appstore.pkg`, and click **Deliver**. Keep `xcrun iTMSTransporter` only as a fallback/debug path.

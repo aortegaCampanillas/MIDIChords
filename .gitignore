@@ -21,6 +21,7 @@ signing/local/
 
 # Python
 .venv/
+.venv-build-dmg/
 venv/
 __pycache__/
 *.pyc

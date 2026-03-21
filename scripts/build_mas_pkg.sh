@@ -30,12 +30,15 @@ Options:
   --allow-network         Add com.apple.security.network.client entitlement
   --allow-file-access     Add user-selected read/write entitlement
   --skip-build            Do not run PyInstaller build
-  --skip-store-validation Skip installer -store validation
+  --skip-store-validation Skip installer -store validation (recommended: often hangs; Transporter validates on upload)
+  --skip-tk-check         No comprobar Tcl/Tk 8.6 (UI Qt; Python Homebrew 3.14+ suele traer Tk 9)
   -h, --help              Show this help
 
 Notes:
   - This script is for Mac App Store submission, not Developer ID distribution.
   - Upload the resulting .pkg with Transporter or Xcode Organizer.
+  - PyInstaller se invoca como: PYTHON_BIN -m PyInstaller (por defecto PYTHON_BIN=python3).
+    Instala con: PYTHON_BIN -m pip install pyinstaller (y requirements del proyecto).
 EOF
 }
 
@@ -57,6 +60,7 @@ ALLOW_NETWORK=0
 ALLOW_FILE_ACCESS=0
 SKIP_BUILD=0
 SKIP_STORE_VALIDATION=0
+SKIP_TK_CHECK=0
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 check_supported_tk_runtime() {
@@ -172,6 +176,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_STORE_VALIDATION=1
       shift
       ;;
+    --skip-tk-check)
+      SKIP_TK_CHECK=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -218,12 +226,22 @@ trap 'if [[ -n "$ICONSET_TMP_DIR" && -d "$ICONSET_TMP_DIR" ]]; then rm -rf "$ICO
 cd "$ROOT_DIR"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
-  check_supported_tk_runtime
+  if [[ "$SKIP_TK_CHECK" -eq 0 ]]; then
+    check_supported_tk_runtime
+  else
+    echo "Skipping Tcl/Tk runtime check (--skip-tk-check). Using: $PYTHON_BIN"
+  fi
   echo "Removing quarantine attributes from source assets before packaging..."
   clear_quarantine_attrs "$ROOT_DIR/assets"
   clear_quarantine_attrs "$ICON_PNG"
-  echo "Building ${APP_NAME}.app with PyInstaller..."
-  pyinstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" "$ENTRYPOINT"
+  echo "Building ${APP_NAME}.app with PyInstaller ($PYTHON_BIN -m PyInstaller)..."
+  if ! "$PYTHON_BIN" -m PyInstaller --version >/dev/null 2>&1; then
+    echo "Error: PyInstaller no está instalado para: $PYTHON_BIN" >&2
+    echo "  Prueba: $PYTHON_BIN -m pip install pyinstaller" >&2
+    echo "  O define PYTHON_BIN en signing/local/mas.env apuntando a un venv con dependencias (ver scripts/bootstrap_mas_build_env.sh)." >&2
+    exit 1
+  fi
+  "$PYTHON_BIN" -m PyInstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" "$ENTRYPOINT"
 fi
 
 if [[ ! -d "$APP_PATH" ]]; then
@@ -405,8 +423,16 @@ echo "Verifying installer signature..."
 pkgutil --check-signature "$OUTPUT_PKG"
 
 if [[ "$SKIP_STORE_VALIDATION" -eq 0 ]]; then
-  echo "Running Mac App Store installer validation..."
+  cat >&2 <<'EOF'
+Running Mac App Store installer validation (installer -store)…
+This often hangs or waits for a system prompt. If it does not finish in 1–2 minutes, press Ctrl+C:
+  • The .pkg is already built and signed — you can upload it with Transporter.
+  • Re-run with --skip-store-validation, or set MAS_SKIP_STORE_VALIDATION=1 in mas.env
+    (build_mas_store.sh skips this step by default).
+EOF
   installer -store -pkg "$OUTPUT_PKG" -target /
+else
+  echo "Skipping installer -store validation (--skip-store-validation). Upload the PKG with Transporter; Apple validates on receipt."
 fi
 
 echo

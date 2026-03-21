@@ -5,7 +5,24 @@ import sys
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
-PROJECT_ROOT = PACKAGE_ROOT.parent
+
+
+def _resolve_project_root() -> Path:
+    """Raíz donde vive `assets/` y recursos. En PyInstaller macOS suele ser `sys._MEIPASS`."""
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            return Path(meipass)
+        if sys.platform == "darwin":
+            exe = Path(sys.executable).resolve()
+            internal = exe.parent / "_internal"
+            if internal.is_dir():
+                return internal
+            return exe.parent
+    return PACKAGE_ROOT.parent
+
+
+PROJECT_ROOT = _resolve_project_root()
 # Raíz de recursos (imágenes, samples, cache). En Flatpak PROJECT_ROOT = /app/share/midichords.
 ASSETS_DIR = PROJECT_ROOT / "assets"
 

@@ -6,11 +6,15 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Repo**: `.gitignore` ignora `.venv-build-dmg/` (venv local opcional para scripts de build DMG).
+- macOS App Store: plantilla **`scripts/mas-env.example`**, script **`scripts/build_mas_store.sh`** (carga `signing/local/mas.env` y llama a `build_mas_pkg.sh` con red/archivos y opcionalmente **`--skip-tk-check`** para builds Qt sin Tcl/Tk 8.6), y flag **`--skip-tk-check`** en **`scripts/build_mas_pkg.sh`**.
 - `.gitignore`: ignora capturas de depuración UI en `assets/` (patrones tipo `generation_full_*.png`, `overlay_mode_*.png`, `*_smoke.png`, …) y carpeta `assets/ui-debug-captures/` con `README.md` para uso local.
 - Escritorio: modo trazas **`/verbose`**, **`--verbose`** o **`-v`** en `launch.py desktop` (y equivalente **`MIDICHORDS_VERBOSE=1`**); salida en **stderr** centrada en **audio** y **MIDI**. La configuración **Desktop: MIDIChords** en `.vscode/launch.json` arranca con `/verbose`.
 
 ### Documentado
 
+- macOS App Store: `signing/README.md` y `README.md` — flujo **`mas.env`** + **`./scripts/build_mas_store.sh`**; ejemplo manual de `build_mas_pkg.sh` con **`--skip-tk-check`**.
+- Escritorio (macOS): script **`scripts/build_mac_test_dmg.sh`** — genera **`MIDIChords-macos-test.dmg`** y `.app` para probar en un Mac sin certificado Developer ID; documentado en `README.md`.
 - Repo: reglas de agente Cursor — **`release-changelog-agent.mdc`** (analizar diff, **CHANGELOG** Unreleased por app, `commit`/`push`; invocable con `@release-changelog-agent`) y **`github-update-triggers.mdc`** (`alwaysApply`, reacciona a «actualiza cambios», «commit y push», etc.); script manual `scripts/document_release_changes.py`; ver `AGENTS.md`.
 - Móvil (Flutter): inventario operativo de dispositivos de prueba, ids confirmados de iPhone/iPad y tablet Android, y guía para arrancar simuladores/emuladores iOS y Android desde `apps/mobile_flutter/README.md`.
 - Móvil (Flutter): nuevo script `scripts/select_mobile_emulator.py` para listar simuladores/emuladores disponibles en macOS y arrancar el elegido desde terminal.
@@ -22,6 +26,9 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- macOS App Store: `build_mas_store.sh` **omite por defecto** `installer -store` (`MAS_SKIP_STORE_VALIDATION` por defecto `1`); aviso en `build_mas_pkg.sh` si se ejecuta y se queda colgado.
+- macOS App Store: `scripts/build_mas_pkg.sh` usa **`$PYTHON_BIN -m PyInstaller`** en lugar del comando `pyinstaller` en PATH; mensaje claro si falta el módulo.
+- macOS App Store / **Escritorio (Qt)**: arranque del `.app` PyInstaller — se fija **`QT_PLUGIN_PATH`** antes de importar PySide6 (`apps/desktop/darwin_frozen_bootstrap.py`) y **`PROJECT_ROOT`** usa **`sys._MEIPASS`** en binario `frozen` para localizar `assets/`; evita el cierre inmediato en Dock sin crash log que suele dar Qt sin plugins en bundle firmado/sandbox.
 - Móvil (Flutter): **Generación** (piano) — digitación de acordes alineada al escritorio: tríada mano derecha **1-3-5** y mano izquierda **5-3-1** (notas ordenadas de grave a agudo); antes se asignaban dedos por índice (1-2-3 / 5-4-3).
 - macOS App Store: `scripts/build_mas_pkg.sh` limpia atributos `com.apple.quarantine` también en `assets/` y en los recursos empaquetados del `.app` antes de firmar, evitando rechazos de App Store Connect como `code 91109`.
 - macOS release env: `scripts/validate_macos_release_env.sh` detecta de forma más robusta las identidades válidas del llavero.

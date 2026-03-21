@@ -158,6 +158,22 @@ Opciones útiles:
 - `--skip-build`: reutiliza `dist/MIDIChords.app` ya generado.
 - `--skip-notarize`: solo firma localmente (sin envío a Apple).
 
+### Instalador de prueba en tu Mac (DMG, sin Developer ID)
+
+Para generar un **DMG local** y probar la app en otra máquina o usuario **sin** certificado de distribución (no sirve para App Store ni para evitar todos los avisos de Gatekeeper):
+
+```bash
+cd /ruta/al/repo/MIDIChords
+pip install pyinstaller   # si hace falta
+./scripts/build_mac_test_dmg.sh
+```
+
+Salida: `dist/MIDIChords.app` y **`MIDIChords-macos-test.dmg`**. El script usa un **bundle id de prueba** (`com.midichords.desktop.localtest`) para no chocar con la app de la Mac App Store.
+
+- Primera apertura: si macOS avisa, **clic derecho → Abrir** en la app.
+- Depuración: ejecuta `dist/MIDIChords.app/Contents/MacOS/MIDIChords` en Terminal.
+- Opciones: `--skip-build`, `--no-ad-hoc` (sin firma), `--strict-tk` (mismo chequeo Tcl/Tk que el script de firma), `--app-name MIDIChordsTest` (útil si `dist/MIDIChords.app` existe y no puedes borrarla, p. ej. creada como `root`).
+
 ### Firma y notarización en CI (GitHub Actions)
 
 El workflow **Build Installers** puede firmar y notarizar el DMG de macOS si configuras estos **secrets** en el repo:
@@ -188,9 +204,15 @@ Requisitos previos:
 - Certificado `3rd Party Mac Developer Application` (o el nombre equivalente que muestre Apple en tu llavero para MAS)
 - Certificado `3rd Party Mac Developer Installer` (o el nombre equivalente que muestre Apple en tu llavero para MAS)
 - Provisioning profile de macOS App Store para tu `Bundle ID`
-- Python enlazado con `Tcl/Tk 8.6` para el build de escritorio. No uses Homebrew `python@3.14` con `Tk 9.0` para generar el binario de la Mac App Store.
+- Python adecuado para empaquetar (el script de MAS aún comprueba `tkinter`/Tcl por compatibilidad con el entorno de build; la **UI de la app es Qt/PySide6**). Evita Homebrew `python@3.14` + `Tk 9.0` si el chequeo del script falla.
 
-Script disponible:
+**Atajo:** con credenciales en `signing/local/mas.env` (plantilla `scripts/mas-env.example`):
+
+```bash
+./scripts/build_mas_store.sh
+```
+
+Script completo:
 
 ```bash
 scripts/build_mas_pkg.sh \
@@ -235,6 +257,16 @@ Notas:
   - `--min-system-version`
   - `--icon-png` (o `--skip-icon` si ya lo gestionas externamente)
 - Para guardar certificados/perfiles/keys dentro del proyecto sin subirlos a git, usa `signing/local/` (documentado en `signing/README.md`).
+
+### MAS: app que no arranca (cierra al salir el icono en el Dock)
+
+En bundles **PyInstaller + PySide6** firmados para App Store, si Qt no encuentra los **plugins** (`cocoa`, etc.), el proceso puede terminar al instante **sin** informe de fallos útil.
+
+- El arranque del escritorio ejecuta `apps/desktop/darwin_frozen_bootstrap.py` **antes** de importar PySide6 y fija `QT_PLUGIN_PATH` dentro de `sys._MEIPASS` / `_internal`.
+- `midichords/core/app_constants.py` resuelve `PROJECT_ROOT` con `sys._MEIPASS` en `frozen` para que `assets/` coincida con el layout del `.app`.
+- **Prueba local:** abre Terminal y ejecuta la ruta del binario dentro del `.app` (no solo doble clic); cualquier error de Qt suele imprimirse ahí.
+- Si hubo excepción **Python** antes de mostrar UI, revisa `~/Library/Application Support/MIDIChords/python-startup-error.log`.
+- **Respuesta a App Review:** indica que la build corrige la inicialización de Qt 6 en el sandbox y pide nueva revisión; sube **nuevo build number**.
 
 ### Subir el PKG con Transporter
 

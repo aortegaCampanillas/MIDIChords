@@ -2,7 +2,7 @@
 
 ## Requisitos previos
 
-1. **Tag de release** en GitHub (p. ej. `v1.0.0`), para que el manifiesto apunte a código estable.
+1. **Tag de release** en GitHub (p. ej. `v1.0.1`), para que el manifiesto apunte a código estable.
 2. **Cuenta en GitHub** con 2FA activada (Flathub lo exige para darte acceso al repo de la app).
 3. **Dominio** `freemidichords.com` accesible por HTTPS (para verificación opcional en Flathub).
 
@@ -11,7 +11,7 @@
 ### 1. Crear un release en GitHub
 
 - En https://github.com/aortegaCampanillas/MIDIChords/releases → "Create a new release".
-- Tag: `v1.0.0` (o la versión que uses).
+- Tag: `v1.0.1` (o la versión que uses; debe coincidir con `tag:` en el manifiesto Flathub).
 - Título y descripción opcionales. Publicar.
 
 ### 2. Fork y rama de Flathub
@@ -39,7 +39,7 @@ cp /ruta/a/MIDIChords/packaging/flatpak/python-deps.json \
    com.freemidichords.MIDIChords/
 ```
 
-**Importante:** En `com.freemidichords.MIDIChords.yml` (el que usa Flathub) el tag del módulo `midichords-launcher` debe coincidir con el release que creaste (p. ej. `v1.0.0`). Ábrelo y, si hace falta, cambia la ref/tag al tag real.
+**Importante:** En `com.freemidichords.MIDIChords.yml` (el que usa Flathub) el tag del módulo `midichords-launcher` debe coincidir con el release que creaste (p. ej. `v1.0.1`). Ábrelo y, si hace falta, cambia la ref/tag al tag real.
 
 ### 4. Commit y PR
 

@@ -6,6 +6,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
+
 - **Repo**: `.gitignore` ignora `.venv-build-dmg/` (venv local opcional para scripts de build DMG).
 - macOS App Store: plantilla **`scripts/mas-env.example`**, script **`scripts/build_mas_store.sh`** (carga `signing/local/mas.env` y llama a `build_mas_pkg.sh` con red/archivos y opcionalmente **`--skip-tk-check`** para builds Qt sin Tcl/Tk 8.6), y flag **`--skip-tk-check`** en **`scripts/build_mas_pkg.sh`**.
 - `.gitignore`: ignora capturas de depuración UI en `assets/` (patrones tipo `generation_full_*.png`, `overlay_mode_*.png`, `*_smoke.png`, …) y carpeta `assets/ui-debug-captures/` con `README.md` para uso local.

@@ -600,8 +600,21 @@ function el(id) {
   return document.getElementById(id);
 }
 
+/** #/♭: leer el <select> visible primero (state puede desincronizarse si no hubo evento change). */
+function accidentalPreferFlatFromUi() {
+  const node = el("accidental");
+  if (node && node.value === "flat") return true;
+  return state.accidental === "flat";
+}
+
+function currentAccidentalValue() {
+  const node = el("accidental");
+  if (node && (node.value === "flat" || node.value === "sharp")) return node.value;
+  return state.accidental;
+}
+
 function noteNameFromPc(pc) {
-  const preferFlat = state.accidental === "flat";
+  const preferFlat = accidentalPreferFlatFromUi();
   return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
 }
 
@@ -2390,7 +2403,7 @@ function detectionManualRelease(note) {
   stopHeldInputNote(noteInt);
 }
 
-function keySignatureCountForTonic(tonicPc, isMinor) {
+function keySignatureSharpFlatCounts(tonicPc, isMinor) {
   const pc = ((Number(tonicPc) % 12) + 12) % 12;
   const sharpMap = isMinor
     ? { 4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7 }
@@ -2398,14 +2411,40 @@ function keySignatureCountForTonic(tonicPc, isMinor) {
   const flatMap = isMinor
     ? { 2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6 }
     : { 5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6 };
+  return { pc, sharpCount: sharpMap[pc], flatCount: flatMap[pc] };
+}
 
-  const sharpCount = sharpMap[pc];
-  const flatCount = flatMap[pc];
+/** Misma regla que el nombre del acorde en API/worker: menos alteraciones; empate → bemoles. */
+function chordSymbolPreferFlat(rootPc, isMinor) {
+  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(rootPc, isMinor);
+  if (sharpCount == null && flatCount == null) return false;
+  if (sharpCount == null) return true;
+  if (flatCount == null) return false;
+  if (flatCount < sharpCount) return true;
+  if (sharpCount < flatCount) return false;
+  return true;
+}
+
+// tiePreferFlat: null/undefined → empate enarmónico a sostenidos. true/false → empate explícito (#/♭ o convención armónica).
+function keySignatureCountForTonic(tonicPc, isMinor, tiePreferFlat = null) {
+  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(tonicPc, isMinor);
   if (sharpCount == null && flatCount == null) return { count: 0, preferFlats: false };
   if (sharpCount == null) return { count: flatCount, preferFlats: true };
   if (flatCount == null) return { count: sharpCount, preferFlats: false };
   if (flatCount < sharpCount) return { count: flatCount, preferFlats: true };
+  if (sharpCount < flatCount) return { count: sharpCount, preferFlats: false };
+  if (tiePreferFlat === true) return { count: flatCount, preferFlats: true };
   return { count: sharpCount, preferFlats: false };
+}
+
+/** Empate enarmónico (mismo nº de # y ♭): armadura bemol si el usuario eligió ♭ en el desplegable. */
+function applyFlatKeySigIfUiFlatAndTie(sig, tonicPc, isMinor) {
+  if (currentAccidentalValue() !== "flat") return sig;
+  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(tonicPc, isMinor);
+  if (sharpCount != null && flatCount != null && sharpCount === flatCount) {
+    return { count: flatCount, preferFlats: true };
+  }
+  return sig;
 }
 
 function isMinorSuffix(suffix) {
@@ -2427,20 +2466,28 @@ function scalePrefersMinor(patternName) {
 }
 
 function getStaffContext() {
+  const tieFromSelect = currentAccidentalValue() === "flat";
   if (state.mode === "scales" && state.generatedScale) {
     const isMinor = scalePrefersMinor(state.generatedScale.pattern_name);
-    const sig = keySignatureCountForTonic(state.generatedScale.tonic_pc, isMinor);
-    return { signature: sig, tonicPc: Number(state.generatedScale.tonic_pc), isScale: true };
+    const tonic = Number(state.generatedScale.tonic_pc);
+    let sig = keySignatureCountForTonic(tonic, isMinor, tieFromSelect);
+    sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+    return { signature: sig, tonicPc: tonic, isScale: true };
   }
   if (state.mode === "generation" && state.generatedChord) {
     const isMinor = isMinorSuffix(state.generatedChord.suffix);
-    const sig = keySignatureCountForTonic(state.generatedChord.root_pc, isMinor);
-    return { signature: sig, tonicPc: Number(state.generatedChord.root_pc), isScale: false };
+    const tonic = Number(state.generatedChord.root_pc);
+    let sig = keySignatureCountForTonic(tonic, isMinor, tieFromSelect);
+    sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+    return { signature: sig, tonicPc: tonic, isScale: false };
   }
-  if (state.mode === "detection" && state.detectionResult && Number.isInteger(state.detectionResult.root_pc)) {
+  if (state.mode === "detection" && state.detectionResult && Number.isFinite(Number(state.detectionResult.root_pc))) {
     const isMinor = isMinorSuffix(state.detectionResult.suffix);
-    const sig = keySignatureCountForTonic(state.detectionResult.root_pc, isMinor);
-    return { signature: sig, tonicPc: Number(state.detectionResult.root_pc), isScale: false };
+    const tonic = Number(state.detectionResult.root_pc);
+    const tieLikeChordName = chordSymbolPreferFlat(tonic, isMinor);
+    let sig = keySignatureCountForTonic(tonic, isMinor, tieLikeChordName);
+    sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+    return { signature: sig, tonicPc: tonic, isScale: false };
   }
   return { signature: { count: 0, preferFlats: false }, tonicPc: 0, isScale: false };
 }
@@ -2510,38 +2557,45 @@ function initStaffAssets() {
   brace.src = "/static/brace_left.png";
 }
 
-function signaturePositions(top, gap, bass = false) {
-  if (bass) {
-    return {
-      sharp: [top + gap * 4, top + gap * 2.5, top + gap, top + gap * 3.5, top + gap * 2, top + gap * 4.5, top + gap * 3],
-      flat: [top + gap * 3, top + gap * 4.5, top + gap * 2.5, top + gap, top + gap * 3.5, top + gap * 2, top + gap * 4],
-    };
-  }
-  return {
-    sharp: [top + gap * 3.5, top + gap * 2, top + gap * 4.5, top + gap * 3, top + gap * 1.5, top + gap * 4, top + gap * 2.5],
-    flat: [top + gap * 2.5, top + gap * 4, top + gap * 2, top + gap * 3.5, top + gap * 1.5, top + gap * 3, top + gap],
-  };
-}
+// Sostenidos: F# C# G# D# A# E# B# — altura Y con la misma función que las notas (evita
+// desfase por textBaseline "alphabetic" vs Tk anchor center en escritorio).
+const KEY_SIG_TREBLE_SHARP_MIDIS = [78, 73, 80, 75, 70, 76, 71];
+const KEY_SIG_BASS_SHARP_MIDIS = [54, 49, 56, 51, 46, 52, 47];
+// Bemoles: Bb Eb Ab Db Gb Cb Fb — offsets como render_mixin.py (treble_offsets / bass flat).
+const KEY_SIG_TREBLE_FLAT_OFFSETS = [2, 0.5, 2.5, 1, 3, 1.5, 3.5];
+const KEY_SIG_BASS_FLAT_OFFSETS = [3, 1.5, 3.5, 2, 4, 2.5, 4.5];
 
-function drawKeySignatureOnStaff(ctx, x0, top, gap, sig, bass = false) {
+function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef) {
   if (!sig || !sig.count) return x0;
-  const positions = signaturePositions(top, gap, bass);
-  const yList = sig.preferFlats ? positions.flat : positions.sharp;
+  const staffTop = bassClef ? bassTop : trebleTop;
+  const step = 18;
+  ctx.save();
   ctx.fillStyle = "#e9edf2";
   ctx.font = "24px serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   let x = x0;
   for (let i = 0; i < sig.count; i += 1) {
-    ctx.fillText(sig.preferFlats ? "♭" : "♯", x, yList[i]);
-    x += 18;
+    let y;
+    if (sig.preferFlats) {
+      const offs = bassClef ? KEY_SIG_BASS_FLAT_OFFSETS[i] : KEY_SIG_TREBLE_FLAT_OFFSETS[i];
+      y = staffTop + gap * offs;
+    } else {
+      const midi = bassClef ? KEY_SIG_BASS_SHARP_MIDIS[i] : KEY_SIG_TREBLE_SHARP_MIDIS[i];
+      y = bassClef ? midiToBassY(midi, bassTop, gap) : midiToTrebleY(midi, trebleTop, gap);
+    }
+    ctx.fillText(sig.preferFlats ? "♭" : "♯", x + step / 2, y);
+    x += step;
   }
+  ctx.restore();
   return x;
 }
 
 function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig) {
   if (!sig || !sig.count) return 132;
   const xStart = 138;
-  const xTrebleEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, gap, sig, false);
-  const xBassEnd = drawKeySignatureOnStaff(ctx, xStart, bassTop, gap, sig, true);
+  const xTrebleEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, false);
+  const xBassEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, true);
   return Math.max(xTrebleEnd, xBassEnd) + 10;
 }
 
@@ -3495,7 +3549,7 @@ async function runDetection() {
   const payload = {
     notes: Array.from(state.activeDetectionNotes).sort((a, b) => a - b),
     language: state.language,
-    accidental: state.accidental,
+    accidental: currentAccidentalValue(),
   };
   const out = await fetchJson("/api/detect", {
     method: "POST",
@@ -3517,7 +3571,7 @@ async function runGenerateChord() {
     suffix: el("genVariant").value,
     inversion: Number(el("genInversion").value),
     language: state.language,
-    accidental: state.accidental,
+    accidental: currentAccidentalValue(),
   };
   const out = await fetchJson("/api/generate/chord", {
     method: "POST",
@@ -3542,7 +3596,7 @@ async function runGenerateScale() {
     tonic_pc: Number(el("scaleRoot").value),
     pattern_name: el("scaleType").value,
     language: state.language,
-    accidental: state.accidental,
+    accidental: currentAccidentalValue(),
   };
   const out = await fetchJson("/api/generate/scale", {
     method: "POST",
@@ -5130,6 +5184,8 @@ async function main() {
   initStaffAssets();
   void preloadAudioSamples();
   bindEvents();
+  const accInit = el("accidental");
+  if (accInit && (accInit.value === "flat" || accInit.value === "sharp")) state.accidental = accInit.value;
   applyTranslations();
   syncLeftPanelHeader();
   if (el("scaleBpm") && el("bpm")) {

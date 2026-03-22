@@ -6,6 +6,7 @@ import midichords.qt.tk_compat as tk
 from typing import Optional
 
 from midichords.core.i18n import NOTE_NAMES
+from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, format_intervals
 from midichords.core.verbose_log import vlog
 
@@ -89,7 +90,11 @@ class InputDetectionMixin:
         pcs = {note % 12 for note in chord_notes}
         if len(pcs) == 1:
             single_pc = next(iter(pcs))
-            chord = self.note_name(single_pc, with_octave=False)
+            chord = self.note_name(
+                single_pc,
+                with_octave=False,
+                prefer_flat=_chord_symbol_prefer_flat(int(single_pc), False),
+            )
             map_oct = {int(n): self.note_name(int(n), with_octave=True) for n in chord_notes}
             map_no_oct = {int(n): self.note_name(int(n), with_octave=False) for n in chord_notes}
             return chord, set(), map_oct, map_no_oct
@@ -103,6 +108,8 @@ class InputDetectionMixin:
             return chord, set(), map_oct, map_no_oct
 
         prefer_flats = str(self.config_data.get("note_accidental", "sharp")) == "flat"
+        is_minor = str(pattern.suffix).startswith("m") and not str(pattern.suffix).startswith("maj")
+        name_pf = _chord_symbol_prefer_flat(int(root), is_minor)
         degree_by_pc: dict[int, int] = {}
         for interval in pattern.intervals:
             pc = (int(root) + int(interval)) % 12
@@ -113,7 +120,7 @@ class InputDetectionMixin:
             root_pc=int(root),
             target_pc=int(root),
             degree=0,
-            prefer_flats=prefer_flats,
+            prefer_flats=name_pf,
             midi_note=int(root),
             with_octave=False,
         )
@@ -125,12 +132,12 @@ class InputDetectionMixin:
                     root_pc=int(root),
                     target_pc=int(bass_pc),
                     degree=int(bass_degree),
-                    prefer_flats=prefer_flats,
+                    prefer_flats=name_pf,
                     midi_note=int(bass_pc),
                     with_octave=False,
                 )
             else:
-                bass_name = self.note_name(int(bass_pc), with_octave=False)
+                bass_name = self.note_name(int(bass_pc), with_octave=False, prefer_flat=name_pf)
             chord = f"{chord}/{bass_name}"
 
         expected_pcs = {(int(root) + int(interval)) % 12 for interval in pattern.intervals}
@@ -138,8 +145,8 @@ class InputDetectionMixin:
         # Duplicates across octaves are valid (e.g., left-hand reinforcement).
         extras: set[int] = {int(note) for note in chord_notes if (int(note) % 12) not in expected_pcs}
 
-        # Lista de notas en panel de detección: respetar #/♭ del usuario (NOTE_NAMES / alias bemol).
-        # El nombre del acorde (tónica/bajo) sigue con escritura por grados (_spell_detection_note_name).
+        # Lista de notas en panel: #/♭ del usuario. Nombre del acorde (tónica/bajo): convención armónica
+        # (_chord_symbol_prefer_flat: menos alteraciones; empate → bemoles), no el toggle.
         map_oct: dict[int, str] = {}
         map_no_oct: dict[int, str] = {}
         for note in chord_notes:

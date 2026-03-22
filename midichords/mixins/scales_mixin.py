@@ -21,7 +21,10 @@ class ScalesMixin:
 
         pattern = self._resolve_scale_pattern()
         is_minor = self._scale_prefers_minor_signature(str(pattern.name))
-        _count, prefer_flats = self._key_signature_count_for_tonic(tonic_pc, is_minor)
+        tie_from_ui = str(self.config_data.get("note_accidental", "sharp")) == "flat"
+        _count, prefer_flats = self._key_signature_count_for_tonic(
+            tonic_pc, is_minor, tie_prefer_flats=tie_from_ui
+        )
         if prefer_flats_override is not None:
             prefer_flats = bool(prefer_flats_override)
 

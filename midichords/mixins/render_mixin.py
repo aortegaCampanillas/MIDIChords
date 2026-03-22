@@ -4,6 +4,7 @@ import time
 from typing import Optional
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
+from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.music_theory import WHITE_PCS
 
 
@@ -28,9 +29,15 @@ class RenderMixin:
         }
 
     @staticmethod
-    def _key_signature_count_for_tonic(tonic_pc: int, is_minor: bool) -> tuple[int, bool]:
-        # Returns (count, prefer_flats) choosing the most conventional enharmonic spelling:
-        # prefer the signature with fewer accidentals; on ties, default to sharps.
+    def _key_signature_count_for_tonic(
+        tonic_pc: int,
+        is_minor: bool,
+        *,
+        tie_prefer_flats: bool | None = None,
+    ) -> tuple[int, bool]:
+        # Returns (count, prefer_flats): menos accidentales gana; en empate (p. ej. Gb/F# mayor),
+        # tie_prefer_flats: generación/escalas según #/♭ del usuario; detección usa _chord_symbol_prefer_flat
+        # (paridad con el nombre del acorde). None → empate a sostenidos si no se pasa otro criterio.
         tonic_pc = int(tonic_pc) % 12
         if is_minor:
             sharp_map = {4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
@@ -47,6 +54,10 @@ class RenderMixin:
         if flat_count is None:
             return int(sharp_count), False
         if flat_count < sharp_count:
+            return int(flat_count), True
+        if sharp_count < flat_count:
+            return int(sharp_count), False
+        if tie_prefer_flats is True:
             return int(flat_count), True
         return int(sharp_count), False
 
@@ -86,24 +97,29 @@ class RenderMixin:
         return int(mapping.get(tonic_pc, 0))
 
     def _staff_signature_context(self, display_notes: set[int]) -> tuple[int, bool]:
+        tie_from_ui = str(self.config_data.get("note_accidental", "sharp")) == "flat"
         if self.scale_tab_active:
             pattern = self._resolve_scale_pattern()
             is_minor = self._scale_prefers_minor_signature(str(pattern.name))
-            return self._key_signature_count_for_tonic(self.scale_tonic_pc, is_minor)
+            return self._key_signature_count_for_tonic(
+                self.scale_tonic_pc, is_minor, tie_prefer_flats=tie_from_ui
+            )
         if self.generation_tab_active:
             pattern = self._resolve_generation_pattern()
             is_minor = self._is_minor_suffix(str(pattern.suffix))
-            return self._key_signature_count_for_tonic(self.generation_root_pc, is_minor)
+            return self._key_signature_count_for_tonic(
+                self.generation_root_pc, is_minor, tie_prefer_flats=tie_from_ui
+            )
         if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
             return 0, False
         root, pattern, _bass = self._analyze_chord_notes(display_notes)
         if root is None or pattern is None:
             return 0, False
         is_minor = self._is_minor_suffix(str(pattern.suffix))
-        # Detección: armadura y alteraciones en pentagrama = convención del acorde
-        # (menos accidentales; empate → sostenidos), igual que generación/escalas.
-        # El toggle #/♭ del usuario solo afecta al panel de detección (textos), v. InputDetectionMixin.
-        return self._key_signature_count_for_tonic(root, is_minor)
+        tie_pf = bool(_chord_symbol_prefer_flat(int(root), is_minor))
+        return self._key_signature_count_for_tonic(
+            root, is_minor, tie_prefer_flats=tie_pf
+        )
 
     def _instrument_display_notes(self) -> set[int]:
         if self.tuner_tab_active:

@@ -25,6 +25,31 @@ FLAT_ALIASES = {
 }
 
 
+def _chord_symbol_prefer_flat(root_pc: int, is_minor: bool) -> bool:
+    """Escritura del *nombre* del acorde (tónica / bajo): menos alteraciones en armadura;
+    en empate enarmónico (p. ej. Fa♯/Sol♭ mayor) → bemoles (más habitual en muchos textos)."""
+    pc = int(root_pc) % 12
+    if is_minor:
+        sharp_map = {4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
+        flat_map = {2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6}
+    else:
+        sharp_map = {7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7}
+        flat_map = {5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6}
+    sc = sharp_map.get(pc)
+    fc = flat_map.get(pc)
+    if sc is None and fc is None:
+        return False
+    if sc is None:
+        return True
+    if fc is None:
+        return False
+    if fc < sc:
+        return True
+    if sc < fc:
+        return False
+    return True
+
+
 def note_name(
     midi_note: int,
     language: str = "es",
@@ -265,8 +290,9 @@ def detect_chord(
     pcs = {n % 12 for n in midi_notes}
     if len(pcs) == 1:
         single = midi_notes[0]
+        name_pf = _chord_symbol_prefer_flat(single % 12, False)
         return {
-            "name": note_name(single, language=language, prefer_flat=prefer_flat, with_octave=False),
+            "name": note_name(single, language=language, prefer_flat=name_pf, with_octave=False),
             "notes_midi": midi_notes,
             "notes": [note_name(n, language=language, prefer_flat=prefer_flat, with_octave=True) for n in midi_notes],
             "extras_midi": [],
@@ -289,14 +315,16 @@ def detect_chord(
         if pc not in degree_by_pc:
             degree_by_pc[pc] = _chord_interval_degree(int(interval), pattern.suffix)
 
-    root_name = _spell_by_degree(int(root), int(root), 0, language, prefer_flat, midi_note=int(root), with_octave=False)
+    is_minor = str(pattern.suffix).startswith("m") and not str(pattern.suffix).startswith("maj")
+    name_pf = _chord_symbol_prefer_flat(int(root), is_minor)
+    root_name = _spell_by_degree(int(root), int(root), 0, language, name_pf, midi_note=int(root), with_octave=False)
     chord_name = f"{root_name}{pattern.suffix}"
     if bass_pc is not None and bass_pc != root:
         bass_degree = degree_by_pc.get(int(bass_pc))
         if bass_degree is None:
-            bass_name = note_name(int(bass_pc), language=language, prefer_flat=prefer_flat, with_octave=False)
+            bass_name = note_name(int(bass_pc), language=language, prefer_flat=name_pf, with_octave=False)
         else:
-            bass_name = _spell_by_degree(int(root), int(bass_pc), bass_degree, language, prefer_flat, midi_note=int(bass_pc), with_octave=False)
+            bass_name = _spell_by_degree(int(root), int(bass_pc), bass_degree, language, name_pf, midi_note=int(bass_pc), with_octave=False)
         chord_name = f"{chord_name}/{bass_name}"
 
     expected_pcs = {(int(root) + int(interval)) % 12 for interval in pattern.intervals}

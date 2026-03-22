@@ -383,6 +383,30 @@ function listScalePatterns(language = "es") {
   }));
 }
 
+function isMinorChordSuffix(suffix) {
+  const s = String(suffix || "");
+  return s.startsWith("m") && !s.startsWith("maj");
+}
+
+/** Nombre del acorde (tónica/bajo): menos alteraciones; empate enarmónico → bemoles. */
+function chordSymbolPreferFlat(rootPc, isMinor) {
+  const pc = ((Number(rootPc) % 12) + 12) % 12;
+  const sharpMap = isMinor
+    ? { 4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7 }
+    : { 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7 };
+  const flatMap = isMinor
+    ? { 2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6 }
+    : { 5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6 };
+  const sc = sharpMap[pc];
+  const fc = flatMap[pc];
+  if (sc == null && fc == null) return false;
+  if (sc == null) return true;
+  if (fc == null) return false;
+  if (fc < sc) return true;
+  if (sc < fc) return false;
+  return true;
+}
+
 function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es", preferFlat = false }) {
   const selected = CHORD_PATTERNS.find((p) => p.suffix === suffix) || CHORD_PATTERNS[0];
   if (!selected.intervals.length) {
@@ -424,8 +448,9 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   const pcs = new Set(midiNotes.map((n) => n % 12));
   if (pcs.size === 1) {
     const single = midiNotes[0];
+    const namePf = chordSymbolPreferFlat(single % 12, false);
     return {
-      name: noteName(single, language, preferFlat, false),
+      name: noteName(single, language, namePf, false),
       notes_midi: midiNotes,
       notes: midiNotes.map((n) => noteName(n, language, preferFlat, true)),
       extras_midi: [],
@@ -450,13 +475,14 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
     if (!(pc in degreeByPc)) degreeByPc[pc] = chordIntervalDegree(interval, pattern.suffix);
   }
 
-  const rootName = spellByDegree(root, root, 0, language, preferFlat, root, false);
+  const namePf = chordSymbolPreferFlat(root, isMinorChordSuffix(pattern.suffix));
+  const rootName = spellByDegree(root, root, 0, language, namePf, root, false);
   let chordName = `${rootName}${pattern.suffix}`;
   if (bassPc != null && bassPc !== root) {
     const bassDegree = degreeByPc[Number(bassPc)];
     const bassName = bassDegree == null
-      ? noteName(bassPc, language, preferFlat, false)
-      : spellByDegree(root, bassPc, bassDegree, language, preferFlat, bassPc, false);
+      ? noteName(bassPc, language, namePf, false)
+      : spellByDegree(root, bassPc, bassDegree, language, namePf, bassPc, false);
     chordName = `${chordName}/${bassName}`;
   }
 

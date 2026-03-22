@@ -37,8 +37,13 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web / escritorio**: en **generación** y **escalas**, si dos armaduras enarmónicas tienen el **mismo número** de alteraciones, la armadura del pentagrama sigue el selector **# / ♭**. En **detección**, el pentagrama usa la **misma convención que el nombre del acorde** (menos alteraciones; empate → **bemoles**), aunque el selector esté en **#**.
+- **Web**: el criterio **# / ♭** para empates y las peticiones API leen **`#accidental` del DOM** (`accidentalPreferFlatFromUi` / `currentAccidentalValue`) y se sincroniza `state.accidental` al arranque, para que no quede en **sharp** por defecto si el desplegable muestra **♭**.
+- **Web**: **`applyFlatKeySigIfUiFlatAndTie`** (generación, escalas y **detección**) fuerza armadura **bemol** si el desplegable es **♭** y la tónica tiene **empate enarmónico**; **`root_pc` en detección** acepta cualquier número finito (no solo entero).
+- **Web**: **armadura en el pentagrama** — sostenidos con **MIDI + `midiToTrebleY` / `midiToBassY`** (misma geometría que las notas) y **`textBaseline: middle`** (equivalente al anclaje centrado de Tk). Bemoles siguen offsets de `render_mixin.py`. Corrige el primer ♯ de Sol mayor en **Fa** (antes el canvas con baseline alfabético lo desplazaba hacia **Sol**).
 - **Web**: en detección (y resto de superficies que no son pentagrama), los **nombres de nota en piano/guitarra** y controles afines siguen el selector **# / ♭** (`state.accidental`), no la armadura inferida del acorde en el pentagrama (el pentagrama sigue usando la escritura armónica vía `noteNameFromPcStaff`).
 - **Web (worker)**: en detección, el campo **Notas** del panel usa **`noteName` con `preferFlat`** según el selector; ya no **`spellByDegree`** para esas etiquetas, de modo que con **♭** se muestran bemoles coherentes con la configuración.
+- **Escritorio (detección)**: el **nombre del acorde** (tónica y bajo en slash) usa la misma convención armónica que **API/web** (`_chord_symbol_prefer_flat`: menos alteraciones; empate enarmónico → **bemoles**). El selector **# / ♭** sigue gobernando solo las **etiquetas de notas** del panel, no el símbolo del acorde.
 
 - **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` en el despliegue (workflow y `launch.py deploy-web`). El worker responde **307** a `GET`/`HEAD` de `/static/*` con `?` o `#`, redirigiendo al recurso sin query (fiable frente a **404** de `ASSETS.fetch` con cache-bust antiguo en CDN/HTML cacheado). `Cache-Control: no-store` en esa respuesta y en estáticos/HTML (`_headers` + worker).
 

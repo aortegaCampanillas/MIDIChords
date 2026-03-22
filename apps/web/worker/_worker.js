@@ -462,11 +462,9 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
 
   const expectedPcs = new Set(pattern.intervals.map((i) => (Number(root) + Number(i)) % 12));
   const extrasMidi = midiNotes.filter((n) => !expectedPcs.has(n % 12));
-  const noteLabels = midiNotes.map((n) => {
-    const degree = degreeByPc[n % 12];
-    if (degree == null) return noteName(n, language, preferFlat, true);
-    return spellByDegree(root, n % 12, degree, language, preferFlat, n, true);
-  });
+  // Listado del panel: respetar #/♭ del usuario (noteName), no la escritura por grado del acorde
+  // (spellByDegree puede mostrar sostenidos aunque preferFlat sea true).
+  const noteLabels = midiNotes.map((n) => noteName(n, language, preferFlat, true));
 
   return {
     name: chordName,

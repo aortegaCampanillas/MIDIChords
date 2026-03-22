@@ -38,6 +38,7 @@ Historial de versiones publicadas de MIDIChords.
 ### Corregido
 
 - **Web**: en detección (y resto de superficies que no son pentagrama), los **nombres de nota en piano/guitarra** y controles afines siguen el selector **# / ♭** (`state.accidental`), no la armadura inferida del acorde en el pentagrama (el pentagrama sigue usando la escritura armónica vía `noteNameFromPcStaff`).
+- **Web (worker)**: en detección, el campo **Notas** del panel usa **`noteName` con `preferFlat`** según el selector; ya no **`spellByDegree`** para esas etiquetas, de modo que con **♭** se muestran bemoles coherentes con la configuración.
 
 - **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` en el despliegue (workflow y `launch.py deploy-web`). El worker responde **307** a `GET`/`HEAD` de `/static/*` con `?` o `#`, redirigiendo al recurso sin query (fiable frente a **404** de `ASSETS.fetch` con cache-bust antiguo en CDN/HTML cacheado). `Cache-Control: no-store` en esa respuesta y en estáticos/HTML (`_headers` + worker).
 

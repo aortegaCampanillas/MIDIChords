@@ -601,7 +601,7 @@ function el(id) {
 }
 
 function noteNameFromPc(pc) {
-  const preferFlat = !!getStaffContext().signature.preferFlats;
+  const preferFlat = state.accidental === "flat";
   return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
 }
 

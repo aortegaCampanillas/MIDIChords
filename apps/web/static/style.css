@@ -981,11 +981,21 @@ button:disabled {
 
 .key .key-label {
   position: absolute;
-  left: 3px;
-  right: 3px;
+  left: 2px;
+  right: 2px;
   bottom: 4px;
-  font-size: 10px;
+  font-size: 9px;
+  line-height: 1;
   text-align: center;
+  white-space: nowrap;
+}
+
+.key .key-label .key-accidental {
+  margin-left: -0.2em;
+}
+
+.key.black .key-label {
+  font-size: 8px;
 }
 
 .key.forbidden-flash::after {

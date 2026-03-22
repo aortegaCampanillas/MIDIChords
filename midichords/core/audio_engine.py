@@ -24,6 +24,10 @@ class Voice:
     age_samples: int = 0
     released: bool = False
     release_samples: int = 0
+    # Nivel de envolvente al pasar a release (primer bloque de audio tras note_off).
+    # Evita mezclar sustain decreciente × exp(release), que puede dar transiente tipo “clic”.
+    release_peak: float = 1.0
+    release_peak_set: bool = False
 
 
 @dataclass
@@ -223,6 +227,8 @@ class PianoAudioEngine:
             age_samples=0,
             released=False,
             release_samples=0,
+            release_peak=1.0,
+            release_peak_set=False,
         )
         with self.lock:
             self.voices[note] = voice
@@ -243,9 +249,11 @@ class PianoAudioEngine:
             if voice is not None:
                 voice.released = True
                 voice.release_samples = 0
+                voice.release_peak_set = False
             for sample_voice in self.sample_voices:
                 if sample_voice.note == note:
-                    sample_voice.decay = min(sample_voice.decay, 0.9993)
+                    # Cola más suave que 0.9993 para reducir “clic” al soltar tecla MIDI.
+                    sample_voice.decay = min(sample_voice.decay, 0.99955)
 
     def metronome_click(self, accent: bool = False, bar: bool = False, volume_scale: float = 1.0) -> None:
         try:
@@ -507,7 +515,7 @@ class PianoAudioEngine:
                     decay_step = 0.10
                     sustain_base = 0.65
                     sustain_freq = 3200.0
-                    release_rate = 5.2
+                    release_rate = 3.9
                     local_gain = 0.95
                 elif self.preset == "bright":
                     partial_count = 9
@@ -517,7 +525,7 @@ class PianoAudioEngine:
                     decay_step = 0.14
                     sustain_base = 0.9
                     sustain_freq = 2200.0
-                    release_rate = 7.2
+                    release_rate = 5.4
                     local_gain = 1.05
                 elif self.preset == "soft":
                     partial_count = 5
@@ -527,7 +535,7 @@ class PianoAudioEngine:
                     decay_step = 0.08
                     sustain_base = 0.58
                     sustain_freq = 3600.0
-                    release_rate = 4.6
+                    release_rate = 3.45
                     local_gain = 0.88
                 else:
                     partial_count = 7
@@ -537,7 +545,7 @@ class PianoAudioEngine:
                     decay_step = 0.12
                     sustain_base = 0.78
                     sustain_freq = 2900.0
-                    release_rate = 6.5
+                    release_rate = 4.9
                     local_gain = 1.0
 
                 # Inharmonicidad de cuerdas reales (mayor en agudos).
@@ -571,8 +579,11 @@ class PianoAudioEngine:
 
                 if voice.released:
                     release_age = (voice.release_samples + n) / self.sample_rate
-                    release_env = np.exp(-release_rate * release_age)
-                    env = hold_env * release_env
+                    if not voice.release_peak_set:
+                        voice.release_peak = float(np.clip(hold_env[0], 1e-4, 1.0))
+                        voice.release_peak_set = True
+                    # Cola solo exponencial desde el pico al soltar (no sustain × release).
+                    env = voice.release_peak * np.exp(-release_rate * release_age)
                 else:
                     env = hold_env
 

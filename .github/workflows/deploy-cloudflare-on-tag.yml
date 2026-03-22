@@ -26,20 +26,7 @@ jobs:
           ref: main
 
       - name: Prepare static web bundle
-        run: |
-          rm -rf apps/web/pages-dist
-          mkdir -p apps/web/pages-dist/static
-          cp apps/web/index.html apps/web/pages-dist/index.html
-          cp -R apps/web/static/. apps/web/pages-dist/static/
-          cp apps/web/worker/_worker.js apps/web/pages-dist/_worker.js
-          # Cloudflare Pages headers (evita cache de HTML/CSS/JS tras deploy)
-          if [ -f apps/web/_headers ]; then cp apps/web/_headers apps/web/pages-dist/_headers; fi
-          if [ -f apps/web/robots.txt ]; then cp apps/web/robots.txt apps/web/pages-dist/robots.txt; fi
-          if [ -f apps/web/sitemap.xml ]; then cp apps/web/sitemap.xml apps/web/pages-dist/sitemap.xml; fi
-          test -f apps/web/pages-dist/index.html
-          test -f apps/web/pages-dist/static/app.js
-          test -f apps/web/pages-dist/static/style.css
-          test -f apps/web/pages-dist/_worker.js
+        run: python3 scripts/build_web_pages_dist.py
 
       - name: Deploy to Cloudflare Pages
         id: deploy_primary

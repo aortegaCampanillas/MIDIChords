@@ -52,6 +52,27 @@ class TestAssetParser(unittest.TestCase):
         self.assertTrue(_mod.pick_static_url(css, "style.css"))
         self.assertTrue(_mod.pick_static_url(js, "app.js"))
 
+    def test_pick_fingerprinted_bundle_urls(self) -> None:
+        from urllib.parse import urljoin
+
+        base = "https://example.com/"
+        p = _mod.AssetParser()
+        p.feed(
+            '<link rel="stylesheet" href="/static/style.abc123def456.css"/>'
+            '<script src="/static/app.0123456789ab.js"></script>'
+        )
+        p.close()
+        css = [urljoin(base, h) for h in p.stylesheet_hrefs]
+        js = [urljoin(base, h) for h in p.script_srcs]
+        self.assertEqual(
+            _mod.pick_css_bundle_url(css),
+            "https://example.com/static/style.abc123def456.css",
+        )
+        self.assertEqual(
+            _mod.pick_js_bundle_url(js),
+            "https://example.com/static/app.0123456789ab.js",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

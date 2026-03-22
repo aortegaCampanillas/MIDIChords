@@ -11,9 +11,11 @@ La web se publica en Cloudflare Pages, no con un `wrangler.toml` local dentro de
 El flujo real de despliegue es:
 
 1. preparar un bundle estático temporal con:
-   - `apps/web/index.html`
+   - `apps/web/index.html` (en el bundle, los enlaces a **`app.js`** y **`style.css`** se reescriben a nombres con **hash de contenido**, p. ej. `/static/app.a1b2c3d4e5f6.js`, para evitar cachés del edge en el dominio personalizado)
    - `apps/web/static/`
    - `apps/web/worker/_worker.js` copiado como `_worker.js`
+
+   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) aplica ese paso; en el repo siguen existiendo `static/app.js` y `static/style.css` para desarrollo local.
 2. desplegar ese bundle al proyecto de Pages configurado en GitHub:
    - variable: `CLOUDFLARE_PAGES_PROJECT`
    - valor actual: `midichords`
@@ -124,6 +126,22 @@ curl -fsS 'https://freemidichords.com/api/meta?language=es'
 ```
 
 La respuesta debe ser JSON e incluir `chord_patterns` y `scale_patterns`. Si devuelve `404`, el frontend cargará pero los combos de generación y escalas quedarán vacíos.
+
+### Dominio personalizado: JS/CSS antiguos (caché del zona)
+
+Si **`*.pages.dev`** muestra el comportamiento nuevo pero tu dominio (p. ej. `freemidichords.com`) no, casi siempre es **caché en el edge del zona** con TTL largo para `/static/*` (verás `cf-cache-status: HIT` y `cache-control: public, max-age=…` en `curl -sI https://tudominio/static/app.js`).
+
+1. **Cloudflare Dashboard** del dominio → **Caching** → **Configuration** → **Purge Everything** (o *Custom Purge* con URL/prefijo `https://tudominio/static/`).
+2. Revisa **Caching** → **Cache Rules**: si hay una regla tipo *Cache Everything* o TTL fijo para `/static/*`, cámbiala para **respetar cabeceras de origen** o excluir esas rutas; el worker ya envía `Cache-Control: no-store` y `CDN-Cache-Control: no-store` en HTML y estáticos.
+
+Comparación rápida:
+
+```bash
+curl -sI 'https://midichords.pages.dev/static/app.js' | grep -i cache-control
+curl -sI 'https://freemidichords.com/static/app.js' | grep -i cache-control
+```
+
+En el host de Pages debería verse `no-store`; en el dominio custom, tras purgar o corregir reglas, igual.
 
 Nota: si `wrangler` falla en entorno no interactivo pidiendo `CLOUDFLARE_API_TOKEN`, usa el workflow de GitHub Actions; es el camino más fiable en este repo.
 

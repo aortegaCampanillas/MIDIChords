@@ -698,6 +698,7 @@ export default {
         headers: {
           location: target,
           "cache-control": "no-store",
+          "cdn-cache-control": "no-store",
         },
       });
     }
@@ -706,6 +707,8 @@ export default {
 
     // Evita que Cloudflare/cliente se queden con CSS/JS viejos tras desplegar.
     // (En local no pasa porque no hay cache CDN.)
+    // cdn-cache-control: el edge de Cloudflare puede cachear aunque Cache-Control sea no-store
+    // si una regla del zona lo ignora; CDN-Cache-Control refuerza el comportamiento en edge.
     if (
       pathname === "/" ||
       pathname.endsWith(".html") ||
@@ -713,6 +716,8 @@ export default {
     ) {
       const headers = new Headers(assetResp.headers);
       headers.set("cache-control", "no-store");
+      headers.set("cdn-cache-control", "no-store");
+      headers.delete("age");
       return new Response(assetResp.body, {
         status: assetResp.status,
         statusText: assetResp.statusText,

@@ -618,6 +618,20 @@ function noteNameFromPc(pc) {
   return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
 }
 
+/** Etiqueta del teclado: base + alteración sin hueco tipográfico entre ambos. */
+function pianoKeyLabelHtml(pc) {
+  const label = noteNameFromPc(pc);
+  if (label.endsWith("#")) {
+    const base = label.slice(0, -1);
+    return `<span class="key-label"><span class="key-note-base">${base}</span><span class="key-accidental">#</span></span>`;
+  }
+  if (label.endsWith("♭")) {
+    const base = label.slice(0, -1);
+    return `<span class="key-label"><span class="key-note-base">${base}</span><span class="key-accidental">♭</span></span>`;
+  }
+  return `<span class="key-label">${label}</span>`;
+}
+
 function noteNameFromPcStaff(pc, preferFlat) {
   return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
 }
@@ -1800,7 +1814,7 @@ function renderPiano() {
     }
     if (state.mode !== "scales" && tonicPc !== null && pc === tonicPc) key.classList.add("tonic");
     key.dataset.midi = String(midi);
-    key.innerHTML = `<span class="key-label">${noteNameFromPc(pc)}</span>`;
+    key.innerHTML = pianoKeyLabelHtml(pc);
 
     if (generationPianoMode) {
       const rhFinger = rhFingerByNote.get(midi);

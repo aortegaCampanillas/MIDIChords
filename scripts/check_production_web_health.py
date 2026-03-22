@@ -43,6 +43,24 @@ def pick_static_url(urls: list[str], needle: str) -> str | None:
     return None
 
 
+def pick_css_bundle_url(urls: list[str]) -> str | None:
+    """CSS principal: /static/style.<hash>.css (deploy) o /static/style.css (legado)."""
+    for u in urls:
+        path = urlparse(u).path.replace("\\", "/")
+        if "/static/style." in path and path.endswith(".css"):
+            return u
+    return pick_static_url(urls, "style.css")
+
+
+def pick_js_bundle_url(urls: list[str]) -> str | None:
+    """JS principal: /static/app.<hash>.js (deploy) o /static/app.js (legado)."""
+    for u in urls:
+        path = urlparse(u).path.replace("\\", "/")
+        if "/static/app." in path and path.endswith(".js"):
+            return u
+    return pick_static_url(urls, "app.js")
+
+
 class AssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -217,16 +235,16 @@ def main() -> int:
     css_urls = [urljoin(index_url, h) for h in p.stylesheet_hrefs]
     js_urls = [urljoin(index_url, h) for h in p.script_srcs]
 
-    css_url = pick_static_url(css_urls, "style.css")
-    js_url = pick_static_url(js_urls, "app.js")
+    css_url = pick_css_bundle_url(css_urls)
+    js_url = pick_js_bundle_url(js_urls)
 
     if not css_url:
         failures.append(
-            "No se encontró <link rel=stylesheet> a un recurso que contenga 'style.css' en la ruta."
+            "No se encontró <link rel=stylesheet> a /static/style…css (p. ej. style.<hash>.css)."
         )
     if not js_url:
         failures.append(
-            "No se encontró <script src=…> a un recurso que contenga 'app.js' en la ruta."
+            "No se encontró <script src=…> a /static/app…js (p. ej. app.<hash>.js)."
         )
 
     # --- CSS ---

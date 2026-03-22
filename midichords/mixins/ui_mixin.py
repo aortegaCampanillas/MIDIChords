@@ -1578,16 +1578,17 @@ class UiMixin:
         self.instrument_canvas_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.instrument_view_switch_side = tk.Frame(self.instrument_body_row, bg=self.color_surface_alt, bd=0, highlightthickness=0)
 
+        self.keyboard_qscroll = tk.KeyboardStripScroll(self.instrument_canvas_holder)
         self.keyboard_canvas = tk.Canvas(
-            self.instrument_canvas_holder,
+            self.keyboard_qscroll,
             bg="#f5f4ef",
             height=156,
             highlightthickness=1,
             highlightbackground="#c5cad3",
         )
-        # En Qt, `expand=True` introduce stretch vertical en VBoxLayout y
-        # puede dejar huecos arriba/abajo dentro del panel inferior.
-        self.keyboard_canvas.pack(fill=tk.X, expand=False)
+        self.keyboard_qscroll.setWidget(self.keyboard_canvas)
+        # Scroll horizontal si el teclado supera el ancho (misma idea que la web con overflow-x).
+        self.keyboard_qscroll.pack(fill=tk.X, expand=False)
         self.tuner_spectrum_canvas = tk.Canvas(
             self.instrument_canvas_holder,
             bg="#081425",
@@ -1983,6 +1984,10 @@ class UiMixin:
                     try:
                         self.keyboard_canvas.setFixedHeight(kh)
                         self.keyboard_canvas.setMinimumHeight(kh)
+                        qs = getattr(self, "keyboard_qscroll", None)
+                        if qs is not None:
+                            qs.setMinimumHeight(kh + 2)
+                            qs.setMaximumHeight(kh + 2)
                     except Exception:
                         pass
 
@@ -2641,7 +2646,7 @@ class UiMixin:
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.X, expand=False)
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
@@ -2655,7 +2660,7 @@ class UiMixin:
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack_forget()
+            self.keyboard_qscroll.pack_forget()
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
@@ -2669,7 +2674,7 @@ class UiMixin:
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
-            self.keyboard_canvas.pack(fill=tk.X, expand=False)
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
             self.tab_generation_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()

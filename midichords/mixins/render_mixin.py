@@ -10,6 +10,66 @@ from midichords.core.music_theory import WHITE_PCS
 
 class RenderMixin:
     @staticmethod
+    def _staff_clef_sizes_px(line_space: int) -> tuple[int, int]:
+        """Tamaño de clave de sol / fa alineado con la web (gap≈17 → 𝄞 82px, 𝄢 72px)."""
+        ls = float(line_space)
+        treble = int(round(ls * (82.0 / 17.0)))
+        bass = int(round(ls * (72.0 / 17.0)))
+        return (max(52, min(100, treble)), max(46, min(90, bass)))
+
+    @staticmethod
+    def _staff_accidental_font_pt(line_space: int, *, prefer_flat: bool) -> int:
+        """Tamaño #/♭ en pentagrama; proporción como la web (24px con gap≈17)."""
+        ls = float(line_space)
+        px = int(round(ls * (24.0 / 17.0)))
+        if prefer_flat:
+            px = int(round(px * 1.06))
+        else:
+            px = int(round(px * 0.98))
+        return max(17, min(34, px))
+
+    @staticmethod
+    def _staff_natural_font_pt(line_space: int) -> int:
+        """Tamaño del becuadro (♮), ligeramente menor que #/♭."""
+        px = int(round(float(line_space) * (22.0 / 17.0)))
+        return max(16, min(32, px))
+
+    @staticmethod
+    def _staff_key_sig_step_x(line_space: int, accidental_pt: int) -> int:
+        """Separación horizontal entre alteraciones de armadura (evita solape al crecer la fuente)."""
+        return max(14, min(22, int(round(line_space * 0.82)), int(accidental_pt * 0.72) + 6))
+
+    def _scaled_clef_pixmap(self, pm: object | None, target_h: int, cache_slot: str) -> object | None:
+        """Escala PNG de clave al alto del pentagrama; cache por slot para no recalcular cada frame."""
+        if pm is None:
+            return None
+        is_null = getattr(pm, "isNull", None)
+        if callable(is_null) and is_null():
+            return None
+        h0 = int(getattr(pm, "height", lambda: 0)())
+        if h0 <= 0:
+            return pm
+        attr = f"_clef_scaled_cache_{cache_slot}"
+        prev = getattr(self, attr, None)
+        if prev and prev[0] == target_h and prev[1] is pm:
+            return prev[2]
+        try:
+            from PySide6.QtCore import Qt
+        except ImportError:
+            return pm
+        w0 = int(pm.width())
+        new_h = int(target_h)
+        new_w = max(1, int(round(w0 * (new_h / float(h0)))))
+        scaled = pm.scaled(
+            new_w,
+            new_h,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        setattr(self, attr, (target_h, pm, scaled))
+        return scaled
+
+    @staticmethod
     def _is_minor_suffix(suffix: str) -> bool:
         return suffix.startswith("m") and not suffix.startswith("maj")
 
@@ -477,7 +537,16 @@ class RenderMixin:
         # In generation/scale modes, note names are already conveyed on-key/staff; avoid duplicate labels on top.
         show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active) and (not self.scale_tab_active)
 
-        w = max(100, canvas.winfo_width())
+        # Ancho visible del viewport del QScrollArea (no el ancho lógico del canvas tras setFixedWidth).
+        viewport_w = max(120, int(canvas.winfo_width()))
+        qs = getattr(self, "keyboard_qscroll", None)
+        if qs is not None:
+            try:
+                vp = qs.viewport()
+                if vp is not None and int(vp.width()) > 0:
+                    viewport_w = max(120, int(vp.width()))
+            except Exception:
+                pass
         # El alto del canvas lo fija la UI (p. ej. 124 en metrónomo, 156 en otros modos).
         h = max(96, int(canvas.winfo_height()))
 
@@ -523,11 +592,16 @@ class RenderMixin:
                 else:
                     generation_active_rh_notes.add(note_int)
         white_notes = [n for n in notes if (n % 12) in WHITE_PCS]
-        white_w = w / len(white_notes)
+        # Misma idea que la web: ~clamp(28px,…) por tecla blanca; si no cabe, scroll horizontal.
+        _kb_min_white_px = 28
+        content_w = max(float(viewport_w), float(len(white_notes)) * float(_kb_min_white_px))
+        white_w = content_w / len(white_notes)
+        w = content_w
         # Ajuste de proporción del teclado: menos altura y más presencia.
         key_top = 10
         key_bottom = h - 8
         black_h = int((key_bottom - key_top) * 0.58)
+        show_key_names = self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active
 
         white_index: dict[int, int] = {}
         idx = 0
@@ -536,9 +610,9 @@ class RenderMixin:
                 white_index[note] = idx
                 idx += 1
 
-        # Fondo y marco base del teclado.
-        canvas.create_rectangle(0, 0, w, h, fill="#d8d8d8", outline="")
-        canvas.create_rectangle(0, key_top, w, key_bottom, fill="#d8d8d8", outline="#c4c8cf", width=1)
+        # Fondo y marco como `.piano` en web: background #e8ecf2, borde #3a4558.
+        canvas.create_rectangle(0, 0, content_w, h, fill="#e8ecf2", outline="")
+        canvas.create_rectangle(0, key_top, content_w, key_bottom, fill="#e8ecf2", outline="#3a4558", width=1)
 
         def _draw_bottom_rounded_key(
             x1: float,
@@ -589,15 +663,20 @@ class RenderMixin:
                 width=width,
             )
 
+        # Rendija entre blancas (la web lleva borde 1px por lado; aquí ~1px de fondo visible).
+        _white_key_inset = 0.5
+
         for note in notes:
             if (note % 12) not in WHITE_PCS:
                 continue
             i = white_index[note]
-            x1 = i * white_w
-            x2 = (i + 1) * white_w
+            x1 = i * white_w + _white_key_inset
+            x2 = (i + 1) * white_w - _white_key_inset
 
+            # Bordes alineados a `style.css` (.key, .rh, .lh, etc.).
             if note in detection_extra_notes:
                 fill_color = "#bf2f2f"
+                outline_color = "#5c1515"
             elif (
                 self.scale_tab_active
                 and self.scale_play_mode == "piano"
@@ -605,6 +684,7 @@ class RenderMixin:
                 and note == scale_input_raw_note
             ):
                 fill_color = "#ffe2a6"
+                outline_color = "#7b8798"
             elif (
                 self.scale_tab_active
                 and self.scale_play_mode == "piano"
@@ -613,41 +693,50 @@ class RenderMixin:
                 and note not in scale_rh_display_notes
             ):
                 fill_color = "#ff6a00"
+                outline_color = "#c8772f"
             elif self.scale_tab_active and self.scale_play_mode == "piano" and note in display_active_notes:
                 fill_color = "#39c5ff"
+                outline_color = "#2b6da6"
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#65b7ff"
+                outline_color = "#2b6da6"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_lh_notes:
                 fill_color = "#ff6a00"
+                outline_color = "#c8772f"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_rh_notes:
                 fill_color = "#39c5ff"
+                outline_color = "#2b6da6"
             elif note in display_active_notes:
                 fill_color = "#4da3ea"
+                outline_color = "#2b6da6"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_lh_display_notes:
                 fill_color = "#ff8a2b"
+                outline_color = "#c8772f"
             else:
                 fill_color = "#f7f7f4"
+                outline_color = "#7b8798"
 
+            # Web: `.key { border-radius: 0 0 8px 8px; border: 1px solid #7b8798 }`.
             _draw_bottom_rounded_key(
                 x1,
                 key_top,
                 x2,
                 key_bottom,
-                radius=max(2.0, min(4.0, white_w * 0.13)),
+                radius=max(4.0, min(9.0, white_w * 0.29)),
                 fill=fill_color,
-                outline="#b7bec7",
+                outline=outline_color,
                 width=1,
             )
-            show_label = self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active
-            if show_label:
+            if show_key_names:
                 is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
-                label_color = "#0b2540" if (note in display_active_notes or is_generation_active) else "#5f5f5f"
+                label_color = "#10243a" if (note in display_active_notes or is_generation_active) else "#5f5f5f"
+                label_pt = max(8, min(11, int(white_w * 0.32)))
                 canvas.create_text(
                     (x1 + x2) / 2,
                     key_bottom - 16,
                     text=self.note_name(note, with_octave=False),
                     fill=label_color,
-                    font=("Helvetica", 8, "bold"),
+                    font=("Helvetica", label_pt, "bold"),
                 )
             if self.scale_tab_active and (note % 12) in scale_pc_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
@@ -725,13 +814,14 @@ class RenderMixin:
             else:
                 fill_color = "#101822"
 
+            # Misma idea que la web (hereda `border-radius: 0 0 8px 8px`); radio acotado al ancho/alto
+            # de la negra para no superar semitecla y suavizar artefactos en bordes muy curvos.
             _draw_bottom_rounded_key(
                 x1_i,
                 key_top,
                 x2_i,
                 key_top + black_h,
-                # Square black-key base avoids anti-aliased bright artifacts on some canvases.
-                radius=0.0,
+                radius=max(2.0, min(6.5, min(float(black_w), float(black_h)) * 0.36)),
                 fill=fill_color,
                 outline="#0a0f16",
                 width=1,
@@ -744,6 +834,18 @@ class RenderMixin:
                 r = max(9, min(13, black_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
+            elif show_key_names:
+                is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
+                blabel = "#f0f4fc" if (note in display_active_notes or is_generation_active) else "#9aacbf"
+                bl_pt = max(7, min(10, int(black_w * 0.42)))
+                canvas.create_text(
+                    (x1_i + x2_i) / 2,
+                    key_top + black_h - 4,
+                    text=self.note_name(note, with_octave=False),
+                    fill=blabel,
+                    font=("Helvetica", bl_pt, "bold"),
+                    anchor="s",
+                )
             if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:
@@ -838,6 +940,12 @@ class RenderMixin:
                 x = i * white_w + white_w * 0.5
                 octave = note // 12 - 1
                 canvas.create_text(x, h - 5, text=f"C{octave}", anchor="s", fill="#8f8f8f", font=("Helvetica", 9))
+
+        try:
+            canvas.setFixedWidth(int(round(content_w)))
+        except Exception:
+            pass
+
     def redraw_staff(self) -> None:
         canvas = self.staff_canvas
         canvas.delete("all")
@@ -1023,19 +1131,24 @@ class RenderMixin:
                 joinstyle=tk.ROUND,
             )
 
-        # Clave de sol y clave de fa: imagen si existe, si no texto con fuente que tenga símbolos (evita "?" en Linux/Flatpak).
-        treble_x, treble_y = 108, treble_top + line_space * 1.65
-        bass_x, bass_y = 108, bass_top + line_space * 1.65
-        if getattr(self, "treble_clef_image", None) is not None:
-            canvas.create_image(treble_x, treble_y, image=self.treble_clef_image, anchor="center")
+        # Clave de sol y clave de fa: misma escala relativa que la web (𝄞/𝄢 más grandes que antes).
+        treble_pt, bass_pt = self._staff_clef_sizes_px(int(line_space))
+        treble_x, treble_y = 108, treble_top + line_space * 2.7
+        bass_x, bass_y = 108, bass_top + line_space * 2.25
+        treble_img = getattr(self, "treble_clef_image", None)
+        if treble_img is not None:
+            scaled_t = self._scaled_clef_pixmap(treble_img, treble_pt, "treble")
+            canvas.create_image(treble_x, treble_y, image=scaled_t or treble_img, anchor="center")
         else:
             clef_font = getattr(self, "_clef_font_family", "serif")
-            canvas.create_text(treble_x, treble_y, text="𝄞", font=(clef_font, 64), fill="#ffffff")
-        if getattr(self, "bass_clef_image", None) is not None:
-            canvas.create_image(bass_x, bass_y, image=self.bass_clef_image, anchor="center")
+            canvas.create_text(treble_x, treble_y, text="𝄞", font=(clef_font, treble_pt), fill="#ffffff")
+        bass_img = getattr(self, "bass_clef_image", None)
+        if bass_img is not None:
+            scaled_b = self._scaled_clef_pixmap(bass_img, bass_pt, "bass")
+            canvas.create_image(bass_x, bass_y, image=scaled_b or bass_img, anchor="center")
         else:
             clef_font = getattr(self, "_clef_font_family", "serif")
-            canvas.create_text(bass_x, bass_y, text="𝄢", font=(clef_font, 58), fill="#ffffff")
+            canvas.create_text(bass_x, bass_y, text="𝄢", font=(clef_font, bass_pt), fill="#ffffff")
 
         signature_count, prefer_flat_signature = self._staff_signature_context(display_notes)
         sharp_order_pcs = [6, 1, 8, 3, 10, 5, 0]  # F# C# G# D# A# E# B#
@@ -1057,9 +1170,12 @@ class RenderMixin:
         signature_end_x = 132.0
         if use_key_signature:
             accidental_text = "♭" if prefer_flat_signature else "#"
-            accidental_font = ("Helvetica", 21 if prefer_flat_signature else 19, "bold")
+            acc_sig_pt = self._staff_accidental_font_pt(
+                int(line_space), prefer_flat=prefer_flat_signature
+            )
+            accidental_font = ("Helvetica", acc_sig_pt, "bold")
             sig_x_start = 138
-            sig_step_x = 12
+            sig_step_x = self._staff_key_sig_step_x(int(line_space), acc_sig_pt)
             signature_end_x = sig_x_start + ((max(1, min(7, len(signature_pcs))) - 1) * sig_step_x)
             if prefer_flat_signature:
                 treble_offsets = [2.0, 0.5, 2.5, 1.0, 3.0, 1.5, 3.5]
@@ -1275,19 +1391,29 @@ class RenderMixin:
                 else:
                     letter_idx = diatonic_idx % 7
                 natural_base_pc = natural_pc_by_letter[letter_idx]
+                acc_note_pt = self._staff_accidental_font_pt(
+                    int(line_space), prefer_flat=prefer_flat_signature
+                )
+                nat_pt = self._staff_natural_font_pt(int(line_space))
+                acc_dx_scale = max(22, min(40, int(round(acc_note_pt * 1.12))))
+                acc_dx_nat = max(20, min(38, int(round(nat_pt * 1.12))))
                 if use_key_signature and natural_base_pc in signature_base_naturals and note_pc == natural_base_pc:
-                    accidental_x = (x - 24) if self.scale_tab_active else ((chord_x - 34) if col > 0 else (x - 34))
+                    accidental_x = (x - acc_dx_nat) if self.scale_tab_active else (
+                        (chord_x - acc_dx_nat - 6) if col > 0 else (x - acc_dx_nat)
+                    )
                     canvas.create_text(
                         accidental_x,
                         y,
                         text="♮",
                         fill="#ffffff",
-                        font=("Helvetica", 19, "bold"),
+                        font=("Helvetica", nat_pt, "bold"),
                     )
                 elif note_pc not in WHITE_PCS and (not use_key_signature or note_pc not in signature_pc_set):
-                    accidental_x = (x - 24) if self.scale_tab_active else ((chord_x - 34) if col > 0 else (x - 34))
+                    accidental_x = (x - acc_dx_scale) if self.scale_tab_active else (
+                        (chord_x - acc_dx_scale - 6) if col > 0 else (x - acc_dx_scale)
+                    )
                     accidental_text = "♭" if prefer_flat_signature else "#"
-                    accidental_font = ("Helvetica", 20 if prefer_flat_signature else 18, "bold")
+                    accidental_font = ("Helvetica", acc_note_pt, "bold")
                     canvas.create_text(
                         accidental_x,
                         y,

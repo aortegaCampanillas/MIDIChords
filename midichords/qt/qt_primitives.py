@@ -110,7 +110,8 @@ def _qt_canvas_text_rect_and_flags(
         rect = QRectF(x, y, cw - x, ch - y)
         flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
     elif a == "n":
-        rect = QRectF(0.0, y, cw, ch - y)
+        # Tk: (x,y) es el punto medio-superior del texto.
+        rect = QRectF(x - tw * 0.5, y, tw, th)
         flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
     elif a == "ne":
         rect = QRectF(0.0, y, x, ch - y)
@@ -119,7 +120,9 @@ def _qt_canvas_text_rect_and_flags(
         rect = QRectF(x, 0.0, cw - x, y)
         flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom
     elif a == "s":
-        rect = QRectF(0.0, 0.0, cw, y)
+        # Tk: (x,y) es el punto medio-inferior del texto. No usar todo el ancho del canvas
+        # para AlignHCenter (desplazaría la etiqueta al centro del teclado, p. ej. en negras).
+        rect = QRectF(x - tw * 0.5, y - th, tw, th)
         flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom
     elif a == "se":
         rect = QRectF(0.0, 0.0, x, y)

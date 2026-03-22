@@ -5,7 +5,18 @@ from typing import Any, Callable, Optional
 
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QFont, QFontMetrics, QPixmap
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QMainWindow, QSizePolicy
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+    QMainWindow,
+    QSizePolicy,
+)
 
 from midichords.qt.qt_primitives import QtCanvas, QtBooleanVar, QtStringVar, _font_from_tk_tuple
 
@@ -753,6 +764,57 @@ class Entry(Widget):
 
     def focus_set(self) -> None:
         self._entry.setFocus()
+
+
+class KeyboardStripScroll(QScrollArea):
+    """Contenedor con scroll horizontal para el teclado (ancho mínimo por tecla blanca)."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWidgetResizable(False)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFrameShape(QScrollArea.Shape.NoFrame)
+
+    def pack(self, **_kwargs: Any) -> None:
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        side = str(_kwargs.get("side", TOP)).lower()
+        fill = str(_kwargs.get("fill", "")).lower()
+        expand = bool(_kwargs.get("expand", False))
+        stretch = 1 if expand else 0
+        if fill == X:
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        elif fill == Y:
+            self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        elif fill == BOTH:
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        else:
+            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        layout = parent.layout()
+        if side in {LEFT, RIGHT}:
+            if layout is None or not isinstance(layout, QHBoxLayout):
+                layout = QHBoxLayout()
+                layout.setContentsMargins(0, 0, 0, 0)
+                parent.setLayout(layout)
+            if side == RIGHT:
+                if not getattr(parent, "_tk_pack_right_stretch", False):
+                    layout.addStretch(0)
+                    setattr(parent, "_tk_pack_right_stretch", True)
+                layout.addWidget(self, stretch)
+            else:
+                layout.addWidget(self, stretch)
+        else:
+            if layout is None or not isinstance(layout, QVBoxLayout):
+                layout = QVBoxLayout()
+                layout.setContentsMargins(0, 0, 0, 0)
+                parent.setLayout(layout)
+            layout.addWidget(self, stretch)
+        self.setVisible(True)
+
+    def pack_forget(self) -> None:
+        _qt_pack_forget_widget(self)
 
 
 class Canvas(QtCanvas):

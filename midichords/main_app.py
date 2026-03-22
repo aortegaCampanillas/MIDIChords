@@ -421,7 +421,7 @@ class MidiChordAnalyzerApp(
         if self.instrument_view == "guitar":
             self.guitar_handedness_combo.pack_forget()
             self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
-            self.keyboard_canvas.pack_forget()
+            self.keyboard_qscroll.pack_forget()
             # En Qt, `expand=False` + sizeHint pequeño puede dejar el canvas
             # sin estirarse (se ve como si ocupara solo la mitad).
             # Fijamos altura para conservar proporciones del diagrama.
@@ -447,7 +447,7 @@ class MidiChordAnalyzerApp(
                 pass
             # En Qt, `expand=True` mete "stretch" y suele crear hueco arriba/abajo
             # dentro del panel inferior. Para piano mantenemos el canvas con altura fija.
-            self.keyboard_canvas.pack(fill=tk.X, expand=False)
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
         self._fit_instrument_panel_height()
         self._refresh_instrument_toggle_styles()
         self._refresh_handedness_toggle_styles()

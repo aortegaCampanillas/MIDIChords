@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -94,18 +95,20 @@ def _load_deploy_secrets(project_root: Path) -> None:
             continue
 
 
-def run_deploy_web(project_name: str | None) -> None:
-    """Prepara el bundle estático y despliega a Cloudflare Pages (producción) sin GitHub Actions."""
+def prepare_web_pages_dist(project_root: Path) -> Path:
+    """
+    Construye apps/web/pages-dist listo para wrangler pages deploy.
+
+    Renombra app.js y style.css con hash de contenido y actualiza index.html en el bundle,
+    para romper cachés del edge en dominios personalizados que ignoran Cache-Control en /static/*.
+    El repo fuente sigue usando /static/app.js y /static/style.css (desarrollo local).
+    """
     import shutil
 
-    project_root = Path(__file__).resolve().parent
     web_dir = project_root / "apps" / "web"
     pages_dist = web_dir / "pages-dist"
 
-    # Cargar secretos desde fichero si existen (apps/web/.env.deploy o .env.deploy)
-    _load_deploy_secrets(project_root)
-
-    print("[deploy-web] Preparando bundle en apps/web/pages-dist ...")
+    print("[pages-dist] Preparando bundle en apps/web/pages-dist ...")
     if pages_dist.exists():
         shutil.rmtree(pages_dist)
     (pages_dist / "static").mkdir(parents=True)
@@ -120,9 +123,46 @@ def run_deploy_web(project_name: str | None) -> None:
         if p.exists():
             shutil.copy(p, pages_dist / extra)
 
-    for name in ("index.html", "static/app.js", "static/style.css", "_worker.js"):
+    static_dir = pages_dist / "static"
+    app_src = static_dir / "app.js"
+    css_src = static_dir / "style.css"
+    if not app_src.is_file() or not css_src.is_file():
+        raise SystemExit("[pages-dist] Faltan static/app.js o static/style.css antes del fingerprint")
+
+    app_h = hashlib.sha256(app_src.read_bytes()).hexdigest()[:12]
+    css_h = hashlib.sha256(css_src.read_bytes()).hexdigest()[:12]
+    app_name = f"app.{app_h}.js"
+    css_name = f"style.{css_h}.css"
+    app_src.rename(static_dir / app_name)
+    css_src.rename(static_dir / css_name)
+
+    idx_path = pages_dist / "index.html"
+    html = idx_path.read_text(encoding="utf-8")
+    if "/static/app.js" not in html or "/static/style.css" not in html:
+        raise SystemExit("[pages-dist] index.html debe enlazar /static/app.js y /static/style.css")
+    html = html.replace('href="/static/style.css"', f'href="/static/{css_name}"')
+    html = html.replace('src="/static/app.js"', f'src="/static/{app_name}"')
+    idx_path.write_text(html, encoding="utf-8")
+    print(f"[pages-dist] Fingerprint estáticos: /static/{css_name}, /static/{app_name}")
+
+    for name in ("index.html", "_worker.js"):
         if not (pages_dist / name).exists():
-            raise SystemExit(f"[deploy-web] Falta en el bundle: {name}")
+            raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
+    if not (static_dir / app_name).is_file() or not (static_dir / css_name).is_file():
+        raise SystemExit("[pages-dist] Faltan ficheros renombrados tras fingerprint")
+
+    return pages_dist
+
+
+def run_deploy_web(project_name: str | None) -> None:
+    """Prepara el bundle estático y despliega a Cloudflare Pages (producción) sin GitHub Actions."""
+    project_root = Path(__file__).resolve().parent
+
+    # Cargar secretos desde fichero si existen (apps/web/.env.deploy o .env.deploy)
+    _load_deploy_secrets(project_root)
+
+    prepare_web_pages_dist(project_root)
+    pages_dist = project_root / "apps" / "web" / "pages-dist"
 
     proj = project_name or os.environ.get("CLOUDFLARE_PAGES_PROJECT")
     if not proj:
@@ -158,6 +198,11 @@ def run_deploy_web(project_name: str | None) -> None:
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"[deploy-web] wrangler pages deploy falló con código {exc.returncode}") from exc
     print("[deploy-web] Despliegue completado. Comprueba la URL de producción.")
+    print(
+        "[deploy-web] El bundle usa nombres app.<hash>.js y style.<hash>.css (nueva URL tras cada cambio). "
+        "Si aún ves assets viejos, purga caché del zona o revisa Cache Rules. "
+        "Ver apps/web/README.md."
+    )
 
 
 def run_mobile(mobile_args: list[str]) -> None:

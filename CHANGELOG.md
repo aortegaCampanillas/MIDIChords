@@ -6,6 +6,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.
 - **CI / empaquetado**: workflow **Build Installers** — `workflow_dispatch` con **`checkout_ref`** y **`msix_revision`** (cuarto segmento de la versión MSIX para reenvíos a Microsoft Store sin cambiar el semver del tag); el job Debian calcula la versión del `.deb` desde el mismo tag/ref que Windows/macOS en dispatch.
 - **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. El script resume el patrón **404 en `/static/*?v=…` con OK sin query** con un mensaje accionable. Si falla, correo vía **Resend** (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, variable **`WEB_HEALTH_ALERT_TO`**). El workflow muestra **aviso** si falta **`RESEND_API_KEY`**. El paso de correo usa **`continue-on-error`** e imprime el **cuerpo de error de Resend** (p. ej. 403) en el log. La petición a la API incluye **`User-Agent`** explícito (requisito de Resend frente a 403/1010). Envío centralizado en **`scripts/send_resend_health_alert.py`** con varios remitentes de respaldo (`notifications@freemidichords.com`, `onboarding@resend.dev`). Ver `apps/web/README.md`.
 - **Web (CI)**: **`web-production-health`** también se dispara al **terminar con éxito** el workflow **Deploy Cloudflare (Production)** (`workflow_run`), espera **90 s** antes del chequeo, y usa **`concurrency`** para no solaparse con el cron horario.
@@ -22,6 +23,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Documentado
 
+- **Web**: `apps/web/README.md` — si el **dominio personalizado** sirve **JS/CSS antiguos** mientras **`*.pages.dev`** está al día (caché del zona / reglas de caché); `launch.py deploy-web` recuerda purgar o revisar reglas. Tras el deploy con **fingerprint** de `app.js`/`style.css`, el HTML apunta a URLs nuevas en cada release.
 - **Web**: `apps/web/README.md` — guía **Google Search Console** (alta de propiedad, verificación, envío de `sitemap.xml`, cobertura, rendimiento/consultas y comprobaciones con `curl`).
 - **Flatpak / Flathub**: `FLATHUB.md` — build local: **`appstream-compose`** con Debian (SDK 24.08 + `flatpak-builder` antiguo) vía **`org.flatpak.Builder`**; no usar `--command=flatpak-builder` (el wrapper fija `FLATPAK_USER_DIR`); remoto **`flathub` en modo `--user`**; backports o `appstream-compose: false` en copia local.
 - macOS App Store: `signing/README.md` y `README.md` — flujo **`mas.env`** + **`./scripts/build_mas_store.sh`**; ejemplo manual de `build_mas_pkg.sh` con **`--skip-tk-check`**.
@@ -36,6 +38,19 @@ Historial de versiones publicadas de MIDIChords.
 - macOS App Store: la subida recomendada se documenta ahora con la app **Transporter** en modo manual (arrastrar `.pkg` y pulsar **Deliver**); `xcrun iTMSTransporter` queda como alternativa secundaria de diagnóstico.
 
 ### Corregido
+
+- **Escritorio (Qt)**: **teclado** — ancho mínimo por tecla blanca (~28 px, alineado con la web) con **scroll horizontal** si no cabe; con **nombres de notas** activados, las etiquetas también en **teclas negras** (colores tipo web). El ancho visible se toma del **viewport** del `QScrollArea`, no del canvas ensanchado.
+- **Escritorio (Qt)**: **canvas** — anclas de texto **`n`** y **`s`** respectan la coordenada **x** (antes `AlignHCenter` usaba todo el ancho del canvas y desplazaba etiquetas, p. ej. nombres en teclas negras al centro del teclado).
+- **Escritorio (Qt)**: **teclado** — redondeo inferior de teclas alineado a la web (`border-radius` ~8px en blancas; negras con esquinas inferiores redondeadas proporcionalmente, antes casi rectas en Qt).
+- **Escritorio (Qt)**: **teclado (blancas)** — cromado como la web: fondo **#e8ecf2**, marco **#3a4558**, borde de tecla **#7b8798** (y tonos **#2b6da6** / **#c8772f** en estados azul/naranja), rendija fina entre teclas y texto de etiqueta **#10243a**.
+
+- **Escritorio (audio)**: al soltar teclas **MIDI**, menos **clic** en el piano sintético: envolvente de **release** desde un pico fijado al `note_off` (sin sustain×release), `release` algo más lento y cola más suave en **grand_sample** al cortar la muestra.
+
+- **Escritorio (pentagrama)**: **clave de sol** y **clave de fa** más grandes y alineadas con la web (tamaño proporcional al espacio entre líneas; anclas verticales como en `app.js`); si hay PNG en `assets/`, se escalan al alto objetivo. **Sostenidos, bemoles y becuadros** también escalan con el pentagrama (armadura y notas), con separación horizontal ajustada.
+
+- **Web (piano)**: nombres de nota en las teclas — tipografía algo menor, **#** / **♭** pegados al nombre (sin hueco de kerning) y teclas negras más compactas, para que etiquetas como **Sol#** no se corten en anchos estrechos.
+
+- **Web (worker)**: respuestas de **`/`**, HTML y **`/static/*`** envían también **`CDN-Cache-Control: no-store`** y se quita **`Age`** heredado, para que el edge respete mejor el no-cache frente a reglas antiguas del zona; el síntoma típico era **JS nuevo en `*.pages.dev`** y **JS viejo en el dominio personalizado** (`cf-cache-status: HIT` con `max-age` largo).
 
 - **Web / escritorio**: en **generación** y **escalas**, si dos armaduras enarmónicas tienen el **mismo número** de alteraciones, la armadura del pentagrama sigue el selector **# / ♭**. En **detección**, el pentagrama usa la **misma convención que el nombre del acorde** (menos alteraciones; empate → **bemoles**), aunque el selector esté en **#**.
 - **Web**: el criterio **# / ♭** para empates y las peticiones API leen **`#accidental` del DOM** (`accidentalPreferFlatFromUi` / `currentAccidentalValue`) y se sincroniza `state.accidental` al arranque, para que no quede en **sharp** por defecto si el desplegable muestra **♭**.

@@ -81,7 +81,7 @@ gh run watch <run_id>
 
 - `deploy-cloudflare-preview.yml`: previews de ramas que no son `main`
 - `deploy-cloudflare-on-tag.yml`: producción; **solo** se dispara con push a etiquetas `v*` (no con push a `main`). También puede lanzarse manualmente con *workflow_dispatch*. Siempre despliega el estado actual de la rama `main`.
-- `web-production-health.yml`: **comprobación horaria** (cron, UTC) y **tras cada deploy exitoso** de `Deploy Cloudflare (Production)` (`workflow_run`), con **espera de 90 s** solo en ese caso para dar margen a la CDN. **`concurrency`** evita solapar dos chequeos (p. ej. cron + post-deploy). Comprueba HTML, CSS, `app.js` y `GET /api/meta?language=es`. Si falla, intenta correo vía **Resend** (**secret `RESEND_API_KEY`**; si falta, aviso en el log). El paso de correo tiene **`continue-on-error`**: si Resend devuelve error, el job **sigue marcado como fallido por el chequeo web**, pero en el log verás el **cuerpo de respuesta de Resend**. El script **`scripts/send_resend_health_alert.py`** envía con **`User-Agent`** (evita 403/1010) y prueba remitentes en orden: variable **`NOTIFY_FROM_EMAIL`**, luego **`notifications@freemidichords.com`**, luego **`onboarding@resend.dev`**. Para Gmail suele hacer falta un **dominio verificado** en Resend; configura **`NOTIFY_FROM_EMAIL`** con algo tipo `MIDIChords <noreply@tudominio.com>`. Destinatario por defecto **aortega98@gmail.com**; variable **`WEB_HEALTH_ALERT_TO`**. *Run workflow*. El **cron solo corre en la rama por defecto** (p. ej. `main`).
+- `web-production-health.yml`: **comprobación horaria** (cron, UTC) y **tras cada deploy exitoso** de `Deploy Cloudflare (Production)` (`workflow_run`), con **espera de 90 s** solo en ese caso para dar margen a la CDN. **`concurrency`** evita solapar dos chequeos (p. ej. cron + post-deploy). Comprueba HTML, CSS, `app.js` y `GET /api/meta?language=es`. Si **falla el primer chequeo**, el workflow **reconstruye el bundle**, hace **`wrangler pages deploy`** a producción desde **`main`** (requiere secrets **`CLOUDFLARE_API_TOKEN`** y **`CLOUDFLARE_ACCOUNT_ID`**, y variable **`CLOUDFLARE_PAGES_PROJECT`**), espera **90 s** y **vuelve a comprobar**. El correo **Resend** (si hay **`RESEND_API_KEY`**) se envía siempre que haya fallado el 1er chequeo: el **asunto** lleva **`[RESUELTO]`** si el 2º chequeo pasa tras el redeploy automático, o **`[ACCIÓN REQUERIDA]`** si la autocuración no deja la web sana. El paso de correo tiene **`continue-on-error`** (el job falla por el chequeo, pero verás errores de Resend en el log). **`scripts/send_resend_health_alert.py`**: **`User-Agent`**, remitentes en orden **`NOTIFY_FROM_EMAIL`**, **`notifications@freemidichords.com`**, **`onboarding@resend.dev`**. Para Gmail suele hacer falta dominio verificado en Resend. Destinatario por defecto **aortega98@gmail.com**; **`WEB_HEALTH_ALERT_TO`**. *Run workflow*. El **cron solo corre en la rama por defecto** (p. ej. `main`).
 
 ### Monitorización local
 
@@ -89,6 +89,8 @@ gh run watch <run_id>
 python3 scripts/check_production_web_health.py
 # Otra URL:
 WEB_BASE_URL=https://staging.ejemplo.com python3 scripts/check_production_web_health.py
+# Más reintentos si el edge aún propaga (por defecto 2; en Actions el workflow usa 4):
+WEB_HEALTH_RETRIES=5 python3 scripts/check_production_web_health.py
 ```
 
 ### Despliegue manual con Wrangler

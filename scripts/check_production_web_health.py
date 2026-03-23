@@ -8,6 +8,10 @@ Uso:
 
 Sale con código 0 si todo va bien; distinto de 0 y mensajes en stderr si falla.
 Pensado para GitHub Actions (cron horario) y pruebas locales.
+
+Variables de entorno:
+  WEB_BASE_URL     Origen HTTPS (por defecto https://freemidichords.com)
+  WEB_HEALTH_RETRIES  Reintentos por petición ante 404/5xx en edge (por defecto 2; Actions usa 4)
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
@@ -26,6 +31,15 @@ from urllib.parse import urljoin, urlparse, urlunparse
 DEFAULT_BASE = "https://freemidichords.com"
 TIMEOUT_SEC = 45
 USER_AGENT = "MIDIChords-WebHealthCheck/1.0"
+# Reintentos ante 404/5xx en edge (propagación CDN o deploy reciente). En CI: export WEB_HEALTH_RETRIES=4
+_DEFAULT_RETRIES = 2
+
+
+def _health_retry_count() -> int:
+    try:
+        return max(1, int(os.environ.get("WEB_HEALTH_RETRIES", str(_DEFAULT_RETRIES))))
+    except ValueError:
+        return max(1, _DEFAULT_RETRIES)
 
 
 def strip_query_and_fragment(url: str) -> str:
@@ -79,7 +93,7 @@ class AssetParser(HTMLParser):
                 self.script_srcs.append(src)
 
 
-def _request(
+def _request_once(
     url: str,
     *,
     method: str = "GET",
@@ -103,6 +117,34 @@ def _request(
     except urllib.error.URLError as e:
         raise RuntimeError(f"No se pudo conectar a {url!r}: {e}") from e
     return status, headers, body
+
+
+def _transient_status(status: int) -> bool:
+    return status in (404, 408, 429, 502, 503, 520, 521, 522, 523, 524)
+
+
+def _request(
+    url: str,
+    *,
+    method: str = "GET",
+    data: bytes | None = None,
+) -> tuple[int, dict[str, str], bytes]:
+    """Petición HTTP con reintentos si WEB_HEALTH_RETRIES > 1 y el status es transitorio (404 en edge, 5xx)."""
+    max_tries = _health_retry_count()
+    last: tuple[int, dict[str, str], bytes] = (0, {}, b"")
+    for attempt in range(max_tries):
+        try:
+            st, headers, body = _request_once(url, method=method, data=data)
+        except RuntimeError:
+            if attempt == max_tries - 1:
+                raise
+            time.sleep(min(30, 8 * (attempt + 1)))
+            continue
+        last = (st, headers, body)
+        if not _transient_status(st) or attempt == max_tries - 1:
+            return st, headers, body
+        time.sleep(min(30, 8 * (attempt + 1)))
+    return last
 
 
 def _fail(msg: str) -> None:
@@ -178,7 +220,13 @@ def validate_static_asset(
 
     errs: list[str] = []
     if st != 200:
-        errs.append(f"GET {url} → HTTP {st}")
+        line = f"GET {url} → HTTP {st}"
+        if st == 404 and len(raw) == 0 and "/static/" in url:
+            line += (
+                " — si el HTML enlaza un `style.<hash>.css` / `app.<hash>.js` que no existe en el edge, "
+                "vuelve a desplegar el bundle completo desde `main` (mismo `index.html` y carpeta `static/`)."
+            )
+        errs.append(line)
     _, mime_errs = _static_body_looks_wrong_mime(raw, hdrs, kind=kind)
     for m in mime_errs:
         errs.append(f"GET {url} → {m}")
@@ -264,10 +312,15 @@ def main() -> int:
             failures.append(str(e))
         else:
             if st != 200:
-                failures.append(
-                    f"GET {meta_url} → HTTP {st} "
-                    "(revisa despliegue Cloudflare Pages y que _worker.js atienda /api/*)"
-                )
+                hint = ""
+                if st == 404 and len(raw) == 0:
+                    hint = (
+                        " — cuerpo vacío: no es JSON del worker; suele ser **404 estático** (el worker no enruta `/api/*`). "
+                        "Confirma que el último `pages deploy` incluye **`_routes.json`** y **`_worker.js`** y que "
+                        "`freemidichords.com` está enlazado al proyecto Pages. **Redespliegue:** "
+                        "`python launch.py deploy-web` desde `main` o push de etiqueta `v*`."
+                    )
+                failures.append(f"GET {meta_url} → HTTP {st}{hint}")
             else:
                 try:
                     data: Any = json.loads(raw.decode("utf-8"))

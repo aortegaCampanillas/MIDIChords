@@ -1,11 +1,12 @@
 # Comprueba cada hora que freemidichords.com sirve HTML, CSS, JS y /api/meta.
-# También se ejecuta al terminar con éxito "Deploy Cloudflare (Production)" (evita
-# solaparse con el deploy en curso). Si falla, envía correo vía Resend.
+# Si falla el 1er chequeo: despliega de nuevo Pages desde `main` (mismo bundle que el deploy
+# por etiqueta), espera propagación y vuelve a comprobar. El correo (Resend) indica en el
+# **asunto** si quedó resuelto o hace falta intervención manual.
+# También se ejecuta al terminar con éxito "Deploy Cloudflare (Production)".
 name: Web production health
 
 on:
   schedule:
-    # Cada hora (UTC), minuto 12 para no coincidir con el arranque en punto
     - cron: "12 * * * *"
   workflow_dispatch:
   workflow_run:
@@ -14,7 +15,6 @@ on:
     types:
       - completed
 
-# Una sola ejecución a la vez: si coinciden cron y post-deploy, la segunda espera.
 concurrency:
   group: web-production-health
   cancel-in-progress: false
@@ -24,16 +24,18 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  WEB_HEALTH_RETRIES: "4"
 
 jobs:
   check-web-production:
-    name: Check HTML, CSS, JS and API
+    name: Check web, autocuración y correo
     runs-on: ubuntu-latest
-    # Tras un deploy fallido no tiene sentido el chequeo “post-deploy”; cron y manual siguen.
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: main
 
       - name: Enfriar CDN tras despliegue (solo post-deploy)
         if: github.event_name == 'workflow_run'
@@ -41,22 +43,78 @@ jobs:
           echo "Esperando 90s para propagación en Cloudflare tras el deploy..."
           sleep 90
 
-      # No usar `if: secrets.*` aquí: GitHub rechaza el workflow al parsearlo (422).
       - name: Aviso si falta secret RESEND_API_KEY
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           if [ -z "${RESEND_API_KEY}" ]; then
-            echo "::warning::Define el secret RESEND_API_KEY (Settings → Secrets and variables → Actions) para recibir correo cuando falle el chequeo. Sin él el job sigue fallando pero no se envía aviso."
+            echo "::warning::Define RESEND_API_KEY para correo tras fallos. Sin él el job puede fallar sin aviso por email."
           fi
 
-      - name: Run production web health checks
+      - name: Chequeo de salud (intento 1)
+        id: health1
+        continue-on-error: true
         run: |
           set -euo pipefail
-          python3 scripts/check_production_web_health.py 2>&1 | tee web-health.log
+          python3 scripts/check_production_web_health.py 2>&1 | tee web-health-1.log
 
-      - name: Email alert on failure
-        if: failure()
+      - name: Preparar bundle Pages (autocuración)
+        id: bundle
+        if: steps.health1.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          python3 scripts/build_web_pages_dist.py
+          test -f apps/web/pages-dist/_worker.js
+          test -f apps/web/pages-dist/_routes.json
+          python3 -c "import json; d=json.load(open('apps/web/pages-dist/_routes.json')); assert d.get('include')==['/*'], d"
+
+      - name: Redeploy Cloudflare Pages (autocuración)
+        id: deploy
+        if: steps.health1.outcome == 'failure' && steps.bundle.outcome == 'success'
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy apps/web/pages-dist
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=main
+
+      - name: Propagación tras redeploy automático
+        if: steps.health1.outcome == 'failure' && steps.deploy.outcome == 'success'
+        run: |
+          echo "Esperando 90s tras redeploy automático..."
+          sleep 90
+
+      - name: Chequeo de salud (intento 2)
+        id: health2
+        if: steps.health1.outcome == 'failure' && steps.deploy.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 scripts/check_production_web_health.py 2>&1 | tee web-health-2.log
+
+      - name: Fallar el job si producción sigue mal
+        if: always() && steps.health1.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.bundle.outcome }}" != "success" ]; then
+            echo "::error::No se pudo construir el bundle de Pages para autocuración."
+            exit 1
+          fi
+          if [ "${{ steps.deploy.outcome }}" != "success" ]; then
+            echo "::error::El redeploy automático (wrangler pages deploy) falló."
+            exit 1
+          fi
+          if [ "${{ steps.health2.outcome }}" != "success" ]; then
+            echo "::error::Tras el redeploy automático, el 2º chequeo de salud sigue fallando."
+            exit 1
+          fi
+          echo "Autocuración OK: el 2º chequeo pasó tras redeploy."
+          exit 0
+
+      - name: Enviar correo (tras fallo del 1er chequeo)
+        if: always() && steps.health1.outcome == 'failure'
         continue-on-error: true
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -67,7 +125,17 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           if [ -z "${RESEND_API_KEY}" ]; then
-            echo "RESEND_API_KEY not set — no se puede enviar correo de aviso."
+            echo "RESEND_API_KEY not set — no se envía correo."
             exit 0
           fi
-          python3 scripts/send_resend_health_alert.py web-health.log
+          KIND=action_required
+          if [ "${{ steps.bundle.outcome }}" = "success" ] && \
+             [ "${{ steps.deploy.outcome }}" = "success" ] && \
+             [ "${{ steps.health2.outcome }}" = "success" ]; then
+            KIND=resolved
+          fi
+          ARGS=(web-health-1.log --mail-kind "$KIND")
+          if [ -f web-health-2.log ]; then
+            ARGS+=(--second-log web-health-2.log)
+          fi
+          python3 scripts/send_resend_health_alert.py "${ARGS[@]}"

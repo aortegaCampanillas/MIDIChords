@@ -34,6 +34,13 @@ jobs:
       - name: Prepare static web bundle
         run: python3 scripts/build_web_pages_dist.py
 
+      - name: Verificar bundle Pages (worker, rutas y JSON)
+        run: |
+          set -euo pipefail
+          test -f apps/web/pages-dist/_worker.js
+          test -f apps/web/pages-dist/_routes.json
+          python3 -c "import json; d=json.load(open('apps/web/pages-dist/_routes.json')); assert d.get('include')==['/*'], d"
+
       - name: Deploy preview to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3.14.1
         with:

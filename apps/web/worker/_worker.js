@@ -246,6 +246,18 @@ function json(data, status = 200) {
   });
 }
 
+/** HEAD para monitorización sin cuerpo (mismo status que GET). */
+function apiHeadOk() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "access-control-allow-origin": "*",
+      "cache-control": "no-store",
+      "cdn-cache-control": "no-store",
+    },
+  });
+}
+
 function noteName(midiNote, language = "es", preferFlat = false, withOctave = true) {
   const names = NOTE_NAMES[language] || NOTE_NAMES.en;
   const pc = ((Number(midiNote) % 12) + 12) % 12;
@@ -633,15 +645,19 @@ export default {
         status: 204,
         headers: {
           "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET,POST,OPTIONS",
+          "access-control-allow-methods": "GET,HEAD,POST,OPTIONS",
           "access-control-allow-headers": "content-type",
         },
       });
     }
 
-    if (pathname === "/api/health" && request.method === "GET") return json({ status: "ok" });
+    if (pathname === "/api/health" && (request.method === "GET" || request.method === "HEAD")) {
+      if (request.method === "HEAD") return apiHeadOk();
+      return json({ status: "ok" });
+    }
 
-    if (pathname === "/api/meta" && request.method === "GET") {
+    if (pathname === "/api/meta" && (request.method === "GET" || request.method === "HEAD")) {
+      if (request.method === "HEAD") return apiHeadOk();
       const language = normalizeLanguage(url.searchParams.get("language"));
       return json({
         chord_patterns: listChordPatterns(),

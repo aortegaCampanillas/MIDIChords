@@ -39,6 +39,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (Qt / Windows)**: combo **Diestro / Zurdo** en **generación** (vista guitarra) — estilo oscuro alineado con Ajustes (**QComboBox** con texto claro y fondo de tarjeta; antes el tema nativo dejaba texto negro sobre gris).
+
 - **Web (Cloudflare Pages)**: **`_routes.json`** en el bundle de deploy (`"include": ["/*"]`) para que **`/api/*` no se resuelva como estático** en dominios personalizados donde el worker no se invocaba (síntoma: **404 vacío** en `/api/meta`, app cargada pero sin datos). Documentado en `apps/web/README.md`.
 
 - **Escritorio (Qt)**: **teclado** — ancho mínimo por tecla blanca (~28 px, alineado con la web) con **scroll horizontal** si no cabe; con **nombres de notas** activados, las etiquetas también en **teclas negras** (colores tipo web). El ancho visible se toma del **viewport** del `QScrollArea`, no del canvas ensanchado.

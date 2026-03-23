@@ -4,7 +4,7 @@ import time
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 import midichords.qt.ttk_compat as ttk
-from typing import Optional
+from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
@@ -135,6 +135,46 @@ class UiMixin:
             background=[("readonly", self.color_surface)],
             bordercolor=[("readonly", self.color_border), ("focus", self.color_border_hover)],
             arrowcolor=[("readonly", self.color_text), ("active", self.color_text)],
+        )
+
+    def _qt_apply_dark_combobox_style(self, w: Any) -> None:
+        """Qt (p. ej. Windows): QComboBox en panel oscuro con texto claro, como en Ajustes."""
+        if not hasattr(w, "setStyleSheet"):
+            return
+        fg = getattr(self, "color_text", "#e9edf2")
+        card = getattr(self, "color_card", "#3a4452")
+        border = getattr(self, "color_border", "#56627a")
+        hover_border = getattr(self, "color_border_hover", "#6a7a98")
+        btn_bg = getattr(self, "color_card_hover", "#465465")
+        w.setStyleSheet(
+            f"""
+            QComboBox {{
+                background-color: {card};
+                color: {fg};
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 4px 8px;
+                min-height: 1.2em;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {hover_border};
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 24px;
+                border: none;
+                background: transparent;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {card};
+                color: {fg};
+                selection-background-color: {btn_bg};
+                selection-color: {fg};
+                border: 1px solid {border};
+                outline: 0;
+            }}
+            """
         )
 
     def _build_ui(self) -> None:
@@ -1655,6 +1695,7 @@ class UiMixin:
             font=(self.ui_font_family, 13),
         )
         self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
+        self._qt_apply_dark_combobox_style(self.guitar_handedness_combo)
 
         self.scale_transport_frame = tk.Frame(container, bg=self.cget("background"))
         self.scale_transport_frame.configure(height=self.instrument_toolbar_height)

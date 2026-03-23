@@ -623,7 +623,10 @@ async function forwardFeedbackByEmail(body, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const { pathname } = url;
+    let pathname = url.pathname;
+    while (pathname.length > 1 && pathname.endsWith("/")) {
+      pathname = pathname.slice(0, -1);
+    }
 
     if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
       return new Response(null, {

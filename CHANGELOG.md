@@ -39,10 +39,14 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (Cloudflare Pages)**: **`_routes.json`** en el bundle de deploy (`"include": ["/*"]`) para que **`/api/*` no se resuelva como estático** en dominios personalizados donde el worker no se invocaba (síntoma: **404 vacío** en `/api/meta`, app cargada pero sin datos). Documentado en `apps/web/README.md`.
+
 - **Escritorio (Qt)**: **teclado** — ancho mínimo por tecla blanca (~28 px, alineado con la web) con **scroll horizontal** si no cabe; con **nombres de notas** activados, las etiquetas también en **teclas negras** (colores tipo web). El ancho visible se toma del **viewport** del `QScrollArea`, no del canvas ensanchado.
 - **Escritorio (Qt)**: **canvas** — anclas de texto **`n`** y **`s`** respectan la coordenada **x** (antes `AlignHCenter` usaba todo el ancho del canvas y desplazaba etiquetas, p. ej. nombres en teclas negras al centro del teclado).
 - **Escritorio (Qt)**: **teclado** — redondeo inferior de teclas alineado a la web (`border-radius` ~8px en blancas; negras con esquinas inferiores redondeadas proporcionalmente, antes casi rectas en Qt).
 - **Escritorio (Qt)**: **teclado (blancas)** — cromado como la web: fondo **#e8ecf2**, marco **#3a4558**, borde de tecla **#7b8798** (y tonos **#2b6da6** / **#c8772f** en estados azul/naranja), rendija fina entre teclas y texto de etiqueta **#10243a**.
+
+- **Escritorio (detección / audio)**: menos **clics y ruido** al **arrastrar** en el teclado — la UI sigue al instante pero el audio se actualiza como máximo ~**80 Hz**; el sintético **no reinicia** una nota que ya suena, ataque algo más suave y **release** un poco más largo (preset por defecto). **Grand sample**: un nuevo `note_on` de la misma nota acelera la cola de la muestra anterior.
 
 - **Escritorio (audio)**: al soltar teclas **MIDI**, menos **clic** en el piano sintético: envolvente de **release** desde un pico fijado al `note_off` (sin sustain×release), `release` algo más lento y cola más suave en **grand_sample** al cortar la muestra.
 

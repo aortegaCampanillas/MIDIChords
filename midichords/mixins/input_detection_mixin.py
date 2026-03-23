@@ -198,7 +198,17 @@ class InputDetectionMixin:
     def _draw_forbidden_icon(self, canvas: tk.Canvas, cx: float, cy: float, radius: float) -> None:
         canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, outline="#d32f2f", width=2)
         canvas.create_line(cx - radius * 0.65, cy + radius * 0.65, cx + radius * 0.65, cy - radius * 0.65, fill="#d32f2f", width=2)
-    def _refresh_sounding_notes(self) -> None:
+
+    def _cancel_detection_drag_audio_schedule(self) -> None:
+        aid = getattr(self, "_detection_drag_sound_after_id", None)
+        if aid is not None:
+            try:
+                self.after_cancel(aid)
+            except Exception:
+                pass
+            self._detection_drag_sound_after_id = None
+
+    def _compute_next_sounding_state(self) -> tuple[set[int], set[int]]:
         if self.current_mode == "detection":
             next_active = set(self._current_detection_notes())
             if self.midi_input_sound_enabled:
@@ -221,22 +231,36 @@ class InputDetectionMixin:
                     for note in next_active
                     if (note not in blocked_midi_notes) or (note in self.mouse_held_notes)
                 }
+        return next_active, next_sounding
+
+    def _apply_sounding_note_diff(self, next_sounding: set[int]) -> None:
         to_start = next_sounding - self.sounding_notes
         to_stop = self.sounding_notes - next_sounding
-
         for note in to_start:
             self.audio_engine.note_on(note, int(self.note_velocity.get(note, 100)))
         for note in to_stop:
             self.audio_engine.note_off(note)
         self.sounding_notes = next_sounding
+        self._detection_last_audio_apply = time.monotonic()
 
+    def _detection_drag_throttled_audio(self) -> None:
+        self._detection_drag_sound_after_id = None
+        _, next_sounding = self._compute_next_sounding_state()
+        self._apply_sounding_note_diff(next_sounding)
+
+    def _sync_sounding_ui(self, next_active: set[int]) -> None:
         prev_staff = set(getattr(self, "staff_pressed_scale_notes", set()))
         self._sync_scale_piano_staff_from_active_keys(set(next_active))
         staff_changed = set(getattr(self, "staff_pressed_scale_notes", set())) != prev_staff
-
         if next_active != self.active_notes or staff_changed:
             self.active_notes = next_active
             self.update_music_views()
+
+    def _refresh_sounding_notes(self) -> None:
+        self._cancel_detection_drag_audio_schedule()
+        next_active, next_sounding = self._compute_next_sounding_state()
+        self._apply_sounding_note_diff(next_sounding)
+        self._sync_sounding_ui(next_active)
     def _note_on_from_source(self, note: int, velocity: int, source: str) -> None:
         velocity = int(max(1, min(127, velocity)))
         self.note_velocity[note] = velocity
@@ -339,7 +363,19 @@ class InputDetectionMixin:
             else:
                 self.detection_mouse_chord_notes = {int(note)}
             self.mouse_current_note = note
-            self._refresh_sounding_notes()
+            next_active, next_sounding = self._compute_next_sounding_state()
+            self._sync_sounding_ui(next_active)
+            # Al arrastrar, limitar note_on/off (~80 Hz) reduce clics por ráfagas MIDI/ratón.
+            now = time.monotonic()
+            last = float(getattr(self, "_detection_last_audio_apply", 0.0))
+            min_gap = 0.012
+            self._cancel_detection_drag_audio_schedule()
+            if now - last >= min_gap:
+                self._apply_sounding_note_diff(next_sounding)
+            else:
+                deadline = last + min_gap
+                delay_ms = int(max(1, round((deadline - now) * 1000)))
+                self._detection_drag_sound_after_id = self.after(delay_ms, self._detection_drag_throttled_audio)
             return
         if self.generation_tab_active:
             if self.instrument_view == "piano":

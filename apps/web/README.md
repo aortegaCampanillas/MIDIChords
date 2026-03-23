@@ -109,6 +109,7 @@ mkdir -p /tmp/midichords-pages-dist/static
 cp apps/web/index.html /tmp/midichords-pages-dist/index.html
 cp -R apps/web/static/. /tmp/midichords-pages-dist/static/
 cp apps/web/worker/_worker.js /tmp/midichords-pages-dist/_worker.js
+cp apps/web/_routes.json /tmp/midichords-pages-dist/_routes.json
 [ -f apps/web/robots.txt ] && cp apps/web/robots.txt /tmp/midichords-pages-dist/robots.txt
 [ -f apps/web/sitemap.xml ] && cp apps/web/sitemap.xml /tmp/midichords-pages-dist/sitemap.xml
 ```
@@ -126,6 +127,17 @@ curl -fsS 'https://freemidichords.com/api/meta?language=es'
 ```
 
 La respuesta debe ser JSON e incluir `chord_patterns` y `scale_patterns`. Si devuelve `404`, el frontend cargará pero los combos de generación y escalas quedarán vacíos.
+
+### API en producción: `404` con cuerpo vacío (dominio personalizado)
+
+Si `curl -sSI 'https://freemidichords.com/api/meta?language=es'` devuelve **404**, **`content-length: 0`** y **no** hay `content-type: application/json`, la petición **no está llegando** al `_worker.js` de Pages: el edge intenta servir `/api/meta` como **estático** y al no existir fichero responde vacío. El worker del repo sí devolvería JSON (aunque sea error) con `content-type`.
+
+Qué hacer:
+
+1. **Vuelve a desplegar** el bundle actual (incluye **`_routes.json`** en la raíz del deploy junto a `_worker.js`, con `"include": ["/*"]`, para que **todas** las rutas pasen por el worker).
+2. En **Cloudflare Dashboard** → **Workers & Pages** → proyecto **Pages** (`midichords`) → **Custom domains**: confirma que **`freemidichords.com`** está enlazado a **este** proyecto (no a otro sitio ni a un Worker suelto).
+3. En el **mismo zona DNS** (`freemidichords.com`), revisa **Workers Routes**: ninguna ruta del tipo `*freemidichords.com/*` debe capturar el tráfico **antes** que Pages y devolver 404 sin pasar por el proyecto.
+4. Comprueba de nuevo: `python3 scripts/check_production_web_health.py`
 
 ### Dominio personalizado: JS/CSS antiguos (caché del zona)
 

@@ -118,6 +118,9 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
     if (web_dir / "_headers").exists():
         shutil.copy(web_dir / "_headers", pages_dist / "_headers")
+    routes_json = web_dir / "_routes.json"
+    if routes_json.is_file():
+        shutil.copy(routes_json, pages_dist / "_routes.json")
     for extra in ("robots.txt", "sitemap.xml"):
         p = web_dir / extra
         if p.exists():
@@ -145,7 +148,7 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     idx_path.write_text(html, encoding="utf-8")
     print(f"[pages-dist] Fingerprint estáticos: /static/{css_name}, /static/{app_name}")
 
-    for name in ("index.html", "_worker.js"):
+    for name in ("index.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
     if not (static_dir / app_name).is_file() or not (static_dir / css_name).is_file():

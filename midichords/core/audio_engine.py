@@ -231,6 +231,11 @@ class PianoAudioEngine:
             release_peak_set=False,
         )
         with self.lock:
+            prev = self.voices.get(note)
+            if prev is not None and not prev.released:
+                # Evita reiniciar fase/volumen si ya suena (detección, dobles eventos).
+                vlog("audio", "note_on ignored while holding: note=%s", note)
+                return
             self.voices[note] = voice
 
     @staticmethod
@@ -425,6 +430,9 @@ class PianoAudioEngine:
         gain = max(0.05, min(1.0, velocity / 127.0)) * gain_mul
         max_samples = max(1, int(max_seconds * self.sample_rate))
         with self.lock:
+            for sample_voice in self.sample_voices:
+                if sample_voice.note == note:
+                    sample_voice.decay = min(sample_voice.decay, 0.99955)
             self.sample_voices.append(
                 SampleVoice(
                     note=note,
@@ -505,7 +513,7 @@ class PianoAudioEngine:
             for note, voice in list(self.voices.items()):
                 start_age = voice.age_samples
                 age = (start_age + n) / self.sample_rate
-                attack = 1.0 - np.exp(-age / 0.0035)
+                attack = 1.0 - np.exp(-age / 0.0052)
 
                 if self.preset == "warm":
                     partial_count = 6
@@ -545,7 +553,7 @@ class PianoAudioEngine:
                     decay_step = 0.12
                     sustain_base = 0.78
                     sustain_freq = 2900.0
-                    release_rate = 4.9
+                    release_rate = 4.05
                     local_gain = 1.0
 
                 # Inharmonicidad de cuerdas reales (mayor en agudos).

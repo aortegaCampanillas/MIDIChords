@@ -42,6 +42,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (CI)**: **`web-production-health`** — el **`wrangler pages deploy`** de autocuración incluye **`--commit-hash`**, **`--commit-message`** ASCII y **`--commit-dirty=true`** para evitar el fallo de la API de Cloudflare *Invalid commit message … valid UTF-8* en GitHub Actions.
+
 - **Web (CI / salud)**: **`check_production_web_health.py`** — reintentos configurables (**`WEB_HEALTH_RETRIES`**, por defecto 2; el workflow horario usa **4**) ante **404/5xx** transitorios en el edge; mensajes más claros si **`/api/meta`** devuelve **404 vacío** (worker no enruta) o falta un **CSS/JS con hash**. **Worker**: **`HEAD`** en **`/api/health`** y **`/api/meta`**. Deploy **Pages** (producción y preview): paso que exige **`_worker.js`**, **`_routes.json`** y `include: ["/*"]` en el bundle.
 
 - **Escritorio (Qt / Windows)**: combo **Diestro / Zurdo** en **generación** (vista guitarra) — estilo oscuro alineado con Ajustes (**QComboBox** con texto claro y fondo de tarjeta; antes el tema nativo dejaba texto negro sobre gris).

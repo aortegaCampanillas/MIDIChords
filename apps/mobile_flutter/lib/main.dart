@@ -11,6 +11,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -821,6 +822,10 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<int> _detectionMidiHeldNotes = <int>{};
   final Set<int> _detectionPlayHeldNotes = <int>{};
   bool _midiInputEnabled = false;
+  /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
+  /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).
+  static const Duration _kMidiResetsIdleDuration = Duration(minutes: 3);
+  Timer? _midiIdleExtensionTimer;
 
   int _scaleTonicPc = 0;
   String _scalePatternName = 'Ionian';
@@ -1926,6 +1931,7 @@ class _HomeScreenState extends State<HomeScreen>
     _chordOutputController.dispose();
     _scaleOutputController.dispose();
     _helpOverlayController.dispose();
+    _cancelMidiScreenActivityExtension();
     super.dispose();
   }
 
@@ -2809,6 +2815,41 @@ class _HomeScreenState extends State<HomeScreen>
     return _detectionSelectedNotes;
   }
 
+  void _cancelMidiScreenActivityExtension() {
+    _midiIdleExtensionTimer?.cancel();
+    _midiIdleExtensionTimer = null;
+    unawaited(() async {
+      try {
+        await WakelockPlus.disable();
+      } catch (_) {}
+    }());
+  }
+
+  /// Cada nota MIDI (u off) renueva la ventana: equivale a “hubo interacción” para no
+  /// entrar en reposo mientras sigues tocando (con pausas hasta [_kMidiResetsIdleDuration]).
+  void _bumpMidiScreenActivityTimer() {
+    if (!_midiInputEnabled || _tabIndex != 0) {
+      return;
+    }
+    _midiIdleExtensionTimer?.cancel();
+    unawaited(() async {
+      try {
+        await WakelockPlus.enable();
+      } catch (_) {}
+    }());
+    _midiIdleExtensionTimer = Timer(_kMidiResetsIdleDuration, () {
+      _midiIdleExtensionTimer = null;
+      if (!mounted) {
+        return;
+      }
+      unawaited(() async {
+        try {
+          await WakelockPlus.disable();
+        } catch (_) {}
+      }());
+    });
+  }
+
   void _initMidiInput() {
     _midiDataSub = _midiCommand.onMidiDataReceived?.listen(_onMidiPacket);
     _midiSetupSub = _midiCommand.onMidiSetupChanged?.listen((_) {
@@ -2821,6 +2862,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _onMidiPacket(MidiPacket packet) {
     if (!_midiInputEnabled || _tabIndex != 0) return;
     final bytes = packet.data;
+    var hadNoteChannelMessage = false;
     for (var i = 0; i + 2 < bytes.length; i += 3) {
       final status = bytes[i] & 0xF0;
       final note = bytes[i + 1];
@@ -2828,6 +2870,7 @@ class _HomeScreenState extends State<HomeScreen>
       final isNoteOn = status == 0x90 && velocity > 0;
       final isNoteOff = status == 0x80 || (status == 0x90 && velocity == 0);
       if (!isNoteOn && !isNoteOff) continue;
+      hadNoteChannelMessage = true;
       if (isNoteOn) {
         if (_detectionMidiHeldNotes.isEmpty &&
             _detectionSelectedNotes.isNotEmpty) {
@@ -2842,6 +2885,9 @@ class _HomeScreenState extends State<HomeScreen>
         _detectionMidiHeldNotes.remove(note);
         _releaseHeldMidiInputNote(note);
       }
+    }
+    if (hadNoteChannelMessage) {
+      _bumpMidiScreenActivityTimer();
     }
     if (mounted) setState(() {});
     if (!_requestInFlight) {
@@ -2886,6 +2932,7 @@ class _HomeScreenState extends State<HomeScreen>
     _midiConnectedDevices.clear();
     _detectionMidiHeldNotes.clear();
     _stopHeldMidiInputs();
+    _cancelMidiScreenActivityExtension();
     if (mounted) setState(() {});
     if (_tabIndex == 0 && !_requestInFlight) {
       unawaited(_callDetect());
@@ -5313,6 +5360,9 @@ class _HomeScreenState extends State<HomeScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() => _tabIndex = currentTab);
+          if (currentTab != 0) {
+            _cancelMidiScreenActivityExtension();
+          }
         }
       });
     }
@@ -5414,6 +5464,9 @@ class _HomeScreenState extends State<HomeScreen>
                       unawaited(_callGenerateChord());
                     } else if (value == 2 && !_requestInFlight) {
                       unawaited(_callGenerateScale());
+                    }
+                    if (value != 0) {
+                      _cancelMidiScreenActivityExtension();
                     }
                   },
                 ),

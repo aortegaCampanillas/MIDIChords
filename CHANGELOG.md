@@ -4,6 +4,14 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+### Android (Google Play — prueba cerrada)
+
+- **1.0.1 (6)**: App Bundle de release (`flutter build appbundle`); `versionCode` **6** en `pubspec.yaml` para **prueba cerrada** en Play (el **5** ya estaba usado en la consola).
+
+### Móvil (Flutter)
+
+- **`wakelock_plus`**: en **detección** con **MIDI On**, cada **note on/off** renueva una ventana de **3 minutos** sin reposo de pantalla (equivalente práctico a reiniciar el temporizador de inactividad mientras tocas); se cancela al salir de detección, desactivar MIDI o cerrar la app.
+
 ### Añadido
 
 - **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.

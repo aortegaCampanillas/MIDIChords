@@ -2117,6 +2117,194 @@ class _HomeScreenState extends State<HomeScreen>
     return math.max(0, math.min(6, value % 7));
   }
 
+  /// Igual que `isMinorSuffix` / worker: `m…` pero no `maj…`.
+  bool _isMinorChordSuffix(String suffix) {
+    return suffix.startsWith('m') && !suffix.startsWith('maj');
+  }
+
+  /// Recuentos de #/♭ de armadura por tónica (misma tabla que la web).
+  ({int? sharpCount, int? flatCount}) _keySignatureSharpFlatCounts(
+    int tonicPc,
+    bool isMinor,
+  ) {
+    final pc = _positiveMod12(tonicPc);
+    final sharpMap = isMinor
+        ? const <int, int>{
+            4: 1,
+            11: 2,
+            6: 3,
+            1: 4,
+            8: 5,
+            3: 6,
+            10: 7,
+          }
+        : const <int, int>{
+            7: 1,
+            2: 2,
+            9: 3,
+            4: 4,
+            11: 5,
+            6: 6,
+            1: 7,
+          };
+    final flatMap = isMinor
+        ? const <int, int>{
+            2: 1,
+            7: 2,
+            0: 3,
+            5: 4,
+            10: 5,
+            3: 6,
+          }
+        : const <int, int>{
+            5: 1,
+            10: 2,
+            3: 3,
+            8: 4,
+            1: 5,
+            6: 6,
+          };
+    return (sharpCount: sharpMap[pc], flatCount: flatMap[pc]);
+  }
+
+  /// Misma regla que API/worker y `chordSymbolPreferFlat` en app.js: menos
+  /// alteraciones; empate enarmónico → bemoles.
+  bool _chordSymbolPreferFlat(int rootPc, bool isMinor) {
+    final c = _keySignatureSharpFlatCounts(rootPc, isMinor);
+    final sc = c.sharpCount;
+    final fc = c.flatCount;
+    if (sc == null && fc == null) {
+      return false;
+    }
+    if (sc == null) {
+      return true;
+    }
+    if (fc == null) {
+      return false;
+    }
+    if (fc < sc) {
+      return true;
+    }
+    if (sc < fc) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _scalePrefersMinor(String patternName) {
+    const minorNames = <String>{
+      'Aeolian',
+      'Dorian',
+      'Phrygian',
+      'Locrian',
+      'Super Locrian',
+      'Half Diminished',
+      'Minor Pentatonic',
+      'Minor Blues',
+    };
+    return patternName.contains('Minor') || minorNames.contains(patternName);
+  }
+
+  /// `tiePreferFlat`: null → empate enarmónico a sostenidos; true/false fuerza.
+  ({int count, bool preferFlats}) _keySignatureCountForTonic(
+    int tonicPc,
+    bool isMinor, {
+    bool? tiePreferFlat,
+  }) {
+    final c = _keySignatureSharpFlatCounts(tonicPc, isMinor);
+    final sc = c.sharpCount;
+    final fc = c.flatCount;
+    if (sc == null && fc == null) {
+      return (count: 0, preferFlats: false);
+    }
+    if (sc == null) {
+      return (count: fc!, preferFlats: true);
+    }
+    if (fc == null) {
+      return (count: sc, preferFlats: false);
+    }
+    if (fc < sc) {
+      return (count: fc, preferFlats: true);
+    }
+    if (sc < fc) {
+      return (count: sc, preferFlats: false);
+    }
+    if (tiePreferFlat == true) {
+      return (count: fc, preferFlats: true);
+    }
+    return (count: sc, preferFlats: false);
+  }
+
+  /// Si el usuario eligió ♭ y hay empate #/♭, armadura en bemoles (web).
+  ({int count, bool preferFlats}) _applyFlatKeySigIfUiFlatAndTie(
+    ({int count, bool preferFlats}) sig,
+    int tonicPc,
+    bool isMinor,
+  ) {
+    if (!_preferFlat) {
+      return sig;
+    }
+    final c = _keySignatureSharpFlatCounts(tonicPc, isMinor);
+    final sc = c.sharpCount;
+    final fc = c.flatCount;
+    if (sc != null && fc != null && sc == fc) {
+      return (count: fc, preferFlats: true);
+    }
+    return sig;
+  }
+
+  /// Equivalente a `getStaffContext()` en `app.js` (armadura del pentagrama).
+  ({int count, bool preferFlats}) _staffKeySignatureForCurrentTab() {
+    final tieFromSelect = _preferFlat;
+    if (_tabIndex == 2 && _generatedScaleJson != null) {
+      final name =
+          (_generatedScaleJson!['pattern_name'] as String?) ?? 'Ionian';
+      final isMinor = _scalePrefersMinor(name);
+      final tonic = _positiveMod12(
+        (_generatedScaleJson!['tonic_pc'] as num?)?.toInt() ?? 0,
+      );
+      var sig = _keySignatureCountForTonic(
+        tonic,
+        isMinor,
+        tiePreferFlat: tieFromSelect,
+      );
+      sig = _applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+      return sig;
+    }
+    if (_tabIndex == 1 && _generatedChordJson != null) {
+      final suffix = (_generatedChordJson!['suffix'] as String?) ?? '';
+      final isMinor = _isMinorChordSuffix(suffix);
+      final tonic = _positiveMod12(
+        (_generatedChordJson!['root_pc'] as num?)?.toInt() ?? 0,
+      );
+      var sig = _keySignatureCountForTonic(
+        tonic,
+        isMinor,
+        tiePreferFlat: tieFromSelect,
+      );
+      sig = _applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+      return sig;
+    }
+    if (_tabIndex == 0 && _detectionResultJson != null) {
+      final rpc = _detectionResultJson!['root_pc'];
+      if (rpc is num && rpc.isFinite) {
+        final tonic = _positiveMod12(rpc.toInt());
+        final suffix =
+            (_detectionResultJson!['suffix'] as String?) ?? '';
+        final isMinor = _isMinorChordSuffix(suffix);
+        final tieLikeChordName = _chordSymbolPreferFlat(tonic, isMinor);
+        var sig = _keySignatureCountForTonic(
+          tonic,
+          isMinor,
+          tiePreferFlat: tieLikeChordName,
+        );
+        sig = _applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+        return sig;
+      }
+    }
+    return (count: 0, preferFlats: false);
+  }
+
   List<int> _voicedIntervalsForInversion(List<int> intervals, int inversion) {
     if (intervals.isEmpty) {
       return <int>[];
@@ -2335,11 +2523,13 @@ class _HomeScreenState extends State<HomeScreen>
     final pcs = midiNotes.map(_positiveMod12).toSet();
     if (pcs.length == 1) {
       final single = midiNotes.first;
+      final namePf =
+          _chordSymbolPreferFlat(_positiveMod12(single), false);
       return <String, dynamic>{
         'name': _noteNameLocal(
           single,
           language: language,
-          preferFlat: preferFlat,
+          preferFlat: namePf,
           withOctave: false,
         ),
         'notes_midi': midiNotes,
@@ -2397,12 +2587,13 @@ class _HomeScreenState extends State<HomeScreen>
       final pc = _positiveMod12(root + interval);
       degreeByPc.putIfAbsent(pc, () => _chordIntervalDegree(interval, suffix));
     }
+    final namePf = _chordSymbolPreferFlat(root, _isMinorChordSuffix(suffix));
     final rootName = _spellByDegree(
       rootPc: root,
       targetPc: root,
       degree: 0,
       language: language,
-      preferFlats: preferFlat,
+      preferFlats: namePf,
       midiNote: root,
       withOctave: false,
     );
@@ -2413,7 +2604,7 @@ class _HomeScreenState extends State<HomeScreen>
           ? _noteNameLocal(
               bassPc,
               language: language,
-              preferFlat: preferFlat,
+              preferFlat: namePf,
               withOctave: false,
             )
           : _spellByDegree(
@@ -2421,7 +2612,7 @@ class _HomeScreenState extends State<HomeScreen>
               targetPc: bassPc,
               degree: bassDegree,
               language: language,
-              preferFlats: preferFlat,
+              preferFlats: namePf,
               midiNote: bassPc,
               withOctave: false,
             );
@@ -2431,26 +2622,17 @@ class _HomeScreenState extends State<HomeScreen>
     final extras = midiNotes
         .where((n) => !expectedPcs.contains(n % 12))
         .toList();
-    final noteLabels = midiNotes.map((n) {
-      final degree = degreeByPc[n % 12];
-      if (degree == null) {
-        return _noteNameLocal(
-          n,
-          language: language,
-          preferFlat: preferFlat,
-          withOctave: true,
-        );
-      }
-      return _spellByDegree(
-        rootPc: root,
-        targetPc: n % 12,
-        degree: degree,
-        language: language,
-        preferFlats: preferFlat,
-        midiNote: n,
-        withOctave: true,
-      );
-    }).toList();
+    // Panel de notas: #/♭ del usuario (`noteName`), no escritura por grado.
+    final noteLabels = midiNotes
+        .map(
+          (n) => _noteNameLocal(
+            n,
+            language: language,
+            preferFlat: preferFlat,
+            withOctave: true,
+          ),
+        )
+        .toList();
     return <String, dynamic>{
       'name': chordName,
       'notes_midi': midiNotes,
@@ -5286,6 +5468,17 @@ class _HomeScreenState extends State<HomeScreen>
                   }
                   setState(() => _accidental = value);
                   unawaited(_loadMeta());
+                  if (_tabIndex == 0 && !_requestInFlight) {
+                    unawaited(_callDetect());
+                  } else if (_tabIndex == 1 &&
+                      _generatedChordJson != null &&
+                      !_requestInFlight) {
+                    unawaited(_callGenerateChord());
+                  } else if (_tabIndex == 2 &&
+                      _generatedScaleJson != null &&
+                      !_requestInFlight) {
+                    unawaited(_callGenerateScale());
+                  }
                 },
               ),
             ),
@@ -5486,6 +5679,7 @@ class _HomeScreenState extends State<HomeScreen>
     final displayScaleCurrentNote = _tabIndex == 2 && _scaleCurrentNote != null
         ? staffMidi(_scaleCurrentNote!)
         : null;
+    final staffKeySig = _staffKeySignatureForCurrentTab();
     return _panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5631,6 +5825,8 @@ class _HomeScreenState extends State<HomeScreen>
                         : null,
                     scaleGuitarMode:
                         _tabIndex == 2 && _instrumentView == 'guitar',
+                    keySignatureCount: staffKeySig.count,
+                    keySignaturePreferFlats: staffKeySig.preferFlats,
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -8310,7 +8506,47 @@ class _MiniStaffPainter extends CustomPainter {
     this.scaleCurrentNote,
     this.scaleCurrentIsLeft,
     this.scaleGuitarMode = false,
+    this.keySignatureCount = 0,
+    this.keySignaturePreferFlats = false,
   });
+
+  /// Orden F# C# G# D# A# E# B# — mismos MIDI que `app.js`.
+  static const List<double> _keySigTrebleSharpMidis = <double>[
+    78,
+    73,
+    80,
+    75,
+    70,
+    76,
+    71,
+  ];
+  static const List<double> _keySigBassSharpMidis = <double>[
+    54,
+    49,
+    56,
+    51,
+    46,
+    52,
+    47,
+  ];
+  static const List<double> _keySigTrebleFlatOffsets = <double>[
+    2,
+    0.5,
+    2.5,
+    1,
+    3,
+    1.5,
+    3.5,
+  ];
+  static const List<double> _keySigBassFlatOffsets = <double>[
+    3,
+    1.5,
+    3.5,
+    2,
+    4,
+    2.5,
+    4.5,
+  ];
 
   final List<int> notes;
   final Set<int> extras;
@@ -8324,6 +8560,8 @@ class _MiniStaffPainter extends CustomPainter {
   final int? scaleCurrentNote;
   final bool? scaleCurrentIsLeft;
   final bool scaleGuitarMode;
+  final int keySignatureCount;
+  final bool keySignaturePreferFlats;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -8347,7 +8585,7 @@ class _MiniStaffPainter extends CustomPainter {
     final bassTop = trebleTop + grandGap;
     final clefInset = compactWidth ? 6.0 : 12.0;
     final clefBassInset = compactWidth ? 8.0 : 14.0;
-    final noteStartX = left + (compactWidth ? 72.0 : 110.0);
+    var noteStartX = left + (compactWidth ? 72.0 : 110.0);
     final scaleStepX = compactWidth ? 24.0 : 32.0;
     final noteW = compactWidth ? 13.0 : 16.0;
     final noteH = compactWidth ? 10.0 : 12.0;
@@ -8380,6 +8618,39 @@ class _MiniStaffPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
     tpBass.paint(canvas, Offset(left + clefBassInset, bassTop + gap * 0.5));
+
+    if (keySignatureCount > 0) {
+      final sigStep = compactWidth ? 13.5 : 18.0;
+      final keyX0 = left + (compactWidth ? 54.0 : 82.0);
+      final accStyle = TextStyle(
+        color: const Color(0xFFE9EDF2),
+        fontSize: math.max(15.0, gap * 1.55),
+      );
+      var xKey = keyX0;
+      final n = keySignatureCount.clamp(0, 7);
+      for (int i = 0; i < n; i += 1) {
+        final sym = keySignaturePreferFlats ? '♭' : '♯';
+        final double yTreble;
+        final double yBass;
+        if (keySignaturePreferFlats) {
+          yTreble = trebleTop + gap * _keySigTrebleFlatOffsets[i];
+          yBass = bassTop + gap * _keySigBassFlatOffsets[i];
+        } else {
+          yTreble = _midiToTrebleY(_keySigTrebleSharpMidis[i], trebleTop, gap);
+          yBass = _midiToBassY(_keySigBassSharpMidis[i], bassTop, gap);
+        }
+        final tpAcc = TextPainter(
+          text: TextSpan(text: sym, style: accStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final ox = xKey + sigStep / 2 - tpAcc.width / 2;
+        final oyOff = tpAcc.height / 2;
+        tpAcc.paint(canvas, Offset(ox, yTreble - oyOff));
+        tpAcc.paint(canvas, Offset(ox, yBass - oyOff));
+        xKey += sigStep;
+      }
+      noteStartX = xKey + (compactWidth ? 8.0 : 12.0);
+    }
 
     if (scaleRhNotes.isNotEmpty) {
       final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
@@ -8578,6 +8849,10 @@ class _MiniStaffPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
+    if (oldDelegate.keySignatureCount != keySignatureCount) return true;
+    if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
+      return true;
+    }
     if (oldDelegate.notes.length != notes.length) return true;
     if (oldDelegate.extras.length != extras.length) return true;
     if (oldDelegate.generationRhNotes.length != generationRhNotes.length) {

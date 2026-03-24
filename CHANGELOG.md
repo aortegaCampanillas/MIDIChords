@@ -73,6 +73,8 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (worker)**: en detección, el campo **Notas** del panel usa **`noteName` con `preferFlat`** según el selector; ya no **`spellByDegree`** para esas etiquetas, de modo que con **♭** se muestran bemoles coherentes con la configuración.
 - **Escritorio (detección)**: el **nombre del acorde** (tónica y bajo en slash) usa la misma convención armónica que **API/web** (`_chord_symbol_prefer_flat`: menos alteraciones; empate enarmónico → **bemoles**). El selector **# / ♭** sigue gobernando solo las **etiquetas de notas** del panel, no el símbolo del acorde.
 
+- **Móvil (Flutter)**: **detección** y **pentagrama** alineados con la web/worker — nombre del acorde con **menos alteraciones** (misma regla que `chordSymbolPreferFlat`); lista **Notas** según el selector **# / ♭**; **armadura** dibujada en clave de sol y fa; al cambiar **# / ♭** se refrescan **detección** y, si aplica, **acorde** o **escala** ya generados.
+
 - **Web (Cloudflare Pages)**: el HTML ya no añade `?v=<sha>` en el despliegue (workflow y `launch.py deploy-web`). El worker responde **307** a `GET`/`HEAD` de `/static/*` con `?` o `#`, redirigiendo al recurso sin query (fiable frente a **404** de `ASSETS.fetch` con cache-bust antiguo en CDN/HTML cacheado). `Cache-Control: no-store` en esa respuesta y en estáticos/HTML (`_headers` + worker).
 
 - **CI / Flatpak**: el workflow **Validate Flatpak** solo se ejecuta con **Run workflow** (`workflow_dispatch`); se quitaron los disparadores automáticos en `main`, tags `v*` y PRs mientras no se publique en Flathub.

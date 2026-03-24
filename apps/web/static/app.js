@@ -107,6 +107,10 @@ const state = {
   detectionMouseChordNotes: new Set(),
   detectionMidiHeldNotes: new Set(),
   midiInputSoundEnabled: true,
+  /** Screen Wake Lock (detección + MIDI); renovar con cada nota. */
+  midiScreenWakeLock: null,
+  midiScreenWakeLockTimer: null,
+  midiScreenWakeLockWanted: false,
   heldMidiInputVoices: new Map(),
   audioSampleCache: {},
   audioSampleLoadPromise: null,
@@ -1339,6 +1343,9 @@ function setMode(mode) {
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
+  if (mode !== "detection") {
+    resetMidiScreenWakeLockFully();
+  }
   if (state.help.active && !isHelpAvailableForMode(state.mode)) state.help.active = false;
   refreshDetectionButtonsState();
   refreshHelpButtonState();
@@ -4669,6 +4676,58 @@ async function toggleTuner() {
   }
 }
 
+const MIDI_SCREEN_WAKE_MS = 3 * 60 * 1000;
+
+async function acquireMidiScreenWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  try {
+    if (state.midiScreenWakeLock && !state.midiScreenWakeLock.released) return;
+    state.midiScreenWakeLock = await navigator.wakeLock.request("screen");
+    state.midiScreenWakeLock.addEventListener("release", () => {
+      state.midiScreenWakeLock = null;
+    });
+  } catch (_e) {
+    state.midiScreenWakeLock = null;
+  }
+}
+
+function releaseMidiScreenWakeLock() {
+  const lock = state.midiScreenWakeLock;
+  state.midiScreenWakeLock = null;
+  if (lock && typeof lock.release === "function") {
+    try {
+      void lock.release();
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+}
+
+function cancelMidiScreenWakeLockTimer() {
+  if (state.midiScreenWakeLockTimer != null) {
+    clearTimeout(state.midiScreenWakeLockTimer);
+    state.midiScreenWakeLockTimer = null;
+  }
+}
+
+function resetMidiScreenWakeLockFully() {
+  state.midiScreenWakeLockWanted = false;
+  cancelMidiScreenWakeLockTimer();
+  releaseMidiScreenWakeLock();
+}
+
+async function bumpMidiScreenWakeLockFromMidi() {
+  if (state.mode !== "detection" || !state.midi.enabled) return;
+  state.midiScreenWakeLockWanted = true;
+  await acquireMidiScreenWakeLock();
+  cancelMidiScreenWakeLockTimer();
+  state.midiScreenWakeLockTimer = setTimeout(() => {
+    state.midiScreenWakeLockTimer = null;
+    state.midiScreenWakeLockWanted = false;
+    releaseMidiScreenWakeLock();
+  }, MIDI_SCREEN_WAKE_MS);
+}
+
 function handleMidiMessage(event) {
   if (!state.midi.enabled) return;
   const data = event.data || [];
@@ -4691,6 +4750,7 @@ function handleMidiMessage(event) {
       stopHeldMidiInputNote(note);
     }
     refreshDetectionActiveNotes();
+    void bumpMidiScreenWakeLockFromMidi();
     return;
   }
 
@@ -4720,6 +4780,7 @@ async function toggleMidi() {
     state.detectionMidiHeldNotes.clear();
     if (state.mode === "detection") refreshDetectionActiveNotes();
     if (state.mode === "metronome") renderInstrument();
+    resetMidiScreenWakeLockFully();
     btn.textContent = tr("midi_off");
     btn.setAttribute("title", midiButtonTooltipForState("off"));
     refreshMidiToggleButtonState();
@@ -5192,6 +5253,12 @@ function bindEvents() {
   }
   const feedbackForm = el("feedbackForm");
   if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && state.midiScreenWakeLockWanted) {
+      void acquireMidiScreenWakeLock();
+    }
+  });
 }
 
 async function main() {

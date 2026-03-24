@@ -7,6 +7,7 @@ from typing import Optional
 
 from midichords.core.i18n import NOTE_NAMES
 from midichords.core.music_service import _chord_symbol_prefer_flat
+from midichords.core.midi_idle_inhibit import bump_after_midi_detection_activity
 from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, format_intervals
 from midichords.core.verbose_log import vlog
 
@@ -493,9 +494,11 @@ class InputDetectionMixin:
                         self.detection_mouse_chord_notes.clear()
                     self.detection_midi_held_notes.add(int(message.note))
                     changed = True
+                    bump_after_midi_detection_activity()
                 elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
                     self.detection_midi_held_notes.discard(int(message.note))
                     changed = True
+                    bump_after_midi_detection_activity()
             elif message.type == "note_on" and message.velocity > 0:
                 self._note_on_from_source(message.note, velocity=int(message.velocity), source="midi")
                 changed = True

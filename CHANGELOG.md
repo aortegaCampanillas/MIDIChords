@@ -12,6 +12,11 @@ Historial de versiones publicadas de MIDIChords.
 
 - **`wakelock_plus`**: en **detección** con **MIDI On**, cada **note on/off** renueva una ventana de **3 minutos** sin reposo de pantalla (equivalente práctico a reiniciar el temporizador de inactividad mientras tocas); se cancela al salir de detección, desactivar MIDI o cerrar la app.
 
+### Escritorio / Web (MIDI detección)
+
+- **Escritorio (Tk)**: módulo **`midichords/core/midi_idle_inhibit.py`** — cada nota MIDI en **detección** renueva **~3 min** sin apagar pantalla / suspender (Windows: `SetThreadExecutionState`; macOS: `caffeinate -di`). Se cancela al cambiar de modo fuera de detección o al cerrar.
+- **Web**: **Screen Wake Lock API** en **detección** con MIDI activo (HTTPS/localhost); misma ventana de **3 min** renovada con cada note on/off; al cambiar de modo o desactivar MIDI se libera; al volver a la pestaña se reintenta si aún aplica.
+
 ### Añadido
 
 - **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.

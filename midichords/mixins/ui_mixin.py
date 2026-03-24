@@ -2605,6 +2605,13 @@ class UiMixin:
             self.current_mode = "tuner"
         else:
             self.current_mode = "detection"
+        if self.current_mode != "detection":
+            try:
+                from midichords.core.midi_idle_inhibit import cancel_midi_idle_inhibit
+
+                cancel_midi_idle_inhibit()
+            except Exception:
+                pass
         self.config_data["mode"] = self.current_mode
         self.save_config()
         self.mode_trigger_var.set(self._mode_label(self.current_mode))

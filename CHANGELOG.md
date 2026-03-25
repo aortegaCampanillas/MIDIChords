@@ -6,7 +6,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Android (Google Play — prueba cerrada)
 
-- **1.0.1 (6)**: App Bundle de release (`flutter build appbundle`); `versionCode` **6** en `pubspec.yaml` para **prueba cerrada** en Play (el **5** ya estaba usado en la consola).
+- **1.0.1 (7)**: App Bundle de release; `versionCode` **7** en `pubspec.yaml` para **Google Play** (incluye wakelock renovado con MIDI en detección y resto de cambios recientes en `main`).
+- **1.0.1 (6)**: `versionCode` **6** para prueba cerrada (el **5** ya estaba usado en la consola).
 
 ### Móvil (Flutter)
 

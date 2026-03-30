@@ -272,10 +272,14 @@ Notas:
 En bundles **PyInstaller + PySide6** firmados para App Store, si Qt no encuentra los **plugins** (`cocoa`, etc.), el proceso puede terminar al instante **sin** informe de fallos útil.
 
 - El arranque del escritorio ejecuta `apps/desktop/darwin_frozen_bootstrap.py` **antes** de importar PySide6 y fija `QT_PLUGIN_PATH` dentro de `sys._MEIPASS` / `_internal`.
+- Si **TestFlight** cierra la app al instante, suele ser **bundle sin Qt**: tras `./scripts/build_mas_store.sh`, comprueba en local `find dist/MIDIChords.app -name libqcocoa.dylib` (debe listar una ruta). Si está vacío, en el venv MAS ejecuta `pip install pyinstaller-hooks-contrib` y vuelve a generar el `.pkg` (el script **`mas_embed_pyside6_bundle.py`** incrusta PySide6 si PyInstaller lo omitió).
+- Si **App Store Connect** rechaza el binario con **90885** (a veces el texto solo muestra `${executable}` / `${bundle}`), suele ser **WebEngine** o **herramientas Qt** (`lupdate`, `rcc`, `libexec`, …) firmadas dentro del `.app`. El **`build_mas_pkg.sh`** actual las **quita** antes de firmar; regenera el `.pkg` y sube un **build number** nuevo.
 - `midichords/core/app_constants.py` resuelve `PROJECT_ROOT` con `sys._MEIPASS` en `frozen` para que `assets/` coincida con el layout del `.app`.
 - **Prueba local:** abre Terminal y ejecuta la ruta del binario dentro del `.app` (no solo doble clic); cualquier error de Qt suele imprimirse ahí.
 - Si hubo excepción **Python** antes de mostrar UI, revisa `~/Library/Application Support/MIDIChords/python-startup-error.log`.
-- **Respuesta a App Review:** indica que la build corrige la inicialización de Qt 6 en el sandbox y pide nueva revisión; sube **nuevo build number**.
+- **Respuesta a App Review (inglés, para pegar en “Notes”):**  
+  *We addressed the launch issue (Guideline 2.1) by ensuring Qt 6 loads the macOS platform plugin in our PyInstaller-signed bundle: the app runs `darwin_frozen_bootstrap.py` before importing PySide6, sets `QT_PLUGIN_PATH` / `QT_QPA_PLATFORM_PLUGIN_PATH` so `libqcocoa.dylib` is found, and the store build uses PyInstaller `--collect-all PySide6` so required Qt plugins are embedded. Please review **version 1.0.1, build 9** (`com.FPAlanTuring.FreeMIDIChords`). If anything still fails, diagnostics may appear under the app’s container in Application Support: `mas_bootstrap_last.txt` and `python-startup-error.log`.*  
+  Tras cada rechazo o reenvío, vuelve a generar el `.pkg` con un **build number** distinto y sustituye aquí la versión/build por los de `CFBundleShortVersionString` / `CFBundleVersion` del `.app` que subas.
 
 ### Subir el PKG con Transporter
 

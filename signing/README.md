@@ -49,6 +49,18 @@ El wrapper pasa `--allow-network`, `--allow-file-access` y por defecto **`--skip
 
 Salida: `MIDIChords-macos-appstore.pkg` (y `dist/MIDIChords.app`). Sube el `.pkg` con **Transporter**.
 
+### Revisión MAS: icono en Dock y la app se cierra sin ventana
+
+Suele ser **Qt sin el plugin de plataforma `cocoa`** en el bundle firmado. El arranque escribe **`mas_bootstrap_last.txt`** (y errores Python en **`python-startup-error.log`**) bajo *Application Support* de la app: en sandbox suele ser  
+`~/Library/Containers/<TU_BUNDLE_ID>/Data/Library/Application Support/MIDIChords/`.  
+Ahí verás `_MEIPASS`, `QT_PLUGIN_PATH` y el ejecutable. El script de build usa **`--collect-all PySide6`**, **`--collect-submodules PySide6`**, **`pyinstaller-hooks-contrib`** en el venv y, si hace falta, **`scripts/mas_embed_pyside6_bundle.py`** (copia **PySide6**/**shiboken6** a **`Contents/Frameworks`**) porque a veces **`collect-all` no vuelca Qt** y el `.app` **no contiene `libqcocoa.dylib`** — síntoma: **TestFlight o sandbox cierra la app al abrir** sin crash útil. El build **falla** si tras eso sigue faltando el plugin. Tras un rechazo, **sube un build nuevo** (`--build-number` distinto) y un `.pkg` regenerado con `./scripts/build_mas_store.sh`.
+
+### TestFlight / validación: error **90885** (`QtWebEngineProcess.app`)
+
+Apple exige que los **ejecutables anidados** con *application identifier* lleven **provisioning profile** alineado con MAS. **Qt WebEngine** incluye **`QtWebEngineProcess.app`** dentro de **`QtWebEngineCore.framework`**, lo que dispara **90885**. MIDIChords **no usa WebEngine**; **`build_mas_pkg.sh`** excluye esos módulos en PyInstaller y **elimina** frameworks `QtWebEngine*`, `QtWebView*` y `QtWebChannel*` (y cualquier `QtWebEngineProcess.app` suelto) antes de firmar.
+
+Además, el wheel de **PySide6** incluye **herramientas Qt** (`lupdate`, `rcc`, `uic`, `qmllint`, …) y **`Qt/libexec/*`**: son **Mach-O ejecutables** que `codesign --deep` firma con **Team ID** e **identifier** propios pero **sin** el mismo perfil que el `.app` → Apple los rechaza con **90885** (a veces el mensaje solo muestra plantillas `${executable}` / `${bundle}`). El script **borra** `Qt/libexec` y esos binarios en la raíz de **PySide6**, y la carpeta de plugins **`webview`** (incluye `libqtwebview_webengine.dylib`).
+
 ### Comando largo (equivalente manual)
 
 Example command using a local profile from this folder:
@@ -60,7 +72,7 @@ scripts/build_mas_pkg.sh \
   --bundle-id "com.example.midichords" \
   --provisioning-profile "signing/local/profiles/TuPerfil.provisionprofile" \
   --version "1.0.1" \
-  --build-number "4" \
+  --build-number "1" \
   --allow-network \
   --allow-file-access \
   --skip-tk-check

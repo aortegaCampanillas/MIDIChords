@@ -76,7 +76,7 @@ if [[ ! -d "$VENV_DIR" ]]; then
 fi
 
 "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
-"$VENV_DIR/bin/python" -m pip install -r "$ROOT_DIR/requirements.txt" pyinstaller
+"$VENV_DIR/bin/python" -m pip install -r "$ROOT_DIR/requirements.txt" pyinstaller pyinstaller-hooks-contrib
 
 echo
 echo "Done."

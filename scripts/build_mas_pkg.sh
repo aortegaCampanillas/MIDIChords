@@ -38,7 +38,7 @@ Notes:
   - This script is for Mac App Store submission, not Developer ID distribution.
   - Upload the resulting .pkg with Transporter or Xcode Organizer.
   - PyInstaller se invoca como: PYTHON_BIN -m PyInstaller (por defecto PYTHON_BIN=python3).
-    Instala con: PYTHON_BIN -m pip install pyinstaller (y requirements del proyecto).
+    Instala con: PYTHON_BIN -m pip install pyinstaller pyinstaller-hooks-contrib (y requirements del proyecto).
 EOF
 }
 
@@ -100,6 +100,15 @@ clear_quarantine_attrs() {
   fi
   xattr -cr "$path" 2>/dev/null || true
   xattr -dr com.apple.quarantine "$path" 2>/dev/null || true
+}
+
+# Tras borrar frameworks Qt (WebEngine, etc.) pueden quedar enlaces simbólicos rotos.
+# codesign --verify --deep --strict entonces falla con "No such file or directory"
+# mostrando solo la ruta del .app (mensaje poco claro).
+remove_dead_symlinks_under() {
+  local root="$1"
+  [[ -d "$root" ]] || return 0
+  find "$root" -type l ! -exec test -e {} \; -delete 2>/dev/null || true
 }
 
 while [[ $# -gt 0 ]]; do
@@ -237,17 +246,85 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   echo "Building ${APP_NAME}.app with PyInstaller ($PYTHON_BIN -m PyInstaller)..."
   if ! "$PYTHON_BIN" -m PyInstaller --version >/dev/null 2>&1; then
     echo "Error: PyInstaller no está instalado para: $PYTHON_BIN" >&2
-    echo "  Prueba: $PYTHON_BIN -m pip install pyinstaller" >&2
+    echo "  Prueba: $PYTHON_BIN -m pip install pyinstaller pyinstaller-hooks-contrib" >&2
     echo "  O define PYTHON_BIN en signing/local/mas.env apuntando a un venv con dependencias (ver scripts/bootstrap_mas_build_env.sh)." >&2
     exit 1
   fi
-  "$PYTHON_BIN" -m PyInstaller --noconfirm --clean --windowed --name "$APP_NAME" --add-data "assets:assets" "$ENTRYPOINT"
+  # --collect-all PySide6: a veces PyInstaller no vuelca Qt (aviso «not a package»);
+  # --collect-submodules + hooks-contrib ayudan; mas_embed_pyside6_bundle.py cubre el hueco.
+  # Qt WebEngine: sub-app QtWebEngineProcess.app firmada sin perfil MAS → TestFlight 90885.
+  # MIDIChords no usa WebEngine; se excluye del análisis y se eliminan restos tras el build.
+  "$PYTHON_BIN" -m PyInstaller --noconfirm --clean --windowed --name "$APP_NAME" \
+    --collect-all PySide6 \
+    --collect-submodules PySide6 \
+    --exclude-module PySide6.QtWebEngineCore \
+    --exclude-module PySide6.QtWebEngineWidgets \
+    --exclude-module PySide6.QtWebEngineQuick \
+    --exclude-module PySide6.QtWebView \
+    --exclude-module PySide6.QtWebChannel \
+    --add-data "assets:assets" \
+    "$ENTRYPOINT"
 fi
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Error: app bundle not found: $APP_PATH" >&2
   exit 1
 fi
+
+echo "Comprobando que el bundle incluye el plugin Qt (libqcocoa.dylib)…"
+if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/mas_embed_pyside6_bundle.py" "$APP_PATH"; then
+  echo "Error: el .app no contiene libqcocoa.dylib; TestFlight/sandbox cerrará la app al abrir." >&2
+  echo "  Instala en el venv MAS: pip install -r requirements.txt pyinstaller pyinstaller-hooks-contrib" >&2
+  echo "  y vuelve a ejecutar este script (sin --skip-build salvo que ya hayas arreglado el .app)." >&2
+  exit 1
+fi
+
+# PySide6 trae Assistant/Designer/Linguist como .app; PyInstaller los copia a Frameworks y/o
+# Resources; symlinks rotos en esos sub-bundles hacen fallar codesign --verify --deep --strict.
+for _pyside_root in "$APP_PATH/Contents/Frameworks/PySide6" "$APP_PATH/Contents/Resources/PySide6"; do
+  if [[ -d "$_pyside_root" ]]; then
+    echo "Quitando herramientas Qt anidadas (Assistant/Designer/Linguist) en ${_pyside_root##*/}…"
+    for _tool in Assistant Designer Linguist; do
+      rm -rf "$_pyside_root/${_tool}.app" "$_pyside_root/${_tool}__dot__app"
+    done
+  fi
+done
+
+# Cualquier resto de WebEngine (p. ej. si el hook volcó frameworks antes del exclude).
+echo "Quitando Qt WebEngine / WebView / WebChannel del bundle (TestFlight 90885)…"
+find "$APP_PATH/Contents/Frameworks" "$APP_PATH/Contents/Resources" \
+  -type d \( -name 'QtWebEngine*.framework' -o -name 'QtWebView*.framework' -o -name 'QtWebChannel*.framework' \) \
+  2>/dev/null | while IFS= read -r _fw; do rm -rf "$_fw"; done
+find "$APP_PATH/Contents/Frameworks" "$APP_PATH/Contents/Resources" \
+  -type d -name 'QtWebEngineProcess.app' 2>/dev/null | while IFS= read -r _hap; do rm -rf "$_hap"; done
+for _pyside_root in "$APP_PATH/Contents/Frameworks/PySide6" "$APP_PATH/Contents/Resources/PySide6"; do
+  if [[ -d "$_pyside_root" ]]; then
+    rm -f "$_pyside_root"/QtWebEngine*.abi3.so "$_pyside_root"/QtWebEngine*.pyi 2>/dev/null || true
+    rm -f "$_pyside_root"/QtWebView*.abi3.so "$_pyside_root"/QtWebView*.pyi 2>/dev/null || true
+    rm -f "$_pyside_root"/QtWebChannel*.abi3.so "$_pyside_root"/QtWebChannel*.pyi 2>/dev/null || true
+  fi
+done
+
+# TestFlight 90885: ejecutables Mach-O firmados (lupdate, rcc, uic, qmllint, …) y libexec de Qt
+# tienen Identifier propio pero no perfil MAS embebido como el .app principal.
+echo "Quitando Qt libexec y herramientas CLI en raíz PySide6 (90885)…"
+for _root in "$APP_PATH/Contents/Frameworks/PySide6" "$APP_PATH/Contents/Resources/PySide6"; do
+  if [[ -d "$_root" ]]; then
+    rm -rf "$_root/Qt/libexec"
+    find "$_root" -maxdepth 1 -type f 2>/dev/null | while IFS= read -r _f; do
+      case "$(file -b "$_f" 2>/dev/null)" in
+        *Mach-O*executable*) rm -f "$_f" ;;
+      esac
+    done
+  fi
+done
+for _plugins in "$APP_PATH/Contents/Frameworks/PySide6/Qt/plugins" "$APP_PATH/Contents/Resources/PySide6/Qt/plugins"; do
+  if [[ -d "$_plugins/webview" ]]; then
+    rm -rf "$_plugins/webview"
+  fi
+done
+
+remove_dead_symlinks_under "$APP_PATH"
 
 INFO_PLIST="$APP_PATH/Contents/Info.plist"
 
@@ -400,6 +477,8 @@ EOF
 echo "Removing quarantine attributes from app bundle..."
 clear_quarantine_attrs "$APP_PATH"
 
+remove_dead_symlinks_under "$APP_PATH"
+
 echo "Signing app for Mac App Store..."
 codesign --force --deep --timestamp \
   --entitlements "$ENTITLEMENTS_PATH" \
@@ -407,7 +486,11 @@ codesign --force --deep --timestamp \
   "$APP_PATH"
 
 echo "Verifying app signature..."
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+if ! codesign --verify --deep --strict --verbose=2 "$APP_PATH"; then
+  echo "codesign --verify --deep --strict falló. Buscando symlinks rotos restantes…" >&2
+  find "$APP_PATH" -type l ! -exec test -e {} \; -print 2>/dev/null | head -20 >&2 || true
+  exit 1
+fi
 
 echo "Building signed installer package..."
 rm -f "$OUTPUT_PKG"

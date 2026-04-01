@@ -61,6 +61,7 @@
         <select id="modeSelect">
           <option value="detection">Detección de Acordes</option>
           <option value="generation">Generación de Acordes</option>
+          <option value="circle_fifths">Círculo de quintas</option>
           <option value="scales">Escalas</option>
           <option value="metronome">Metrónomo</option>
           <option value="tuner">Afinador</option>
@@ -89,7 +90,13 @@
         <div class="mode-layout">
           <section id="staffArea" class="staff-panel">
             <div id="staffHeader" class="staff-header">Pentagrama</div>
+            <div id="circleChordOverStaff" class="circle-chord-over-staff" aria-hidden="true" hidden>
+              <div id="circleFieldChord"><span id="labelCircleChord" class="label">Acorde:</span> <strong id="circleChordName">-</strong></div>
+            </div>
             <canvas id="staffCanvas" width="900" height="520"></canvas>
+            <div id="circleFifthsStaffFooter" class="circle-fifths-staff-footer" aria-hidden="true" hidden>
+              <p id="circleFifthsHint" class="muted circle-fifths-hint"></p>
+            </div>
           </section>
           <aside class="sidebar">
             <div class="sidebar-top">
@@ -130,6 +137,15 @@
                   <div id="genFieldChord"><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong></div>
                   <div id="genFieldNotes"><span id="labelGenNotes" class="label">Notas:</span> <span id="genNotes">-</span></div>
                   <div id="genFieldIntervals"><span id="labelGenIntervals" class="label">Intervalos:</span> <span id="genIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelCircleFifths" class="mode-panel mode-panel-circle-fifths hidden">
+                <div class="circle-fifths-wrap">
+                  <div class="circle-fifths-canvas-shell">
+                    <button type="button" id="circlePlay" class="icon-play-btn circle-fifths-play-overlay" aria-label="Reproducir" title="Reproducir">▶</button>
+                    <canvas id="circleFifthsCanvas" width="480" height="480" aria-label="Círculo de quintas"></canvas>
+                  </div>
                 </div>
               </section>
 

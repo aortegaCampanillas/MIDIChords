@@ -117,7 +117,7 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
 2. **Ruta del proyecto**: Las rutas a assets/samples/config se resuelven con `midichords.core.app_constants.PROJECT_ROOT` (o equivalente). En Flatpak puede ser `/app/share/midichords`.
 3. **Detección de acordes**: La fuente de verdad para “qué acorde es un conjunto de notas” está en `music_theory.analyze_chord_notes()` y en la capa de “spelling”/detección armónica en `music_service` / `InputDetectionMixin` (`_detect_harmonic_spelling`, `detect_chord`).
 4. **No asumir Qt**: En la rama `main` la app de escritorio es Tkinter. Si existen `qt_app.py` / `qt_widgets.py`, son experimentales o de otra rama; no modificar la UI Tk sin tener en cuenta que es la referencia actual.
-5. **Web**: La API usada por el frontend está en `apps/web/worker/`. Cualquier cambio en respuestas o rutas debe reflejarse en el worker y, si aplica, en el frontend en `apps/web/static/` y `apps/web/templates/`.
+5. **Web**: La API está en `apps/web/worker/`. El cliente es una SPA en **`apps/web/static/app.js`** (y `style.css`): modos detección, generación, **círculo de quintas**, escalas, metrónomo y afinador. Cualquier cambio en respuestas o rutas API debe reflejarse en el worker y, si aplica, en `apps/web/static/` y `apps/web/templates/`. El modo **círculo de quintas** (`state.mode === "circle_fifths"`) dibuja el círculo en canvas (`renderCircleFifths`), fija tonalidad con clic (anillo mayor/menor), acorde diatónico con Mayús+clic y usa `POST /api/generate/chord`; detalle en **`apps/web/README.md`** → sección *Frontend (modos SPA)*.
 
 ## Resumen rápido por tarea
 
@@ -131,6 +131,7 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
 | Entrada MIDI | `midichords/mixins/midi_io_mixin.py` |
 | UI de escritorio (paneles, botones, teclado, pentagrama) | `midichords/main_app.py`, `midichords/ui/widgets.py`, `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
 | Lanzar desktop / web / mobile | `launch.py` |
+| Web: modo círculo de quintas (canvas, tonalidad, Mayús+clic diatónico) | `apps/web/static/app.js` (`renderCircleFifths`, `circleChordRootPcFromClick`, `runGenerateChordCircle`) |
 | Tests unitarios | `tests/` (importan `midichords.*`) |
 
 ## Términos clave

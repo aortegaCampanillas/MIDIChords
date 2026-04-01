@@ -222,6 +222,18 @@ python launch.py web --host 127.0.0.1 --port 8000
 
 Este comando usa `wrangler dev` con el mismo Worker que producción.
 
+## Frontend (modos SPA)
+
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+
+### Círculo de quintas (`circle_fifths`)
+
+- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "circle_fifths"`, canvas `#circleFifthsCanvas`, funciones como `renderCircleFifths`, `circleChordRootPcFromClick`, `circleChordShiftClickIsDiatonic`, `runGenerateChordCircle`, `circleMajorTonicPcForTheory()`.
+- **Interacción**: **clic** para fijar la **tonalidad** según la banda (anillo exterior = acordes mayores del sector → modo mayor; anillo interior = fundamental menor relativa → modo menor natural; misma armadura). **Mayús+clic** para elegir un **acorde diatónico** (triada) de esa tonalidad sin cambiar la tónica; solo se acepta la combinación banda/sector coherente con la escala.
+- **Datos**: el acorde mostrado y reproducido se obtiene con **`POST /api/generate/chord`** (mismo cuerpo conceptual que el modo generación: `root_pc`, `suffix`, `inversion`, `language`, `accidental`).
+- **UI**: colores por función en el anillo; en modo menor, numerales tipo **♭III / ♭VI / ♭VII** (bemol en superíndice en canvas); botón **▶** superpuesto en la esquina superior izquierda del área del canvas (no ocupa una fila aparte). Textos y traducciones ES/EN están en los objetos de strings de `app.js` (`tr()`).
+- **Ayuda (modo Ayuda)**: los globos de ayuda contextual incluyen el canvas del círculo (explicación del círculo de tónicas y clic/Mayús); el párrafo de ayuda fijo bajo el pentagrama **no** tiene callout asociado.
+
 ## API
 
 Rutas internas del Worker:

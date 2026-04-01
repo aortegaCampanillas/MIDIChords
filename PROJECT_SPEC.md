@@ -13,6 +13,7 @@ Documento pensado para **regenerar o recrear** el proyecto desde cero. Describe 
 - **Escalas**: elegir tónica y tipo de escala; ver notas e intervalos y reproducir la escala (opcionalmente con metrónomo).
 - **Metrónomo**: tempo, compás, volumen, acento en el primer tiempo, presets de carácter.
 - **Afinador**: escuchar el micrófono y mostrar la nota más cercana y la desviación en cents.
+- **Círculo de quintas (web)**: modo interactivo en el cliente web para fijar tonalidad y elegir acordes diatónicos sobre un círculo de tónicas; no forma parte del escritorio Tk de referencia en `main`. Ver §5.2.
 
 La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend estático + API en Cloudflare Worker) y **móvil/tablet** (Flutter). La **lógica de negocio** (detección, generación, patrones de acordes y escalas) debe ser reutilizable y compartida entre al menos escritorio y web.
 
@@ -132,7 +133,8 @@ Widgets Tkinter reutilizables (botones redondeados, paneles, botón de transport
 
 ### 5.2 Web
 
-- **Frontend**: HTML + JS + CSS en `apps/web/` (index.html, static/, templates si aplica). Carga inicial de datos desde la API (patrones de acordes y escalas, idioma).
+- **Frontend**: HTML + JS + CSS en `apps/web/` (`index.html`, `static/app.js`, `static/style.css`, `templates/` si aplica). SPA con modos de pantalla: detección, generación de acordes, **círculo de quintas**, escalas, metrónomo, afinador. Carga inicial de datos desde la API (patrones de acordes y escalas, idioma).
+- **Modo círculo de quintas**: interacción en canvas 2D (tónicas en quintas); clic para elegir tonalidad (anillo exterior = mayor, interior = menor relativa natural); **Mayús+clic** para un acorde diatónico de esa tonalidad; reproducción y pentagrama/guitarra reutilizan la misma generación que el modo generación vía `POST /api/generate/chord`. Implementación y convenciones de UI en `apps/web/static/app.js`; descripción orientativa en **`apps/web/README.md`** (*Frontend (modos SPA)*).
 - **API (Cloudflare Worker)**: mismo contrato que la lógica de `music_service` + detección. Endpoints mínimos:
   - `GET /api/health` → `{ "status": "ok" }`
   - `GET /api/meta?language=es` → `{ "chord_patterns": [...], "scale_patterns": [...] }`

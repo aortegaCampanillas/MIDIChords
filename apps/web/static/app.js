@@ -15,6 +15,11 @@ const state = {
   activeMidiLiveNotes: new Set(),
   detectionResult: null,
   generatedChord: null,
+  circleTonicPc: 0,
+  /** "major": circleTonicPc es la tónica mayor; "minor": es la fundamental menor (relativa mayor = +3 semitonos). */
+  circleKeyMode: "major",
+  circleChordRootPc: 0,
+  circleFifthsResizeScheduled: false,
   generatedScale: null,
   scaleCurrentNote: null,
   scaleInputRawNote: null,
@@ -120,12 +125,14 @@ const UI_TEXTS = {
   es: {
     mode_detection: "Detección de Acordes",
     mode_generation: "Generación de Acordes",
+    mode_circle_fifths: "Círculo de quintas",
     mode_scales: "Escalas",
     mode_metronome: "Metrónomo",
     mode_tuner: "Afinador",
     staff: "Pentagrama",
     heading_detection: "Detección",
     heading_generation: "Generación de Acordes",
+    heading_circle_fifths: "Círculo de quintas",
     heading_scales: "Escalas",
     heading_metronome: "Metrónomo",
     heading_tuner: "Afinador",
@@ -250,6 +257,12 @@ const UI_TEXTS = {
     help_gen_result_chord: "Nombre del acorde generado.",
     help_gen_result_notes: "Notas que forman el acorde generado.",
     help_gen_result_intervals: "Intervalos del acorde respecto a su tónica.",
+    circle_hint: "Clic: fija la tónica y la tonalidad (mayor en el anillo exterior, menor natural relativa en el interior; misma armadura). Mayús+clic: elige un acorde diatónico, es decir, una triada sobre un grado de esa escala (mayor, menor o disminuida); no cambia la tónica.",
+    help_circle_staff_footer: "Bajo el pentagrama: ayuda (clic / Mayús) para el círculo. Reproducir: botón ▶ sobre el círculo (arriba a la izquierda).",
+    help_circle_panel: "Círculo de tónicas: elige la tonalidad con el ratón; con Mayús, un acorde diatónico.",
+    help_circle_canvas: "Círculo de tónicas (en quintas): cada sector es una tónica posible. Clic con el ratón para fijar la tonalidad (mayor en el anillo exterior, menor relativa en el interior). Con Mayús pulsado, clic para elegir un acorde diatónico de esa tonalidad (triada en un grado de la escala) sin cambiar la tónica.",
+    help_circle_play: "Reproduce el acorde seleccionado.",
+    help_circle_result_chord: "Nombre del acorde según la tonalidad elegida.",
     help_guitar_variations_bar: "Barra de variaciones de guitarra: aquí aparecen posiciones alternativas del mismo acorde.",
     help_guitar_variation_btn: "Cada botón selecciona una digitación/posición distinta del acorde en guitarra.",
     help_scales_panel: "Panel de escalas: configura tónica, tipo y reproducción.",
@@ -286,12 +299,14 @@ const UI_TEXTS = {
   en: {
     mode_detection: "Chord Detection",
     mode_generation: "Chord Generation",
+    mode_circle_fifths: "Circle of Fifths",
     mode_scales: "Scales",
     mode_metronome: "Metronome",
     mode_tuner: "Tuner",
     staff: "Staff",
     heading_detection: "Detection",
     heading_generation: "Chord Generation",
+    heading_circle_fifths: "Circle of Fifths",
     heading_scales: "Scales",
     heading_metronome: "Metronome",
     heading_tuner: "Tuner",
@@ -416,6 +431,12 @@ const UI_TEXTS = {
     help_gen_result_chord: "Generated chord name.",
     help_gen_result_notes: "Notes that form the generated chord.",
     help_gen_result_intervals: "Chord intervals relative to its tonic.",
+    circle_hint: "Click: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature). Shift+click: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic.",
+    help_circle_staff_footer: "Below the staff: hint (click / Shift) for the circle. Play: ▶ button on the circle (top left).",
+    help_circle_panel: "Circle of tonics: choose the key with the mouse; with Shift, a diatonic chord.",
+    help_circle_canvas: "Circle of tonics (by fifths): each sector is a possible tonic. Click to set the key (major on the outer ring, relative natural minor on the inner). Hold Shift and click to pick a diatonic chord in that key (a triad on a scale degree) without changing the tonic.",
+    help_circle_play: "Play the selected chord.",
+    help_circle_result_chord: "Chord name in the chosen key context.",
     help_guitar_variations_bar: "Guitar variations bar: alternative positions for the same chord appear here.",
     help_guitar_variation_btn: "Each button selects a different guitar fingering/position for the chord.",
     help_scales_panel: "Scales panel: set tonic, scale type, and playback.",
@@ -539,6 +560,22 @@ const HELP_CALLOUTS_GENERATION = [
   { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
 ];
+const HELP_CALLOUTS_CIRCLE_FIFTHS = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_generation", side: "top" },
+  { selector: "#circleFifthsCanvas", textKey: "help_circle_canvas", side: "left" },
+  { selector: "#circlePlay", textKey: "help_circle_play", side: "bottom" },
+  { selector: "#circleFieldChord", textKey: "help_circle_result_chord", side: "left" },
+  { selector: "#guitarVariationBar", textKey: "help_guitar_variations_bar", side: "top" },
+  { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
+  { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
+];
 const HELP_CALLOUTS_SCALES = [
   { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
   { selector: "#language", textKey: "help_language", side: "bottom" },
@@ -591,6 +628,7 @@ const HELP_CALLOUTS_METRONOME = [
 function helpCalloutsForMode(mode) {
   if (mode === "detection") return HELP_CALLOUTS_DETECTION;
   if (mode === "generation") return HELP_CALLOUTS_GENERATION;
+  if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
   if (mode === "scales") return HELP_CALLOUTS_SCALES;
   if (mode === "metronome") return HELP_CALLOUTS_METRONOME;
   return [];
@@ -602,6 +640,10 @@ function isHelpAvailableForMode(mode) {
 
 function el(id) {
   return document.getElementById(id);
+}
+
+function isChordGenerationLikeMode() {
+  return state.mode === "generation" || state.mode === "circle_fifths";
 }
 
 /** #/♭: leer el <select> visible primero (state puede desincronizarse si no hubo evento change). */
@@ -638,6 +680,955 @@ function pianoKeyLabelHtml(pc) {
 
 function noteNameFromPcStaff(pc, preferFlat) {
   return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
+}
+
+/** Sentido horario desde arriba (Do), avanzando de quinta en quinta. */
+const CIRCLE_FIFTHS_ORDER = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
+
+const DIATONIC_DEGREE_SUFFIX = {
+  0: "",
+  2: "m",
+  4: "m",
+  5: "",
+  7: "",
+  9: "m",
+  11: "dim",
+};
+
+const ROMAN_BY_DEGREE = {
+  0: "I",
+  2: "ii",
+  4: "iii",
+  5: "IV",
+  7: "V",
+  9: "vi",
+  11: "vii°",
+};
+
+/**
+ * Fondos diatónicos (referencia visual): mayor = melocotón claro; tónica I = beige/marrón más oscuro;
+ * menor = lavanda claro; vii° = rosa pálido (como en la maqueta del círculo).
+ */
+const CIRCLE_DEGREE_FILL = {
+  0: { base: "#f0d5b8", tonic: "#c9a06a" },
+  2: "#ddd0e8",
+  4: "#ddd0e8",
+  5: "#f0d5b8",
+  7: "#f0d5b8",
+  9: "#ddd0e8",
+  11: "#f5d4dc",
+};
+
+/** Texto diatónico: I/vi verde; IV/ii azul; V/iii/vii° rojo (legible sobre fondos claros). */
+const CIRCLE_DEGREE_TEXT = {
+  0: "#1b5e20",
+  2: "#0d47a1",
+  4: "#b71c1c",
+  5: "#1565c0",
+  7: "#c62828",
+  9: "#2e7d32",
+  11: "#c62828",
+};
+
+function diatonicTriadSuffixMajorKey(tonicPc, rootPc) {
+  const d = (rootPc - tonicPc + 12) % 12;
+  if (Object.prototype.hasOwnProperty.call(DIATONIC_DEGREE_SUFFIX, d)) {
+    return { suffix: DIATONIC_DEGREE_SUFFIX[d], degree: d };
+  }
+  return { suffix: "", degree: null };
+}
+
+/**
+ * Triadas diatónicas en tonalidad menor natural (intervalos desde la tónica menor).
+ * III/VI/VII como ♭ respecto a la mayor paralela (p. ej. en Lam: Do = ♭III).
+ */
+const ROMAN_BY_MINOR_NATURAL_INTERVAL = {
+  0: "i",
+  2: "ii°",
+  3: "\u266DIII",
+  5: "iv",
+  7: "v",
+  8: "\u266DVI",
+  10: "\u266DVII",
+};
+
+/** En canvas, dibuja numerales con el bem (\u266D) en superíndice respecto al número romano. */
+function fillTextRomanMaybeFlatSuperscript(ctx, roman, x, y, fsRoman) {
+  const ff = `"Avenir Next", "Segoe UI", sans-serif`;
+  const flat = "\u266D";
+  if (!roman) return;
+  if (roman.charAt(0) !== flat) {
+    ctx.font = `${fsRoman}px ${ff}`;
+    ctx.fillText(roman, x, y);
+    return;
+  }
+  const body = roman.slice(1);
+  const supFs = Math.max(7, Math.round(fsRoman * 0.58));
+  const rise = Math.round(fsRoman * 0.4);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.font = `${supFs}px ${ff}`;
+  const wFlat = ctx.measureText(flat).width;
+  ctx.font = `${fsRoman}px ${ff}`;
+  const wBody = ctx.measureText(body).width;
+  const total = wFlat + wBody;
+  let drawX = x - total / 2;
+  ctx.font = `${supFs}px ${ff}`;
+  ctx.fillText(flat, drawX, y - rise);
+  drawX += wFlat;
+  ctx.font = `${fsRoman}px ${ff}`;
+  ctx.fillText(body, drawX, y);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+}
+
+function diatonicTriadSuffixNaturalMinorKey(minorTonicPc, rootPc) {
+  const d = (rootPc - minorTonicPc + 12) % 12;
+  const MAP = {
+    0: { suffix: "m" },
+    2: { suffix: "dim" },
+    3: { suffix: "" },
+    5: { suffix: "m" },
+    7: { suffix: "m" },
+    8: { suffix: "" },
+    10: { suffix: "" },
+  };
+  if (!Object.prototype.hasOwnProperty.call(MAP, d)) {
+    return { suffix: "", interval: null, roman: "" };
+  }
+  return {
+    suffix: MAP[d].suffix,
+    interval: d,
+    roman: ROMAN_BY_MINOR_NATURAL_INTERVAL[d] || "",
+  };
+}
+
+/**
+ * Mapea intervalo menor natural → clave de grado mayor para CIRCLE_DEGREE_TEXT / rellenos.
+ * VII comparte lavanda con III/VI (no el rosa de vii°); ii° usa el rosa de grado 11.
+ */
+function circleMinorIntervalToMajorDegreeKey(intervalD) {
+  const map = { 0: 0, 2: 11, 3: 4, 5: 5, 7: 7, 8: 9, 10: 9 };
+  return map[intervalD] !== undefined ? map[intervalD] : 0;
+}
+
+function circleDiatonicSliceFill(degree, pc, tonicPc) {
+  if (degree === 0) {
+    return pc === tonicPc ? CIRCLE_DEGREE_FILL[0].tonic : CIRCLE_DEGREE_FILL[0].base;
+  }
+  return CIRCLE_DEGREE_FILL[degree];
+}
+
+/** En el anillo mayor del sector solo la triada mayor I, IV o V es la función diatónica (no Re mayor = ii ni Si mayor = vii°). */
+function circleUpperBandIsDiatonicMajorTriad(degree) {
+  return degree === 0 || degree === 5 || degree === 7;
+}
+
+/** El anillo inferior muestra la menor relativa; ii/iii/vi coinciden con Rem/Mim/Lam en los sectores correctos. */
+function circleLowerBandIsDiatonicMinorTriad(minorDeg) {
+  return minorDeg === 2 || minorDeg === 4 || minorDeg === 9;
+}
+
+/** Índice 0..11 en orden de quintas (C arriba): 0–6 → #, 7–11 → ♭. */
+function circleSignatureLabelForSliceIndex(i) {
+  if (i <= 6) {
+    const n = i;
+    if (n === 0) return "0";
+    return `${n}♯`;
+  }
+  const fb = 12 - i;
+  return `${fb}♭`;
+}
+
+/** Menor relativa de una mayor (ej. Do → La). */
+function relativeMinorPcFromMajorPc(majorPc) {
+  return (Number(majorPc) + 9 + 12) % 12;
+}
+
+function circleMinorLabel(majorPc) {
+  const mpc = relativeMinorPcFromMajorPc(majorPc);
+  return `${noteNameFromPc(mpc)}m`;
+}
+
+function circleFifthsRadiiPx(w, h) {
+  const rOuter = Math.min(w, h) * 0.46;
+  const rHole = rOuter * 0.18;
+  /** Anillo de ♯/♭: mitad del ancho que tenía la franja exterior respecto a la guía antigua (0.775·R). */
+  const rGuideSigMajRef = rOuter * 0.775;
+  const bandSig = (rOuter - rGuideSigMajRef) / 2;
+  const rSigInner = rOuter - bandSig;
+  const rSig = (rOuter + rSigInner) / 2;
+  /** Frontera mayor/menor: más cerca del centro → anillo mayor más estrecho y anillo menor más ancho (menos solape de textos). */
+  const rGuideMajMin = rOuter * 0.52;
+  return {
+    rOuter,
+    rHole,
+    rSigInner,
+    rSig,
+    rMajName: rOuter * 0.72,
+    rMajRoman: rOuter * 0.60,
+    rMin: rOuter * 0.38,
+    /** Romano bajo el nombre menor; más hacia el centro del anillo menor que el agujero. */
+    rMinRoman: rOuter * 0.292,
+    /** Líneas entre anillo de armadura / mayor / menor. */
+    rGuideSigMaj: rSigInner,
+    rGuideMajMin,
+  };
+}
+
+function circleSliceIndexForPitchClass(pc) {
+  const p = ((pc % 12) + 12) % 12;
+  for (let i = 0; i < 12; i += 1) {
+    if (CIRCLE_FIFTHS_ORDER[i] === p) return i;
+  }
+  return 0;
+}
+
+/** Raíz del acorde diatónico en tonalidad mayor (I, ii, iii, IV, V, vi, vii°). */
+function chordRootPcForMajorScaleDegree(tonicPc, degree) {
+  const inter = { 0: 0, 2: 2, 4: 4, 5: 5, 7: 7, 9: 9, 11: 11 };
+  return (((tonicPc + inter[degree]) % 12) + 12) % 12;
+}
+
+/**
+ * Arco entre dos ángulos en r: elige tramo corto o largo según preferNorth (−sin) o sur (+sin).
+ * Usado para el arco superior IV–I–V (pasar por el norte, por encima de Do).
+ */
+function circlePathArc(ctx, r, aFrom, aTo, preferNorth) {
+  let d = aTo - aFrom;
+  while (d <= 0) d += Math.PI * 2;
+  while (d > Math.PI * 2) d -= Math.PI * 2;
+  const shortSweep = d > Math.PI ? Math.PI * 2 - d : d;
+  const longSweep = Math.PI * 2 - shortSweep;
+  const midShort = aFrom + shortSweep / 2;
+  const midLong = aFrom + longSweep / 2;
+  const scoreNorth = (a) => -Math.sin(a);
+  const scoreSouth = (a) => Math.sin(a);
+  const score = preferNorth ? scoreNorth : scoreSouth;
+  const sweep = score(midLong) > score(midShort) ? longSweep : shortSweep;
+  const steps = 40;
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const ang = aFrom + sweep * t;
+    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+  }
+}
+
+/**
+ * Arco en rHole entre dos ángulos: tramo por la parte inferior (Mi, Si, Fa#…),
+ * coherente con ii–iii–vi en el anillo interior.
+ */
+function circlePathArcHoleBottom(ctx, r, aFrom, aTo) {
+  let d = aTo - aFrom;
+  while (d <= 0) d += Math.PI * 2;
+  while (d > Math.PI * 2) d -= Math.PI * 2;
+  const shortSweep = d > Math.PI ? Math.PI * 2 - d : d;
+  const longSweep = Math.PI * 2 - shortSweep;
+  function avgSin(sweep) {
+    let s = 0;
+    for (let k = 0; k <= 16; k += 1) {
+      const t = k / 16;
+      const ang = aFrom + sweep * t;
+      s += Math.sin(ang);
+    }
+    return s / 17;
+  }
+  const sweep = avgSin(longSweep) > avgSin(shortSweep) ? longSweep : shortSweep;
+  const steps = 40;
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const ang = aFrom + sweep * t;
+    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+  }
+}
+
+/** Arco en r constante de ang0 a ang1 (recorrido corto positivo, hasta 2π). */
+function circlePathArcSpan(ctx, r, ang0, ang1) {
+  let d = ang1 - ang0;
+  while (d <= 0) d += Math.PI * 2;
+  while (d > Math.PI * 2) d -= Math.PI * 2;
+  const steps = Math.max(8, Math.min(64, Math.ceil(48 * d / (Math.PI * 2))));
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const ang = ang0 + d * t;
+    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+  }
+}
+
+/**
+ * Perímetro de la unión de celdas diatónicas en la grilla (3 radios × 12 sectores):
+ * solo aristas de celda (arcos en rHole, rGuideMajMin, rSigInner y radiales en límites de sector).
+ * Diferencia simétrica de aristas → borde de la unión (mínimo en el sentido de perímetro de polígono ortogonal).
+ * Esquina superior izquierda del IV = vértice (radial del a0 del IV, banda rSigInner).
+ */
+function strokeCircleDiatonicEnvelope(ctx, tonicPc, rSigInner, rGuideMajMin, rHole, dpr) {
+  const R = [rHole, rGuideMajMin, rSigInner];
+  /** Celda [slice][banda]: 0 = rHole–rGuide, 1 = rGuide–rSig. */
+  const cell = [];
+  for (let s = 0; s < 12; s += 1) {
+    cell[s] = [false, false];
+  }
+  const minorMode = state.circleKeyMode === "minor";
+  const minorTonic = minorMode ? ((state.circleTonicPc % 12) + 12) % 12 : null;
+  if (minorMode) {
+    const iiDimRoot = (minorTonic + 2 + 12) % 12;
+    const iiLabelPc = (iiDimRoot + 3 + 12) % 12;
+    for (let s = 0; s < 12; s += 1) {
+      const pc = CIRCLE_FIFTHS_ORDER[s];
+      const mpcRel = relativeMinorPcFromMajorPc(pc);
+      const dU = (pc - minorTonic + 12) % 12;
+      if ([3, 8, 10].includes(dU)) {
+        cell[s][1] = true;
+      }
+      const dL = (mpcRel - minorTonic + 12) % 12;
+      if ([0, 5, 7].includes(dL)) {
+        cell[s][0] = true;
+      } else if (pc === iiLabelPc) {
+        cell[s][0] = true;
+      }
+    }
+  } else {
+    const viiRootPc = chordRootPcForMajorScaleDegree(tonicPc, 11);
+    const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
+    for (let s = 0; s < 12; s += 1) {
+      const pc = CIRCLE_FIFTHS_ORDER[s];
+      const { degree } = diatonicTriadSuffixMajorKey(tonicPc, pc);
+      const mpcRel = relativeMinorPcFromMajorPc(pc);
+      const minorDeg = diatonicTriadSuffixMajorKey(tonicPc, mpcRel).degree;
+      if (degree != null && circleUpperBandIsDiatonicMajorTriad(degree)) {
+        cell[s][1] = true;
+      }
+      if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
+        cell[s][0] = true;
+      } else if (degree != null && pc === viiLabelSlicePc) {
+        cell[s][0] = true;
+      }
+    }
+  }
+
+  /** Vértice: radial k ∈ [0,11] (ángulo = a0(k)), banda r ∈ {0,1,2} → R[r]. */
+  function vKey(k, rBand) {
+    return `${k}|${rBand}`;
+  }
+  function parseVKey(key) {
+    const [ks, rs] = key.split("|");
+    return { k: Number(ks), rBand: Number(rs) };
+  }
+  function vertexXY(key) {
+    const { k, rBand } = parseVKey(key);
+    const ang = circleSliceAngles(k).a0;
+    const rad = R[rBand];
+    return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, ang, rad };
+  }
+
+  const edgeSet = new Set();
+  function toggleEdge(id) {
+    if (edgeSet.has(id)) edgeSet.delete(id);
+    else edgeSet.add(id);
+  }
+
+  for (let s = 0; s < 12; s += 1) {
+    for (let b = 0; b < 2; b += 1) {
+      if (!cell[s][b]) continue;
+      const ri = b;
+      const ro = b + 1;
+      /* Arco en sector s: (s, ro)–((s+1)%12, ro) y (s, ri)–((s+1)%12, ri). */
+      toggleEdge(`arc|${s}|${ro}`);
+      toggleEdge(`arc|${s}|${ri}`);
+      /* Radial izq. sector s: (s, ri)–(s, ro); der.: ((s+1)%12, ri)–((s+1)%12, ro). */
+      toggleEdge(`rad|${s}|${ri}|${ro}`);
+      toggleEdge(`rad|${(s + 1) % 12}|${ri}|${ro}`);
+    }
+  }
+
+  const adj = new Map();
+  function addAdj(a, b) {
+    if (!adj.has(a)) adj.set(a, []);
+    adj.get(a).push(b);
+  }
+  const segByEndpoints = new Map();
+  function undirKey(a, b) {
+    return a < b ? `${a}↔${b}` : `${b}↔${a}`;
+  }
+
+  for (const eid of edgeSet) {
+    const [type, ...rest] = eid.split("|");
+    if (type === "arc") {
+      const s = Number(rest[0]);
+      const rBand = Number(rest[1]);
+      const k0 = vKey(s, rBand);
+      const k1 = vKey((s + 1) % 12, rBand);
+      const a0 = circleSliceAngles(s).a0;
+      const a1 = circleSliceAngles(s).a1;
+      addAdj(k0, k1);
+      addAdj(k1, k0);
+      segByEndpoints.set(undirKey(k0, k1), { kind: "arc", r: R[rBand], a0, a1 });
+    } else {
+      const k = Number(rest[0]);
+      const ri = Number(rest[1]);
+      const ro = Number(rest[2]);
+      const ka = vKey(k, ri);
+      const kb = vKey(k, ro);
+      const ang = circleSliceAngles(k).a0;
+      addAdj(ka, kb);
+      addAdj(kb, ka);
+      segByEndpoints.set(undirKey(ka, kb), { kind: "rad", ang, r0: R[ri], r1: R[ro] });
+    }
+  }
+
+  let ivIdx;
+  if (minorMode) {
+    const mt = minorTonic;
+    const ivMajorPc = (mt + 8 + 12) % 12;
+    ivIdx = circleSliceIndexForPitchClass(ivMajorPc);
+  } else {
+    ivIdx = circleSliceIndexForPitchClass(chordRootPcForMajorScaleDegree(tonicPc, 5));
+  }
+  const startKey = vKey(ivIdx, 2);
+  if (!adj.has(startKey) || (adj.get(startKey) || []).length === 0) return;
+
+  /** Primer paso: arco exterior IV→V (vértice (ivIdx+1, 2) = esquina superior derecha del IV). */
+  const firstNeighbor = vKey((ivIdx + 1) % 12, 2);
+
+  /** Arco más corto entre dos ángulos en radio r (misma convención que el resto del canvas). */
+  function circlePathArcShort(ctx2, r, fromAng, toAng) {
+    let delta = Math.atan2(Math.sin(toAng - fromAng), Math.cos(toAng - fromAng));
+    const steps = Math.max(8, Math.min(64, Math.ceil(48 * Math.abs(delta) / (Math.PI * 2))));
+    for (let j = 1; j <= steps; j += 1) {
+      const t = j / steps;
+      const ang = fromAng + delta * t;
+      ctx2.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+    }
+  }
+
+  const path = [startKey];
+  let cur = startKey;
+  let prev = null;
+  const maxSteps = edgeSet.size * 4 + 24;
+  for (let step = 0; step < maxSteps; step += 1) {
+    const neigh = (adj.get(cur) || []).filter((n) => n !== prev);
+    if (neigh.length === 0) break;
+    let next;
+    if (prev === null) {
+      next = neigh.includes(firstNeighbor) ? firstNeighbor : neigh[0];
+    } else {
+      next = neigh[0];
+    }
+    prev = cur;
+    cur = next;
+    path.push(cur);
+    if (cur === startKey) break;
+  }
+
+  ctx.beginPath();
+  const p0 = vertexXY(path[0]);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const a = path[i];
+    const b = path[i + 1];
+    const seg = segByEndpoints.get(undirKey(a, b));
+    if (!seg) continue;
+    if (seg.kind === "arc") {
+      const va = vertexXY(a);
+      const vb = vertexXY(b);
+      circlePathArcShort(ctx, seg.r, va.ang, vb.ang);
+    } else {
+      const vb = vertexXY(b);
+      ctx.lineTo(vb.x, vb.y);
+    }
+  }
+  ctx.closePath();
+  ctx.strokeStyle = "#0a0a0a";
+  ctx.lineWidth = Math.max(4, 4.8 * dpr);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke();
+}
+
+/**
+ * Resaltado del acorde: banda superior (mayor + romanos mayores) o inferior (menor + romanos menores).
+ * Lam (vi) vive en el sector de su mayor relativa (p. ej. Do), no en el sector La.
+ */
+function circleChordHighlightGeom(tonicPc, chordRootPc, generatedChord) {
+  const rootFromState = ((chordRootPc % 12) + 12) % 12;
+  const rootFromApi = generatedChord != null && generatedChord.root_pc != null
+    ? (((Number(generatedChord.root_pc) % 12) + 12) % 12)
+    : null;
+  const root = rootFromApi != null ? rootFromApi : rootFromState;
+  let suffix = "";
+  if (generatedChord && generatedChord.suffix != null && generatedChord.suffix !== undefined) {
+    suffix = String(generatedChord.suffix);
+  }
+  if (suffix === "" || suffix === "undefined") {
+    if (state.circleKeyMode === "minor") {
+      const mt = ((state.circleTonicPc % 12) + 12) % 12;
+      suffix = diatonicTriadSuffixNaturalMinorKey(mt, root).suffix || "";
+    } else {
+      suffix = diatonicTriadSuffixMajorKey(tonicPc, root).suffix || "";
+    }
+  }
+  if (suffix === "m") {
+    const relMajPc = (root - 9 + 12) % 12;
+    return {
+      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
+      band: "minor",
+    };
+  }
+  if (suffix === "dim") {
+    const relMajPc = (root + 3 + 12) % 12;
+    return {
+      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
+      band: "minor",
+    };
+  }
+  return {
+    sliceIdx: circleSliceIndexForPitchClass(root),
+    band: "major",
+  };
+}
+
+/** Trapecio circular: solo contorno amarillo (sin relleno). */
+function strokeCircleChordSelectionBand(ctx, rOut, rIn, a0, a1, dpr) {
+  ctx.beginPath();
+  ctx.moveTo(rOut * Math.cos(a0), rOut * Math.sin(a0));
+  ctx.lineTo(rIn * Math.cos(a0), rIn * Math.sin(a0));
+  ctx.arc(0, 0, rIn, a0, a1, false);
+  ctx.lineTo(rOut * Math.cos(a1), rOut * Math.sin(a1));
+  ctx.arc(0, 0, rOut, a1, a0, true);
+  ctx.closePath();
+  ctx.strokeStyle = "#f2bf2f";
+  ctx.lineWidth = Math.max(2.5, 3 * dpr);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke();
+}
+
+const CIRCLE_SLICE_RAD = (Math.PI * 2) / 12;
+
+/** Do (índice 0) con eje en el norte (−90°); cada sector centrado en −90° + i·30°. */
+function circleSliceAngles(i) {
+  const mid = (-Math.PI / 2) + (i * CIRCLE_SLICE_RAD);
+  const half = CIRCLE_SLICE_RAD / 2;
+  return { mid, a0: mid - half, a1: mid + half };
+}
+
+function circleSliceIndexFromCanvas(cx, cy, x, y) {
+  const dx = x - cx;
+  const dy = y - cy;
+  const a = Math.atan2(dy, dx);
+  const t = (a + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+  return Math.floor((t + CIRCLE_SLICE_RAD / 2) / CIRCLE_SLICE_RAD) % 12;
+}
+
+function pitchClassFromCircleClick(cx, cy, x, y) {
+  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
+  return CIRCLE_FIFTHS_ORDER[idx];
+}
+
+/**
+ * Clic: fija tónica/tonalidad según anillo (mayor exterior / menor relativa interior).
+ * Mayús+clic: raíz del acorde diatónico en la misma regla de anillo.
+ */
+function circleChordRootPcFromClick(canvasW, canvasH, cx, cy, x, y, shiftKey) {
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.sqrt((dx * dx) + (dy * dy));
+  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
+  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
+  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
+  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
+  if (!shiftKey) {
+    if (dist < rGuideMajMin) {
+      return ((majorPc + 9) % 12 + 12) % 12;
+    }
+    return ((majorPc % 12) + 12) % 12;
+  }
+  if (dist < rGuideMajMin) {
+    return ((majorPc + 9) % 12 + 12) % 12;
+  }
+  return ((majorPc % 12) + 12) % 12;
+}
+
+/**
+ * Mayús+clic: solo triadas diatónicas según banda y sector (mayor: I–IV–V / ii–iii–vi–vii°; menor natural: grados relativos).
+ */
+function circleChordShiftClickIsDiatonic(tonicPc, canvasW, canvasH, cx, cy, x, y) {
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.sqrt((dx * dx) + (dy * dy));
+  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
+  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return false;
+  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
+  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
+  const innerMinorBand = dist < rGuideMajMin;
+  if (state.circleKeyMode === "minor") {
+    const minorTonic = ((state.circleTonicPc % 12) + 12) % 12;
+    if (!innerMinorBand) {
+      const dU = (majorPc - minorTonic + 12) % 12;
+      return [3, 8, 10].includes(dU);
+    }
+    const rootMinor = (majorPc + 9 + 12) % 12;
+    return diatonicTriadSuffixNaturalMinorKey(minorTonic, rootMinor).interval != null;
+  }
+  const viiRootPc = chordRootPcForMajorScaleDegree(tonicPc, 11);
+  const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
+  if (!innerMinorBand) {
+    const { degree } = diatonicTriadSuffixMajorKey(tonicPc, majorPc);
+    return degree != null && circleUpperBandIsDiatonicMajorTriad(degree);
+  }
+  const rootMinor = (majorPc + 9 + 12) % 12;
+  const { degree: minorDeg } = diatonicTriadSuffixMajorKey(tonicPc, rootMinor);
+  if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) return true;
+  if (minorDeg === 11 && majorPc === viiLabelSlicePc) return true;
+  return false;
+}
+
+/** Tónica de la tonalidad mayor usada en análisis diatónico (numeración, colores, API). Si el usuario eligió modo menor, es la relativa mayor. */
+function circleMajorTonicPcForTheory() {
+  const t = ((state.circleTonicPc % 12) + 12) % 12;
+  if (state.circleKeyMode === "minor") {
+    return (t + 3 + 12) % 12;
+  }
+  return t;
+}
+
+/** null = fuera del anillo; true = banda menor; false = banda mayor. */
+function circleFifthsClickInnerMinorBand(canvasW, canvasH, cx, cy, x, y) {
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.sqrt((dx * dx) + (dy * dy));
+  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
+  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
+  return dist < rGuideMajMin;
+}
+
+function scheduleCircleFifthsLayout() {
+  if (state.circleFifthsResizeScheduled) return;
+  state.circleFifthsResizeScheduled = true;
+  requestAnimationFrame(() => {
+    state.circleFifthsResizeScheduled = false;
+    if (state.mode === "circle_fifths") renderCircleFifths();
+  });
+}
+
+function renderCircleFifths() {
+  const canvas = el("circleFifthsCanvas");
+  if (!canvas || state.mode !== "circle_fifths") return;
+  const ctx = canvas.getContext("2d");
+  const wrap = canvas.parentElement;
+  const box = Math.min(520, Math.max(260, wrap?.clientWidth || canvas.clientWidth || 300));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const size = Math.floor(box * dpr);
+  if (canvas.width !== size || canvas.height !== size) {
+    canvas.width = size;
+    canvas.height = size;
+  }
+  canvas.style.width = `${box}px`;
+  canvas.style.height = `${box}px`;
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const {
+    rOuter, rHole, rSigInner, rSig, rMajName, rMajRoman, rMin, rMinRoman, rGuideSigMaj, rGuideMajMin,
+  } = circleFifthsRadiiPx(w, h);
+  const tonic = circleMajorTonicPcForTheory();
+  const chordRoot = ((state.circleChordRootPc % 12) + 12) % 12;
+  const viiRootPc = chordRootPcForMajorScaleDegree(tonic, 11);
+  const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
+  const minorMode = state.circleKeyMode === "minor";
+  const minorTonic = minorMode ? ((state.circleTonicPc % 12) + 12) % 12 : null;
+  const relMajFromMinor = minorMode ? (minorTonic + 3 + 12) % 12 : null;
+  const iiDimRootMinor = minorMode ? (minorTonic + 2 + 12) % 12 : null;
+  const iiLabelPcMinor = minorMode ? (iiDimRootMinor + 3 + 12) % 12 : null;
+  const fsSig = Math.max(10, Math.min(24, Math.round(0.026 * w)));
+  const fsMaj = Math.max(14, Math.min(32, Math.round(0.036 * w)));
+  const fsMajR = Math.max(12, Math.min(28, Math.round(0.03 * w)));
+  const fsMin = Math.max(13, Math.min(30, Math.round(0.034 * w)));
+  const fsMinR = Math.max(11, Math.min(26, Math.round(0.028 * w)));
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#1a2330";
+  ctx.fillRect(0, 0, w, h);
+  ctx.translate(cx, cy);
+  const sigRingFill = "#ffffff";
+  const sigRingStroke = "rgba(200, 205, 215, 0.65)";
+  for (let i = 0; i < 12; i += 1) {
+    const pc = CIRCLE_FIFTHS_ORDER[i];
+    const { a0, a1 } = circleSliceAngles(i);
+    const mpcRel = relativeMinorPcFromMajorPc(pc);
+    const grayFill = "#3d4658";
+    let upperFill = grayFill;
+    let lowerFill = grayFill;
+    if (minorMode) {
+      const dU = (pc - minorTonic + 12) % 12;
+      if ([3, 8, 10].includes(dU)) {
+        const mk = circleMinorIntervalToMajorDegreeKey(dU);
+        upperFill = circleDiatonicSliceFill(mk, pc, relMajFromMinor);
+      }
+      const dL = (mpcRel - minorTonic + 12) % 12;
+      if ([0, 5, 7].includes(dL)) {
+        const mk = circleMinorIntervalToMajorDegreeKey(dL);
+        lowerFill = dL === 0
+          ? circleDiatonicSliceFill(0, pc, relMajFromMinor)
+          : circleDiatonicSliceFill(mk, mpcRel, tonic);
+      } else if (pc === iiLabelPcMinor) {
+        lowerFill = circleDiatonicSliceFill(11, iiDimRootMinor, tonic);
+      }
+    } else {
+      const { degree } = diatonicTriadSuffixMajorKey(tonic, pc);
+      const minorDeg = diatonicTriadSuffixMajorKey(tonic, mpcRel).degree;
+      const diatonic = degree != null;
+      if (diatonic && circleUpperBandIsDiatonicMajorTriad(degree)) {
+        upperFill = circleDiatonicSliceFill(degree, pc, tonic);
+      }
+      if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
+        lowerFill = circleDiatonicSliceFill(minorDeg, mpcRel, tonic);
+      } else if (diatonic && pc === viiLabelSlicePc) {
+        lowerFill = circleDiatonicSliceFill(11, viiRootPc, tonic);
+      }
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, rOuter, a0, a1);
+    ctx.arc(0, 0, rSigInner, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = sigRingFill;
+    ctx.fill();
+    ctx.strokeStyle = sigRingStroke;
+    ctx.lineWidth = Math.max(1, 1.05 * dpr);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, rSigInner, a0, a1);
+    ctx.arc(0, 0, rGuideMajMin, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = upperFill;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, rGuideMajMin, a0, a1);
+    ctx.arc(0, 0, rHole, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = lowerFill;
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(226, 232, 242, 0.28)";
+  ctx.lineWidth = Math.max(1, 1.15 * dpr);
+  [rGuideSigMaj, rGuideMajMin].forEach((rg) => {
+    ctx.beginPath();
+    ctx.arc(0, 0, rg, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  ctx.strokeStyle = "rgba(226, 232, 242, 0.4)";
+  ctx.lineWidth = Math.max(1, 1.05 * dpr);
+  ctx.beginPath();
+  ctx.arc(0, 0, rHole, 0, Math.PI * 2);
+  ctx.stroke();
+  /** Radios blancos en los límites entre los 12 sectores (separan acordes). */
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.lineWidth = Math.max(1.2, 1.35 * dpr);
+  ctx.lineCap = "round";
+  for (let ri = 0; ri < 12; ri += 1) {
+    const { a1 } = circleSliceAngles(ri);
+    const ca = Math.cos(a1);
+    const sa = Math.sin(a1);
+    ctx.beginPath();
+    ctx.moveTo(rHole * ca, rHole * sa);
+    ctx.lineTo(rOuter * ca, rOuter * sa);
+    ctx.stroke();
+  }
+  strokeCircleDiatonicEnvelope(ctx, tonic, rSigInner, rGuideMajMin, rHole, dpr);
+  const hl = circleChordHighlightGeom(tonic, chordRoot, state.generatedChord);
+  const { a0: ha0, a1: ha1 } = circleSliceAngles(hl.sliceIdx);
+  const selInset = Math.max(2.5, 3.2 * dpr);
+  let rHiOut = rSigInner - selInset;
+  let rHiIn = rGuideMajMin + selInset;
+  if (hl.band === "minor") {
+    rHiOut = rGuideMajMin - selInset;
+    rHiIn = rHole + selInset;
+  }
+  strokeCircleChordSelectionBand(ctx, rHiOut, rHiIn, ha0, ha1, dpr);
+  for (let i = 0; i < 12; i += 1) {
+    const pc = CIRCLE_FIFTHS_ORDER[i];
+    const { mid } = circleSliceAngles(i);
+    const mpcRel = relativeMinorPcFromMajorPc(pc);
+    const cos = Math.cos(mid);
+    const sin = Math.sin(mid);
+    const sigLabel = circleSignatureLabelForSliceIndex(i);
+    const majorName = noteNameFromPc(pc);
+    const minorName = circleMinorLabel(pc);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#0d0d0d";
+    ctx.font = `bold ${fsSig}px "Avenir Next", "Segoe UI", sans-serif`;
+    ctx.fillText(sigLabel, cos * rSig, sin * rSig);
+    if (minorMode) {
+      const dU = (pc - minorTonic + 12) % 12;
+      const dL = (mpcRel - minorTonic + 12) % 12;
+      const hasUpperDiat = [3, 8, 10].includes(dU);
+      const hasLowerDiat = [0, 5, 7].includes(dL);
+      const isIiDimSector = pc === iiLabelPcMinor;
+      if (hasUpperDiat) {
+        const mk = circleMinorIntervalToMajorDegreeKey(dU);
+        ctx.fillStyle = CIRCLE_DEGREE_TEXT[mk];
+        ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+        fillTextRomanMaybeFlatSuperscript(
+          ctx,
+          ROMAN_BY_MINOR_NATURAL_INTERVAL[dU] || "",
+          cos * rMajRoman,
+          sin * rMajRoman,
+          fsMajR,
+        );
+      } else {
+        ctx.fillStyle = "#a8b0bd";
+        ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+      }
+      if (isIiDimSector) {
+        const rSimVii = rOuter * 0.405;
+        const dimChordLabel = `${noteNameFromPc(iiDimRootMinor)}°`;
+        ctx.fillStyle = CIRCLE_DEGREE_TEXT[11];
+        ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillText(dimChordLabel, cos * rSimVii, sin * rSimVii);
+        fillTextRomanMaybeFlatSuperscript(
+          ctx,
+          ROMAN_BY_MINOR_NATURAL_INTERVAL[2] || "",
+          cos * rMinRoman,
+          sin * rMinRoman,
+          fsMinR,
+        );
+      } else if (hasLowerDiat) {
+        const mk = circleMinorIntervalToMajorDegreeKey(dL);
+        ctx.fillStyle = CIRCLE_DEGREE_TEXT[mk];
+        ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillText(minorName, cos * rMin, sin * rMin);
+        fillTextRomanMaybeFlatSuperscript(
+          ctx,
+          ROMAN_BY_MINOR_NATURAL_INTERVAL[dL] || "",
+          cos * rMinRoman,
+          sin * rMinRoman,
+          fsMinR,
+        );
+      } else {
+        ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillStyle = "#8b95a3";
+        ctx.fillText(minorName, cos * rMin, sin * rMin);
+      }
+    } else {
+      const { degree } = diatonicTriadSuffixMajorKey(tonic, pc);
+      const diatonic = degree != null;
+      const minorDeg = diatonicTriadSuffixMajorKey(tonic, mpcRel).degree;
+      if (diatonic) {
+        if (circleUpperBandIsDiatonicMajorTriad(degree)) {
+          ctx.fillStyle = CIRCLE_DEGREE_TEXT[degree];
+          ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+          ctx.font = `${fsMajR}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(ROMAN_BY_DEGREE[degree] || "", cos * rMajRoman, sin * rMajRoman);
+        } else if (degree === 11) {
+          ctx.fillStyle = "#a8b0bd";
+          ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+          /* vii° va en el anillo inferior junto a Sim, no bajo el nombre mayor Si. */
+        } else {
+          ctx.fillStyle = "#a8b0bd";
+          ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+        }
+        if (minorDeg === 11) {
+          const simLabel = `${noteNameFromPc(viiRootPc)}m`;
+          const rSimVii = rOuter * 0.405;
+          ctx.fillStyle = CIRCLE_DEGREE_TEXT[11];
+          ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(simLabel, cos * rSimVii, sin * rSimVii);
+          ctx.font = `${fsMinR}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(ROMAN_BY_DEGREE[11] || "", cos * rMinRoman, sin * rMinRoman);
+        } else if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
+          ctx.fillStyle = CIRCLE_DEGREE_TEXT[minorDeg];
+          ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(minorName, cos * rMin, sin * rMin);
+          ctx.font = `${fsMinR}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillText(ROMAN_BY_DEGREE[minorDeg] || "", cos * rMinRoman, sin * rMinRoman);
+        } else {
+          ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+          ctx.fillStyle = "#8b95a3";
+          ctx.fillText(minorName, cos * rMin, sin * rMin);
+        }
+      } else {
+        ctx.fillStyle = "#a8b0bd";
+        ctx.font = `bold ${fsMaj}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillText(majorName, cos * rMajName, sin * rMajName);
+        ctx.font = `bold ${fsMin}px "Avenir Next", "Segoe UI", sans-serif`;
+        ctx.fillStyle = "#8b95a3";
+        ctx.fillText(minorName, cos * rMin, sin * rMin);
+      }
+    }
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function bindCircleFifthsCanvas() {
+  const canvas = el("circleFifthsCanvas");
+  if (!canvas || canvas.dataset.circleBound === "1") return;
+  canvas.dataset.circleBound = "1";
+  canvas.addEventListener("click", async (event) => {
+    if (state.mode !== "circle_fifths") return;
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y, event.shiftKey);
+    if (pc == null) return;
+    if (event.shiftKey) {
+      if (!circleChordShiftClickIsDiatonic(circleMajorTonicPcForTheory(), canvas.width, canvas.height, cx, cy, x, y)) return;
+      state.circleChordRootPc = pc;
+    } else {
+      const band = circleFifthsClickInnerMinorBand(canvas.width, canvas.height, cx, cy, x, y);
+      state.circleKeyMode = band ? "minor" : "major";
+      state.circleTonicPc = pc;
+      state.circleChordRootPc = pc;
+    }
+    try {
+      await runGenerateChordCircle();
+    } catch (_err) {}
+  });
+  const wrap = canvas.parentElement;
+  if (wrap && typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => scheduleCircleFifthsLayout());
+    ro.observe(wrap);
+  }
+}
+
+async function runGenerateChordCircle() {
+  const rootPc = ((state.circleChordRootPc % 12) + 12) % 12;
+  const tonicPc = circleMajorTonicPcForTheory();
+  let suffix;
+  if (state.circleKeyMode === "minor") {
+    const mt = ((state.circleTonicPc % 12) + 12) % 12;
+    suffix = diatonicTriadSuffixNaturalMinorKey(mt, rootPc).suffix || "";
+  } else {
+    suffix = diatonicTriadSuffixMajorKey(tonicPc, rootPc).suffix || "";
+  }
+  const payload = {
+    root_pc: rootPc,
+    suffix,
+    inversion: 0,
+    language: state.language,
+    accidental: currentAccidentalValue(),
+  };
+  const out = await fetchJson("/api/generate/chord", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  state.generatedChord = out;
+  const nameEl = el("circleChordName");
+  if (nameEl) nameEl.textContent = out.name || "-";
+  await loadGuitarVariations();
+  if (state.mode === "circle_fifths") {
+    renderInstrument();
+    renderStaff();
+    renderCircleFifths();
+  }
 }
 
 function tunerTuningDef() {
@@ -1096,6 +2087,7 @@ function applyTranslations() {
     };
     opt("detection", "mode_detection");
     opt("generation", "mode_generation");
+    opt("circle_fifths", "mode_circle_fifths");
     opt("scales", "mode_scales");
     opt("metronome", "mode_metronome");
     opt("tuner", "mode_tuner");
@@ -1125,6 +2117,7 @@ function applyTranslations() {
   setText("labelGenChord", "label_chord");
   setText("labelGenNotes", "label_notes");
   setText("labelGenIntervals", "label_intervals");
+  setText("labelCircleChord", "label_chord");
   setText("labelScaleRoot", "label_tonic");
   setText("labelScaleType", "label_type");
   setText("labelScaleMetronomeVolume", "label_metronome_volume");
@@ -1201,6 +2194,11 @@ function applyTranslations() {
     genPlay.setAttribute("aria-label", tr("play"));
     genPlay.setAttribute("title", tr("play"));
   }
+  const circlePlay = el("circlePlay");
+  if (circlePlay) {
+    circlePlay.setAttribute("aria-label", tr("play"));
+    circlePlay.setAttribute("title", tr("play"));
+  }
   if (scaleModeMetronome) {
     scaleModeMetronome.setAttribute("aria-label", tr("metronome_mode"));
     scaleModeMetronome.setAttribute("title", tr("metronome_mode"));
@@ -1236,6 +2234,9 @@ function applyTranslations() {
     void refreshTunerInputs();
   }
   syncLeftPanelHeader();
+  const circleHint = el("circleFifthsHint");
+  if (circleHint) circleHint.textContent = tr("circle_hint");
+  if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
   if (state.help.active) refreshHelpOverlay();
 }
 
@@ -1288,12 +2289,13 @@ async function fetchJson(url, options = {}) {
 }
 
 function activeModeSupportsInstrument() {
-  return state.mode === "detection" || state.mode === "generation" || state.mode === "scales" || state.mode === "metronome";
+  return state.mode === "detection" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
 }
 
 function activeModeSupportsStaff() {
   return state.mode === "detection"
     || state.mode === "generation"
+    || state.mode === "circle_fifths"
     || state.mode === "scales"
     || state.mode === "metronome"
     || (TUNER_FEATURE_ENABLED && state.mode === "tuner");
@@ -1351,7 +2353,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-detection", "mode-generation", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-detection", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -1362,6 +2364,7 @@ function setMode(mode) {
   const panelMap = {
     detection: "panelDetection",
     generation: "panelGeneration",
+    circle_fifths: "panelCircleFifths",
     scales: "panelScales",
     metronome: "panelMetronome",
     tuner: "panelTuner",
@@ -1374,14 +2377,35 @@ function setMode(mode) {
   const supportsInstrument = activeModeSupportsInstrument();
   const supportsStaff = activeModeSupportsStaff();
   el("instrumentArea").classList.toggle("hidden", !supportsInstrument);
-  el("instrumentArea").classList.toggle("with-inst-dock", mode === "generation" || mode === "scales");
+  el("instrumentArea").classList.toggle("with-inst-dock", mode === "generation" || mode === "circle_fifths" || mode === "scales");
   el("instrumentSwitch").classList.toggle("hidden", !supportsInstrument);
   el("staffArea").classList.toggle("hidden", !supportsStaff);
-  const showInstrumentToggle = mode === "generation" || mode === "scales";
+  const circleStaffFooter = el("circleFifthsStaffFooter");
+  const circleChordOverStaff = el("circleChordOverStaff");
+  const circleLeftVisible = mode === "circle_fifths";
+  if (circleStaffFooter) {
+    if (circleLeftVisible) {
+      circleStaffFooter.removeAttribute("hidden");
+      circleStaffFooter.setAttribute("aria-hidden", "false");
+    } else {
+      circleStaffFooter.setAttribute("hidden", "");
+      circleStaffFooter.setAttribute("aria-hidden", "true");
+    }
+  }
+  if (circleChordOverStaff) {
+    if (circleLeftVisible) {
+      circleChordOverStaff.removeAttribute("hidden");
+      circleChordOverStaff.setAttribute("aria-hidden", "false");
+    } else {
+      circleChordOverStaff.setAttribute("hidden", "");
+      circleChordOverStaff.setAttribute("aria-hidden", "true");
+    }
+  }
+  const showInstrumentToggle = mode === "generation" || mode === "circle_fifths" || mode === "scales";
   document.querySelectorAll(".inst-btn").forEach((btn) => btn.classList.toggle("hidden", !showInstrumentToggle));
   el("guitarHandedness").classList.toggle("hidden", !showInstrumentToggle || state.instrument !== "guitar");
   const guitarVariationBar = el("guitarVariationBar");
-  if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !(mode === "generation" && state.instrument === "guitar"));
+  if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !((mode === "generation" || mode === "circle_fifths") && state.instrument === "guitar"));
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
   if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.toggle("hidden", mode !== "tuner" || !TUNER_FEATURE_ENABLED);
   if (TUNER_FEATURE_ENABLED && mode === "tuner") {
@@ -1398,6 +2422,10 @@ function setMode(mode) {
   } else if (mode === "scales") {
     if (state.scalePlayMode === "guitar") setInstrument("guitar");
     else if (state.scalePlayMode === "piano") setInstrument("piano");
+  } else if (mode === "circle_fifths") {
+    bindCircleFifthsCanvas();
+    void runGenerateChordCircle().catch(() => {});
+    scheduleCircleFifthsLayout();
   }
 
   if (supportsInstrument) {
@@ -1448,8 +2476,8 @@ function setInstrument(inst) {
   if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.add("hidden");
   el("guitarHandedness").classList.toggle("hidden", inst !== "guitar");
   const guitarVariationBar = el("guitarVariationBar");
-  if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !(state.mode === "generation" && inst === "guitar"));
-  if (state.mode === "generation" && inst === "guitar" && state.generatedChord && !state.guitarVariations.length) {
+  if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !((state.mode === "generation" || state.mode === "circle_fifths") && inst === "guitar"));
+  if ((state.mode === "generation" || state.mode === "circle_fifths") && inst === "guitar" && state.generatedChord && !state.guitarVariations.length) {
     loadGuitarVariations().then(() => {
       renderInstrument();
       renderStaff();
@@ -1463,7 +2491,7 @@ function renderGuitarVariationButtons() {
   const bar = el("guitarVariationBar");
   if (!bar) return;
   bar.innerHTML = "";
-  const show = state.mode === "generation" && state.instrument === "guitar" && state.guitarVariations.length > 0;
+  const show = isChordGenerationLikeMode() && state.instrument === "guitar" && state.guitarVariations.length > 0;
   bar.classList.toggle("hidden", !show);
   if (!show) return;
   state.guitarVariations.forEach((_variation, idx) => {
@@ -1570,7 +2598,7 @@ async function loadGuitarVariations() {
 }
 
 function getActivePcsForMode() {
-  if (state.mode === "generation" && state.generatedChord) {
+  if (isChordGenerationLikeMode() && state.generatedChord) {
     return new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) % 12));
   }
   if (state.mode === "scales" && state.generatedScale) {
@@ -1583,7 +2611,7 @@ function getActivePcsForMode() {
 }
 
 function getActiveMidiForMode() {
-  if (state.mode === "generation" && state.generatedChord) {
+  if (isChordGenerationLikeMode() && state.generatedChord) {
     return new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)));
   }
   if (state.mode === "scales" && state.generatedScale) {
@@ -1757,8 +2785,8 @@ function renderPiano() {
   const scaleInputRawMidi = state.mode === "scales" && state.scaleInputRawNote != null
     ? Number(state.scaleInputRawNote)
     : null;
-  const generationPianoMode = state.mode === "generation" && state.instrument === "piano" && state.generatedChord;
-  const generationCurrentMidi = state.mode === "generation" ? Number(state.generationCurrentNote) : null;
+  const generationPianoMode = isChordGenerationLikeMode() && state.instrument === "piano" && state.generatedChord;
+  const generationCurrentMidi = isChordGenerationLikeMode() ? Number(state.generationCurrentNote) : null;
   const scalePianoMode = state.mode === "scales" && getScalePlaybackInstrument() === "piano";
   const rhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
@@ -1905,9 +2933,9 @@ function renderGuitar() {
   const leftHanded = state.guitarHandedness === "left";
   const chordRootPc = state.generatedChord ? Number(state.generatedChord.root_pc) : null;
   const tonicPc = state.generatedScale ? Number(state.generatedScale.tonic_pc) : null;
-  const generationCurrentMidi = state.mode === "generation" ? Number(state.generationCurrentNote) : null;
+  const generationCurrentMidi = isChordGenerationLikeMode() ? Number(state.generationCurrentNote) : null;
   const drawnPcs = state.mode === "detection" ? null : activePcs;
-  const generationVariationMode = state.mode === "generation" && state.instrument === "guitar" && state.guitarSelectedVariationIdx != null
+  const generationVariationMode = isChordGenerationLikeMode() && state.instrument === "guitar" && state.guitarSelectedVariationIdx != null
     && state.guitarSelectedVariationIdx >= 0 && state.guitarSelectedVariationIdx < state.guitarVariations.length;
   const selectedVariation = generationVariationMode ? state.guitarVariations[state.guitarSelectedVariationIdx] : null;
   const variationFretsRaw = selectedVariation && Array.isArray(selectedVariation.frets) ? selectedVariation.frets.map((n) => Number(n)) : [];
@@ -2088,7 +3116,7 @@ function renderGuitar() {
         const pc = note % 12;
         const cx = fretCenterX(fret);
         const isRoot = chordRootPc !== null && pc === chordRootPc;
-        const isCurrentGeneration = state.mode === "generation"
+        const isCurrentGeneration = isChordGenerationLikeMode()
           && generationCurrentMidi != null
           && Number(note) === Number(generationCurrentMidi);
         const finger = Number(displayFingers[i] || 0);
@@ -2114,12 +3142,12 @@ function renderGuitar() {
       const detectionMode = state.mode === "detection";
       if (!detectionMode && !inSet) continue;
       const isExtra = extraMidi.has(note);
-      const isRoot = (state.mode === "generation" && chordRootPc !== null && pc === chordRootPc)
+      const isRoot = (isChordGenerationLikeMode() && chordRootPc !== null && pc === chordRootPc)
         || (state.mode === "scales" && tonicPc !== null && pc === tonicPc);
       const isCurrentScale = state.mode === "scales"
         && state.scaleCurrentNote != null
         && Number(note) === Number(state.scaleCurrentNote);
-      const isCurrentGeneration = state.mode === "generation"
+      const isCurrentGeneration = isChordGenerationLikeMode()
         && generationCurrentMidi != null
         && Number(note) === generationCurrentMidi;
 
@@ -2189,7 +3217,7 @@ function renderGuitar() {
       const pc = ((note % 12) + 12) % 12;
       const y = top + (stringIdx * yGap);
       const isRoot = chordRootPc !== null && pc === chordRootPc;
-      const isCurrentGeneration = state.mode === "generation"
+      const isCurrentGeneration = isChordGenerationLikeMode()
         && generationCurrentMidi != null
         && Number(note) === Number(generationCurrentMidi);
       ctx.fillStyle = isCurrentGeneration ? "#2faeff" : (isRoot ? "#b35f00" : "#f4a742");
@@ -2299,7 +3327,7 @@ function handleInstrumentNote(note, options = {}) {
     }
     return;
   }
-  if (state.mode === "generation" && state.generatedChord) {
+  if (isChordGenerationLikeMode() && state.generatedChord) {
     const setGenerationCurrent = (midi) => {
       if (state.generationCurrentClearTimer != null) {
         clearTimeout(state.generationCurrentClearTimer);
@@ -2311,7 +3339,7 @@ function handleInstrumentNote(note, options = {}) {
       state.generationCurrentClearTimer = setTimeout(() => {
         state.generationCurrentNote = null;
         state.generationCurrentClearTimer = null;
-        if (state.mode === "generation") {
+        if (isChordGenerationLikeMode()) {
           renderInstrument();
           renderStaff();
         }
@@ -2494,6 +3522,12 @@ function getStaffContext() {
     let sig = keySignatureCountForTonic(tonic, isMinor, tieFromSelect);
     sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
     return { signature: sig, tonicPc: tonic, isScale: true };
+  }
+  if (state.mode === "circle_fifths" && state.generatedChord) {
+    const keyTonic = Number(circleMajorTonicPcForTheory());
+    let sig = keySignatureCountForTonic(keyTonic, false, tieFromSelect);
+    sig = applyFlatKeySigIfUiFlatAndTie(sig, keyTonic, false);
+    return { signature: sig, tonicPc: Number(state.generatedChord.root_pc), isScale: false };
   }
   if (state.mode === "generation" && state.generatedChord) {
     const isMinor = isMinorSuffix(state.generatedChord.suffix);
@@ -3026,7 +4060,7 @@ function drawTunerCanvas(ctx, width, height) {
 
 function getStaffNotes() {
   if (state.mode === "detection") return Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
-  if (state.mode === "generation" && state.generatedChord) {
+  if (isChordGenerationLikeMode() && state.generatedChord) {
     const rh = getGenerationBaseNotes();
     if (state.instrument === "guitar") {
       return Array.from(new Set(rh)).sort((a, b) => a - b);
@@ -3041,7 +4075,7 @@ function getStaffNotes() {
 }
 
 function getSelectedGuitarVariation() {
-  if (!(state.mode === "generation" && state.instrument === "guitar")) return null;
+  if (!(isChordGenerationLikeMode() && state.instrument === "guitar")) return null;
   const idx = Number(state.guitarSelectedVariationIdx);
   if (!Number.isInteger(idx) || idx < 0 || idx >= state.guitarVariations.length) return null;
   return state.guitarVariations[idx] || null;
@@ -3061,7 +4095,7 @@ function getVariationNotes(variation) {
 }
 
 function getGenerationBaseNotes() {
-  if (!(state.mode === "generation" && state.generatedChord)) return [];
+  if (!(isChordGenerationLikeMode() && state.generatedChord)) return [];
   const selectedVariation = getSelectedGuitarVariation();
   const variationNotes = getVariationNotes(selectedVariation);
   if (variationNotes.length) return variationNotes;
@@ -3136,9 +4170,9 @@ function renderStaff() {
   const notes = getStaffNotes();
   const extras = getExtraMidiForMode();
   const tonicPc = staffCtx.tonicPc;
-  const compactChordStaff = state.mode === "generation";
+  const compactChordStaff = isChordGenerationLikeMode();
   const detectionStaff = state.mode === "detection";
-  const generationStaff = state.mode === "generation";
+  const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
   if (detectionStaff && notes.length === 0) {
@@ -3171,24 +4205,24 @@ function renderStaff() {
       scaleCurrentDisplayMidi = current;
     }
   }
-  const generationCurrentMidi = state.mode === "generation" ? state.generationCurrentNote : null;
-  const generationPlaying = state.mode === "generation" ? state.generationPlayingNotes : new Set();
+  const generationCurrentMidi = isChordGenerationLikeMode() ? state.generationCurrentNote : null;
+  const generationPlaying = isChordGenerationLikeMode() ? state.generationPlayingNotes : new Set();
   const generationPlayingDisplay = new Set(Array.from(generationPlaying).map((n) => Number(n)));
-  const generationRhDisplayNotes = state.mode === "generation" && state.generatedChord
+  const generationRhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord
     ? new Set(getGenerationBaseNotes())
     : new Set();
-  const generationLhDisplayNotes = state.mode === "generation" && state.generatedChord
+  const generationLhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord
     ? new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) - 12).filter((n) => n >= 0))
     : new Set();
   let generationCurrentDisplayMidi = generationCurrentMidi;
-  if (state.mode === "generation" && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
+  if (isChordGenerationLikeMode() && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
     const staffSet = new Set(notes.map((n) => Number(n)));
     // Keyboard LH taps are an octave lower than the LH voice drawn in staff.
     if (!staffSet.has(Number(generationCurrentDisplayMidi)) && staffSet.has(Number(generationCurrentDisplayMidi) + 12)) {
       generationCurrentDisplayMidi = Number(generationCurrentDisplayMidi) + 12;
     }
   }
-  if (state.mode === "generation" && state.instrument === "piano" && generationPlayingDisplay.size) {
+  if (isChordGenerationLikeMode() && state.instrument === "piano" && generationPlayingDisplay.size) {
     const staffSet = new Set(notes.map((n) => Number(n)));
     Array.from(generationPlayingDisplay).forEach((note) => {
       const lhNote = Number(note) - 12;
@@ -3281,10 +4315,10 @@ function renderStaff() {
       || scaleNoteHovered
       || scaleNotePressed
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
-      || (state.mode === "generation" && generationPlayingDisplay.has(Number(midi)));
+      || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)));
     const currentStroke = current
       ? (
-          ((state.mode === "generation"
+          ((isChordGenerationLikeMode()
             && state.instrument === "piano"
             && generationLhDisplayNotes.has(Number(midi))
             && !generationRhDisplayNotes.has(Number(midi)))
@@ -3859,7 +4893,7 @@ function playChordMidi(notes, options = {}) {
   const instrument = options.instrument === "guitar" ? "guitar" : "piano";
   const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
     .filter((midi) => Number.isFinite(midi));
-  if (state.mode === "generation") {
+  if (isChordGenerationLikeMode()) {
     if (state.generationPlayClearTimer != null) {
       clearTimeout(state.generationPlayClearTimer);
       state.generationPlayClearTimer = null;
@@ -3873,12 +4907,12 @@ function playChordMidi(notes, options = {}) {
   } else {
     normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.65, "piano"));
   }
-  if (state.mode === "generation" && normalizedNotes.length) {
+  if (isChordGenerationLikeMode() && normalizedNotes.length) {
     const clearMs = instrument === "guitar" ? 1700 : 1500;
     state.generationPlayClearTimer = setTimeout(() => {
       state.generationPlayingNotes.clear();
       state.generationPlayClearTimer = null;
-      if (state.mode === "generation") renderStaff();
+      if (isChordGenerationLikeMode()) renderStaff();
     }, clearMs);
   }
 }
@@ -3890,7 +4924,7 @@ function stopHeldChord() {
   }
   if (state.generationPlayingNotes.size) {
     state.generationPlayingNotes.clear();
-    if (state.mode === "generation") renderStaff();
+    if (isChordGenerationLikeMode()) renderStaff();
   }
   if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
   const ctx = ensureAudioCtx();
@@ -4102,7 +5136,7 @@ function startHeldChord(notes, instrument = "piano") {
   const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
     .filter((midi) => Number.isFinite(midi));
   normalizedNotes.forEach((midi) => startHeldVoice(midi, instrument));
-  if (state.mode === "generation" && normalizedNotes.length) {
+  if (isChordGenerationLikeMode() && normalizedNotes.length) {
     state.generationPlayingNotes = new Set(normalizedNotes);
     renderStaff();
   }
@@ -4965,6 +5999,7 @@ function bindEvents() {
     renderInstrument();
     if (state.mode === "detection") await runDetection();
     if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
+    if (state.mode === "circle_fifths" && state.generatedChord) await runGenerateChordCircle();
     if (state.mode === "scales" && state.generatedScale) await runGenerateScale();
     renderStaff();
   });
@@ -4975,6 +6010,7 @@ function bindEvents() {
     renderInstrument();
     if (state.mode === "detection") await runDetection();
     if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
+    if (state.mode === "circle_fifths" && state.generatedChord) await runGenerateChordCircle();
     if (state.mode === "scales" && state.generatedScale) await runGenerateScale();
     renderStaff();
   });
@@ -5077,6 +6113,28 @@ function bindEvents() {
       stopHeldChord();
     },
   });
+
+  bindCircleFifthsCanvas();
+  const circlePlayBtn = el("circlePlay");
+  if (circlePlayBtn) {
+    bindImmediatePress(circlePlayBtn, () => {
+      if (!state.generatedChord || state.mode !== "circle_fifths") return;
+      const notes = getGenerationBaseNotes();
+      if (!notes.length) return;
+      playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
+    }, {
+      highlightWhilePressed: true,
+      onPress: () => {
+        if (!state.generatedChord || state.mode !== "circle_fifths") return;
+        const notes = getGenerationBaseNotes();
+        if (!notes.length) return;
+        startHeldChord(notes, state.instrument === "guitar" ? "guitar" : "piano");
+      },
+      onRelease: () => {
+        stopHeldChord();
+      },
+    });
+  }
 
   const scaleModeMetronome = el("scaleModeMetronome");
   if (scaleModeMetronome) {
@@ -5235,6 +6293,7 @@ function bindEvents() {
 
   window.addEventListener("resize", () => {
     if (activeModeSupportsStaff()) renderStaff();
+    if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
     if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
     if (state.help.active) refreshHelpOverlay();
   });

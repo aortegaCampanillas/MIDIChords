@@ -97,7 +97,7 @@ gh run list --workflow deploy-cloudflare-on-tag.yml
 gh run watch <run_id>
 ```
 
-La documentación operativa completa del despliegue web está en `apps/web/README.md`.
+La documentación de la web (despliegue, API y **frontend / modos SPA**, p. ej. círculo de quintas) está en [`apps/web/README.md`](apps/web/README.md).
 
 ## Flutter (tablets iOS/Android)
 

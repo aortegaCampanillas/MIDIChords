@@ -34,6 +34,7 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web**: favicon e **apple-touch-icon** en pestañas y al guardar en pantalla de inicio (`/static/favicon.png` desde el logo del proyecto).
 - **Web (SEO)**: `index.html` con **meta description**, **canonical**, **Open Graph**, **Twitter Card**, **JSON-LD** (`WebApplication`); **`robots.txt`** y **`sitemap.xml`** en la raíz del bundle (workflows de Cloudflare + `launch.py deploy-web`); imagen social **`/static/og-image.png`**. **`app.js`** actualiza `document.documentElement.lang`, título y metas al cambiar idioma (**`applySeoMeta()`**).
+- **Web**: modo **círculo de quintas** — canvas de tónicas (clic / Mayús+clic diatónico, mayor o menor relativa, numeración y colores, ▶ sobre el círculo). Documentado en **`apps/web/README.md`**, **`AGENTS.md`** y **`PROJECT_SPEC.md`**.
 
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 
@@ -44,6 +45,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Documentado
 
+- **Web**: `README.md` (raíz) — puntero a la documentación de frontend en `apps/web/README.md`.
 - **Web**: `apps/web/README.md` — si el **dominio personalizado** sirve **JS/CSS antiguos** mientras **`*.pages.dev`** está al día (caché del zona / reglas de caché); `launch.py deploy-web` recuerda purgar o revisar reglas. Tras el deploy con **fingerprint** de `app.js`/`style.css`, el HTML apunta a URLs nuevas en cada release.
 - **Web**: `apps/web/README.md` — guía **Google Search Console** (alta de propiedad, verificación, envío de `sitemap.xml`, cobertura, rendimiento/consultas y comprobaciones con `curl`).
 - **Flatpak / Flathub**: `FLATHUB.md` — build local: **`appstream-compose`** con Debian (SDK 24.08 + `flatpak-builder` antiguo) vía **`org.flatpak.Builder`**; no usar `--command=flatpak-builder` (el wrapper fija `FLATPAK_USER_DIR`); remoto **`flathub` en modo `--user`**; backports o `appstream-compose: false` en copia local.

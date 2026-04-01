@@ -560,6 +560,27 @@ button:disabled {
   font-weight: 700;
 }
 
+/* Solo modo círculo de quintas (el bloque está oculto en el resto de modos). */
+.mode-screen.mode-circle_fifths .circle-chord-over-staff {
+  margin: 2px 0 8px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(15, 22, 33, 0.55);
+  border: 1px solid #4a5668;
+  flex-shrink: 0;
+}
+
+.mode-screen.mode-circle_fifths .circle-chord-over-staff #circleFieldChord {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.mode-screen.mode-circle_fifths .circle-chord-over-staff #circleChordName {
+  font-size: 1.15em;
+  color: var(--accent);
+}
+
 #staffCanvas {
   width: 100%;
   height: clamp(340px, 40vh, 430px);
@@ -634,15 +655,47 @@ button:disabled {
   overflow: hidden;
 }
 
+.mode-screen.mode-circle_fifths .staff-panel {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: min(88vh, 920px);
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .mode-screen.mode-generation #staffCanvas,
 .mode-screen.mode-scales #staffCanvas {
   height: clamp(340px, 40vh, 430px);
+}
+
+.mode-screen.mode-circle_fifths #staffCanvas {
+  flex: 0 1 auto;
+  width: 100%;
+  height: clamp(260px, 32vh, 360px);
+  min-height: 220px;
 }
 
 .mode-screen.mode-generation .sidebar-top,
 .mode-screen.mode-scales .sidebar-top {
   max-height: min(50vh, 500px);
   overflow: auto;
+}
+
+.mode-screen.mode-circle_fifths .sidebar-top {
+  max-height: min(68vh, 720px);
+  min-height: min(380px, 68vh);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-screen.mode-circle_fifths #panelCircleFifths {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 4px;
 }
 
 .mode-screen.mode-detection .staff-panel {
@@ -673,6 +726,91 @@ button:disabled {
 
 .mode-screen.mode-generation .guitar-canvas {
   height: 230px;
+}
+
+.mode-screen.mode-circle_fifths .instrument-panel {
+  min-height: 0;
+}
+
+.mode-screen.mode-circle_fifths .instrument-panel.guitar-active {
+  min-height: 300px;
+}
+
+.mode-screen.mode-circle_fifths .guitar-canvas {
+  height: 230px;
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-staff-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #4a5668;
+  flex-shrink: 0;
+}
+
+
+.mode-screen.mode-circle_fifths .circle-fifths-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 4px 0 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-canvas-shell {
+  position: relative;
+  width: min(100%, 520px);
+  flex-shrink: 0;
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-play-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  min-width: 38px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(15, 22, 33, 0.72);
+  border: 1px solid rgba(90, 102, 120, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-play-overlay:hover {
+  background: rgba(25, 35, 50, 0.88);
+  border-color: rgba(120, 135, 160, 0.95);
+}
+
+/* Mismo amarillo que .icon-play-btn.active (detección / generación) al mantener pulsado */
+.mode-screen.mode-circle_fifths .circle-fifths-play-overlay.active {
+  background: #ffd060;
+  color: #0f1b28;
+  border-color: #ffd060;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-play-overlay.active:hover {
+  background: #ffd060;
+  color: #0f1b28;
+  border-color: #ffd060;
+}
+
+.mode-screen.mode-circle_fifths #circleFifthsCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(62vh, 580px);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mode-screen.mode-circle_fifths .circle-fifths-hint {
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 4px 0 6px 0;
 }
 
 #guitarVariationBar {

@@ -1728,12 +1728,12 @@ const SEO_META = {
   es: {
     title: "MIDI Piano & Guitar Chords — Acordes, escalas, metrónomo y MIDI gratis",
     description:
-      "Herramienta online gratuita: detecta y genera acordes en piano y guitarra, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador.",
+      "Herramienta online gratuita: detecta y genera acordes en piano y guitarra, círculo de quintas interactivo, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador.",
   },
   en: {
     title: "MIDI Piano & Guitar Chords — Chords, scales, metronome & free MIDI tool",
     description:
-      "Free online tool: detect and generate piano and guitar chords, scales, metronome and tuner. Use a MIDI keyboard or mouse. Runs in your browser, no install.",
+      "Free online tool: detect and generate piano and guitar chords, interactive circle of fifths, scales, metronome and tuner. Use a MIDI keyboard or mouse. Runs in your browser, no install.",
   },
 };
 

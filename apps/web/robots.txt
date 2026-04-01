@@ -1,3 +1,4 @@
+# MIDI Piano & Guitar Chords (https://freemidichords.com/) — SPA con círculo de quintas interactivo, detección/generación de acordes, escalas, metrónomo y afinador.
 User-agent: *
 Allow: /
 

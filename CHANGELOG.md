@@ -35,6 +35,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Web**: favicon e **apple-touch-icon** en pestañas y al guardar en pantalla de inicio (`/static/favicon.png` desde el logo del proyecto).
 - **Web (SEO)**: `index.html` con **meta description**, **canonical**, **Open Graph**, **Twitter Card**, **JSON-LD** (`WebApplication`); **`robots.txt`** y **`sitemap.xml`** en la raíz del bundle (workflows de Cloudflare + `launch.py deploy-web`); imagen social **`/static/og-image.png`**. **`app.js`** actualiza `document.documentElement.lang`, título y metas al cambiar idioma (**`applySeoMeta()`**).
 - **Web**: modo **círculo de quintas** — canvas de tónicas (clic / Mayús+clic diatónico, mayor o menor relativa, numeración y colores, ▶ sobre el círculo). Documentado en **`apps/web/README.md`**, **`AGENTS.md`** y **`PROJECT_SPEC.md`**.
+- **Web (SEO)**: `index.html` (description, OG, Twitter), JSON-LD y **`SEO_META`** en **`app.js`** mencionan círculo de quintas / circle of fifths; comentario en **`robots.txt`** y **`sitemap.xml`**.
 
 - **Flatpak / Flathub**: `com.freemidichords.MIDIChords.flathub.yml` usa el tag **`v1.0.1`**; `metainfo.xml` declara release **1.0.1** (2026-03-21). Guía `FLATHUB.md` alineada a ese tag de ejemplo.
 

@@ -40,8 +40,8 @@ jobs:
       - name: Enfriar CDN tras despliegue (solo post-deploy)
         if: github.event_name == 'workflow_run'
         run: |
-          echo "Esperando 90s para propagación en Cloudflare tras el deploy..."
-          sleep 90
+          echo "Esperando 120s para propagación en Cloudflare tras el deploy (worker / dominio personalizado)..."
+          sleep 120
 
       - name: Aviso si falta secret RESEND_API_KEY
         env:
@@ -86,8 +86,8 @@ jobs:
       - name: Propagación tras redeploy automático
         if: steps.health1.outcome == 'failure' && steps.deploy.outcome == 'success'
         run: |
-          echo "Esperando 90s tras redeploy automático..."
-          sleep 90
+          echo "Esperando 120s tras redeploy automático..."
+          sleep 120
 
       - name: Chequeo de salud (intento 2)
         id: health2

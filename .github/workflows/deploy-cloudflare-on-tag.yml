@@ -46,6 +46,13 @@ jobs:
             --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
             --branch=main
 
+      # Wrangler termina cuando el upload está listo; el edge puede tardar en aplicar
+      # _worker.js + _routes.json en el dominio personalizado (síntoma: GET /api/meta → 404 vacío).
+      - name: Esperar propagación (worker y rutas en el edge)
+        run: |
+          echo "Esperando 120s para propagación en Cloudflare (Pages Functions / dominio personalizado)..."
+          sleep 120
+
       - name: Smoke test production API
         id: smoke_primary
         continue-on-error: true
@@ -73,6 +80,12 @@ jobs:
             pages deploy apps/web/pages-dist
             --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
             --branch=main
+
+      - name: Esperar propagación tras redeploy
+        if: steps.smoke_primary.outcome != 'success'
+        run: |
+          echo "Esperando 120s tras redeploy antes de volver a comprobar la API..."
+          sleep 120
 
       - name: Verify production API after retry
         if: steps.smoke_primary.outcome != 'success'

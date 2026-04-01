@@ -4,6 +4,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+### Corregido
+
+- **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.
+
 ### Android (Google Play — prueba cerrada)
 
 - **1.0.1 (7)**: App Bundle de release; `versionCode` **7** en `pubspec.yaml` para **Google Play** (incluye wakelock renovado con MIDI en detección y resto de cambios recientes en `main`).
@@ -23,7 +27,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.
 - **CI / empaquetado**: workflow **Build Installers** — `workflow_dispatch` con **`checkout_ref`** y **`msix_revision`** (cuarto segmento de la versión MSIX para reenvíos a Microsoft Store sin cambiar el semver del tag); el job Debian calcula la versión del `.deb` desde el mismo tag/ref que Windows/macOS en dispatch.
 - **Web (CI)**: workflow **`web-production-health.yml`** (cron horario, UTC) ejecuta **`scripts/check_production_web_health.py`** contra producción: HTML, CSS, `app.js` y **`GET /api/meta`**. El script resume el patrón **404 en `/static/*?v=…` con OK sin query** con un mensaje accionable. Si **falla el primer chequeo**, el workflow intenta **autocuración**: construye el bundle (`build_web_pages_dist.py`), **`wrangler pages deploy`** desde **`main`** (secrets **`CLOUDFLARE_API_TOKEN`**, **`CLOUDFLARE_ACCOUNT_ID`**, variable **`CLOUDFLARE_PAGES_PROJECT`**), espera propagación y **vuelve a ejecutar** el chequeo. Tras cualquier fallo del 1er chequeo, correo vía **Resend** con asunto explícito: **`[RESUELTO]`** si el 2º chequeo pasa, **`[ACCIÓN REQUERIDA]`** si bundle, deploy o 2º chequeo fallan (`RESEND_API_KEY`; destinatario por defecto **aortega98@gmail.com**, **`WEB_HEALTH_ALERT_TO`**). Aviso si falta **`RESEND_API_KEY`**. El paso de correo usa **`continue-on-error`** e imprime errores de Resend en el log. **`User-Agent`** en la API Resend. Envío en **`scripts/send_resend_health_alert.py`** (`--mail-kind resolved|action_required`, opcional **`--second-log`**). Ver `apps/web/README.md`.
-- **Web (CI)**: **`web-production-health`** también se dispara al **terminar con éxito** el workflow **Deploy Cloudflare (Production)** (`workflow_run`), espera **90 s** antes del chequeo, y usa **`concurrency`** para no solaparse con el cron horario.
+- **Web (CI)**: **`web-production-health`** también se dispara al **terminar con éxito** el workflow **Deploy Cloudflare (Production)** (`workflow_run`), espera **120 s** antes del chequeo, y usa **`concurrency`** para no solaparse con el cron horario.
 - **Web (CI)**: workflows **`deploy-cloudflare-on-tag.yml`** y **`deploy-cloudflare-preview.yml`** comprueban que el bundle incluye **`_worker.js`**, **`_routes.json`** y **`include: ["/*"]`** antes de desplegar.
 - **Web (Worker)**: respuestas **HEAD** en **`/api/health`** y **`/api/meta`** (200 sin cuerpo, útil para monitorización); CORS permite **HEAD**.
 - **Web (herramientas)**: **`check_production_web_health.py`** — reintentos ante HTTP transitorios (**`WEB_HEALTH_RETRIES`**, p. ej. 4 en Actions) y mensajes más accionables si fallan estáticos o **`/api/meta`**.

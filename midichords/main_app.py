@@ -242,6 +242,7 @@ class MidiChordAnalyzerApp(
         self.detect_hold_active = False
         self.detection_mouse_chord_notes: set[int] = set()
         self.detection_midi_held_notes: set[int] = set()
+        self.detection_last_playable_notes: set[int] = set()
         self.detection_shift_pressed = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []
         self.guitar_chord_cache = load_guitar_chord_cache()

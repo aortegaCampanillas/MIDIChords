@@ -193,15 +193,16 @@ class PianoAudioEngine:
             self.stream = None
         vlog("audio", "OutputStream stopped")
 
-    def note_on(self, note: int, velocity: int) -> None:
+    def note_on(self, note: int, velocity: int) -> bool:
+        """Start a note. Returns True if a new voice was started, False if ignored (duplicate) or failed."""
         if velocity <= 0:
             vlog("audio", "note_on treated as off: note=%s velocity=%s", note, velocity)
             self.note_off(note)
-            return
+            return False
         try:
             self.ensure_started()
         except Exception:
-            return
+            return False
         vlog("audio", "note_on: note=%s velocity=%s preset=%s", note, velocity, self.preset)
         if self.preset == "grand_sample" and self.piano_sample_map:
             self._trigger_sample_voice(
@@ -212,7 +213,7 @@ class PianoAudioEngine:
                 decay=0.999985,
                 max_seconds=7.0,
             )
-            return
+            return True
 
         gain = max(0.05, min(1.0, velocity / 127.0))
         brightness = min(1.0, max(0.0, (velocity / 127.0) ** 0.7))
@@ -233,10 +234,10 @@ class PianoAudioEngine:
         with self.lock:
             prev = self.voices.get(note)
             if prev is not None and not prev.released:
-                # Evita reiniciar fase/volumen si ya suena (detección, dobles eventos).
                 vlog("audio", "note_on ignored while holding: note=%s", note)
-                return
+                return False
             self.voices[note] = voice
+        return True
 
     @staticmethod
     def _detune_cents_for_note(note: int) -> list[float]:

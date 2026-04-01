@@ -2161,24 +2161,52 @@ class UiMixin:
     def _play_detection_panel(self) -> None:
         self._start_detection_hold()
     def _start_detection_hold(self) -> None:
-        detection_notes = sorted(self._current_detection_notes())
+        live = set(self._current_detection_notes())
+        if live:
+            detection_notes = sorted(live)
+        else:
+            fallback = getattr(self, "detection_last_playable_notes", set())
+            detection_notes = sorted(fallback) if fallback else []
         if not detection_notes:
             self.detection_play_button_pressed = False
             return
         self.detection_play_button_pressed = True
         self._stop_detection_preview()
-        self._detection_preview_notes = set(detection_notes)
+        # Solo note_off al soltar de notas donde note_on creó voz (si ya sonaba, note_on se ignora y no hacemos off).
+        owned: set[int] = set()
         for note in detection_notes:
-            self.audio_engine.note_on(int(note), 108)
+            if self.audio_engine.note_on(int(note), 108):
+                owned.add(int(note))
+        if not owned and detection_notes:
+            # Todas las notas ya estaban en el motor (duplicado): cortar y volver a disparar para que el transport se oiga.
+            for note in detection_notes:
+                self.audio_engine.note_off(int(note))
+            try:
+                self.sounding_notes -= set(int(n) for n in detection_notes)
+            except Exception:
+                pass
+            for note in detection_notes:
+                if self.audio_engine.note_on(int(note), 108):
+                    owned.add(int(note))
+        self._detection_preview_owned_notes = owned
         self.detection_play_btn.set_playing(True)
     def _stop_detection_hold(self) -> None:
         self.detection_play_button_pressed = False
+        owned_snapshot = set(getattr(self, "_detection_preview_owned_notes", set()))
         self._stop_detection_preview()
+        # Alinear solo el estado lógico; no llamar a _refresh_sounding_notes aquí (volvería a note_on y se oiría un segundo ataque al soltar).
+        if owned_snapshot and str(getattr(self, "current_mode", "")) == "detection":
+            try:
+                self.sounding_notes -= owned_snapshot
+            except Exception:
+                pass
     def _on_detection_play_press(self, _event: tk.Event) -> str:
         self._start_detection_hold()
         return "break"
     def _refresh_detection_controls_state(self) -> None:
-        has_notes = bool(self._current_detection_notes())
+        live = bool(self._current_detection_notes())
+        has_fallback = bool(getattr(self, "detection_last_playable_notes", set()))
+        has_notes = live or has_fallback
         if hasattr(self, "detection_play_btn"):
             try:
                 self.detection_play_btn.set_enabled(has_notes)
@@ -2197,11 +2225,11 @@ class UiMixin:
             except Exception:
                 pass
             self._detection_preview_after_id = None
-        preview_notes = set(getattr(self, "_detection_preview_notes", set()))
-        if preview_notes:
-            for note in preview_notes:
+        owned = set(getattr(self, "_detection_preview_owned_notes", set()))
+        if owned:
+            for note in owned:
                 self.audio_engine.note_off(int(note))
-        self._detection_preview_notes = set()
+        self._detection_preview_owned_notes = set()
         if hasattr(self, "detection_play_btn"):
             self.detection_play_btn.set_playing(False)
     def _pointer_inside_widget(self, widget: tk.Widget) -> bool:

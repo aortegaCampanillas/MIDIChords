@@ -60,6 +60,12 @@ Historial de versiones publicadas de MIDIChords.
 
 - **macOS (MAS / TestFlight)**: **Qt WebEngine** (`QtWebEngineProcess.app` dentro de **`QtWebEngineCore.framework`**) provoca rechazo **90885** (ejecutable anidado con **application identifier** pero **sin provisioning profile** MAS). La app de escritorio **no usa WebEngine**; **`build_mas_pkg.sh`** añade **`--exclude-module`** para **QtWebEngine\*** / **QtWebView** / **QtWebChannel** y **borra** frameworks **`.so`** / **`.app`** anidados restantes antes de firmar. También se eliminan **`PySide6/Qt/libexec`** (rcc, uic, …) y **ejecutables Mach-O** en la raíz de **PySide6** (lupdate, qmllint, …), firmados por **`codesign --deep`** sin perfil embebido, y el plugin **`Qt/plugins/webview`**.
 
+- **macOS (MAS / App Review 2.5.1)**: el plugin **`Qt/plugins/sqldrivers/libqsqlodbc.dylib`** enlaza símbolos **ODBC** que Apple considera **API no pública** en revisión. MIDIChords **no usa QtSql**; **`build_mas_pkg.sh`** añade **`--exclude-module PySide6.QtSql`** y **elimina** la carpeta **`Qt/plugins/sqldrivers`** del bundle antes de firmar.
+
+- **Escritorio (detección)**: el botón **play** del panel de detección a veces no sonaba o quedaba deshabilitado al **soltar el MIDI** (o sin notas “en vivo”): se guarda el **último conjunto de notas reproducible** y se usa para habilitar el transport y reproducir al mantener pulsado aunque ya no haya teclas pulsadas (se limpia al **Limpiar** o al resetear entrada).
+
+- **Escritorio (detección / audio)**: el **`note_off`** del transport solo afecta notas en **`_detection_preview_owned_notes`**. Si **todas** eran duplicadas (acorde ya sonando), se hace **note_off** + **note_on** por nota para re-atacar. Al **soltar** play solo se ajusta **`sounding_notes`** (sin **`_refresh_sounding_notes`** en ese momento) para no disparar un **segundo** ataque al soltar.
+
 - **macOS (MAS / build)**: tras quitar módulos Qt, **`build_mas_pkg.sh`** elimina **symlinks rotos** bajo el `.app` antes de firmar; evita que **`codesign --verify --deep --strict`** falle con *No such file or directory* apuntando al bundle. Si la verificación sigue fallando, el script lista enlaces rotos y sale con error.
 
 - **macOS (Mac App Store / Qt)**: arranque empaquetado — búsqueda amplia de plugins Qt (`libqcocoa.dylib`), `QT_QPA_PLATFORM_PLUGIN_PATH`, log **`mas_bootstrap_last.txt`** en Application Support; **`build_mas_pkg.sh`** usa **`--collect-all PySide6`** para no omitir plugins en el bundle (síntoma típico en revisión: app en Dock y cierre sin ventana ni crash log).

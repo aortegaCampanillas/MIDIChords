@@ -61,6 +61,10 @@ Apple exige que los **ejecutables anidados** con *application identifier* lleven
 
 Además, el wheel de **PySide6** incluye **herramientas Qt** (`lupdate`, `rcc`, `uic`, `qmllint`, …) y **`Qt/libexec/*`**: son **Mach-O ejecutables** que `codesign --deep` firma con **Team ID** e **identifier** propios pero **sin** el mismo perfil que el `.app` → Apple los rechaza con **90885** (a veces el mensaje solo muestra plantillas `${executable}` / `${bundle}`). El script **borra** `Qt/libexec` y esos binarios en la raíz de **PySide6**, y la carpeta de plugins **`webview`** (incluye `libqtwebview_webengine.dylib`).
 
+### Revisión MAS: **Guideline 2.5.1** — `libqsqlodbc.dylib` (plugins **sqldrivers**)
+
+Apple puede rechazar el binario si detecta referencias a APIs consideradas no públicas. El driver Qt **`libqsqlodbc.dylib`** enlaza símbolos ODBC (`SQLAllocHandle`, …). MIDIChords **no usa bases de datos Qt**; **`build_mas_pkg.sh`** excluye **`PySide6.QtSql`** en PyInstaller y **elimina** `Qt/plugins/sqldrivers` del `.app` antes de firmar.
+
 ### Comando largo (equivalente manual)
 
 Example command using a local profile from this folder:

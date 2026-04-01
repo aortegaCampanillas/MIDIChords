@@ -262,6 +262,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
     --exclude-module PySide6.QtWebEngineQuick \
     --exclude-module PySide6.QtWebView \
     --exclude-module PySide6.QtWebChannel \
+    --exclude-module PySide6.QtSql \
     --add-data "assets:assets" \
     "$ENTRYPOINT"
 fi
@@ -323,6 +324,12 @@ for _plugins in "$APP_PATH/Contents/Frameworks/PySide6/Qt/plugins" "$APP_PATH/Co
     rm -rf "$_plugins/webview"
   fi
 done
+
+# Guideline 2.5.1: libqsqlodbc.dylib (sqldrivers) enlaza ODBC; Apple lo rechaza como API no pública.
+# MIDIChords no usa QtSql; se elimina toda la carpeta sqldrivers por si collect-all la volcó igualmente.
+echo "Quitando plugins Qt SQL (sqldrivers)…"
+find "$APP_PATH/Contents/Frameworks" "$APP_PATH/Contents/Resources" \
+  -type d -path '*/Qt/plugins/sqldrivers' 2>/dev/null | while IFS= read -r _sd; do rm -rf "$_sd"; done
 
 remove_dead_symlinks_under "$APP_PATH"
 

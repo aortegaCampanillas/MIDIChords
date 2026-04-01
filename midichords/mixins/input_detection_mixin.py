@@ -183,6 +183,7 @@ class InputDetectionMixin:
         self.mouse_current_note = None
         self.detection_mouse_chord_notes.clear()
         self.detection_midi_held_notes.clear()
+        self.detection_last_playable_notes.clear()
         self.detection_shift_pressed = False
         self._clear_detection_hold()
     def _clear_detection_hold(self) -> None:
@@ -571,9 +572,11 @@ class InputDetectionMixin:
     def update_music_views(self) -> None:
         self._refresh_scale_preview()
         self._refresh_guitar_variations()
+        active_set = self._current_detection_notes()
+        if active_set:
+            self.detection_last_playable_notes = set(active_set)
         if hasattr(self, "_refresh_detection_controls_state"):
             self._refresh_detection_controls_state()
-        active_set = self._current_detection_notes()
         generated_set = set(self.generated_preview_notes)
         detected_chord_name, detected_extras, detected_map_oct, detected_map_no_oct = self._detect_harmonic_spelling(active_set)
         self.detection_overlay_note_names = dict(detected_map_no_oct)

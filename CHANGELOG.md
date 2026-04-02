@@ -6,6 +6,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (círculo de quintas)**: la armadura del pentagrama seguía la **raíz del acorde diatónico** (p. ej. tras Mayús+clic); ahora usa la **tonalidad del anillo** (`circleTonicPc` + modo mayor/menor), alineado con la teoría y con Flutter. Pista breve en el staff; al alternar **piano/guitarra** se redibuja el pentagrama sin esperar a tocar notas.
+
 - **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.
 
 ### Android (Google Play — prueba cerrada)
@@ -23,6 +25,8 @@ Historial de versiones publicadas de MIDIChords.
 - **Web**: **Screen Wake Lock API** en **detección** con MIDI activo (HTTPS/localhost); misma ventana de **3 min** renovada con cada note on/off; al cambiar de modo o desactivar MIDI se libera; al volver a la pestaña se reintenta si aún aplica.
 
 ### Añadido
+
+- **Móvil (Flutter)**: pestaña **Círculo de quintas** (`circle_of_fifths.dart`) — canvas, grados diatónicos y armadura del pentagrama alineados con la web; tour de ayuda; reordenación de pestañas (Escalas y Metrónomo a índices posteriores cuando el afinador está activo).
 
 - **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.
 - **CI / empaquetado**: workflow **Build Installers** — `workflow_dispatch` con **`checkout_ref`** y **`msix_revision`** (cuarto segmento de la versión MSIX para reenvíos a Microsoft Store sin cambiar el semver del tag); el job Debian calcula la versión del `.deb` desde el mismo tag/ref que Windows/macOS en dispatch.

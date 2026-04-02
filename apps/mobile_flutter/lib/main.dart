@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_audio_capture/flutter_audio_capture.dart';
@@ -12,6 +13,8 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'circle_of_fifths.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -804,8 +807,15 @@ class _HomeScreenState extends State<HomeScreen>
   int _chordGuitarVariant = 0;
   bool _generationPlayPressed = false;
   final Set<int> _generationInputStaffNotes = <int>{};
+  /// MIDI de la última tecla tocada en piano (generación/círculo); coincide con web `generationCurrentNote`.
+  int? _generationPianoHighlightMidi;
+  Timer? _generationPianoHighlightTimer;
   final Set<int> _heldChordNativeNotes = <int>{};
+  /// Limpia el resalte del acorde en pentagrama si no llega pointer-up (p. ej. iOS).
+  Timer? _heldChordPlaybackEndTimer;
   final Map<int, AudioPlayer> _heldChordPlayers = <int, AudioPlayer>{};
+  /// Invalida reproducciones async (p. ej. `Future.wait` de samples) si hubo `_stopHeldChord` entretanto.
+  int _heldChordPlayToken = 0;
   final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
   final Map<String, String> _toneFileCache = <String, String>{};
@@ -875,6 +885,9 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, dynamic>? _detectionResultJson;
   Map<String, dynamic>? _generatedChordJson;
   Map<String, dynamic>? _generatedScaleJson;
+  int _circleTonicPc = 0;
+  String _circleKeyMode = 'major';
+  int _circleChordRootPc = 0;
   bool _detectionPlayPressed = false;
   bool _inputDragActive = false;
   int? _dragPointer;
@@ -890,8 +903,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _enabledModeIndexes() {
     return _kEnableMobileTuner
-        ? const <int>[0, 1, 2, 3, 4]
-        : const <int>[0, 1, 2, 3];
+        ? const <int>[0, 1, 2, 3, 4, 5]
+        : const <int>[0, 1, 2, 3, 4];
   }
 
   GlobalKey _helpAnchorKey(String id) =>
@@ -908,9 +921,9 @@ class _HomeScreenState extends State<HomeScreen>
         titleEs: 'Selector de modo',
         titleEn: 'Mode selector',
         bodyEs:
-            'Aqui cambias entre deteccion, generacion, escalas, metronomo y afinador.',
+            'Aqui cambias entre deteccion, generacion, circulo de quintas, escalas, metronomo y afinador.',
         bodyEn:
-            'Switch between detection, generation, scales, metronome, and tuner here.',
+            'Switch between detection, generation, circle of fifths, scales, metronome, and tuner here.',
         highlightPadding: 4,
       ),
       _HelpStep(
@@ -1210,6 +1223,38 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       2 => <_HelpStep>[
           _HelpStep(
+            id: 'circle_staff',
+            titleEs: 'Pentagrama',
+            titleEn: 'Staff',
+            bodyEs:
+                'Muestra el acorde generado desde el circulo segun la tonalidad elegida.',
+            bodyEn:
+                'Shows the chord generated from the circle for the selected key.',
+            side: _HelpCalloutSide.top,
+          ),
+          _HelpStep(
+            id: 'circle_canvas',
+            titleEs: 'Circulo de quintas',
+            titleEn: 'Circle of fifths',
+            bodyEs:
+                'Toca un sector: anillo exterior = tonica mayor; interior = modo menor relativo. Manten pulsado para un acorde diatonico.',
+            bodyEn:
+                'Tap a sector: outer ring = major tonic; inner = relative minor. Long-press for a diatonic chord.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'circle_play',
+            titleEs: 'Reproducir',
+            titleEn: 'Play',
+            bodyEs:
+                'Mantén pulsado el botón de reproducción para oír el acorde en el instrumento.',
+            bodyEn:
+                'Hold the play button to hear the chord on the instrument.',
+            side: _HelpCalloutSide.left,
+          ),
+        ],
+      3 => <_HelpStep>[
+          _HelpStep(
             id: 'scales_staff',
             titleEs: 'Pentagrama de escala',
             titleEn: 'Scale staff',
@@ -1372,7 +1417,7 @@ class _HomeScreenState extends State<HomeScreen>
             side: _HelpCalloutSide.top,
           ),
         ],
-      3 => <_HelpStep>[
+      4 => <_HelpStep>[
           _HelpStep(
             id: 'metronome_bead_row',
             titleEs: 'Bolas de pulso',
@@ -1504,7 +1549,7 @@ class _HomeScreenState extends State<HomeScreen>
             side: _HelpCalloutSide.top,
           ),
         ],
-      4 => <_HelpStep>[
+      5 => <_HelpStep>[
           _HelpStep(
             id: 'tuner_staff',
             titleEs: 'Vista del afinador',
@@ -1756,9 +1801,10 @@ class _HomeScreenState extends State<HomeScreen>
   String _staffHelpIdForCurrentMode() => switch (_tabIndex) {
         0 => 'detection_staff',
         1 => 'generation_staff',
-        2 => 'scales_staff',
-        3 => 'metronome_bead_row',
-        4 => 'tuner_staff',
+        2 => 'circle_staff',
+        3 => 'scales_staff',
+        4 => 'metronome_bead_row',
+        5 => 'tuner_staff',
         _ => 'detection_staff',
       };
 
@@ -1770,10 +1816,12 @@ class _HomeScreenState extends State<HomeScreen>
       case 1:
         return _ui('Generación de Acordes', 'Chord Generator');
       case 2:
-        return _ui('Escalas', 'Scales');
+        return _ui('Círculo de quintas', 'Circle of Fifths');
       case 3:
-        return _ui('Metrónomo', 'Metronome');
+        return _ui('Escalas', 'Scales');
       case 4:
+        return _ui('Metrónomo', 'Metronome');
+      case 5:
         return _ui('Afinador', 'Tuner');
       default:
         return _ui('Detección de Acordes', 'Chord Detection');
@@ -1913,6 +1961,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _heldChordPlaybackEndTimer?.cancel();
+    _generationPianoHighlightTimer?.cancel();
     _metroTimer?.cancel();
     _metroAnimTimer?.cancel();
     _scaleLoopTimer?.cancel();
@@ -2262,13 +2312,25 @@ class _HomeScreenState extends State<HomeScreen>
   /// Equivalente a `getStaffContext()` en `app.js` (armadura del pentagrama).
   ({int count, bool preferFlats}) _staffKeySignatureForCurrentTab() {
     final tieFromSelect = _preferFlat;
-    if (_tabIndex == 2 && _generatedScaleJson != null) {
+    if (_tabIndex == 3 && _generatedScaleJson != null) {
       final name =
           (_generatedScaleJson!['pattern_name'] as String?) ?? 'Ionian';
       final isMinor = _scalePrefersMinor(name);
       final tonic = _positiveMod12(
         (_generatedScaleJson!['tonic_pc'] as num?)?.toInt() ?? 0,
       );
+      var sig = _keySignatureCountForTonic(
+        tonic,
+        isMinor,
+        tiePreferFlat: tieFromSelect,
+      );
+      sig = _applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
+      return sig;
+    }
+    if (_tabIndex == 2) {
+      // La tónica del anillo existe siempre; no depender de haber generado JSON.
+      final isMinor = _circleKeyMode == 'minor';
+      final tonic = _positiveMod12(_circleTonicPc);
       var sig = _keySignatureCountForTonic(
         tonic,
         isMinor,
@@ -2735,6 +2797,8 @@ class _HomeScreenState extends State<HomeScreen>
       } else if (_tabIndex == 1 && !_requestInFlight) {
         unawaited(_callGenerateChord());
       } else if (_tabIndex == 2 && !_requestInFlight) {
+        unawaited(_callCircleGenerateChord());
+      } else if (_tabIndex == 3 && !_requestInFlight) {
         unawaited(_callGenerateScale());
       }
     } catch (err) {
@@ -2973,7 +3037,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return _activeDetectionNotes;
     }
-    if (_tabIndex == 1 && _generatedChordJson != null) {
+    if ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null) {
       final rh = _extractMidiList(_generatedChordJson!, <String>['notes_midi']);
       if (_instrumentView == 'guitar') {
         final selected = _selectedChordGuitarNotes();
@@ -2982,7 +3046,7 @@ class _HomeScreenState extends State<HomeScreen>
       final lh = rh.map((n) => n - 12).where((n) => n >= 0);
       return <int>{...rh, ...lh};
     }
-    if (_tabIndex == 2 && _generatedScaleJson != null) {
+    if (_tabIndex == 3 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
       final lh = _scaleLhNotes(rh);
       return <int>{...rh, ...lh};
@@ -2991,14 +3055,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _generationPlayingNotesForStaff() {
-    if (_tabIndex != 1) return <int>{};
+    if (_tabIndex != 1 && _tabIndex != 2) return <int>{};
     final rawNotes = <int>{
       ..._heldChordPlayers.keys,
       ..._heldChordNativeNotes,
     };
-    if (_instrumentView == 'guitar') {
-      return <int>{...rawNotes, ..._generationInputStaffNotes};
-    }
+    // Piano y guitarra: mapear MIDI de reproducción al espacio del pentagrama actual
+    // (la rama guitarra en crudo podía dejar un MIDI que, tras `guitarDisplayVoicing`,
+    // coincidía con una nota del acorde aunque ya no hubiera reproducción coherente).
     final staffNotes = <int>{..._generationInputStaffNotes};
     for (final note in rawNotes) {
       final mapped = _generationStaffNoteForPitch(note, includeBass: true);
@@ -3028,7 +3092,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Set<int> _activeMidiForInstrument() {
     if (_tabIndex == 0) return _activeDetectionNotes;
-    if (_tabIndex == 1 && _generatedChordJson != null) {
+    if ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null) {
       final rh = _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
       ]).toSet();
@@ -3039,7 +3103,7 @@ class _HomeScreenState extends State<HomeScreen>
       final lh = rh.map((n) => n - 12).where((n) => n >= 0);
       return <int>{...rh, ...lh};
     }
-    if (_tabIndex == 2 && _generatedScaleJson != null) {
+    if (_tabIndex == 3 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
       final lh = _scaleLhNotes(rh);
       final notes = <int>{...rh};
@@ -3131,7 +3195,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Map<String, dynamic>> _chordGuitarVariations() {
-    if (_tabIndex != 1 || _generatedChordJson == null) {
+    if ((_tabIndex != 1 && _tabIndex != 2) || _generatedChordJson == null) {
       return const <Map<String, dynamic>>[];
     }
     final rootPc = (_generatedChordJson!['root_pc'] is num)
@@ -3184,7 +3248,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<List<int>> _fallbackChordGuitarVoicings() {
-    if (_tabIndex != 1 || _generatedChordJson == null) {
+    if ((_tabIndex != 1 && _tabIndex != 2) || _generatedChordJson == null) {
       return const <List<int>>[];
     }
     final chordPcs = _extractMidiList(_generatedChordJson!, <String>[
@@ -4027,6 +4091,29 @@ class _HomeScreenState extends State<HomeScreen>
     if (mounted) setState(() {});
   }
 
+  void _bumpGenerationPianoHighlight(int midi) {
+    _generationPianoHighlightTimer?.cancel();
+    setState(() => _generationPianoHighlightMidi = midi);
+    _generationPianoHighlightTimer = Timer(const Duration(milliseconds: 720), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _generationPianoHighlightMidi = null;
+        _generationPianoHighlightTimer = null;
+        if (_tabIndex == 1 || _tabIndex == 2) {
+          _generationInputStaffNotes.clear();
+        }
+      });
+    });
+  }
+
+  void _clearGenerationPianoHighlight() {
+    _generationPianoHighlightTimer?.cancel();
+    _generationPianoHighlightTimer = null;
+    _generationPianoHighlightMidi = null;
+  }
+
   Future<void> _handleInstrumentNote(int midi, {required bool pressed}) async {
     if (_tabIndex == 0) {
       if (!pressed) {
@@ -4054,7 +4141,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return;
     }
-    if (_tabIndex == 1 && _generatedChordJson != null) {
+    if ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null) {
       final chordNotes = _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
       ]);
@@ -4073,6 +4160,10 @@ class _HomeScreenState extends State<HomeScreen>
         _generationInputStaffNotes
           ..clear()
           ..add(staffNote);
+      }
+      if (_instrumentView == 'piano') {
+        _bumpGenerationPianoHighlight(midi);
+      } else if (staffNote != null) {
         setState(() {});
       }
       if (pressed) {
@@ -4090,7 +4181,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return;
     }
-    if (_tabIndex == 2 && _generatedScaleJson != null) {
+    if (_tabIndex == 3 && _generatedScaleJson != null) {
       final scaleNotes = _scaleRhNotes();
       if (pressed &&
           _instrumentView == 'guitar' &&
@@ -4177,8 +4268,9 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (_dragCurrentNote != null) {
       _releaseHeldInputNote(_dragCurrentNote!);
-      if (_tabIndex == 1) {
+      if (_tabIndex == 1 || _tabIndex == 2) {
         _generationInputStaffNotes.clear();
+        _clearGenerationPianoHighlight();
       }
     }
     _dragCurrentNote = midi;
@@ -4194,10 +4286,11 @@ class _HomeScreenState extends State<HomeScreen>
     _dragCurrentNote = null;
     _dragLastGlobalPos = null;
     _stopHeldInputs();
-    if (_tabIndex == 1) {
+    if (_tabIndex == 1 || _tabIndex == 2) {
       _generationInputStaffNotes.clear();
+      _clearGenerationPianoHighlight();
     }
-    if (_tabIndex == 2 && _scaleInputRawNote != null) {
+    if (_tabIndex == 3 && _scaleInputRawNote != null) {
       setState(() => _scaleInputRawNote = null);
     }
     if (mounted) {
@@ -4206,6 +4299,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _stopHeldChord() {
+    _heldChordPlaybackEndTimer?.cancel();
+    _heldChordPlaybackEndTimer = null;
+    _heldChordPlayToken++;
     // En iOS, el sintetizador nativo no expone note-off por nota.
     // Para evitar cortes bruscos al soltar, dejamos que la nota termine por duración.
     final uniquePlayers = _heldChordPlayers.values.toSet();
@@ -4233,6 +4329,20 @@ class _HomeScreenState extends State<HomeScreen>
     _heldMidiInputPlayers.clear();
   }
 
+  void _scheduleHeldChordPlaybackAutoClear({required String instrument}) {
+    _heldChordPlaybackEndTimer?.cancel();
+    final ms =
+        ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round() + 280;
+    _heldChordPlaybackEndTimer = Timer(Duration(milliseconds: ms), () {
+      _heldChordPlaybackEndTimer = null;
+      if (!mounted) {
+        return;
+      }
+      _stopHeldChord();
+      setState(() {});
+    });
+  }
+
   Future<void> _startHeldChord(
     List<int> notes, {
     required String instrument,
@@ -4242,6 +4352,8 @@ class _HomeScreenState extends State<HomeScreen>
     _heldChordNativeNotes
       ..clear()
       ..addAll(chordNotes);
+    _scheduleHeldChordPlaybackAutoClear(instrument: instrument);
+    final playToken = _heldChordPlayToken;
     if (mounted) {
       setState(() {});
     }
@@ -4253,28 +4365,32 @@ class _HomeScreenState extends State<HomeScreen>
         volume: 0.92,
       );
       if (mounted) {
+        _stopHeldChord();
         setState(() {});
       }
       return;
     }
     if (Platform.isIOS) {
       final volume = (0.92 * (instrument == 'piano' ? 0.72 : 0.82)).clamp(0.0, 1.0);
-      final ok = chordNotes.length > 1
-          ? await _playIosSynthChord(
-              notes: chordNotes,
-              instrument: instrument,
-              durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
-                  .round(),
-              volume: volume,
-            )
-          : await _playIosSynthTone(
-              midi: chordNotes.first,
-              instrument: instrument,
-              durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
-                  .round(),
-              volume: volume,
-            );
-      if (ok && mounted) {
+      if (chordNotes.length > 1) {
+        await _playIosSynthChord(
+          notes: chordNotes,
+          instrument: instrument,
+          durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
+              .round(),
+          volume: volume,
+        );
+      } else {
+        await _playIosSynthTone(
+          midi: chordNotes.first,
+          instrument: instrument,
+          durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
+              .round(),
+          volume: volume,
+        );
+      }
+      if (mounted) {
+        _stopHeldChord();
         setState(() {});
       }
       return;
@@ -4288,6 +4404,15 @@ class _HomeScreenState extends State<HomeScreen>
       return MapEntry<int, AudioPlayer?>(midi, player);
     }).toList();
     final started = await Future.wait(starts);
+    if (!mounted || playToken != _heldChordPlayToken) {
+      for (final entry in started) {
+        final player = entry.value;
+        if (player != null) {
+          unawaited(_safeStopDispose(player));
+        }
+      }
+      return;
+    }
     for (final entry in started) {
       final player = entry.value;
       if (player != null) {
@@ -4648,6 +4773,7 @@ class _HomeScreenState extends State<HomeScreen>
       _generatedChordJson = json;
       _chordGuitarVariant = 0;
       _generationInputStaffNotes.clear();
+      _clearGenerationPianoHighlight();
       final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
       _chordOutputController.text =
           '${_ui('Acorde', 'Chord')}: ${json['name']}\n'
@@ -4670,6 +4796,96 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() => _requestInFlight = false);
       }
     }
+  }
+
+  int _circleMajorTonicPcForTheory() =>
+      circleMajorTonicPcForTheory(_circleTonicPc, _circleKeyMode);
+
+  Future<void> _callCircleGenerateChord() async {
+    if (_requestInFlight) {
+      return;
+    }
+    setState(() => _requestInFlight = true);
+    try {
+      final tonicTheory = _circleMajorTonicPcForTheory();
+      final rootPc = _positiveMod12(_circleChordRootPc);
+      String suffix;
+      if (_circleKeyMode == 'minor') {
+        final mt = _positiveMod12(_circleTonicPc);
+        suffix = diatonicTriadSuffixNaturalMinorKey(mt, rootPc).suffix;
+      } else {
+        suffix = diatonicTriadSuffixMajorKey(tonicTheory, rootPc).suffix;
+      }
+      setState(() {
+        _chordRootPc = rootPc;
+        _chordSuffix = suffix;
+        _chordInversion = 0;
+        _recomputeMaxInversion();
+      });
+      final json = _generateChordLocal(
+        rootPc: rootPc,
+        suffix: suffix,
+        inversion: 0,
+        language: _language,
+        preferFlat: _preferFlat,
+      );
+      _generatedChordJson = json;
+      _chordGuitarVariant = 0;
+      _generationInputStaffNotes.clear();
+      _clearGenerationPianoHighlight();
+      final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
+      _chordOutputController.text =
+          '${_ui('Acorde', 'Chord')}: ${json['name']}\n'
+          '${_ui('Notas', 'Notes')}: ${(json['notes'] as List<dynamic>? ?? <dynamic>[]).join(' - ')}\n'
+          '${_ui('Intervalos', 'Intervals')}: ${_intervalTextFromMidiList(generatedMidi)}';
+      if (Platform.isIOS && generatedMidi.isNotEmpty) {
+        unawaited(
+          _precacheChord(
+            notes: generatedMidi,
+            instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+            seconds: _instrumentView == 'guitar' ? 1.45 : 1.35,
+          ),
+        );
+      }
+    } catch (err) {
+      _generatedChordJson = null;
+      _chordOutputController.text = '${_ui('Error', 'Error')}: $err';
+    } finally {
+      if (mounted) {
+        setState(() => _requestInFlight = false);
+      }
+    }
+  }
+
+  void _onCircleCanvasInteraction(Offset local, Size size, {required bool longPress}) {
+    final pc = CircleFifthsHit.chordRootPcFromClick(
+      local,
+      size,
+      shiftClick: longPress,
+    );
+    if (pc == null) return;
+    final theory = _circleMajorTonicPcForTheory();
+    if (longPress) {
+      if (!CircleFifthsHit.chordShiftClickIsDiatonic(
+        theory,
+        local,
+        size,
+        _circleKeyMode,
+        _circleTonicPc,
+      )) {
+        return;
+      }
+      setState(() => _circleChordRootPc = pc);
+    } else {
+      final inner = CircleFifthsHit.clickInnerMinorBand(local, size);
+      if (inner == null) return;
+      setState(() {
+        _circleKeyMode = inner ? 'minor' : 'major';
+        _circleTonicPc = pc;
+        _circleChordRootPc = pc;
+      });
+    }
+    unawaited(_callCircleGenerateChord());
   }
 
   Future<void> _callGenerateScale() async {
@@ -4827,7 +5043,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   String _pcLabel(int pc) {
-    if (_tabIndex == 2) {
+    if (_tabIndex == 3) {
       final byScale = _scalePcNameMap();
       final scaleLabel = byScale[pc % 12];
       if (scaleLabel != null && scaleLabel.isNotEmpty) {
@@ -4895,6 +5111,39 @@ class _HomeScreenState extends State<HomeScreen>
       return useFlat ? labelsFlatEn[pc % 12] : labelsSharpEn[pc % 12];
     }
     return useFlat ? labelsFlatEs[pc % 12] : labelsSharpEs[pc % 12];
+  }
+
+  /// Muchos tipos renderizan ♭ más pequeño que `#`; se escala la alteración para
+  /// equiparar el aspecto en teclas y etiquetas.
+  List<InlineSpan> _splitPitchClassLabelSpans(String label, TextStyle baseStyle) {
+    final fz = baseStyle.fontSize ?? 14;
+    final accFlatStyle = baseStyle.copyWith(
+      fontSize: fz * 1.22,
+      height: 1.0,
+    );
+    final accSharpStyle = baseStyle.copyWith(
+      fontSize: fz * 1.06,
+      height: 1.0,
+    );
+    if (label.endsWith('♭♭')) {
+      return <InlineSpan>[
+        TextSpan(text: label.substring(0, label.length - 2), style: baseStyle),
+        TextSpan(text: '♭♭', style: accFlatStyle),
+      ];
+    }
+    if (label.endsWith('♭')) {
+      return <InlineSpan>[
+        TextSpan(text: label.substring(0, label.length - 1), style: baseStyle),
+        TextSpan(text: '♭', style: accFlatStyle),
+      ];
+    }
+    if (label.endsWith('#')) {
+      return <InlineSpan>[
+        TextSpan(text: label.substring(0, label.length - 1), style: baseStyle),
+        TextSpan(text: '#', style: accSharpStyle),
+      ];
+    }
+    return <InlineSpan>[TextSpan(text: label, style: baseStyle)];
   }
 
   String _inversionLabel(int inversion, {bool compact = false}) {
@@ -4971,7 +5220,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (!mounted || !_metroRunning) {
         return;
       }
-      if (_tabIndex == 3) {
+      if (_tabIndex == 4) {
         setState(() {});
       }
     });
@@ -5369,6 +5618,7 @@ class _HomeScreenState extends State<HomeScreen>
     final pages = <Widget>[
       _buildDetectionPage(),
       _buildChordGenerationPage(),
+      _buildCircleOfFifthsPage(),
       _buildScaleGenerationPage(),
       _buildMetronomePage(),
       _buildTunerPage(),
@@ -5432,7 +5682,7 @@ class _HomeScreenState extends State<HomeScreen>
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
-                    if (!_kEnableMobileTuner && value == 4) return;
+                    if (!_kEnableMobileTuner && value == 5) return;
                     setState(() {
                       _tabIndex = value;
                       _setHelpMode(false);
@@ -5440,19 +5690,20 @@ class _HomeScreenState extends State<HomeScreen>
                         _instrumentView = 'piano';
                       }
                     });
-                    if (value != 2) {
+                    if (value != 3) {
                       _stopScaleLoop();
                     }
-                    if (value != 3) {
+                    if (value != 4) {
                       _stopMetronome();
                     }
-                    if (value != 4 && _tunerRunning) {
+                    if (value != 5 && _tunerRunning) {
                       unawaited(_stopTuner());
                     }
                     _stopHeldChord();
                     _stopHeldInputs();
                     _stopHeldMidiInputs();
                     _generationInputStaffNotes.clear();
+                    _clearGenerationPianoHighlight();
                     _detectionPlayPressed = false;
                     _generationPlayPressed = false;
                     if (value != 0) {
@@ -5463,6 +5714,8 @@ class _HomeScreenState extends State<HomeScreen>
                     } else if (value == 1 && !_requestInFlight) {
                       unawaited(_callGenerateChord());
                     } else if (value == 2 && !_requestInFlight) {
+                      unawaited(_callCircleGenerateChord());
+                    } else if (value == 3 && !_requestInFlight) {
                       unawaited(_callGenerateScale());
                     }
                     if (value != 0) {
@@ -5528,6 +5781,10 @@ class _HomeScreenState extends State<HomeScreen>
                       !_requestInFlight) {
                     unawaited(_callGenerateChord());
                   } else if (_tabIndex == 2 &&
+                      _generatedChordJson != null &&
+                      !_requestInFlight) {
+                    unawaited(_callCircleGenerateChord());
+                  } else if (_tabIndex == 3 &&
                       _generatedScaleJson != null &&
                       !_requestInFlight) {
                     unawaited(_callGenerateScale());
@@ -5576,7 +5833,7 @@ class _HomeScreenState extends State<HomeScreen>
     final staffNotes = _staffNotesForCurrentTab();
     final staffExtras = _staffExtrasForCurrentTab();
     final instrumentNotes = _activeMidiForInstrument();
-    final staffPanel = _tabIndex == 3
+    final staffPanel = _tabIndex == 4
         ? _buildStaffPanel(staffNotes, staffExtras)
         : _helpAnchor(
             _staffHelpIdForCurrentMode(),
@@ -5596,7 +5853,7 @@ class _HomeScreenState extends State<HomeScreen>
             );
             final compactLandscape = constraints.maxWidth > constraints.maxHeight;
             final compactTopHeight = compactLandscape
-                ? (_tabIndex == 3
+                ? (_tabIndex == 4
                       ? math.max(300.0, constraints.maxHeight * 0.58)
                       : math.max(240.0, constraints.maxHeight * 0.42))
                 : staffHeight;
@@ -5681,12 +5938,16 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildStaffPanel(Set<int> notes, Set<int> extras) {
     final title = switch (_tabIndex) {
-      3 => _ui('Metrónomo', 'Metronome'),
-      4 => _ui('Afinador', 'Tuner'),
+      4 => _ui('Metrónomo', 'Metronome'),
+      5 => _ui('Afinador', 'Tuner'),
       _ => _ui('Pentagrama', 'Staff'),
     };
     final guitarStaffMode =
-        _instrumentView == 'guitar' && (_tabIndex == 0 || _tabIndex == 1 || _tabIndex == 2);
+        _instrumentView == 'guitar' &&
+        (_tabIndex == 0 ||
+            _tabIndex == 1 ||
+            _tabIndex == 2 ||
+            _tabIndex == 3);
     int staffMidi(int midi) => guitarStaffMode ? midi + 12 : midi;
     List<int> guitarDisplayVoicing(Iterable<int> source, {bool lowerBass = false}) {
       final mapped = source.map(staffMidi).toList()..sort();
@@ -5696,40 +5957,55 @@ class _HomeScreenState extends State<HomeScreen>
       return mapped;
     }
 
-    final lowerGuitarBass = _tabIndex == 1 && _instrumentView == 'guitar';
+    final lowerGuitarBass =
+        (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'guitar';
     final displayNotes = guitarDisplayVoicing(notes, lowerBass: lowerGuitarBass);
     final displayExtras = extras.map(staffMidi).toSet();
     final displayDetectionActiveNotes = _tabIndex == 0
         ? guitarDisplayVoicing(_activeDetectionNotes).toSet()
         : const <int>{};
+    // Guitarra: las variantes pueden no coincidir con `notes_midi` del JSON;
+    // el pentagrama usa `notes` (= `_staffNotesForCurrentTab`). Si `rhSet` se
+    // arma solo con el JSON, una nota del acorde dibujada queda fuera de `rhSet`
+    // y solo `generationPlayingNotes` la colorea (parece “nota en reproducción”).
     final displayGenerationRhNotes =
-        (_tabIndex == 1 && _generatedChordJson != null)
-        ? guitarDisplayVoicing(
-            _extractMidiList(_generatedChordJson!, <String>['notes_midi']),
-            lowerBass: lowerGuitarBass,
-          )
+        ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null)
+        ? (_instrumentView == 'guitar'
+              ? List<int>.from(displayNotes)
+              : guitarDisplayVoicing(
+                  _extractMidiList(_generatedChordJson!, <String>['notes_midi']),
+                  lowerBass: lowerGuitarBass,
+                ))
         : const <int>[];
     final displayGenerationLhNotes =
-        (_tabIndex == 1 &&
+        ((_tabIndex == 1 || _tabIndex == 2) &&
             _instrumentView == 'piano' &&
             _generatedChordJson != null)
         ? _extractMidiList(_generatedChordJson!, <String>[
             'notes_midi',
           ]).map((n) => n - 12).where((n) => n >= 0).toList()
         : const <int>[];
-    final displayGenerationPlayingNotes = _tabIndex == 1
-        ? guitarDisplayVoicing(
-            _generationPlayingNotesForStaff(),
-            lowerBass: lowerGuitarBass,
-          ).toSet()
+    final bool generationPlaybackActive =
+        (_tabIndex == 1 || _tabIndex == 2) &&
+        (_generationPlayPressed ||
+            _heldChordNativeNotes.isNotEmpty ||
+            _heldChordPlayers.isNotEmpty ||
+            _generationInputStaffNotes.isNotEmpty);
+    final displayGenerationPlayingNotes = (_tabIndex == 1 || _tabIndex == 2)
+        ? (generationPlaybackActive
+              ? guitarDisplayVoicing(
+                  _generationPlayingNotesForStaff(),
+                  lowerBass: lowerGuitarBass,
+                ).toSet()
+              : <int>{})
         : const <int>{};
-    final displayScaleRhNotes = _tabIndex == 2
+    final displayScaleRhNotes = _tabIndex == 3
         ? _scaleRhNotes().map(staffMidi).toList()
         : const <int>[];
-    final displayScaleLhNotes = (_tabIndex == 2 && _instrumentView == 'piano')
+    final displayScaleLhNotes = (_tabIndex == 3 && _instrumentView == 'piano')
         ? _scaleLhNotes(_scaleRhNotes())
         : const <int>[];
-    final displayScaleCurrentNote = _tabIndex == 2 && _scaleCurrentNote != null
+    final displayScaleCurrentNote = _tabIndex == 3 && _scaleCurrentNote != null
         ? staffMidi(_scaleCurrentNote!)
         : null;
     final staffKeySig = _staffKeySignatureForCurrentTab();
@@ -5742,6 +6018,26 @@ class _HomeScreenState extends State<HomeScreen>
             style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
+          if (_tabIndex == 2) ...<Widget>[
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(color: _muted, fontSize: 14, height: 1.3),
+                children: <TextSpan>[
+                  TextSpan(text: '${_ui('Acorde', 'Chord')}: '),
+                  TextSpan(
+                    text: _chordResultValue('name'),
+                    style: const TextStyle(
+                      color: _text,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -5750,7 +6046,7 @@ class _HomeScreenState extends State<HomeScreen>
                 border: Border.all(color: const Color(0xFF3A4558)),
               ),
 	              child: switch (_tabIndex) {
-	                3 => LayoutBuilder(
+	                4 => LayoutBuilder(
 	                  builder: (context, constraints) {
 	                    final metronomeSize = Size(
 	                      constraints.maxWidth,
@@ -5835,7 +6131,7 @@ class _HomeScreenState extends State<HomeScreen>
 	                    );
 	                  },
 	                ),
-                4 => CustomPaint(
+                5 => CustomPaint(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final panelSize = Size(
@@ -5861,6 +6157,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 _ => CustomPaint(
+                  key: _tabIndex == 2
+                      ? ValueKey<String>(
+                          'circle_staff_${_circleTonicPc}_${_circleKeyMode}_${_circleChordRootPc}_${staffKeySig.count}_${staffKeySig.preferFlats}',
+                        )
+                      : null,
                   painter: _MiniStaffPainter(
                     notes: displayNotes,
                     extras: displayExtras,
@@ -5869,15 +6170,16 @@ class _HomeScreenState extends State<HomeScreen>
                     generationLhNotes: displayGenerationLhNotes,
                     generationPlayingNotes: displayGenerationPlayingNotes,
                     generationGuitarMode:
-                        _tabIndex == 1 && _instrumentView == 'guitar',
+                        (_tabIndex == 1 || _tabIndex == 2) &&
+                        _instrumentView == 'guitar',
                     scaleRhNotes: displayScaleRhNotes,
                     scaleLhNotes: displayScaleLhNotes,
                     scaleCurrentNote: displayScaleCurrentNote,
-                    scaleCurrentIsLeft: _tabIndex == 2
+                    scaleCurrentIsLeft: _tabIndex == 3
                         ? _scaleCurrentIsLeft
                         : null,
                     scaleGuitarMode:
-                        _tabIndex == 2 && _instrumentView == 'guitar',
+                        _tabIndex == 3 && _instrumentView == 'guitar',
                     keySignatureCount: staffKeySig.count,
                     keySignaturePreferFlats: staffKeySig.preferFlats,
                   ),
@@ -5886,6 +6188,16 @@ class _HomeScreenState extends State<HomeScreen>
               },
             ),
           ),
+          if (_tabIndex == 2) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              _ui(
+                'Toca el anillo: fija la tónica y la tonalidad (mayor en el exterior, menor natural relativa en el interior; misma armadura). Mantén pulsado: elige un acorde diatónico (triada sobre un grado de la escala); no cambia la tónica.',
+                'Tap: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature). Long-press: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic.',
+              ),
+              style: const TextStyle(color: _muted, fontSize: 12, height: 1.35),
+            ),
+          ],
         ],
       ),
     );
@@ -5945,7 +6257,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 Align(
-                  alignment: _tabIndex == 3
+                  alignment: _tabIndex == 4
                       ? const Alignment(0, 0.36)
                       : const Alignment(0, 0.18),
                   child: IgnorePointer(
@@ -6101,35 +6413,39 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
-    final metronomeFixedPiano = _tabIndex == 3;
-    final showRightControls = _tabIndex == 1 || _tabIndex == 2;
+    final metronomeFixedPiano = _tabIndex == 4;
+    final showRightControls =
+        _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3;
     final displayInstrumentView = metronomeFixedPiano ? 'piano' : _instrumentView;
-    final pianoHelpId = _tabIndex == 2
+    final pianoHelpId = _tabIndex == 3
         ? 'scales_instrument_piano'
         : 'generation_instrument_piano';
-    final guitarHelpId = _tabIndex == 2
+    final guitarHelpId = _tabIndex == 3
         ? 'scales_instrument_guitar'
         : 'generation_instrument_guitar';
-    final handHelpId = _tabIndex == 2
+    final handHelpId = _tabIndex == 3
         ? 'scales_guitar_hand'
         : 'generation_guitar_hand';
     final instrumentSurfaceHelpId = switch (_tabIndex) {
       0 => 'detection_instrument',
       1 => 'generation_instrument',
-      2 => 'scales_instrument',
-      3 => 'metronome_instrument',
+      2 => 'generation_instrument',
+      3 => 'scales_instrument',
+      4 => 'metronome_instrument',
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {
-      3 => portrait ? 152.0 : 168.0,
-      2 when _scaleMetronomeOnly => compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
-      1 || 2 => compactPhone ? (portrait ? 204.0 : 232.0) : (portrait ? 188.0 : 220.0),
+      4 => portrait ? 152.0 : 168.0,
+      3 when _scaleMetronomeOnly => compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
+      1 || 2 || 3 => compactPhone ? (portrait ? 204.0 : 232.0) : (portrait ? 188.0 : 220.0),
       _ => 220.0,
     };
-    final chordVariations = (_tabIndex == 1 && _instrumentView == 'guitar')
+    final chordVariations =
+        ((_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'guitar')
         ? _chordGuitarVariations()
         : const <Map<String, dynamic>>[];
-    final chordVoicings = (_tabIndex == 1 && _instrumentView == 'guitar')
+    final chordVoicings =
+        ((_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'guitar')
         ? (chordVariations.isNotEmpty
               ? chordVariations.map(_variationNotes).toList()
               : _fallbackChordGuitarVoicings())
@@ -6179,7 +6495,7 @@ class _HomeScreenState extends State<HomeScreen>
                               _instToggle('guitar', 'Guitarra'),
                             ),
                           ),
-                          if (_tabIndex == 1 &&
+                          if ((_tabIndex == 1 || _tabIndex == 2) &&
                               _instrumentView == 'guitar' &&
                               chordVoicings.length > 1) ...<Widget>[
                             _helpAnchor(
@@ -6314,7 +6630,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
           ),
-          if (!compactPhone && _tabIndex == 1 && _instrumentView == 'guitar') ...<Widget>[
+          if (!compactPhone &&
+              (_tabIndex == 1 || _tabIndex == 2) &&
+              _instrumentView == 'guitar') ...<Widget>[
             const SizedBox(height: 2),
             _helpAnchor(
               'generation_guitar_variant',
@@ -6372,7 +6690,19 @@ class _HomeScreenState extends State<HomeScreen>
         side: BorderSide(color: active ? _accent : _border),
         foregroundColor: active ? const Color(0xFF1A222D) : _text,
       ),
-      onPressed: () => setState(() => _instrumentView = key),
+      onPressed: () {
+        setState(() {
+          if (_instrumentView != key &&
+              (_tabIndex == 1 || _tabIndex == 2)) {
+            _generationInputStaffNotes.clear();
+            _clearGenerationPianoHighlight();
+            _stopHeldChord();
+            _stopHeldInputs();
+            _generationPlayPressed = false;
+          }
+          _instrumentView = key;
+        });
+      },
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
@@ -6429,20 +6759,26 @@ class _HomeScreenState extends State<HomeScreen>
     final whiteMidi = midiRange
         .where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12))
         .toList();
-    final whiteH = portrait && (_tabIndex == 1 || _tabIndex == 2) ? 118.0 : 130.0;
+    final whiteH = portrait &&
+            (_tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3)
+        ? 118.0
+        : 130.0;
     final active = activeMidi.toSet();
     final extras = _instrumentExtrasForCurrentTab();
-    final scaleRh = _tabIndex == 2 ? _scaleRhNotes().toSet() : <int>{};
-    final scaleLh = (_tabIndex == 2 && _instrumentView == 'piano')
+    final scaleRh = _tabIndex == 3 ? _scaleRhNotes().toSet() : <int>{};
+    final scaleLh = (_tabIndex == 3 && _instrumentView == 'piano')
         ? _scaleLhNotes(_scaleRhNotes()).toSet()
         : <int>{};
-    final chordGenPiano = _tabIndex == 1 && _instrumentView == 'piano';
+    final chordGenPiano =
+        (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'piano';
     final chordRh = chordGenPiano && _generatedChordJson != null
         ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
         : const <int>[];
     final chordLh = chordGenPiano
         ? chordRh.map((n) => n - 12).where((n) => n >= 0).toList()
         : const <int>[];
+    final chordRhSet = chordRh.toSet();
+    final chordLhSet = chordLh.toSet();
     final rhFinger = <int, int>{};
     final lhFinger = <int, int>{};
     if (chordRh.isNotEmpty) {
@@ -6492,7 +6828,10 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return SizedBox(
-      height: portrait && (_tabIndex == 1 || _tabIndex == 2) ? 126 : 140,
+      height: portrait &&
+              (_tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3)
+          ? 126
+          : 140,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final viewportW = constraints.maxWidth;
@@ -6518,7 +6857,7 @@ class _HomeScreenState extends State<HomeScreen>
                       final isActive = active.contains(midi);
                       final isExtra = extras.contains(midi);
                       final isScaleCurrent =
-                          _tabIndex == 2 &&
+                          _tabIndex == 3 &&
                           _scaleCurrentNote != null &&
                           _scaleCurrentNote == midi;
                       final currentIsLeft =
@@ -6528,6 +6867,12 @@ class _HomeScreenState extends State<HomeScreen>
                           !scaleRh.contains(midi);
                       final rh = rhFinger[midi];
                       final lh = lhFinger[midi];
+                      final genKeyHi = chordGenPiano &&
+                          _generatedChordJson != null &&
+                          _generationPianoHighlightMidi == midi;
+                      final inChordRh = chordRhSet.contains(midi);
+                      final inChordLhOnly =
+                          chordLhSet.contains(midi) && !chordRhSet.contains(midi);
                       return Listener(
                         onPointerDown: (event) => unawaited(
                           _beginInputDrag(midi, event.pointer, event.position),
@@ -6542,17 +6887,56 @@ class _HomeScreenState extends State<HomeScreen>
                           width: whiteW,
                           height: whiteH,
                           decoration: BoxDecoration(
-                            color: isScaleCurrent
-                                ? (currentIsLeft
-                                      ? const Color(0xFFFF8A2B)
-                                      : const Color(0xFF4DA3EA))
-                                : (isExtra
-                                      ? const Color(0xFFE04A4A)
-                                      : (isActive
-                                            ? const Color(0xFFF3C64F)
-                                            : const Color(0xFFF5F4EF))),
+                            color: chordGenPiano && _generatedChordJson != null
+                                ? (inChordRh
+                                      ? (genKeyHi
+                                            ? const Color(0xFF2878C8)
+                                            : const Color(0xFF4DA3EA))
+                                      : inChordLhOnly
+                                          ? (genKeyHi
+                                                ? const Color(0xFFCC5A00)
+                                                : const Color(0xFFFF8A2B))
+                                          : (isScaleCurrent
+                                                ? (currentIsLeft
+                                                      ? const Color(
+                                                          0xFFFF8A2B,
+                                                        )
+                                                      : const Color(
+                                                          0xFF4DA3EA,
+                                                        ))
+                                                : (isExtra
+                                                      ? const Color(
+                                                          0xFFE04A4A,
+                                                        )
+                                                      : (isActive
+                                                            ? const Color(
+                                                                0xFFF3C64F,
+                                                              )
+                                                            : const Color(
+                                                                0xFFF5F4EF,
+                                                              )))))
+                                : isScaleCurrent
+                                    ? (currentIsLeft
+                                          ? const Color(0xFFFF8A2B)
+                                          : const Color(0xFF4DA3EA))
+                                    : (isExtra
+                                          ? const Color(0xFFE04A4A)
+                                          : (isActive
+                                                ? const Color(0xFFF3C64F)
+                                                : const Color(0xFFF5F4EF))),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFAEB8C5)),
+                            border: Border.all(
+                              color: genKeyHi
+                                  ? const Color(0xFFF3BF2F)
+                                  : chordGenPiano &&
+                                          _generatedChordJson != null &&
+                                          (inChordRh || inChordLhOnly)
+                                      ? (inChordLhOnly
+                                            ? const Color(0xFFC8772F)
+                                            : const Color(0xFF2B6DA6))
+                                      : const Color(0xFFAEB8C5),
+                              width: genKeyHi ? 2.5 : 1,
+                            ),
                           ),
                           child: Stack(
                             children: <Widget>[
@@ -6560,13 +6944,19 @@ class _HomeScreenState extends State<HomeScreen>
                                 alignment: Alignment.bottomCenter,
                                 child: Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    _pcLabel(midi % 12),
-                                    style: const TextStyle(
-                                      color: Color(0xFF1A222D),
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 11,
+                                  child: Text.rich(
+                                    TextSpan(
+                                      children: _splitPitchClassLabelSpans(
+                                        _pcLabel(midi % 12),
+                                        const TextStyle(
+                                          color: Color(0xFF1A222D),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 11,
+                                        ),
+                                      ),
                                     ),
+                                    maxLines: 1,
+                                    softWrap: false,
                                   ),
                                 ),
                               ),
@@ -6600,7 +6990,7 @@ class _HomeScreenState extends State<HomeScreen>
                         final isActive = active.contains(midi);
                         final isExtra = extras.contains(midi);
                         final isScaleCurrent =
-                            _tabIndex == 2 &&
+                            _tabIndex == 3 &&
                             _scaleCurrentNote != null &&
                             _scaleCurrentNote == midi;
                         final currentIsLeft =
@@ -6610,6 +7000,12 @@ class _HomeScreenState extends State<HomeScreen>
                             !scaleRh.contains(midi);
                         final rh = rhFinger[midi];
                         final lh = lhFinger[midi];
+                        final genKeyHi = chordGenPiano &&
+                            _generatedChordJson != null &&
+                            _generationPianoHighlightMidi == midi;
+                        final inChordRh = chordRhSet.contains(midi);
+                        final inChordLhOnly =
+                            chordLhSet.contains(midi) && !chordRhSet.contains(midi);
                         return Positioned(
                           left: xForMidi(midi) - (blackW / 2),
                           top: 0,
@@ -6636,18 +7032,57 @@ class _HomeScreenState extends State<HomeScreen>
                               width: blackW,
                               height: blackH,
                               decoration: BoxDecoration(
-                                color: isScaleCurrent
-                                    ? (currentIsLeft
-                                          ? const Color(0xFFB35F00)
-                                          : const Color(0xFF0078D7))
-                                    : (isExtra
-                                          ? const Color(0xFFB33434)
-                                          : (isActive
-                                                ? const Color(0xFFC37B00)
-                                                : const Color(0xFF101822))),
+                                color: chordGenPiano && _generatedChordJson != null
+                                    ? (inChordRh
+                                          ? (genKeyHi
+                                                ? const Color(0xFF005CA6)
+                                                : const Color(0xFF0078D7))
+                                          : inChordLhOnly
+                                              ? (genKeyHi
+                                                    ? const Color(0xFFCC5A00)
+                                                    : const Color(0xFFFF8A2B))
+                                              : (isScaleCurrent
+                                                    ? (currentIsLeft
+                                                          ? const Color(
+                                                              0xFFB35F00,
+                                                            )
+                                                          : const Color(
+                                                              0xFF0078D7,
+                                                            ))
+                                                    : (isExtra
+                                                          ? const Color(
+                                                              0xFFB33434,
+                                                            )
+                                                          : (isActive
+                                                                ? const Color(
+                                                                    0xFFC37B00,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFF101822,
+                                                                  )))))
+                                    : isScaleCurrent
+                                        ? (currentIsLeft
+                                              ? const Color(0xFFB35F00)
+                                              : const Color(0xFF0078D7))
+                                        : (isExtra
+                                              ? const Color(0xFFB33434)
+                                              : (isActive
+                                                    ? const Color(0xFFC37B00)
+                                                    : const Color(
+                                                        0xFF101822,
+                                                      ))),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: const Color(0xFF6F7F96),
+                                  color: genKeyHi
+                                      ? const Color(0xFFF3BF2F)
+                                      : chordGenPiano &&
+                                              _generatedChordJson != null &&
+                                              (inChordRh || inChordLhOnly)
+                                          ? (inChordLhOnly
+                                                ? const Color(0xFF7A3D00)
+                                                : const Color(0xFF005CA6))
+                                          : const Color(0xFF6F7F96),
+                                  width: genKeyHi ? 2.5 : 1,
                                 ),
                               ),
                               child: Stack(
@@ -6660,15 +7095,19 @@ class _HomeScreenState extends State<HomeScreen>
                                         width: blackW - 4,
                                         child: FittedBox(
                                           fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            _pcLabel(midi % 12),
+                                          child: Text.rich(
+                                            TextSpan(
+                                              children: _splitPitchClassLabelSpans(
+                                                _pcLabel(midi % 12),
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 9,
+                                                ),
+                                              ),
+                                            ),
                                             maxLines: 1,
                                             softWrap: false,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 9,
-                                            ),
                                           ),
                                         ),
                                       ),
@@ -6740,7 +7179,7 @@ class _HomeScreenState extends State<HomeScreen>
     const openFretW = fretW / 2;
     const stringGap = 25.0;
     final detectionMode = _tabIndex == 0;
-    final chordMode = _tabIndex == 1;
+    final chordMode = _tabIndex == 1 || _tabIndex == 2;
     final selectedVariation = chordVariations.isEmpty
         ? null
         : chordVariations[chordVariant.clamp(0, chordVariations.length - 1)];
@@ -7466,6 +7905,131 @@ class _HomeScreenState extends State<HomeScreen>
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: content,
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCircleOfFifthsPage() {
+    return _buildModeScaffold(
+      controls: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
+          final circleBox = math.min(
+            520.0,
+            math.max(
+              200.0,
+              math.min(constraints.maxWidth, constraints.maxHeight),
+            ),
+          );
+          final media = MediaQuery.of(context);
+          final dpr = media.devicePixelRatio;
+          final circleStack = Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, c) {
+                    final sz = Size(c.maxWidth, c.maxHeight);
+                    Offset? downLocal;
+                    return GestureDetector(
+                      onTapDown: (TapDownDetails d) =>
+                          downLocal = d.localPosition,
+                      onTap: () {
+                        if (downLocal != null) {
+                          _onCircleCanvasInteraction(
+                            downLocal!,
+                            sz,
+                            longPress: false,
+                          );
+                        }
+                      },
+                      onLongPress: () {
+                        if (downLocal != null) {
+                          _onCircleCanvasInteraction(
+                            downLocal!,
+                            sz,
+                            longPress: true,
+                          );
+                        }
+                      },
+                      child: CustomPaint(
+                        painter: CircleOfFifthsPainter(
+                          devicePixelRatio: dpr,
+                          circleTonicPc: _circleTonicPc,
+                          circleKeyMode: _circleKeyMode,
+                          circleChordRootPc: _circleChordRootPc,
+                          generatedChord: _generatedChordJson,
+                          noteNameFromPc: _pcLabel,
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                top: 4,
+                left: 4,
+                child: _helpAnchor(
+                  'circle_play',
+                  _holdPlayButton(
+                    enabled: _generatedChordJson != null &&
+                        _extractMidiList(
+                          _generatedChordJson!,
+                          <String>['notes_midi'],
+                        ).isNotEmpty,
+                    active: _generationPlayPressed,
+                    label: null,
+                    onDown: () async {
+                      final notes = <int>[
+                        if (_generatedChordJson != null)
+                          ...(_instrumentView == 'guitar'
+                              ? _selectedChordGuitarNotes()
+                              : _extractMidiList(
+                                  _generatedChordJson!,
+                                  <String>['notes_midi'],
+                                )),
+                      ]..sort();
+                      if (notes.isEmpty) return;
+                      setState(() => _generationPlayPressed = true);
+                      await _startHeldChord(
+                        notes,
+                        instrument: _instrumentView == 'guitar'
+                            ? 'guitar'
+                            : 'piano',
+                      );
+                    },
+                    onUp: () {
+                      _stopHeldChord();
+                      if (mounted) {
+                        setState(() => _generationPlayPressed = false);
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          );
+          final content = Center(
+            child: _helpAnchor(
+              'circle_canvas',
+              SizedBox(
+                width: circleBox,
+                height: circleBox,
+                child: circleStack,
+              ),
+            ),
+          );
+          if (compactPhone) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: content,
+            );
+          }
+          return SizedBox(
+            height: constraints.maxHeight,
+            child: content,
           );
         },
       ),
@@ -8675,10 +9239,12 @@ class _MiniStaffPainter extends CustomPainter {
     if (keySignatureCount > 0) {
       final sigStep = compactWidth ? 13.5 : 18.0;
       final keyX0 = left + (compactWidth ? 54.0 : 82.0);
-      final accStyle = TextStyle(
+      final accBase = math.max(15.0, gap * 1.55);
+      final accStyleSharp = TextStyle(
         color: const Color(0xFFE9EDF2),
-        fontSize: math.max(15.0, gap * 1.55),
+        fontSize: accBase,
       );
+      final accStyleFlat = accStyleSharp.copyWith(fontSize: accBase * 1.14);
       var xKey = keyX0;
       final n = keySignatureCount.clamp(0, 7);
       for (int i = 0; i < n; i += 1) {
@@ -8692,6 +9258,7 @@ class _MiniStaffPainter extends CustomPainter {
           yTreble = _midiToTrebleY(_keySigTrebleSharpMidis[i], trebleTop, gap);
           yBass = _midiToBassY(_keySigBassSharpMidis[i], bassTop, gap);
         }
+        final accStyle = keySignaturePreferFlats ? accStyleFlat : accStyleSharp;
         final tpAcc = TextPainter(
           text: TextSpan(text: sym, style: accStyle),
           textDirection: TextDirection.ltr,
@@ -8783,18 +9350,31 @@ class _MiniStaffPainter extends CustomPainter {
           ..add(y);
         placedCols[col] = ys;
         Color? fillColor;
+        noteOutline.strokeWidth = 1.8;
         if (detectionActiveNotes.contains(midi)) {
           fillColor = const Color(0xFF4DA3EA);
           noteOutline.color = const Color(0xFFE9EDF2);
         } else if (generationPlayingNotes.contains(midi)) {
+          noteOutline.strokeWidth = 2.45;
           if (!generationGuitarMode &&
               lhSet.contains(midi) &&
               !rhSet.contains(midi)) {
-            fillColor = const Color(0xFFFF8A2B);
-            noteOutline.color = const Color(0xFFFFD2A7);
+            fillColor = const Color(0xFFFFA040);
+            noteOutline.color = const Color(0xFFFFE0C2);
           } else {
-            fillColor = const Color(0xFF4DA3EA);
+            fillColor = const Color(0xFF5ECEFF);
             noteOutline.color = const Color(0xFFE9EDF2);
+          }
+        } else if (rhSet.contains(midi) || lhSet.contains(midi)) {
+          // Mismo criterio que piano: contorno del acorde sin relleno en reposo.
+          // En guitarra, si además rellenábamos todas las notas en rhSet, al
+          // alinear rhSet con el pentagrama quedaban todas “marcadas”.
+          fillColor = null;
+          noteOutline.strokeWidth = 2.05;
+          if (lhSet.contains(midi) && !rhSet.contains(midi)) {
+            noteOutline.color = const Color(0xFFFF8A2B);
+          } else {
+            noteOutline.color = const Color(0xFF6FE0FF);
           }
         } else if (extras.contains(midi)) {
           fillColor = const Color(0xFFBF2F2F);
@@ -8914,8 +9494,8 @@ class _MiniStaffPainter extends CustomPainter {
     if (oldDelegate.generationLhNotes.length != generationLhNotes.length) {
       return true;
     }
-    if (oldDelegate.generationPlayingNotes.length !=
-        generationPlayingNotes.length) {
+    if (!setEquals(
+        oldDelegate.generationPlayingNotes, generationPlayingNotes)) {
       return true;
     }
     if (oldDelegate.generationGuitarMode != generationGuitarMode) return true;
@@ -8938,9 +9518,6 @@ class _MiniStaffPainter extends CustomPainter {
     }
     for (int i = 0; i < generationLhNotes.length; i += 1) {
       if (oldDelegate.generationLhNotes[i] != generationLhNotes[i]) return true;
-    }
-    for (final note in generationPlayingNotes) {
-      if (!oldDelegate.generationPlayingNotes.contains(note)) return true;
     }
     return false;
   }

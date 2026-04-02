@@ -293,6 +293,7 @@ const UI_TEXTS = {
     help_metro_scale_axis: "Escala/eje del metrónomo: marca el recorrido y la subdivisión del pulso.",
     help_metro_red_ball: "Bola roja: indica la posición instantánea del pulso en movimiento.",
     detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
+    circle_staff_key_hint: "Armadura = tonalidad del anillo (clic en tónica), no la raíz del acorde con Mayús. En Do mayor, Sol como V sigue sin # en armadura.",
     scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
     staff_no_active_notes: "Sin notas activas",
   },
@@ -467,6 +468,7 @@ const UI_TEXTS = {
     help_metro_scale_axis: "Metronome scale/axis: shows pulse travel and subdivision.",
     help_metro_red_ball: "Red ball: shows current pulse position in motion.",
     detection_staff_shift_hint: "Hold Shift to sustain notes",
+    circle_staff_key_hint: "Key signature = key from the ring (tonic click), not the Shift chord root. In C major, G as V still has no sharps in the signature.",
     scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
     staff_no_active_notes: "No active notes",
   },
@@ -2485,6 +2487,14 @@ function setInstrument(inst) {
   }
   refreshGenerationInversionControlState();
   renderGuitarVariationButtons();
+  // Sin esto, al alternar piano/guitarra el pentagrama seguía con el dibujo anterior
+  // hasta pulsar una nota (que ya llamaba a renderStaff).
+  if (activeModeSupportsInstrument()) {
+    renderInstrument();
+    if (activeModeSupportsStaff()) {
+      renderStaff();
+    }
+  }
 }
 
 function renderGuitarVariationButtons() {
@@ -3523,11 +3533,15 @@ function getStaffContext() {
     sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
     return { signature: sig, tonicPc: tonic, isScale: true };
   }
-  if (state.mode === "circle_fifths" && state.generatedChord) {
-    const keyTonic = Number(circleMajorTonicPcForTheory());
-    let sig = keySignatureCountForTonic(keyTonic, false, tieFromSelect);
-    sig = applyFlatKeySigIfUiFlatAndTie(sig, keyTonic, false);
-    return { signature: sig, tonicPc: Number(state.generatedChord.root_pc), isScale: false };
+  // Tonalidad = anillo (tónica + mayor/menor), no la raíz del acorde diatónico elegido.
+  // Así la armadura se dibuja igual al cambiar solo de grado (Shift+clic) que al cambiar
+  // de tónica; antes dependía de `generatedChord` y `tonicPc` usaba el root del acorde.
+  if (state.mode === "circle_fifths") {
+    const keyTonic = ((state.circleTonicPc % 12) + 12) % 12;
+    const isMinorKey = state.circleKeyMode === "minor";
+    let sig = keySignatureCountForTonic(keyTonic, isMinorKey, tieFromSelect);
+    sig = applyFlatKeySigIfUiFlatAndTie(sig, keyTonic, isMinorKey);
+    return { signature: sig, tonicPc: keyTonic, isScale: false };
   }
   if (state.mode === "generation" && state.generatedChord) {
     const isMinor = isMinorSuffix(state.generatedChord.suffix);
@@ -4105,6 +4119,25 @@ function getGenerationBaseNotes() {
     .sort((a, b) => a - b);
 }
 
+/** Divide texto para canvas (measureText) en líneas que caben en maxWidth px. */
+function wrapCanvasTextLines(ctx, text, maxWidth) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const lines = [];
+  let line = words[0];
+  for (let i = 1; i < words.length; i += 1) {
+    const test = `${line} ${words[i]}`;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+    } else {
+      lines.push(line);
+      line = words[i];
+    }
+  }
+  lines.push(line);
+  return lines;
+}
+
 function renderStaff() {
   if (!activeModeSupportsStaff()) return;
   const canvas = el("staffCanvas");
@@ -4189,6 +4222,20 @@ function renderStaff() {
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillText(tr("detection_staff_shift_hint"), width / 2, height - 10);
+  }
+  if (state.mode === "circle_fifths") {
+    ctx.fillStyle = "#8fa1b7";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    const hint = tr("circle_staff_key_hint");
+    const maxW = Math.max(280, width - 48);
+    const lines = wrapCanvasTextLines(ctx, hint, maxW);
+    let y = height - 10;
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      ctx.fillText(lines[i], width / 2, y);
+      y -= 14;
+    }
   }
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
   let scaleCurrentDisplayMidi = scaleCurrentMidi;

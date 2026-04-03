@@ -177,6 +177,96 @@ class UiMixin:
             """
         )
 
+    def _qt_apply_guitar_handedness_combo_style(self, w: Any) -> None:
+        """Mismo criterio visual que la web: `style.css` → `#guitarHandedness` (select)."""
+        if not hasattr(w, "setStyleSheet"):
+            return
+        # Flecha: `HandednessComboBox` la pinta en `paintEvent` (QSS `image:` en ::down-arrow no es fiable en macOS).
+        # Ocultamos el subcontrol nativo para no duplicar ni mostrar rectángulos vacíos.
+        # apps/web/static/style.css — .instrument-dock #guitarHandedness
+        web_bg = "#17273a"
+        web_border = "#4a6180"
+        web_fg = "#e8effa"
+        web_border_hover = "#5a7194"
+        web_popup_bg = "#17273a"
+        web_popup_sel = "#243a52"
+        combo_h = 38
+        w.setStyleSheet(
+            f"""
+            QComboBox {{
+                background-color: {web_bg};
+                color: {web_fg};
+                border: 1px solid {web_border};
+                border-radius: 10px;
+                padding: 0 28px 0 8px;
+                min-height: 22px;
+                max-height: {combo_h}px;
+                font-weight: bold;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {web_border_hover};
+            }}
+            QComboBox:focus {{
+                border: 1px solid {web_border_hover};
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 26px;
+                border: none;
+                border-left: 1px solid {web_border};
+                border-top-right-radius: 9px;
+                border-bottom-right-radius: 9px;
+                background: transparent;
+            }}
+            QComboBox::down-arrow {{
+                width: 0px;
+                height: 0px;
+                border: none;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {web_popup_bg};
+                color: {web_fg};
+                selection-background-color: {web_popup_sel};
+                selection-color: {web_fg};
+                border: 1px solid {web_border};
+                outline: 0;
+                border-radius: 8px;
+                padding: 2px;
+            }}
+            """
+        )
+        try:
+            from PySide6.QtGui import QFont
+
+            f = w.font()
+            f.setBold(True)
+            w.setFont(f)
+        except Exception:
+            pass
+        self._apply_guitar_handedness_combo_geometry(w)
+
+    def _apply_guitar_handedness_combo_geometry(self, w: Any | None = None) -> None:
+        """Tras `pack(fill=X)` el QComboBox recupera política vertical; altura como el `<select>` web (38px)."""
+        combo = w if w is not None else getattr(self, "guitar_handedness_combo", None)
+        if combo is None or not hasattr(combo, "setFixedHeight"):
+            return
+        try:
+            # Web: min-width 86px; en escritorio alineamos al ancho de Piano/Guitarra (124).
+            combo.setMinimumWidth(124)
+        except Exception:
+            pass
+        try:
+            combo.setFixedHeight(38)
+        except Exception:
+            pass
+        try:
+            from PySide6.QtWidgets import QSizePolicy
+
+            combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        except Exception:
+            pass
+
     def _build_ui(self) -> None:
         self._setup_typography()
         self.configure(bg=self.color_bg)
@@ -690,34 +780,46 @@ class UiMixin:
         self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 4))
 
         self.generated_chord_var = tk.StringVar(value="-")
-        # Un solo recuadro (como web): etiqueta + nombre, sin marco anidado que dibuje líneas entre ambos.
+        # Un solo recuadro (como web): etiqueta + nombre. Borde vía QSS con padding en `Widget._apply_tk_frame_surface`.
         self.staff_generated_chord_frame = tk.Frame(
             self.left_panel.content,
             bg="#1a2330",
             bd=0,
-            highlightthickness=1,
-            highlightbackground="#4a5668",
-            highlightcolor="#4a5668",
+            highlightthickness=0,
         )
         self.staff_generated_chord_caption = tk.Label(
             self.staff_generated_chord_frame,
             text="",
-            bg="#1a2330",
+            bg="transparent",
             fg=self.color_muted,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 15),
             highlightthickness=0,
         )
-        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(10, 4), pady=6)
+        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
         self.staff_generated_chord_value = tk.Label(
             self.staff_generated_chord_frame,
             textvariable=self.generated_chord_var,
-            bg="#1a2330",
+            bg="transparent",
             fg=self.color_accent,
             font=(self.ui_font_family, 20, "bold"),
             anchor="w",
             highlightthickness=0,
         )
-        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=6, padx=(0, 10))
+        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2))
+        # Borde en el frame; el hueco interior lo marca el layout (Qt a veces no respeta padding QSS para hijos).
+        try:
+            _sf = self.staff_generated_chord_frame
+            if hasattr(_sf, "setStyleSheet"):
+                _sf.setStyleSheet(
+                    "background-color: #1a2330; border: 1px solid #4a5668;"
+                )
+            from PySide6.QtWidgets import QHBoxLayout
+
+            _lay = _sf.layout()
+            if isinstance(_lay, QHBoxLayout):
+                _lay.setContentsMargins(8, 4, 8, 4)
+        except Exception:
+            pass
 
         self.generated_chord_row = tk.Frame(
             self.tab_generation_frame,
@@ -1752,7 +1854,7 @@ class UiMixin:
 
         self.handedness_buttons_are_images = False
         self.guitar_handedness_var = tk.StringVar(value="")
-        self.guitar_handedness_combo = ttk.Combobox(
+        self.guitar_handedness_combo = ttk.HandednessComboBox(
             self.instrument_view_switch_side,
             textvariable=self.guitar_handedness_var,
             state="readonly",
@@ -1760,7 +1862,7 @@ class UiMixin:
             font=(self.ui_font_family, 13),
         )
         self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
-        self._qt_apply_dark_combobox_style(self.guitar_handedness_combo)
+        self._qt_apply_guitar_handedness_combo_style(self.guitar_handedness_combo)
 
         self.scale_transport_frame = tk.Frame(container, bg=self.cget("background"))
         self.scale_transport_frame.configure(height=self.instrument_toolbar_height)

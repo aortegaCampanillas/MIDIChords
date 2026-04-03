@@ -392,6 +392,17 @@ class GenerationMixin:
             if pattern.suffix == self.generation_pattern_suffix:
                 return pattern
         return CHORD_PATTERNS[0]
+
+    def _generation_piano_staff_midi_notes(self) -> set[int]:
+        """Notas MIDI que el pentagrama muestra en piano: clave de sol + fa (una octava abajo).
+
+        Debe coincidir con `display_notes` en `redraw_staff` (generación y círculo de quintas).
+        En guitarra solo la vista previa del acorde (sin duplicar octava).
+        """
+        rh = set(self.generated_preview_notes)
+        if self.instrument_view != "piano":
+            return rh
+        return rh | {int(n - 12) for n in rh if int(n - 12) >= 0}
     def _update_generation_preview(self) -> None:
         # No usar `generated_playing_notes` aquí: incluye notas sueltas (MIDI/clic) y al
         # recalcular la vista previa no deben borrarse (p. ej. Qt puede refrescar combos
@@ -480,7 +491,7 @@ class GenerationMixin:
                 pass
             setattr(self, "_preview_chord_after_id", None)
         self._stop_generated_playback()
-        notes = sorted(self.generated_preview_notes)
+        notes = sorted(self._generation_piano_staff_midi_notes())
         if self.instrument_view == "guitar":
             for note in notes:
                 self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
@@ -623,14 +634,16 @@ class GenerationMixin:
         if not self.generated_preview_notes:
             return
         self._stop_generated_playback()
+        notes = sorted(self._generation_piano_staff_midi_notes())
         if self.instrument_view == "guitar":
-            for note in sorted(self.generated_preview_notes):
+            for note in notes:
                 self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
         else:
-            for note in sorted(self.generated_preview_notes):
+            for note in notes:
                 self.audio_engine.note_on(note, 108)
                 self.generated_playing_notes.add(note)
         if self.generation_tab_active:
+            self.redraw_keyboard()
             self.redraw_staff()
     def _start_generated_hold(self, source: str) -> None:
         if source == "button":

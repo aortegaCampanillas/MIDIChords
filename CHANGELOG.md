@@ -10,6 +10,12 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (Qt)**: el selector **Diestro / Zurdo** usa los mismos parámetros que el `<select id="guitarHandedness">` de la web (`style.css`: altura **38px**, radio **10px**, fondo **#17273a**, borde **#4a6180**, texto **#e8effa**, negrita). La flecha se pinta en **`HandednessComboBox.paintEvent`** con **`assets/ui/combo_arrow_down.png`** (QSS `image:` en `::down-arrow` no es fiable en macOS).
+
+- **Escritorio (Qt)**: fila **Acorde:** + nombre (generación / círculo) — de nuevo **dos** `tk.Label`; el marco usa **borde + padding** en **una** hoja QSS (`setStyleSheet` en el `Frame`, sin `highlightthickness`) para que el trazo no quede tapado y el texto no se salga. El **`QLabel`** conserva **`fg`** al redimensionar (`configure(wraplength=…)`), para que el nombre del acorde no vuelva a **blanco** y use el color **accent** (dorado del botón Piano).
+
+- **Escritorio (generación / círculo de quintas, piano)**: al pulsar **play**, el audio solo sonaba las notas de la **clave de sol**; ahora incluye también la **clave de fa** (misma lógica que el pentagrama: una octava abajo).
+
 - **Web (círculo de quintas)**: la armadura del pentagrama seguía la **raíz del acorde diatónico** (p. ej. tras Mayús+clic); ahora usa la **tonalidad del anillo** (`circleTonicPc` + modo mayor/menor), alineado con la teoría y con Flutter. Pista breve en el staff; al alternar **piano/guitarra** se redibuja el pentagrama sin esperar a tocar notas.
 
 - **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.

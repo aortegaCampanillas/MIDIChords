@@ -655,6 +655,13 @@ class Label(Widget):
         ):
             if _k in _kwargs:
                 _frame_kw[_k] = _kwargs.pop(_k)
+        # El fondo va en el QLabel interno, no en el QWidget contenedor: si ambos llevan el mismo
+        # color con WA_StyledBackground, Qt/macOS puede dibujar solo trozos de borde en las esquinas.
+        self._label_bg: str = ""
+        if "bg" in _frame_kw:
+            self._label_bg = str(_frame_kw.pop("bg") or "")
+        elif "background" in _frame_kw:
+            self._label_bg = str(_frame_kw.pop("background") or "")
         super().__init__(master, **_frame_kw)
         self._textvariable: QtStringVar | None = _kwargs.pop("textvariable", None)
         self._wraplength: int | None = None
@@ -673,6 +680,11 @@ class Label(Widget):
                     self._label.setMaximumWidth(wl)
             except (TypeError, ValueError):
                 pass
+        _fg_raw = _kwargs.get("fg") or _kwargs.get("foreground")
+        self._label_fg: str | None = None
+        if _fg_raw is not None:
+            s = str(_fg_raw).strip()
+            self._label_fg = s if s else None
         self._apply_label_alignment(_kwargs)
         self._apply_label_style(_kwargs)
         cur = str(_kwargs.get("cursor", "") or "")
@@ -688,6 +700,12 @@ class Label(Widget):
             self._textvariable.trace_add("write", _sync_var)
         self._label.setGeometry(0, 0, self.width(), self.height())
         self._refresh_label_minsize()
+        self._apply_label_container_surface()
+
+    def _apply_label_container_surface(self) -> None:
+        """Contenedor transparente; el color de fondo real está solo en `self._label`."""
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background-color: transparent; border: none; outline: none; margin: 0; padding: 0;")
 
     def _apply_label_alignment(self, spec: dict[str, Any]) -> None:
         anchor = str(spec.get("anchor", "w") or "w").lower()
@@ -724,10 +742,19 @@ class Label(Widget):
 
     def _apply_label_style(self, spec: dict[str, Any]) -> None:
         fg = spec.get("fg") or spec.get("foreground")
+        if fg is None:
+            fg = getattr(self, "_label_fg", None)
+        bg = (getattr(self, "_label_bg", "") or "").strip() or "transparent"
+        css_parts = [
+            f"background-color: {bg};",
+            "border: none;",
+            "outline: none;",
+            "margin: 0px;",
+            "padding: 0px;",
+        ]
         if fg is not None:
-            self._label.setStyleSheet(
-                f"color: {fg}; background: transparent; border: none; outline: none; padding: 0px;"
-            )
+            css_parts.insert(0, f"color: {fg};")
+        self._label.setStyleSheet(" ".join(css_parts))
         font_spec = spec.get("font")
         if font_spec is not None:
             self._label.setFont(_font_from_tk_tuple(font_spec))
@@ -737,6 +764,16 @@ class Label(Widget):
         self._label.setGeometry(0, 0, self.width(), self.height())
 
     def configure(self, **kwargs: Any) -> None:
+        if "bg" in kwargs:
+            self._label_bg = str(kwargs.pop("bg") or "")
+        if "background" in kwargs:
+            self._label_bg = str(kwargs.pop("background") or "")
+        if "fg" in kwargs:
+            v = kwargs.pop("fg", None)
+            self._label_fg = str(v).strip() if v is not None and str(v).strip() else None
+        if "foreground" in kwargs:
+            v = kwargs.pop("foreground", None)
+            self._label_fg = str(v).strip() if v is not None and str(v).strip() else None
         text = kwargs.get("text")
         if text is not None:
             self._label.setText(str(text))
@@ -758,9 +795,18 @@ class Label(Widget):
             self._refresh_label_minsize()
         self._apply_label_alignment(kwargs)
         self._apply_label_style(kwargs)
+        self._apply_label_container_surface()
         if "cursor" in kwargs and str(kwargs["cursor"]) in {"hand2", "hand1"}:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         super().configure(**kwargs)
+
+    def cget(self, key: str) -> str:  # type: ignore[override]
+        k = str(key)
+        if k in {"background", "bg"}:
+            return getattr(self, "_label_bg", "") or ""
+        if k in {"fg", "foreground"}:
+            return getattr(self, "_label_fg", "") or ""
+        return super().cget(key)
 
 
 class Button(Widget):

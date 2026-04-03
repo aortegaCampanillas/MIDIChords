@@ -591,6 +591,7 @@ class MidiChordAnalyzerApp(
                     self.guitar_handedness_combo.blockSignals(False)
                 except Exception:
                     pass
+        self._apply_guitar_handedness_combo_geometry()
 
 
 

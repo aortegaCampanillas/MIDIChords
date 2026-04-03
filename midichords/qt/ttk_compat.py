@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, cast
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPaintEvent, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -192,6 +193,42 @@ class Combobox(QComboBox, _LayoutCompat):
         if k == "state":
             return "disabled" if not self.isEnabled() else "normal"
         raise KeyError(key)
+
+
+class HandednessComboBox(Combobox):
+    """Flecha del desplegable dibujada en `paintEvent` (QSS `image:` en `::down-arrow` suele fallar en macOS/Qt)."""
+
+    def __init__(self, master=None, **kwargs: Any) -> None:
+        super().__init__(master, **kwargs)
+        self._arrow_pix: QPixmap | None = None
+        try:
+            from midichords.core.app_constants import ASSETS_DIR
+
+            p = ASSETS_DIR / "ui" / "combo_arrow_down.png"
+            if p.is_file():
+                pix = QPixmap()
+                if pix.load(str(p)):
+                    self._arrow_pix = pix
+        except Exception:
+            self._arrow_pix = None
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+        if self._arrow_pix is None or self._arrow_pix.isNull():
+            return
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            if not self.isEnabled():
+                painter.setOpacity(0.45)
+            aw = self._arrow_pix.width()
+            ah = self._arrow_pix.height()
+            margin = 6
+            x = float(self.width()) - margin - aw
+            y = (float(self.height()) - ah) / 2.0
+            painter.drawPixmap(int(round(x)), int(round(y)), self._arrow_pix)
+        finally:
+            painter.end()
 
 
 class Spinbox(QSpinBox, _LayoutCompat):

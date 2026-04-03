@@ -11,7 +11,7 @@ from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, Play
 
 class UiMixin:
     def _available_mode_keys(self) -> list[str]:
-        modes = ["detection", "generation", "scales", "metronome"]
+        modes = ["detection", "generation", "circle_fifths", "scales", "metronome"]
         if bool(getattr(self, "tuner_enabled", True)):
             modes.append("tuner")
         return modes
@@ -355,6 +355,16 @@ class UiMixin:
         )
         self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.staff_canvas.pack(fill=tk.BOTH, expand=True)
+        self.detection_help_label = tk.Label(
+            self.left_panel.content,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            justify="left",
+            anchor="w",
+            wraplength=520,
+            font=(self.ui_font_family, 16),
+        )
 
         self.right_panel_title_label = tk.Label(
             self.right_panel.content,
@@ -396,6 +406,14 @@ class UiMixin:
             padx=6,
             pady=4,
         )
+        self.tab_circle_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
+        )
         self.tab_scale_frame = tk.Frame(
             self.chord_panel,
             bg=self.color_surface_alt,
@@ -424,6 +442,7 @@ class UiMixin:
         # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
         for _hidden_tab in (
             self.tab_generation_frame,
+            self.tab_circle_frame,
             self.tab_scale_frame,
             self.tab_metronome_frame,
             self.tab_tuner_frame,
@@ -438,17 +457,6 @@ class UiMixin:
             font=(self.ui_font_family, 22, "bold"),
         )
         self.chord_title_label.pack(anchor="w", pady=(0, 2))
-        self.detection_help_label = tk.Label(
-            self.tab_detection_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            justify="left",
-            anchor="w",
-            wraplength=520,
-            font=(self.ui_font_family, 16),
-        )
-        self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 1))
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
         # El botón MIDI solo ocupa el ancho del texto (no expande a todo el panel).
         # Margen inferior para separar los botones del bloque de resultados.
@@ -682,6 +690,35 @@ class UiMixin:
         self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 4))
 
         self.generated_chord_var = tk.StringVar(value="-")
+        # Un solo recuadro (como web): etiqueta + nombre, sin marco anidado que dibuje líneas entre ambos.
+        self.staff_generated_chord_frame = tk.Frame(
+            self.left_panel.content,
+            bg="#1a2330",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#4a5668",
+            highlightcolor="#4a5668",
+        )
+        self.staff_generated_chord_caption = tk.Label(
+            self.staff_generated_chord_frame,
+            text="",
+            bg="#1a2330",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 13),
+            highlightthickness=0,
+        )
+        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(10, 4), pady=6)
+        self.staff_generated_chord_value = tk.Label(
+            self.staff_generated_chord_frame,
+            textvariable=self.generated_chord_var,
+            bg="#1a2330",
+            fg=self.color_accent,
+            font=(self.ui_font_family, 20, "bold"),
+            anchor="w",
+            highlightthickness=0,
+        )
+        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=6, padx=(0, 10))
+
         self.generated_chord_row = tk.Frame(
             self.tab_generation_frame,
             bg=self.color_surface_alt,
@@ -760,14 +797,6 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 15, "bold"),
         )
-        self.generated_chord_inner_label = tk.Label(
-            self.generation_result_inner,
-            textvariable=self.generated_chord_var,
-            bg="#17273a",
-            fg=self.color_text,
-            font=(self.ui_font_family, 38, "bold"),
-        )
-        self.generated_chord_inner_label.pack(anchor="w", pady=(0, 5))
         self.generated_notes_caption_label.pack(anchor="w")
         self.generated_notes_var = tk.StringVar(value="-")
         self.generated_notes_label = tk.Label(
@@ -807,6 +836,42 @@ class UiMixin:
         self.tab_generation_frame.rowconfigure(3, weight=0)
         self.tab_generation_frame.rowconfigure(4, weight=0)
         self.tab_generation_frame.rowconfigure(5, weight=1)
+
+        self.circle_title_label = tk.Label(
+            self.tab_circle_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 20, "bold"),
+        )
+        self.circle_title_label.pack(anchor="w", pady=(0, 4))
+        self.circle_canvas_shell = tk.Frame(self.tab_circle_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        self.circle_canvas_shell.pack(fill=tk.BOTH, expand=True)
+        self.circle_canvas = tk.Canvas(
+            self.circle_canvas_shell,
+            bg="#1a2330",
+            width=480,
+            height=480,
+            highlightthickness=0,
+            bd=0,
+            cursor="hand2",
+        )
+        self.circle_canvas.pack(fill=tk.BOTH, expand=True)
+        self.circle_play_btn = PlayTransportButton(
+            self.circle_canvas_shell,
+            command=lambda: None,
+            width=58,
+            height=34,
+        )
+        # Mismo criterio que la web: margen desde la esquina superior izquierda del área del círculo.
+        self.circle_play_btn.place(x=10, y=10, anchor="nw", width=58, height=34)
+        if hasattr(self.circle_play_btn, "raise_"):
+            self.circle_play_btn.raise_()
+        elif hasattr(self.circle_play_btn, "lift"):
+            self.circle_play_btn.lift()
+        self.circle_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
+        self.circle_canvas.bind("<Configure>", self._on_circle_canvas_configure)
+        self.circle_canvas.bind("<Button-1>", self._on_circle_canvas_click)
 
         self.scale_panel_title_label = tk.Label(
             self.tab_scale_frame,
@@ -1841,6 +1906,7 @@ class UiMixin:
         self.bind_all("<Button-4>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-5>", self._on_any_mousewheel, add="+")
         self.chord_panel.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
+        self.staff_canvas.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
         self._refresh_right_panel_wraplengths()
         self._set_instrument_view(self.instrument_view)
         self._refresh_top_panel_titles()
@@ -1901,6 +1967,69 @@ class UiMixin:
         self._set_panel_title(self.left_panel_title_label, left_title)
         self._set_panel_title(self.right_panel_title_label, right_title)
 
+    def _refresh_detection_help_visibility(self) -> None:
+        """Ayuda de detección: bajo el pentagrama (panel izquierdo), solo en modo detección."""
+        if not hasattr(self, "detection_help_label"):
+            return
+        visible = self.current_mode == "detection"
+        try:
+            if hasattr(self.detection_help_label, "setVisible"):
+                self.detection_help_label.setVisible(bool(visible))  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        if visible:
+            try:
+                self.detection_help_label.pack(
+                    fill=tk.X,
+                    anchor="w",
+                    pady=(6, 0),
+                    after=self.staff_canvas,
+                )
+            except Exception:
+                try:
+                    self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(6, 0))
+                except Exception:
+                    pass
+        else:
+            try:
+                self.detection_help_label.pack_forget()
+            except Exception:
+                pass
+
+    def _refresh_staff_generated_chord_overlay(self) -> None:
+        """Muestra el nombre del acorde generado sobre el pentagrama (generación y círculo de quintas)."""
+        if not hasattr(self, "staff_generated_chord_frame"):
+            return
+        show = bool(self.generation_tab_active or self.circle_fifths_tab_active)
+        try:
+            if hasattr(self.staff_generated_chord_frame, "setVisible"):
+                self.staff_generated_chord_frame.setVisible(bool(show))  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        if show:
+            try:
+                self.staff_generated_chord_frame.pack(
+                    fill=tk.X,
+                    anchor="w",
+                    pady=(0, 8),
+                    before=self.staff_canvas,
+                )
+            except Exception:
+                try:
+                    self.staff_generated_chord_frame.pack(
+                        fill=tk.X,
+                        anchor="w",
+                        pady=(0, 8),
+                        before=self.staff_canvas,
+                    )
+                except Exception:
+                    pass
+        else:
+            try:
+                self.staff_generated_chord_frame.pack_forget()
+            except Exception:
+                pass
+
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))
         self.top_title_label.configure(text=self.tr("app_title"))
@@ -1913,6 +2042,10 @@ class UiMixin:
         self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes"))
         self.intervals_caption_label.configure(text=self.tr("label_intervals"))
         self.generated_title_label.configure(text=self.tr("mode_generation"))
+        if hasattr(self, "circle_title_label"):
+            self.circle_title_label.configure(text=self.tr("mode_circle_fifths"))
+        if hasattr(self, "staff_generated_chord_caption"):
+            self.staff_generated_chord_caption.configure(text=self.tr("label_chord"))
         self.generation_root_label.configure(text=self.tr("label_root_note"))
         self.generation_variant_label.configure(text=self.tr("label_variant"))
         self.generation_inversion_label.configure(text=self.tr("label_inversion"))
@@ -1975,6 +2108,8 @@ class UiMixin:
         self.save_config()
         self._refresh_note_accidental_toggle_styles()
         self.update_music_views()
+        if getattr(self, "circle_fifths_tab_active", False):
+            self._circle_run_generate()
         if self.generation_tab_active:
             self._refresh_generation_controls()
         if self.scale_tab_active:
@@ -2120,17 +2255,27 @@ class UiMixin:
         try:
             panel_width = int(self.chord_panel.winfo_width())
         except Exception:
-            return
-        if panel_width <= 1:
-            return
+            panel_width = 0
+        try:
+            left_w = int(self.staff_canvas.winfo_width())
+        except Exception:
+            left_w = 0
 
-        help_wrap = max(220, panel_width - 56)
-        result_wrap = max(480, panel_width - 84)
-
+        help_wrap = max(220, left_w - 56) if left_w > 1 else max(220, panel_width - 56)
         try:
             self.detection_help_label.configure(wraplength=help_wrap)
         except Exception:
             pass
+        if left_w > 1 and hasattr(self, "staff_generated_chord_value"):
+            try:
+                self.staff_generated_chord_value.configure(wraplength=max(120, left_w - 100))
+            except Exception:
+                pass
+
+        if panel_width <= 1:
+            return
+
+        result_wrap = max(480, panel_width - 84)
 
         for widget_name in (
             "notes_label",
@@ -2419,6 +2564,8 @@ class UiMixin:
     def _mode_label(self, mode_key: str) -> str:
         if mode_key == "generation":
             return self.tr("mode_generation")
+        if mode_key == "circle_fifths":
+            return self.tr("mode_circle_fifths")
         if mode_key == "scales":
             return self.tr("mode_scales")
         if mode_key == "metronome":
@@ -2436,8 +2583,10 @@ class UiMixin:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
 
-        from PySide6.QtCore import QRect, Qt
+        from PySide6.QtCore import QRect, QRectF, Qt
         from PySide6.QtGui import QColor, QFont, QPainter, QPen
+
+        _CIRCLE_FIFTHS_ICON_MARKER = "__CIRCLE_FIFTHS_ICON__"
 
         class ModeCard(tk.Frame):  # type: ignore[misc]
             def __init__(
@@ -2479,6 +2628,31 @@ class UiMixin:
                 self._text_font_size = int(text_font_size)
                 self.setCursor(tk.Qt.CursorShape.PointingHandCursor if hasattr(tk, "Qt") else None)  # type: ignore[attr-defined]
 
+            def _draw_circle_fifths_icon(self, painter: QPainter, icon_rect: QRect) -> None:
+                """Icono vectorial (rueda 12 sectores); evita Unicode poco soportado (p. ej. U+2B58 → ?)."""
+                rect = QRectF(icon_rect)
+                cw = float(rect.center().x())
+                ch = float(rect.center().y())
+                side = min(rect.width(), rect.height())
+                r = side * 0.38
+                outer = QRectF(cw - r, ch - r, 2.0 * r, 2.0 * r)
+                bg = QColor(self._hover_bg_color if self._hover else self._bg_color)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+                for i in range(12):
+                    c = QColor("#c9b8f0") if i % 2 == 0 else QColor("#6f58b8")
+                    painter.setPen(Qt.PenStyle.NoPen)
+                    painter.setBrush(c)
+                    painter.drawPie(outer, int((75 + i * 30) * 16), 30 * 16)
+                hole = r * 0.36
+                painter.setBrush(bg)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.drawEllipse(QRectF(cw - hole, ch - hole, 2.0 * hole, 2.0 * hole))
+                pen = QPen(QColor(self._icon_color), max(1.8, r * 0.07))
+                pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawEllipse(outer)
+
             def set_hover(self, hovering: bool) -> None:
                 self._hover = bool(hovering)
                 self.update()
@@ -2509,12 +2683,15 @@ class UiMixin:
                 icon_rect = QRect(0, int(h * 0.10), w, int(h * 0.42))
                 text_rect = QRect(0, int(h * 0.44), w, int(h * 0.56))
 
-                # Icono
-                icon_font = QFont(self._font_family, self._icon_font_size)
-                icon_font.setBold(True)
-                painter.setFont(icon_font)
-                painter.setPen(QColor(self._icon_color))
-                painter.drawText(icon_rect, int(Qt.AlignmentFlag.AlignCenter), self._icon_txt)
+                # Icono (texto o dibujo vectorial para modos sin glifo fiable en la fuente)
+                if self._icon_txt == _CIRCLE_FIFTHS_ICON_MARKER:
+                    self._draw_circle_fifths_icon(painter, icon_rect)
+                else:
+                    icon_font = QFont(self._font_family, self._icon_font_size)
+                    icon_font.setBold(True)
+                    painter.setFont(icon_font)
+                    painter.setPen(QColor(self._icon_color))
+                    painter.drawText(icon_rect, int(Qt.AlignmentFlag.AlignCenter), self._icon_txt)
 
                 # Texto
                 text_font_size = self._text_font_size
@@ -2559,6 +2736,7 @@ class UiMixin:
         mode_cards = {
             "detection": ("◎", "#ffa320"),
             "generation": ("♬", "#39c8ff"),
+            "circle_fifths": (_CIRCLE_FIFTHS_ICON_MARKER, "#9b7bff"),
             "scales": ("♪", "#e4eb3f"),
             "metronome": ("⏱", "#ff8f40"),
             "tuner": ("🎸", "#8eea6b"),
@@ -2625,6 +2803,8 @@ class UiMixin:
         selected = self.mode_var.get()
         if selected == self._mode_label("generation"):
             self.current_mode = "generation"
+        elif selected == self._mode_label("circle_fifths"):
+            self.current_mode = "circle_fifths"
         elif selected == self._mode_label("scales"):
             self.current_mode = "scales"
         elif selected == self._mode_label("metronome"):
@@ -2643,9 +2823,12 @@ class UiMixin:
         self.config_data["mode"] = self.current_mode
         self.save_config()
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
-        self._set_generation_toolbar_layout(show_instrument_buttons=self.current_mode == "generation")
+        self._set_generation_toolbar_layout(
+            show_instrument_buttons=self.current_mode in ("generation", "circle_fifths"),
+        )
 
-        self.generation_tab_active = self.current_mode == "generation"
+        self.generation_tab_active = self.current_mode in ("generation", "circle_fifths")
+        self.circle_fifths_tab_active = self.current_mode == "circle_fifths"
         self.scale_tab_active = self.current_mode == "scales"
         self.metronome_tab_active = self.current_mode == "metronome"
         self.tuner_tab_active = self.current_mode == "tuner"
@@ -2683,7 +2866,20 @@ class UiMixin:
         self.metronome_space_pressed = False
         self.tuner_space_pressed = False
 
-        if self.generation_tab_active:
+        if self.current_mode == "circle_fifths":
+            self.instrument_panel.pack(fill=tk.X, expand=False)
+            self.scale_transport_frame.pack_forget()
+            self._show_generation_instrument_buttons()
+            self._set_instrument_view(self.instrument_view)
+            self._clear_live_input_state()
+            self.tab_detection_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack(fill=tk.BOTH, expand=True)
+            self._circle_run_generate()
+        elif self.generation_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
             self._show_generation_instrument_buttons()
@@ -2696,6 +2892,7 @@ class UiMixin:
             self.tab_metronome_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
@@ -2711,6 +2908,7 @@ class UiMixin:
             self.tab_detection_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
@@ -2725,6 +2923,7 @@ class UiMixin:
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
@@ -2739,6 +2938,7 @@ class UiMixin:
             self.keyboard_qscroll.pack_forget()
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack(fill=tk.BOTH, expand=True)
@@ -2752,10 +2952,13 @@ class UiMixin:
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
             self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
         self._refresh_top_panel_titles()
+        self._refresh_detection_help_visibility()
+        self._refresh_staff_generated_chord_overlay()
         self._fit_instrument_panel_height()
         self.update_music_views()

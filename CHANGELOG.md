@@ -4,6 +4,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+### Versión
+
+- **1.0.2**: versión alineada en **escritorio** (`APP_RELEASE_NAME`), **web** (`/api/meta` → `app_version`, JSON-LD) y **móvil** (`pubspec.yaml` **1.0.2+8**).
+
 ### Corregido
 
 - **Web (círculo de quintas)**: la armadura del pentagrama seguía la **raíz del acorde diatónico** (p. ej. tras Mayús+clic); ahora usa la **tonalidad del anillo** (`circleTonicPc` + modo mayor/menor), alineado con la teoría y con Flutter. Pista breve en el staff; al alternar **piano/guitarra** se redibuja el pentagrama sin esperar a tocar notas.
@@ -27,6 +31,8 @@ Historial de versiones publicadas de MIDIChords.
 ### Añadido
 
 - **Móvil (Flutter)**: pestaña **Círculo de quintas** (`circle_of_fifths.dart`) — canvas, grados diatónicos y armadura del pentagrama alineados con la web; tour de ayuda; reordenación de pestañas (Escalas y Metrónomo a índices posteriores cuando el afinador está activo).
+
+- **Escritorio (Tk)**: modo **Círculo de quintas** (`circle_fifths_mixin`, `ui/circle_of_fifths`) — pestaña y canvas alineados con web/móvil; integración en `main_app` y pentagrama.
 
 - **Web (deploy)**: `prepare_web_pages_dist` en **`launch.py`** y script **`scripts/build_web_pages_dist.py`** — en el bundle de Pages, **`app.js`** y **`style.css`** pasan a nombres con **hash de contenido** y se actualiza **`index.html`**, para que el dominio personalizado no siga sirviendo JS/CSS viejos cacheados en `/static/app.js` ignorando cabeceras.
 - **CI / empaquetado**: workflow **Build Installers** — `workflow_dispatch` con **`checkout_ref`** y **`msix_revision`** (cuarto segmento de la versión MSIX para reenvíos a Microsoft Store sin cambiar el semver del tag); el job Debian calcula la versión del `.deb` desde el mismo tag/ref que Windows/macOS en dispatch.

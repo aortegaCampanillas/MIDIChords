@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import textwrap
 import time
 from typing import Optional
 import midichords.qt.tk_compat as tk
@@ -164,6 +165,13 @@ class RenderMixin:
             return self._key_signature_count_for_tonic(
                 self.scale_tonic_pc, is_minor, tie_prefer_flats=tie_from_ui
             )
+        if getattr(self, "circle_fifths_tab_active", False):
+            key_tonic = int(self.circle_tonic_pc) % 12
+            is_minor_key = str(getattr(self, "circle_key_mode", "major")) == "minor"
+            sig = self._key_signature_count_for_tonic(
+                key_tonic, is_minor_key, tie_prefer_flats=tie_from_ui
+            )
+            return sig
         if self.generation_tab_active:
             pattern = self._resolve_generation_pattern()
             is_minor = self._is_minor_suffix(str(pattern.suffix))
@@ -1174,7 +1182,10 @@ class RenderMixin:
                 int(line_space), prefer_flat=prefer_flat_signature
             )
             accidental_font = ("Helvetica", acc_sig_pt, "bold")
-            sig_x_start = 138
+            # Tras la clave (𝄞 centrada en treble_x): mitad aproximada del ancho + margen para no solapar con la armadura.
+            _clef_half_w = int(round(treble_pt * 0.52))
+            _gap_after_clef = max(10, int(round(float(line_space) * 0.65)))
+            sig_x_start = treble_x + _clef_half_w + _gap_after_clef
             sig_step_x = self._staff_key_sig_step_x(int(line_space), acc_sig_pt)
             signature_end_x = sig_x_start + ((max(1, min(7, len(signature_pcs))) - 1) * sig_step_x)
             if prefer_flat_signature:
@@ -1506,7 +1517,26 @@ class RenderMixin:
                         label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
                     self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w, degree_idx))
 
-        if not self.generation_tab_active and not self.scale_tab_active:
+        # Círculo de quintas: ayuda de interacción (como el pie bajo el pentagrama en web), no armadura.
+        if getattr(self, "circle_fifths_tab_active", False):
+            hint = self.tr("circle_hint")
+            _circle_help_pt = 12
+            _char_px = 5.5 * (_circle_help_pt / 10.0)
+            max_chars = max(24, int(max(1.0, w - 48) / _char_px))
+            lines = textwrap.wrap(hint, width=max_chars) or [hint]
+            y = float(h) - 8.0
+            line_step = 17.0
+            for line in reversed(lines):
+                canvas.create_text(
+                    w / 2,
+                    y,
+                    text=line,
+                    fill="#a8a8a8",
+                    font=("Helvetica", _circle_help_pt, "italic"),
+                    anchor="s",
+                )
+                y -= line_step
+        elif not self.generation_tab_active and not self.scale_tab_active:
             canvas.create_text(
                 w / 2,
                 h - 14,

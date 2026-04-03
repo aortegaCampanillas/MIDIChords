@@ -4757,6 +4757,29 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  /// Al cambiar tónica/variante o selección en el círculo: reproduce el acorde como el botón ▶.
+  Future<void> _playChordPreviewFromSelection() async {
+    if (_generatedChordJson == null) {
+      return;
+    }
+    final List<int> notes;
+    if (_instrumentView == 'guitar') {
+      final g = _selectedChordGuitarNotes();
+      notes = g.toList()..sort();
+    } else {
+      notes = List<int>.from(
+        _extractMidiList(_generatedChordJson!, <String>['notes_midi']),
+      );
+    }
+    if (notes.isEmpty) {
+      return;
+    }
+    await _startHeldChord(
+      notes,
+      instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+    );
+  }
+
   Future<void> _callGenerateChord() async {
     if (_requestInFlight) {
       return;
@@ -4788,6 +4811,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       }
+      unawaited(_playChordPreviewFromSelection());
     } catch (err) {
       _generatedChordJson = null;
       _chordOutputController.text = '${_ui('Error', 'Error')}: $err';
@@ -4801,7 +4825,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _circleMajorTonicPcForTheory() =>
       circleMajorTonicPcForTheory(_circleTonicPc, _circleKeyMode);
 
-  Future<void> _callCircleGenerateChord() async {
+  /// [playPreview] solo true cuando el usuario elige tónica/acorde en el círculo (no al cambiar de modo).
+  Future<void> _callCircleGenerateChord({bool playPreview = false}) async {
     if (_requestInFlight) {
       return;
     }
@@ -4847,6 +4872,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       }
+      if (playPreview) {
+        unawaited(_playChordPreviewFromSelection());
+      }
     } catch (err) {
       _generatedChordJson = null;
       _chordOutputController.text = '${_ui('Error', 'Error')}: $err';
@@ -4885,7 +4913,7 @@ class _HomeScreenState extends State<HomeScreen>
         _circleChordRootPc = pc;
       });
     }
-    unawaited(_callCircleGenerateChord());
+    unawaited(_callCircleGenerateChord(playPreview: true));
   }
 
   Future<void> _callGenerateScale() async {

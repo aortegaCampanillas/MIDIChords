@@ -13,6 +13,7 @@ Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDI
 ## Descargas
 
 - **iOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
+- **macOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
 - **Windows (Microsoft Store)**: [Free MIDI Piano&Guitar Chords](https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare)
 
 ## Estructura

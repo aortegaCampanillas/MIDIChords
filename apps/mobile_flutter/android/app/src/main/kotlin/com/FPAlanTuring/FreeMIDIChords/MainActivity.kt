@@ -113,15 +113,31 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
     }
 
     fun playSampleChord(notes: List<Int>, instrument: String, durationMs: Int, volume: Float): Boolean {
+        val bank = if (instrument == "guitar") guitarBank else pianoBank
+        val midis = notes.map { it.coerceIn(21, 108) }.distinct()
+        if (midis.isEmpty()) return false
+        // Precargar todos los assets del acorde antes de play(): si cada nota espera la carga
+        // en serie (hasta ~120 ms en playAsset), suena como rasgueo en lugar de acorde a la vez.
+        val paths = midis.mapNotNull { midi ->
+            val sampleMidi = nearestSample(bank.keys, midi) ?: return@mapNotNull null
+            bank[sampleMidi]
+        }.toSet()
+        for (path in paths) {
+            val id = ensureLoaded(path) ?: return false
+            if (!waitUntilSoundReady(id)) {
+                Log.e(tag, "playSampleChord timeout loading $path")
+                return false
+            }
+        }
         var playedAny = false
-        for (midi in notes) {
+        for (midi in midis) {
             val ok = playSampleTone(midi, instrument, durationMs, volume)
             playedAny = playedAny || ok
         }
         if (playedAny) {
-            Log.d(tag, "playSampleChord ok notes=${notes.joinToString(",")} inst=$instrument")
+            Log.d(tag, "playSampleChord ok notes=${midis.joinToString(",")} inst=$instrument")
         } else {
-            Log.e(tag, "playSampleChord failed notes=${notes.joinToString(",")} inst=$instrument")
+            Log.e(tag, "playSampleChord failed notes=${midis.joinToString(",")} inst=$instrument")
         }
         return playedAny
     }
@@ -169,6 +185,21 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
                 null
             }
         }
+    }
+
+    /** Espera a que SoundPool haya terminado de cargar el sample (carga asíncrona). */
+    private fun waitUntilSoundReady(id: Int): Boolean {
+        var ready = synchronized(loaded) { loaded.contains(id) }
+        if (ready) return true
+        repeat(240) {
+            try {
+                Thread.sleep(5)
+            } catch (_: Throwable) {
+            }
+            ready = synchronized(loaded) { loaded.contains(id) }
+            if (ready) return true
+        }
+        return false
     }
 
     private fun playAsset(path: String, volume: Float, rate: Float, durationMs: Int): Boolean {

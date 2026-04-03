@@ -148,12 +148,26 @@ def _parse_grid_sticky(sticky: str) -> tuple[Qt.AlignmentFlag, bool, bool]:
     return a, h_fill, v_fill
 
 
+def _qt_box_layout_index_of_widget(layout: QVBoxLayout | QHBoxLayout, target: QWidget) -> int | None:
+    """Índice del ítem cuyo widget es `target`, o None si no está en el layout."""
+    for i in range(layout.count()):
+        item = layout.itemAt(i)
+        if item is None:
+            continue
+        w = item.widget()
+        if w is target:
+            return i
+    return None
+
+
 def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
     """Empaquetado estilo Tk: `padx`/`pady` son márgenes por widget (entre hermanos).
 
     Antes se usaba `QBoxLayout.setSpacing(left+right)`, lo que unificaba mal el hueco
     y el último `pack` lo sobrescribía (p. ej. ⚙ pegado a ♭, o #/♭ sin separación).
     """
+    before_w = kwargs.pop("before", None)
+    after_w = kwargs.pop("after", None)
     parent = widget.parentWidget()
     if parent is None:
         return
@@ -252,14 +266,33 @@ def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
             if bot_pad > 0:
                 layout.insertSpacing(insert_at, bot_pad)
         else:
-            if top_pad > 0:
-                layout.addSpacing(top_pad)
-            if valign != Qt.AlignmentFlag(0):
-                layout.addWidget(widget, stretch, valign)
+            insert_idx: int | None = None
+            if before_w is not None:
+                insert_idx = _qt_box_layout_index_of_widget(layout, before_w)
+            elif after_w is not None:
+                j = _qt_box_layout_index_of_widget(layout, after_w)
+                if j is not None:
+                    insert_idx = j + 1
+            if insert_idx is not None:
+                if top_pad > 0:
+                    layout.insertSpacing(insert_idx, top_pad)
+                    insert_idx += 1
+                if valign != Qt.AlignmentFlag(0):
+                    layout.insertWidget(insert_idx, widget, stretch, valign)
+                else:
+                    layout.insertWidget(insert_idx, widget, stretch)
+                insert_idx += 1
+                if bot_pad > 0:
+                    layout.insertSpacing(insert_idx, bot_pad)
             else:
-                layout.addWidget(widget, stretch)
-            if bot_pad > 0:
-                layout.addSpacing(bot_pad)
+                if top_pad > 0:
+                    layout.addSpacing(top_pad)
+                if valign != Qt.AlignmentFlag(0):
+                    layout.addWidget(widget, stretch, valign)
+                else:
+                    layout.addWidget(widget, stretch)
+                if bot_pad > 0:
+                    layout.addSpacing(bot_pad)
     widget.setVisible(True)
 
 
@@ -486,7 +519,8 @@ class Widget(_BindMixin, QWidget):
         elif th > 0:
             border = f"border: {th}px solid #888888;"
         else:
-            border = ""
+            # Sin borde explícito: el tema puede dibujar un marco de 1px entre celdas (p. ej. Acorde + nombre).
+            border = "border: none; outline: none;"
         self.setStyleSheet(f"background-color: {bg}; {border}".strip())
 
     @property
@@ -691,7 +725,9 @@ class Label(Widget):
     def _apply_label_style(self, spec: dict[str, Any]) -> None:
         fg = spec.get("fg") or spec.get("foreground")
         if fg is not None:
-            self._label.setStyleSheet(f"color: {fg}; background: transparent;")
+            self._label.setStyleSheet(
+                f"color: {fg}; background: transparent; border: none; outline: none; padding: 0px;"
+            )
         font_spec = spec.get("font")
         if font_spec is not None:
             self._label.setFont(_font_from_tk_tuple(font_spec))
@@ -840,43 +876,9 @@ class Canvas(QtCanvas):
             except Exception:
                 pass
 
-    # Layout helpers (subset tk)
+    # Layout helpers (subset tk): mismo comportamiento que Frame (incl. before/after).
     def pack(self, **_kwargs: Any) -> None:
-        parent = self.parentWidget()
-        if parent is None:
-            return
-        side = str(_kwargs.get("side", TOP)).lower()
-        fill = str(_kwargs.get("fill", "")).lower()
-        expand = bool(_kwargs.get("expand", False))
-        stretch = 1 if expand else 0
-        if fill == X:
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        elif fill == Y:
-            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        elif fill == BOTH:
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        else:
-            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-        layout = parent.layout()
-        if side in {LEFT, RIGHT}:
-            if layout is None or not isinstance(layout, QHBoxLayout):
-                layout = QHBoxLayout()
-                layout.setContentsMargins(0, 0, 0, 0)
-                parent.setLayout(layout)
-            if side == RIGHT:
-                if not getattr(parent, "_tk_pack_right_stretch", False):
-                    layout.addStretch(0)
-                    setattr(parent, "_tk_pack_right_stretch", True)
-                layout.addWidget(self, stretch)
-            else:
-                layout.addWidget(self, stretch)
-        else:
-            if layout is None or not isinstance(layout, QVBoxLayout):
-                layout = QVBoxLayout()
-                layout.setContentsMargins(0, 0, 0, 0)
-                parent.setLayout(layout)
-            layout.addWidget(self, stretch)
-        self.setVisible(True)
+        qt_pack_attach(self, **_kwargs)
 
     def pack_forget(self) -> None:
         _qt_pack_forget_widget(self)

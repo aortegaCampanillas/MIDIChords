@@ -1013,10 +1013,11 @@ class CircleOfFifthsPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    final total = flatTp.width + bodyTp.width;
+    final gap = math.max(2.0, fsRoman * 0.14);
+    final total = flatTp.width + gap + bodyTp.width;
     var drawX = o.dx - total / 2;
     flatTp.paint(canvas, Offset(drawX, o.dy - rise - flatTp.height / 2));
-    drawX += flatTp.width;
+    drawX += flatTp.width + gap;
     bodyTp.paint(canvas, Offset(drawX, o.dy - bodyTp.height / 2));
   }
 

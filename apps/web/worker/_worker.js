@@ -1,3 +1,6 @@
+/** Alineado con escritorio (`APP_RELEASE_NAME`) y móvil (`pubspec.yaml`). */
+const APP_VERSION = "1.0.2";
+
 const NOTE_NAMES = {
   en: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
   es: ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"],
@@ -660,6 +663,7 @@ export default {
       if (request.method === "HEAD") return apiHeadOk();
       const language = normalizeLanguage(url.searchParams.get("language"));
       return json({
+        app_version: APP_VERSION,
         chord_patterns: listChordPatterns(),
         scale_patterns: listScalePatterns(language),
       });

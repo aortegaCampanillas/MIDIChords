@@ -47,6 +47,7 @@ from midichords.mixins.tuner_mixin import TunerMixin
 from midichords.mixins.metronome_mixin import MetronomeMixin
 from midichords.mixins.scales_mixin import ScalesMixin
 from midichords.mixins.generation_mixin import GenerationMixin
+from midichords.mixins.circle_fifths_mixin import CircleFifthsMixin
 from midichords.mixins.midi_io_mixin import MidiIOMixin
 from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.ui_mixin import UiMixin
@@ -61,6 +62,7 @@ class MidiChordAnalyzerApp(
     MetronomeMixin,
     ScalesMixin,
     GenerationMixin,
+    CircleFifthsMixin,
     MidiIOMixin,
     InputDetectionMixin,
     QtSchedulerMixin,
@@ -131,6 +133,7 @@ class MidiChordAnalyzerApp(
         self.generated_note_highlight_after: dict[int, str] = {}
         self.generated_play_after_id: Optional[str] = None
         self.generation_play_button_pressed = False
+        self._preview_chord_after_id: Optional[str] = None
         self.generation_play_space_pressed = False
         self.detection_play_button_pressed = False
         self.generation_space_release_after_id: Optional[str] = None
@@ -161,7 +164,7 @@ class MidiChordAnalyzerApp(
             "on",
         }
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        allowed_modes = {"detection", "generation", "scales", "metronome"}
+        allowed_modes = {"detection", "generation", "circle_fifths", "scales", "metronome"}
         if self.tuner_enabled:
             allowed_modes.add("tuner")
         if self.current_mode not in allowed_modes:
@@ -177,6 +180,11 @@ class MidiChordAnalyzerApp(
         self.generation_root_pc = 0
         self.generation_pattern_suffix = ""
         self.generation_inversion = 0
+        self.circle_tonic_pc = 0
+        self.circle_key_mode = "major"
+        self.circle_chord_root_pc = 0
+        self.circle_fifths_tab_active = False
+        self._circle_generated_chord = None
         self.scale_tonic_pc = 0
         self.scale_pattern_name = SCALE_PATTERNS[0].name
         self.scale_preview_notes: list[int] = []

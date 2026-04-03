@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QScrollArea
 import midichords.qt.tk_compat as tk
 import midichords.qt.ttk_compat as ttk
 
+from midichords.core.app_constants import desktop_build_display_name
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 
@@ -565,22 +566,15 @@ class OverlaysMixin:
         )
         show_labels_chk.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
-        ttk.Label(frame, text=self.tr("settings_guitar_handedness")).grid(row=6, column=0, sticky="w", pady=4)
-        handed_options = [("right", self.tr("handed_right")), ("left", self.tr("handed_left"))]
-        handed_id_to_label = {hid: label for hid, label in handed_options}
-        handed_label_to_id = {label: hid for hid, label in handed_options}
-        current_handed = str(self.config_data.get("guitar_handedness", "right"))
-        if current_handed not in handed_id_to_label:
-            current_handed = "right"
-        handed_var = tk.StringVar(value=handed_id_to_label[current_handed])
-        handed_combo = ttk.Combobox(
+        build_muted = getattr(self, "color_muted", "#a8b6c8")
+        ff = getattr(self, "ui_font_family", "Helvetica")
+        build_line = ttk.Label(
             frame,
-            textvariable=handed_var,
-            state="readonly",
-            values=[label for _, label in handed_options],
-            width=18,
+            text=self.tr("settings_build_line").format(name=desktop_build_display_name()),
+            font=(ff, 11),
+            foreground=build_muted,
         )
-        handed_combo.grid(row=6, column=1, sticky="w", pady=4)
+        build_line.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 8))
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
@@ -589,14 +583,11 @@ class OverlaysMixin:
             self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
             self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
-            self.config_data["guitar_handedness"] = handed_label_to_id.get(handed_var.get(), "right")
-            self.guitar_handedness = "left" if self.config_data["guitar_handedness"] == "left" else "right"
             self.audio_engine.set_preset(str(self.config_data["sound_preset"]))
             self.audio_engine.set_guitar_preset(str(self.config_data["guitar_sound_preset"]))
             self.apply_ui_language()
             self.save_config()
             self.connect_ports()
-            self._refresh_handedness_toggle_styles()
             self.redraw_guitar_fretboard()
             self.update_music_views()
             self._close_settings_overlay()

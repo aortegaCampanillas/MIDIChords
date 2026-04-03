@@ -56,6 +56,25 @@ def _color(value: Any, default: QColor | None = None) -> QColor:
         return default if default is not None else QColor(0, 0, 0, 0)
 
 
+def _tk_state_from_qt_modifiers(mods: Any) -> int:
+    """Bits parecidos a `tk.Event.state` (Shift, Control, Alt, Meta/Cmd) para handlers migrados."""
+    if mods is None:
+        return 0
+    try:
+        state = 0
+        if mods & Qt.KeyboardModifier.ShiftModifier:
+            state |= 0x0001
+        if mods & Qt.KeyboardModifier.ControlModifier:
+            state |= 0x0004
+        if mods & Qt.KeyboardModifier.AltModifier:
+            state |= 0x0008
+        if mods & Qt.KeyboardModifier.MetaModifier:
+            state |= 0x20000
+        return int(state)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _font_from_tk_tuple(font: Any) -> QFont:
     # Tkinter suele pasar font=(family, size, "bold") o similar.
     # En Tk, tamaño negativo = píxeles; positivo = puntos tipográficos.
@@ -223,8 +242,18 @@ class QtCanvas(QWidget):
         raise KeyError(key)
 
     # ---- Event bindings (parcial) ----
-    def bind(self, sequence: str, func: Callable[[Any], None]) -> None:
-        self._canvas_handlers[sequence] = func
+    def bind(self, sequence: str, func: Callable[[Any], None], add: str | None = None) -> None:
+        seq = str(sequence)
+        if add == "+" and seq in self._canvas_handlers:
+            prev = self._canvas_handlers[seq]
+
+            def _chain(ev: Any) -> None:
+                prev(ev)
+                func(ev)
+
+            self._canvas_handlers[seq] = _chain
+        else:
+            self._canvas_handlers[seq] = func
 
     def tag_bind(self, tag_or_id: object, sequence: str, func: Callable[[Any], None]) -> None:
         if isinstance(tag_or_id, int):
@@ -682,10 +711,11 @@ class QtCanvas(QWidget):
             return QRectF(x - img_w / 2.0, y - img_h / 2.0, img_w, img_h)
         return QRectF()
 
-    def _dispatch_mouse(self, canvas_seq: str | list[str], pos) -> None:
+    def _dispatch_mouse(self, canvas_seq: str | list[str], pos, *, modifiers: Any = None) -> None:
         x = float(pos.x())
         y = float(pos.y())
-        ev = _QtEventLike(x=x, y=y)
+        state = _tk_state_from_qt_modifiers(modifiers)
+        ev = _QtEventLike(x=x, y=y, state=state)
         seqs: list[str] = [canvas_seq] if isinstance(canvas_seq, str) else list(canvas_seq)
         # Canvas: Tk suele usar <ButtonPress-1>; el shim antiguo solo buscaba <Button-1>.
         for seq in seqs:
@@ -713,16 +743,20 @@ class QtCanvas(QWidget):
     def mousePressEvent(self, event: Any) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._pressed = True
-            self._dispatch_mouse(["<ButtonPress-1>", "<Button-1>"], event.position())
+            self._dispatch_mouse(
+                ["<ButtonPress-1>", "<Button-1>"],
+                event.position(),
+                modifiers=event.modifiers(),
+            )
 
     def mouseMoveEvent(self, event: Any) -> None:
         if self._pressed and (event.buttons() & Qt.MouseButton.LeftButton):
-            self._dispatch_mouse("<B1-Motion>", event.position())
+            self._dispatch_mouse("<B1-Motion>", event.position(), modifiers=event.modifiers())
 
     def mouseReleaseEvent(self, event: Any) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._pressed = False
-            self._dispatch_mouse("<ButtonRelease-1>", event.position())
+            self._dispatch_mouse("<ButtonRelease-1>", event.position(), modifiers=event.modifiers())
             self.update()
 
     def wheelEvent(self, event: Any) -> None:
@@ -732,7 +766,15 @@ class QtCanvas(QWidget):
         _ = delta  # solo para compat; se usará en handlers reescritos
         seq = "<MouseWheel>"
         if seq in self._canvas_handlers:
-            self._canvas_handlers[seq](_QtEventLike(x=float(event.position().x()), y=float(event.position().y()), delta=delta))
+            st = _tk_state_from_qt_modifiers(event.modifiers())
+            self._canvas_handlers[seq](
+                _QtEventLike(
+                    x=float(event.position().x()),
+                    y=float(event.position().y()),
+                    delta=delta,
+                    state=st,
+                )
+            )
 
     def enterEvent(self, _event: Any) -> None:
         if "<Enter>" in self._canvas_handlers:
@@ -751,10 +793,11 @@ class QtCanvas(QWidget):
 class _QtEventLike:
     """Objeto simple para pasar x/y a handlers migrados sin tk.Event."""
 
-    def __init__(self, *, x: float, y: float, delta: float | None = None) -> None:
+    def __init__(self, *, x: float, y: float, delta: float | None = None, state: int = 0) -> None:
         self.x = x
         self.y = y
         self.delta = delta
+        self.state = int(state)
         # Compat: algunas funciones usan event.widget / event.x_root, etc. Se agregan donde haga falta.
 
 

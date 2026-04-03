@@ -223,6 +223,7 @@ class GenerationMixin:
         self.generation_root_pc = int(pc)
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
+        self._preview_generated_chord_short()
     def _on_generation_variant_clicked(self, suffix: str) -> None:
         if str(suffix) == str(self.generation_pattern_suffix):
             return
@@ -230,12 +231,14 @@ class GenerationMixin:
         self._clamp_generation_inversion()
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
+        self._preview_generated_chord_short()
     def _on_generation_inversion_clicked(self, inversion: int) -> None:
         if int(inversion) == int(self.generation_inversion):
             return
         self.generation_inversion = int(inversion)
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
+        self._preview_generated_chord_short()
     def _close_generation_selection_overlay(self) -> None:
         if self.generation_selection_overlay is not None:
             self.generation_selection_overlay.destroy()
@@ -441,6 +444,8 @@ class GenerationMixin:
 
         if self.generation_tab_active:
             self.update_music_views()
+        if getattr(self, "circle_fifths_tab_active", False):
+            self._circle_schedule_redraw()
     def _load_generation_from_detected_notes(self, notes: set[int]) -> None:
         if not notes:
             return
@@ -461,12 +466,60 @@ class GenerationMixin:
         self._clamp_generation_inversion()
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()
+    def _preview_generated_chord_short(self) -> None:
+        """Reproduce brevemente el acorde actual al cambiar tónica/variante (generación o círculo)."""
+        if not (self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False)):
+            return
+        if not self.generated_preview_notes:
+            return
+        pid = getattr(self, "_preview_chord_after_id", None)
+        if pid is not None:
+            try:
+                self.after_cancel(pid)
+            except Exception:
+                pass
+            setattr(self, "_preview_chord_after_id", None)
+        self._stop_generated_playback()
+        notes = sorted(self.generated_preview_notes)
+        if self.instrument_view == "guitar":
+            for note in notes:
+                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
+            if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
+                self.redraw_guitar_fretboard()
+                self.redraw_staff()
+            return
+        for note in notes:
+            self.audio_engine.note_on(note, 108)
+            self.generated_playing_notes.add(note)
+        if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
+            self.redraw_keyboard()
+            self.redraw_staff()
+
+        def _release_preview() -> None:
+            setattr(self, "_preview_chord_after_id", None)
+            for note in list(notes):
+                if note in self.generated_playing_notes:
+                    self.audio_engine.note_off(note)
+                    self.generated_playing_notes.discard(note)
+            if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
+                self.redraw_keyboard()
+                self.redraw_staff()
+
+        setattr(self, "_preview_chord_after_id", self.after(1500, _release_preview))
+
     def _stop_generated_playback(self) -> None:
         self.generation_guitar_drag_active = False
         self.generation_staff_drag_active = False
         self.generation_piano_staff_drag_active = False
         self.generation_drag_notes.clear()
         self.generation_drag_moved = False
+        pid = getattr(self, "_preview_chord_after_id", None)
+        if pid is not None:
+            try:
+                self.after_cancel(pid)
+            except Exception:
+                pass
+            setattr(self, "_preview_chord_after_id", None)
         if self.generated_play_after_id is not None:
             try:
                 self.after_cancel(self.generated_play_after_id)
@@ -482,7 +535,9 @@ class GenerationMixin:
         for note in list(self.generated_playing_notes):
             self.audio_engine.note_off(note)
         self.generated_playing_notes.clear()
-        if self.generation_tab_active:
+        if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
+            self.redraw_keyboard()
+            self.redraw_guitar_fretboard()
             self.redraw_staff()
     def _generation_staff_note_at_position(self, x: float, y: float) -> Optional[int]:
         if not self.generation_tab_active:
@@ -583,6 +638,9 @@ class GenerationMixin:
         else:
             self.generation_play_space_pressed = True
         self.generation_play_btn.set_playing(True)
+        cp = getattr(self, "circle_play_btn", None)
+        if cp is not None:
+            cp.set_playing(True)
         self._play_generated_chord()
     def _stop_generated_hold(self, source: str) -> None:
         if source == "button":
@@ -592,6 +650,9 @@ class GenerationMixin:
         if self.generation_play_button_pressed or self.generation_play_space_pressed:
             return
         self.generation_play_btn.set_playing(False)
+        cp = getattr(self, "circle_play_btn", None)
+        if cp is not None:
+            cp.set_playing(False)
         self._stop_generated_playback()
     def _on_generation_play_press(self, _event: tk.Event) -> str:
         self._start_generated_hold(source="button")

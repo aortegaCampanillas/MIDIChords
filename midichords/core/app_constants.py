@@ -143,3 +143,25 @@ DEFAULT_CONFIG = {
     "tuner_spectrum_min_hz": 0,
     "tuner_spectrum_max_hz": 500,
 }
+
+# Versión mostrada en Configuración si no hay MIDICHORDS_BUILD_NAME ni archivo VERSION en PROJECT_ROOT.
+# Actualizar al publicar; el empaquetado puede inyectar MIDICHORDS_BUILD_NAME.
+APP_RELEASE_NAME = "1.0.2"
+
+
+def desktop_build_display_name() -> str:
+    """Identificador de compilación (diálogo de configuración, about)."""
+    env = os.environ.get("MIDICHORDS_BUILD_NAME", "").strip()
+    if env:
+        return env
+    try:
+        vf = PROJECT_ROOT / "VERSION"
+        if vf.is_file():
+            lines = vf.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+            if lines and lines[0].strip():
+                return lines[0].strip()
+    except OSError:
+        pass
+    if not getattr(sys, "frozen", False):
+        return f"{APP_RELEASE_NAME} (dev)"
+    return APP_RELEASE_NAME

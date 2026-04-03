@@ -1,6 +1,9 @@
 // Feature flag: keep tuner code but hide/disable it by default.
 const TUNER_FEATURE_ENABLED = false;
 
+/** Respaldo si `/api/meta` no devuelve `app_version` (debe coincidir con `APP_VERSION` en el worker). */
+const WEB_APP_VERSION_FALLBACK = "1.0.2";
+
 const state = {
   mode: null,
   instrument: "piano",
@@ -11,6 +14,7 @@ const state = {
   accidental: "sharp",
   chordPatterns: [],
   scalePatterns: [],
+  appVersion: WEB_APP_VERSION_FALLBACK,
   activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
   detectionResult: null,
@@ -217,7 +221,7 @@ const UI_TEXTS = {
     downloads_pc_title: "PC/Mac",
     downloads_mobile_title: "Móvil",
     downloads_windows_store: "Windows (Microsoft Store)",
-    downloads_macos_dmg: "macOS (.dmg) (GitHub Releases)",
+    downloads_macos_dmg: "macOS (App Store)",
     downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
     downloads_ios_appstore: "iOS (App Store)",
     downloads_android_pending: "Android (Google Play): pendiente de aprobación",
@@ -293,7 +297,6 @@ const UI_TEXTS = {
     help_metro_scale_axis: "Escala/eje del metrónomo: marca el recorrido y la subdivisión del pulso.",
     help_metro_red_ball: "Bola roja: indica la posición instantánea del pulso en movimiento.",
     detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
-    circle_staff_key_hint: "Armadura = tonalidad del anillo (clic en tónica), no la raíz del acorde con Mayús. En Do mayor, Sol como V sigue sin # en armadura.",
     scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
     staff_no_active_notes: "Sin notas activas",
   },
@@ -392,7 +395,7 @@ const UI_TEXTS = {
     downloads_pc_title: "PC/Mac",
     downloads_mobile_title: "Mobile",
     downloads_windows_store: "Windows (Microsoft Store)",
-    downloads_macos_dmg: "macOS (.dmg) (GitHub Releases)",
+    downloads_macos_dmg: "macOS (App Store)",
     downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
     downloads_ios_appstore: "iOS (App Store)",
     downloads_android_pending: "Android (Google Play): pending approval",
@@ -468,7 +471,6 @@ const UI_TEXTS = {
     help_metro_scale_axis: "Metronome scale/axis: shows pulse travel and subdivision.",
     help_metro_red_ball: "Red ball: shows current pulse position in motion.",
     detection_staff_shift_hint: "Hold Shift to sustain notes",
-    circle_staff_key_hint: "Key signature = key from the ring (tonic click), not the Shift chord root. In C major, G as V still has no sharps in the signature.",
     scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
     staff_no_active_notes: "No active notes",
   },
@@ -773,11 +775,12 @@ function fillTextRomanMaybeFlatSuperscript(ctx, roman, x, y, fsRoman) {
   const wFlat = ctx.measureText(flat).width;
   ctx.font = `${fsRoman}px ${ff}`;
   const wBody = ctx.measureText(body).width;
-  const total = wFlat + wBody;
+  const gap = Math.max(2, Math.round(fsRoman * 0.14));
+  const total = wFlat + gap + wBody;
   let drawX = x - total / 2;
   ctx.font = `${supFs}px ${ff}`;
   ctx.fillText(flat, drawX, y - rise);
-  drawX += wFlat;
+  drawX += wFlat + gap;
   ctx.font = `${fsRoman}px ${ff}`;
   ctx.fillText(body, drawX, y);
   ctx.textAlign = "center";
@@ -1590,7 +1593,7 @@ function bindCircleFifthsCanvas() {
       state.circleChordRootPc = pc;
     }
     try {
-      await runGenerateChordCircle();
+      await runGenerateChordCircle(true);
     } catch (_err) {}
   });
   const wrap = canvas.parentElement;
@@ -1600,7 +1603,8 @@ function bindCircleFifthsCanvas() {
   }
 }
 
-async function runGenerateChordCircle() {
+/** @param {boolean} [playChordAfter] — si es true, reproduce el acorde (solo tras clic en el círculo). */
+async function runGenerateChordCircle(playChordAfter = false) {
   const rootPc = ((state.circleChordRootPc % 12) + 12) % 12;
   const tonicPc = circleMajorTonicPcForTheory();
   let suffix;
@@ -1630,6 +1634,12 @@ async function runGenerateChordCircle() {
     renderInstrument();
     renderStaff();
     renderCircleFifths();
+    if (playChordAfter) {
+      const notes = getGenerationBaseNotes();
+      if (notes.length) {
+        playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
+      }
+    }
   }
 }
 
@@ -4223,20 +4233,6 @@ function renderStaff() {
     ctx.textBaseline = "bottom";
     ctx.fillText(tr("detection_staff_shift_hint"), width / 2, height - 10);
   }
-  if (state.mode === "circle_fifths") {
-    ctx.fillStyle = "#8fa1b7";
-    ctx.font = "11px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    const hint = tr("circle_staff_key_hint");
-    const maxW = Math.max(280, width - 48);
-    const lines = wrapCanvasTextLines(ctx, hint, maxW);
-    let y = height - 10;
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      ctx.fillText(lines[i], width / 2, y);
-      y -= 14;
-    }
-  }
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
   let scaleCurrentDisplayMidi = scaleCurrentMidi;
   if (state.mode === "scales" && scaleCurrentDisplayMidi != null) {
@@ -4564,6 +4560,7 @@ function renderStaff() {
 async function loadMeta() {
   try {
     const data = await fetchJson(`/api/meta?language=${state.language}`);
+    state.appVersion = data.app_version || WEB_APP_VERSION_FALLBACK;
     state.chordPatterns = data.chord_patterns || [];
     state.scalePatterns = data.scale_patterns || [];
   } catch (err) {
@@ -4688,6 +4685,10 @@ async function runGenerateChord() {
   if (state.mode === "generation") {
     renderInstrument();
     renderStaff();
+    const notes = getGenerationBaseNotes();
+    if (notes.length) {
+      playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
+    }
   }
 }
 
@@ -4950,7 +4951,8 @@ function playChordMidi(notes, options = {}) {
   }
   const t = ctx.currentTime + 0.005;
   if (instrument === "guitar") {
-    normalizedNotes.forEach((midi, idx) => playSingleAt(Number(midi), t + (idx * 0.018), 1.35, "guitar"));
+    // Mismo ataque simultáneo que startHeldChord / botón Play (sin desfase tipo rasgueo).
+    normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.35, "guitar"));
   } else {
     normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.65, "piano"));
   }

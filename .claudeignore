@@ -1,0 +1,27 @@
+# Binarios y builds — nunca relevantes para editar código
+dist/
+build/
+dmg-root/
+*.pkg
+*.dmg
+*.app
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Flutter build artifacts
+apps/mobile_flutter/build/
+apps/mobile_flutter/.dart_tool/
+apps/mobile_flutter/.flutter-plugins
+apps/mobile_flutter/.flutter-plugins-dependencies
+
+# Assets de audio (binarios)
+assets/samples/
+
+# Packaging (specs, configs de firma — rara vez hay que tocarlos)
+packaging/
+signing/
+flathub-submission/

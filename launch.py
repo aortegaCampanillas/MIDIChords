@@ -113,7 +113,8 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
         shutil.rmtree(pages_dist)
     (pages_dist / "static").mkdir(parents=True)
 
-    shutil.copy(web_dir / "index.html", pages_dist / "index.html")
+    for html_file in web_dir.glob("*.html"):
+        shutil.copy(html_file, pages_dist / html_file.name)
     shutil.copytree(web_dir / "static", pages_dist / "static", dirs_exist_ok=True)
     shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
     if (web_dir / "_headers").exists():

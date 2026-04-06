@@ -734,6 +734,7 @@ export default {
     // si una regla del zona lo ignora; CDN-Cache-Control refuerza el comportamiento en edge.
     if (
       pathname === "/" ||
+      pathname === "/fp30x" ||
       pathname.endsWith(".html") ||
       pathname.startsWith("/static/")
     ) {

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PianoPilot — Roland FP-30X Controller</title>
+  <meta name="description" content="PianoPilot is a free, open-source desktop app for macOS and Windows that gives you full control of your Roland FP-30X digital piano from your computer over USB or Bluetooth MIDI." />
+  <meta property="og:title" content="PianoPilot — Roland FP-30X Controller" />
+  <meta property="og:description" content="Full desktop control for your Roland FP-30X. Edit tones, metronome, transpose, Piano Designer and more — for free." />
+  <meta property="og:type" content="website" />
+  <link rel="canonical" href="https://freemidichords.com/fp30x" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #13131a;
+      --surface:   #1c1c26;
+      --surface2:  #252530;
+      --border:    #33333f;
+      --orange:    #E07828;
+      --orange-lt: #f08a3a;
+      --text:      #e0e0ea;
+      --muted:     #8888a0;
+      --radius:    12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(19,19,26,.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 600; font-size: 1rem; color: var(--text);
+      text-decoration: none;
+    }
+    .nav-brand svg { width: 30px; height: 30px; }
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--orange); color: #fff; border: none; border-radius: 8px;
+      padding: 7px 18px; font-size: .875rem; font-weight: 600; cursor: pointer;
+      text-decoration: none; transition: background .2s;
+    }
+    .nav-cta:hover { background: var(--orange-lt); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 96px 24px 80px;
+      text-align: center;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(224,120,40,.18) 0%, transparent 70%);
+    }
+    .hero-icon {
+      width: 96px; height: 96px; margin: 0 auto 24px;
+      filter: drop-shadow(0 0 32px rgba(224,120,40,.4));
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      font-weight: 700; letter-spacing: -.02em;
+      line-height: 1.15; margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--orange); }
+    .hero p {
+      font-size: clamp(.95rem, 2vw, 1.15rem);
+      color: var(--muted); max-width: 560px; margin: 0 auto 36px;
+    }
+    .hero-badges {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      justify-content: center; margin-bottom: 40px;
+    }
+    .badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 999px; padding: 5px 14px;
+      font-size: .8rem; color: var(--muted);
+    }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--orange); color: #fff; border: none; border-radius: var(--radius);
+      padding: 13px 28px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      text-decoration: none; transition: background .2s, transform .15s;
+    }
+    .btn-primary:hover { background: var(--orange-lt); transform: translateY(-1px); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 13px 28px; font-size: 1rem; font-weight: 500; cursor: pointer;
+      text-decoration: none; transition: border-color .2s, background .2s, transform .15s;
+    }
+    .btn-secondary:hover { border-color: var(--orange); background: rgba(224,120,40,.08); transform: translateY(-1px); }
+
+    /* ── SECTION WRAPPER ── */
+    .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      display: inline-block; font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--orange); margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700;
+      letter-spacing: -.02em; margin-bottom: 48px;
+    }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px 24px;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: rgba(224,120,40,.15); border: 1px solid rgba(224,120,40,.25);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px; font-size: 1.3rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    .feature-card p { font-size: .875rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── SCREENSHOTS ── */
+    .screenshots-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 24px; }
+    .screenshots-inner { max-width: 1100px; margin: 0 auto; }
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .screenshot-item {
+      border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: transform .2s, border-color .2s;
+    }
+    .screenshot-item:hover { transform: translateY(-3px); border-color: var(--orange); }
+    .screenshot-item img { width: 100%; display: block; }
+    .screenshot-cap {
+      background: var(--surface2); padding: 10px 14px;
+      font-size: .8rem; color: var(--muted); font-weight: 500;
+    }
+
+    /* Lightbox */
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.88); align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 90vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 24px; font-size: 2rem; color: #fff;
+      cursor: pointer; line-height: 1; background: none; border: none;
+    }
+
+    /* ── DOWNLOAD ── */
+    .download-section { padding: 80px 24px; }
+    .download-inner { max-width: 760px; margin: 0 auto; text-align: center; }
+    .download-inner p { color: var(--muted); margin-bottom: 36px; }
+    .download-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px;
+    }
+    .dl-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px 20px;
+      text-decoration: none; color: var(--text);
+      transition: border-color .2s, transform .2s;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .dl-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .dl-card .dl-icon { font-size: 2rem; }
+    .dl-card .dl-name { font-weight: 600; font-size: 1rem; }
+    .dl-card .dl-sub { font-size: .8rem; color: var(--muted); }
+    .source-link { color: var(--muted); font-size: .875rem; text-decoration: none; }
+    .source-link:hover { color: var(--orange); }
+
+    /* ── DISCLAIMER ── */
+    .disclaimer {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 24px;
+      font-size: .8rem; color: var(--muted); line-height: 1.7;
+      max-width: 760px; margin: 0 auto 32px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px; text-align: center;
+      font-size: .8rem; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--orange); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .download-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="/fp30x">
+    <svg viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="nav-bg" x1="40" y1="32" x2="216" y2="224" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#34343c"/>
+          <stop offset="1" stop-color="#121218"/>
+        </linearGradient>
+      </defs>
+      <rect width="256" height="256" rx="52" fill="url(#nav-bg)"/>
+      <rect x="0.5" y="0.5" width="255" height="255" rx="52" stroke="#45454f" stroke-width="1"/>
+      <g fill="#E07828">
+        <rect x="170" y="38" width="9" height="46" rx="2"/>
+        <rect x="184" y="46" width="9" height="38" rx="2"/>
+        <rect x="198" y="40" width="9" height="44" rx="2"/>
+        <rect x="212" y="50" width="9" height="34" rx="2"/>
+      </g>
+      <g transform="translate(18 108)">
+        <rect x="0" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="32" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="64" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="96" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="128" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="160" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="192" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+        <rect x="19" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+        <rect x="51" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+        <rect x="115" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+        <rect x="147" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+        <rect x="179" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+      </g>
+    </svg>
+    PianoPilot
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#screenshots">Screenshots</a></li>
+    <li><a href="#download">Download</a></li>
+    <li><a href="/">FreeMIDIChords</a></li>
+  </ul>
+  <a class="nav-cta" href="#download">Download free</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <svg class="hero-icon" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hero-bg" x1="40" y1="32" x2="216" y2="224" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#34343c"/>
+        <stop offset="1" stop-color="#121218"/>
+      </linearGradient>
+    </defs>
+    <rect width="256" height="256" rx="52" fill="url(#hero-bg)"/>
+    <rect x="0.5" y="0.5" width="255" height="255" rx="52" stroke="#45454f" stroke-width="1"/>
+    <g fill="#E07828">
+      <rect x="170" y="38" width="9" height="46" rx="2"/>
+      <rect x="184" y="46" width="9" height="38" rx="2"/>
+      <rect x="198" y="40" width="9" height="44" rx="2"/>
+      <rect x="212" y="50" width="9" height="34" rx="2"/>
+    </g>
+    <g transform="translate(18 108)">
+      <rect x="0" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="32" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="64" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="96" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="128" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="160" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="192" y="0" width="30" height="122" rx="4" fill="#d4d4dc"/>
+      <rect x="19" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+      <rect x="51" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+      <rect x="115" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+      <rect x="147" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+      <rect x="179" y="0" width="18" height="74" rx="2" fill="#1c1c24"/>
+    </g>
+  </svg>
+
+  <h1>Your Roland FP-30X,<br><span>fully under control.</span></h1>
+  <p>PianoPilot is a free desktop app for macOS and Windows that lets you edit every parameter of your Roland FP-30X from a comfortable full-screen interface — over USB or Bluetooth.</p>
+
+  <div class="hero-badges">
+    <span class="badge">macOS 10.15+</span>
+    <span class="badge">Windows 10/11</span>
+    <span class="badge">USB &amp; Bluetooth MIDI</span>
+    <span class="badge">Free &amp; Open Source</span>
+    <span class="badge">English / Español</span>
+  </div>
+
+  <div class="btn-group">
+    <a class="btn-primary" href="#download">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4h14v-2H5v2z"/></svg>
+      Download free
+    </a>
+    <a class="btn-secondary" href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7C6.73 19.91 6.14 18 6.14 18c-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 7.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0 0 22 12C22 6.48 17.52 2 12 2z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <span class="section-label">Features</span>
+  <h2 class="section-title">Everything the piano panel can do — and more</h2>
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon">🎹</div>
+      <h3>200+ Tones</h3>
+      <p>Browse and load any tone on your FP-30X — Piano, E.Piano, Organ, Strings, Pads, GM2, and more — from a searchable dropdown, instantly sent over MIDI.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎚️</div>
+      <h3>Piano Settings</h3>
+      <p>Master Volume, Key Touch, Brilliance, Transpose, Master Tuning (Hz display), and Ambience Depth — all in a single, comfortable panel.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎛️</div>
+      <h3>Split, Dual &amp; Twin Modes</h3>
+      <p>Configure keyboard modes with independent tone selection, balance, octave shifts, and a draggable split point — without touching the piano.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🥁</div>
+      <h3>Full Metronome Control</h3>
+      <p>Set BPM (10–500), volume, click tone (Electronic, Voice…), and time signature with subdivision patterns. Start/stop without leaving your seat.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎼</div>
+      <h3>Piano Designer (beta)</h3>
+      <p>Adjust string resonance, damper resonance, lid position, and choose from historical temperaments — Pythagorean, Meantone, Kirnberger, and more.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔬</div>
+      <h3>Note Voicing (beta)</h3>
+      <p>Fine-tune pitch and character for each of the 88 keys individually. The kind of customization normally reserved for concert grand technicians.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔌</div>
+      <h3>USB &amp; Bluetooth</h3>
+      <p>Works with any connection that makes your FP-30X appear as a MIDI device — standard USB cable or system-paired Bluetooth MIDI.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔄</div>
+      <h3>Two-Way Sync</h3>
+      <p>Optionally reads the piano's current state over MIDI input so the UI always reflects what the instrument is actually doing.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <h3>English &amp; Spanish</h3>
+      <p>Full bilingual interface. Switch between English and Spanish at any time without restarting the application.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<div class="screenshots-section" id="screenshots">
+  <div class="screenshots-inner">
+    <span class="section-label">Screenshots</span>
+    <h2 class="section-title">See it in action</h2>
+    <div class="screenshots-grid">
+      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/settings.png')">
+        <img src="/static/fp30x/settings.png" alt="Piano Settings tab" loading="lazy" />
+        <div class="screenshot-cap">Piano Settings</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/tones.png')">
+        <img src="/static/fp30x/tones.png" alt="Tones tab with tone browser" loading="lazy" />
+        <div class="screenshot-cap">Tone Browser</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/metronome.png')">
+        <img src="/static/fp30x/metronome.png" alt="Metronome tab" loading="lazy" />
+        <div class="screenshot-cap">Metronome</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/piano-designer.png')">
+        <img src="/static/fp30x/piano-designer.png" alt="Piano Designer tab" loading="lazy" />
+        <div class="screenshot-cap">Piano Designer</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="Screenshot" />
+</div>
+
+<!-- DOWNLOAD -->
+<section class="download-section" id="download">
+  <div class="download-inner">
+    <span class="section-label">Download</span>
+    <h2 class="section-title" style="margin-bottom:16px">Free. No account. No strings.</h2>
+    <p>Download the latest release for your platform. Or install from source if you prefer Python.</p>
+
+    <div class="download-grid">
+      <a class="dl-card" href="https://github.com/aortegaCampanillas/RolandFP30xController/releases/latest" target="_blank" rel="noopener noreferrer">
+        <span class="dl-icon">🍎</span>
+        <span class="dl-name">macOS</span>
+        <span class="dl-sub">macOS 10.15+ · Intel &amp; Apple Silicon</span>
+      </a>
+      <a class="dl-card" href="https://github.com/aortegaCampanillas/RolandFP30xController/releases/latest" target="_blank" rel="noopener noreferrer">
+        <span class="dl-icon">🪟</span>
+        <span class="dl-name">Windows</span>
+        <span class="dl-sub">Windows 10/11 · 64-bit</span>
+      </a>
+    </div>
+
+    <div class="disclaimer">
+      <strong>Independent project.</strong> PianoPilot is not affiliated with, endorsed by, or sponsored by Roland Corporation. "Roland" and "FP-30X" are trademarks of Roland Corporation. This app communicates with the instrument using standard USB MIDI — no proprietary software is required.
+    </div>
+
+    <a class="source-link" href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer">
+      View source on GitHub →
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>PianoPilot · Free &amp; open source · MIT License ·
+    <a href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="/">FreeMIDIChords</a>
+  </p>
+  <p style="margin-top:8px">Not affiliated with Roland Corporation.</p>
+</footer>
+
+<script>
+  function openLightbox(src) {
+    document.getElementById("lightbox-img").src = src;
+    document.getElementById("lightbox").classList.add("open");
+  }
+  function closeLightbox() {
+    document.getElementById("lightbox").classList.remove("open");
+    document.getElementById("lightbox-img").src = "";
+  }
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
+</script>
+</body>
+</html>

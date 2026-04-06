@@ -9,6 +9,8 @@
   <meta property="og:description" content="Full desktop control for your Roland FP-30X. Edit tones, metronome, transpose, Piano Designer and more — for free." />
   <meta property="og:type" content="website" />
   <link rel="canonical" href="https://freemidichords.com/fp30x" />
+  <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
+  <link rel="apple-touch-icon" href="/static/favicon.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -50,9 +52,18 @@
       text-decoration: none;
     }
     .nav-brand svg { width: 30px; height: 30px; }
-    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links { display: flex; gap: 24px; list-style: none; align-items: center; }
     .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
     .nav-links a:hover { color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .lang-btn {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 7px;
+      padding: 5px 11px; font-size: .78rem; font-weight: 600;
+      cursor: pointer; transition: color .2s, border-color .2s;
+      letter-spacing: .04em;
+    }
+    .lang-btn:hover { color: var(--text); border-color: var(--orange); }
     .nav-cta {
       background: var(--orange); color: #fff; border: none; border-radius: 8px;
       padding: 7px 18px; font-size: .875rem; font-weight: 600; cursor: pointer;
@@ -209,10 +220,51 @@
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--orange); }
 
+    /* ── SUPPORT ── */
+    .support-section { padding: 0 24px 80px; }
+    .support-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      max-width: 760px; margin: 0 auto;
+    }
+    .support-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px 24px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .support-icon { font-size: 1.8rem; }
+    .support-card h3 { font-size: 1rem; font-weight: 700; }
+    .support-card p { font-size: .875rem; color: var(--muted); line-height: 1.7; flex: 1; }
+
+    /* ── FEEDBACK MODAL ── */
+    .fb-overlay {
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,.75);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .fb-overlay.hidden { display: none; }
+    .fb-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 36px 32px;
+      width: 100%; max-width: 480px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .fb-card h3 { font-size: 1.1rem; font-weight: 700; }
+    .fb-help { font-size: .875rem; color: var(--muted); }
+    .fb-row { display: flex; flex-direction: column; gap: 5px; }
+    .fb-row label { font-size: .8rem; font-weight: 600; color: var(--muted); }
+    .fb-row input, .fb-row textarea {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 9px 12px; font-size: .9rem; font-family: inherit;
+      resize: vertical;
+    }
+    .fb-row input:focus, .fb-row textarea:focus { outline: none; border-color: var(--orange); }
+    .fb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 600px) {
       .nav-links { display: none; }
       .download-grid { grid-template-columns: 1fr; }
+      .support-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -220,7 +272,7 @@
 
 <!-- NAV -->
 <nav>
-  <a class="nav-brand" href="/fp30x">
+  <a class="nav-brand" href="/">
     <svg viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="nav-bg" x1="40" y1="32" x2="216" y2="224" gradientUnits="userSpaceOnUse">
@@ -254,12 +306,15 @@
     PianoPilot
   </a>
   <ul class="nav-links">
-    <li><a href="#features">Features</a></li>
-    <li><a href="#screenshots">Screenshots</a></li>
-    <li><a href="#download">Download</a></li>
+    <li><a href="#features" data-i18n="nav_features">Features</a></li>
+    <li><a href="#screenshots" data-i18n="nav_screenshots">Screenshots</a></li>
+    <li><a href="#download" data-i18n="nav_download">Download</a></li>
     <li><a href="/">FreeMIDIChords</a></li>
   </ul>
-  <a class="nav-cta" href="#download">Download free</a>
+  <div class="nav-right">
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">ES</button>
+    <a class="nav-cta" href="#download" data-i18n="nav_cta">Download free</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -295,87 +350,87 @@
     </g>
   </svg>
 
-  <h1>Your Roland FP-30X,<br><span>fully under control.</span></h1>
-  <p>PianoPilot is a free desktop app for macOS and Windows that lets you edit every parameter of your Roland FP-30X from a comfortable full-screen interface — over USB or Bluetooth.</p>
+  <h1 data-i18n-html="hero_h1">Your Roland FP-30X,<br><span>fully under control.</span></h1>
+  <p data-i18n="hero_p">PianoPilot is a free desktop app for macOS and Windows that lets you edit every parameter of your Roland FP-30X from a comfortable full-screen interface — over USB or Bluetooth.</p>
 
   <div class="hero-badges">
     <span class="badge">macOS 10.15+</span>
     <span class="badge">Windows 10/11</span>
     <span class="badge">USB &amp; Bluetooth MIDI</span>
-    <span class="badge">Free &amp; Open Source</span>
+    <span class="badge" data-i18n="badge_free">Free &amp; Open Source</span>
     <span class="badge">English / Español</span>
   </div>
 
   <div class="btn-group">
     <a class="btn-primary" href="#download">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4h14v-2H5v2z"/></svg>
-      Download free
+      <span data-i18n="nav_cta">Download free</span>
     </a>
     <a class="btn-secondary" href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7C6.73 19.91 6.14 18 6.14 18c-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 7.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0 0 22 12C22 6.48 17.52 2 12 2z"/></svg>
-      View on GitHub
+      <span data-i18n="btn_github">View on GitHub</span>
     </a>
   </div>
 </section>
 
 <!-- FEATURES -->
 <section class="section" id="features">
-  <span class="section-label">Features</span>
-  <h2 class="section-title">Everything the piano panel can do — and more</h2>
+  <span class="section-label" data-i18n="nav_features">Features</span>
+  <h2 class="section-title" data-i18n="features_title">Everything the piano panel can do — and more</h2>
   <div class="features-grid">
 
     <div class="feature-card">
       <div class="feature-icon">🎹</div>
-      <h3>200+ Tones</h3>
-      <p>Browse and load any tone on your FP-30X — Piano, E.Piano, Organ, Strings, Pads, GM2, and more — from a searchable dropdown, instantly sent over MIDI.</p>
+      <h3 data-i18n="f1_title">200+ Tones</h3>
+      <p data-i18n="f1_desc">Browse and load any tone on your FP-30X — Piano, E.Piano, Organ, Strings, Pads, GM2, and more — from a searchable dropdown, instantly sent over MIDI.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🎚️</div>
-      <h3>Piano Settings</h3>
-      <p>Master Volume, Key Touch, Brilliance, Transpose, Master Tuning (Hz display), and Ambience Depth — all in a single, comfortable panel.</p>
+      <h3 data-i18n="f2_title">Piano Settings</h3>
+      <p data-i18n="f2_desc">Master Volume, Key Touch, Brilliance, Transpose, Master Tuning (Hz display), and Ambience Depth — all in a single, comfortable panel.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🎛️</div>
-      <h3>Split, Dual &amp; Twin Modes</h3>
-      <p>Configure keyboard modes with independent tone selection, balance, octave shifts, and a draggable split point — without touching the piano.</p>
+      <h3 data-i18n="f3_title">Split, Dual &amp; Twin Modes</h3>
+      <p data-i18n="f3_desc">Configure keyboard modes with independent tone selection, balance, octave shifts, and a draggable split point — without touching the piano.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🥁</div>
-      <h3>Full Metronome Control</h3>
-      <p>Set BPM (10–500), volume, click tone (Electronic, Voice…), and time signature with subdivision patterns. Start/stop without leaving your seat.</p>
+      <h3 data-i18n="f4_title">Full Metronome Control</h3>
+      <p data-i18n="f4_desc">Set BPM (10–500), volume, click tone (Electronic, Voice…), and time signature with subdivision patterns. Start/stop without leaving your seat.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🎼</div>
-      <h3>Piano Designer (beta)</h3>
-      <p>Adjust string resonance, damper resonance, lid position, and choose from historical temperaments — Pythagorean, Meantone, Kirnberger, and more.</p>
+      <h3 data-i18n="f5_title">Piano Designer (beta)</h3>
+      <p data-i18n="f5_desc">Adjust string resonance, damper resonance, lid position, and choose from historical temperaments — Pythagorean, Meantone, Kirnberger, and more.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🔬</div>
-      <h3>Note Voicing (beta)</h3>
-      <p>Fine-tune pitch and character for each of the 88 keys individually. The kind of customization normally reserved for concert grand technicians.</p>
+      <h3 data-i18n="f6_title">Note Voicing (beta)</h3>
+      <p data-i18n="f6_desc">Fine-tune pitch and character for each of the 88 keys individually. The kind of customization normally reserved for concert grand technicians.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🔌</div>
-      <h3>USB &amp; Bluetooth</h3>
-      <p>Works with any connection that makes your FP-30X appear as a MIDI device — standard USB cable or system-paired Bluetooth MIDI.</p>
+      <h3 data-i18n="f7_title">USB &amp; Bluetooth</h3>
+      <p data-i18n="f7_desc">Works with any connection that makes your FP-30X appear as a MIDI device — standard USB cable or system-paired Bluetooth MIDI.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🔄</div>
-      <h3>Two-Way Sync</h3>
-      <p>Optionally reads the piano's current state over MIDI input so the UI always reflects what the instrument is actually doing.</p>
+      <h3 data-i18n="f8_title">Two-Way Sync</h3>
+      <p data-i18n="f8_desc">Optionally reads the piano's current state over MIDI input so the UI always reflects what the instrument is actually doing.</p>
     </div>
 
     <div class="feature-card">
       <div class="feature-icon">🌐</div>
-      <h3>English &amp; Spanish</h3>
-      <p>Full bilingual interface. Switch between English and Spanish at any time without restarting the application.</p>
+      <h3 data-i18n="f9_title">English &amp; Spanish</h3>
+      <p data-i18n="f9_desc">Full bilingual interface. Switch between English and Spanish at any time without restarting the application.</p>
     </div>
 
   </div>
@@ -384,24 +439,24 @@
 <!-- SCREENSHOTS -->
 <div class="screenshots-section" id="screenshots">
   <div class="screenshots-inner">
-    <span class="section-label">Screenshots</span>
-    <h2 class="section-title">See it in action</h2>
+    <span class="section-label" data-i18n="nav_screenshots">Screenshots</span>
+    <h2 class="section-title" data-i18n="screenshots_title">See it in action</h2>
     <div class="screenshots-grid">
       <div class="screenshot-item" onclick="openLightbox('/static/fp30x/settings.png')">
         <img src="/static/fp30x/settings.png" alt="Piano Settings tab" loading="lazy" />
-        <div class="screenshot-cap">Piano Settings</div>
+        <div class="screenshot-cap" data-i18n="cap_settings">Piano Settings</div>
       </div>
       <div class="screenshot-item" onclick="openLightbox('/static/fp30x/tones.png')">
         <img src="/static/fp30x/tones.png" alt="Tones tab with tone browser" loading="lazy" />
-        <div class="screenshot-cap">Tone Browser</div>
+        <div class="screenshot-cap" data-i18n="cap_tones">Tone Browser</div>
       </div>
       <div class="screenshot-item" onclick="openLightbox('/static/fp30x/metronome.png')">
         <img src="/static/fp30x/metronome.png" alt="Metronome tab" loading="lazy" />
-        <div class="screenshot-cap">Metronome</div>
+        <div class="screenshot-cap" data-i18n="cap_metro">Metronome</div>
       </div>
       <div class="screenshot-item" onclick="openLightbox('/static/fp30x/piano-designer.png')">
         <img src="/static/fp30x/piano-designer.png" alt="Piano Designer tab" loading="lazy" />
-        <div class="screenshot-cap">Piano Designer</div>
+        <div class="screenshot-cap" data-i18n="cap_pd">Piano Designer</div>
       </div>
     </div>
   </div>
@@ -416,9 +471,9 @@
 <!-- DOWNLOAD -->
 <section class="download-section" id="download">
   <div class="download-inner">
-    <span class="section-label">Download</span>
-    <h2 class="section-title" style="margin-bottom:16px">Free. No account. No strings.</h2>
-    <p>Download the latest release for your platform. Or install from source if you prefer Python.</p>
+    <span class="section-label" data-i18n="nav_download">Download</span>
+    <h2 class="section-title" style="margin-bottom:16px" data-i18n="dl_title">Free. No account. No strings.</h2>
+    <p data-i18n="dl_p">Download the latest release for your platform. Or install from source if you prefer Python.</p>
 
     <div class="download-grid">
       <a class="dl-card" href="https://github.com/aortegaCampanillas/RolandFP30xController/releases/latest" target="_blank" rel="noopener noreferrer">
@@ -433,15 +488,60 @@
       </a>
     </div>
 
-    <div class="disclaimer">
+    <div class="disclaimer" data-i18n="disclaimer">
       <strong>Independent project.</strong> PianoPilot is not affiliated with, endorsed by, or sponsored by Roland Corporation. "Roland" and "FP-30X" are trademarks of Roland Corporation. This app communicates with the instrument using standard USB MIDI — no proprietary software is required.
     </div>
 
-    <a class="source-link" href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer">
+    <a class="source-link" href="https://github.com/aortegaCampanillas/RolandFP30xController" target="_blank" rel="noopener noreferrer" data-i18n="source_link">
       View source on GitHub →
     </a>
   </div>
 </section>
+
+<!-- SUPPORT + FEEDBACK -->
+<div class="support-section">
+  <div class="support-grid">
+    <div class="support-card">
+      <div class="support-icon">💛</div>
+      <h3 data-i18n="sup_donate_title">Support the project</h3>
+      <p data-i18n="sup_donate_text">PianoPilot is free and open source. If it saves you time or you find it useful, consider supporting its development.</p>
+      <a class="btn-primary" style="margin-top:8px;align-self:flex-start" href="https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000" target="_blank" rel="noopener noreferrer" data-i18n="sup_donate_btn">Donate</a>
+    </div>
+    <div class="support-card">
+      <div class="support-icon">💬</div>
+      <h3 data-i18n="sup_feedback_title">Send feedback</h3>
+      <p data-i18n="sup_feedback_text">Have a suggestion or found a bug? We read every message and use it to improve PianoPilot.</p>
+      <button class="btn-primary" style="margin-top:8px;align-self:flex-start" onclick="openFeedback()" data-i18n="sup_feedback_btn">Send feedback</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEEDBACK MODAL -->
+<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" onclick="if(event.target===this)closeFeedback()">
+  <div class="fb-card">
+    <h3 data-i18n="fb_title">Send feedback</h3>
+    <p class="fb-help" data-i18n="fb_help">Send us suggestions or bugs you've found.</p>
+    <form id="feedbackForm">
+      <div class="fb-row">
+        <label for="fbName" data-i18n="fb_name">Name</label>
+        <input id="fbName" name="name" type="text" maxlength="120" required />
+      </div>
+      <div class="fb-row">
+        <label for="fbEmail" data-i18n="fb_email">Email</label>
+        <input id="fbEmail" name="email" type="email" maxlength="200" required />
+      </div>
+      <div class="fb-row">
+        <label for="fbMessage" data-i18n="fb_message">Message</label>
+        <textarea id="fbMessage" name="message" rows="4" maxlength="4000" required></textarea>
+      </div>
+      <div class="fb-actions">
+        <button type="submit" class="btn-primary" id="fbSubmit" data-i18n="fb_send">Send</button>
+        <button type="button" class="btn-secondary" onclick="closeFeedback()" data-i18n="fb_close">Close</button>
+        <span id="fbStatus" style="font-size:.85rem;color:var(--muted)" aria-live="polite"></span>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- FOOTER -->
 <footer>
@@ -450,19 +550,199 @@
     &nbsp;·&nbsp;
     <a href="/">FreeMIDIChords</a>
   </p>
-  <p style="margin-top:8px">Not affiliated with Roland Corporation.</p>
+  <p style="margin-top:8px" data-i18n="footer_disclaimer">Not affiliated with Roland Corporation.</p>
 </footer>
 
 <script>
-  function openLightbox(src) {
-    document.getElementById("lightbox-img").src = src;
-    document.getElementById("lightbox").classList.add("open");
+const TRANSLATIONS = {
+  en: {
+    nav_features:      "Features",
+    nav_screenshots:   "Screenshots",
+    nav_download:      "Download",
+    nav_cta:           "Download free",
+    btn_github:        "View on GitHub",
+    badge_free:        "Free \u0026 Open Source",
+    hero_h1:           "Your Roland FP-30X,<br><span>fully under control.</span>",
+    hero_p:            "PianoPilot is a free desktop app for macOS and Windows that lets you edit every parameter of your Roland FP-30X from a comfortable full-screen interface \u2014 over USB or Bluetooth.",
+    features_title:    "Everything the piano panel can do \u2014 and more",
+    f1_title: "200+ Tones",
+    f1_desc:  "Browse and load any tone on your FP-30X \u2014 Piano, E.Piano, Organ, Strings, Pads, GM2, and more \u2014 from a searchable dropdown, instantly sent over MIDI.",
+    f2_title: "Piano Settings",
+    f2_desc:  "Master Volume, Key Touch, Brilliance, Transpose, Master Tuning (Hz display), and Ambience Depth \u2014 all in a single, comfortable panel.",
+    f3_title: "Split, Dual \u0026 Twin Modes",
+    f3_desc:  "Configure keyboard modes with independent tone selection, balance, octave shifts, and a draggable split point \u2014 without touching the piano.",
+    f4_title: "Full Metronome Control",
+    f4_desc:  "Set BPM (10\u2013500), volume, click tone (Electronic, Voice\u2026), and time signature with subdivision patterns. Start/stop without leaving your seat.",
+    f5_title: "Piano Designer (beta)",
+    f5_desc:  "Adjust string resonance, damper resonance, lid position, and choose from historical temperaments \u2014 Pythagorean, Meantone, Kirnberger, and more.",
+    f6_title: "Note Voicing (beta)",
+    f6_desc:  "Fine-tune pitch and character for each of the 88 keys individually. The kind of customization normally reserved for concert grand technicians.",
+    f7_title: "USB \u0026 Bluetooth",
+    f7_desc:  "Works with any connection that makes your FP-30X appear as a MIDI device \u2014 standard USB cable or system-paired Bluetooth MIDI.",
+    f8_title: "Two-Way Sync",
+    f8_desc:  "Optionally reads the piano\u2019s current state over MIDI input so the UI always reflects what the instrument is actually doing.",
+    f9_title: "English \u0026 Spanish",
+    f9_desc:  "Full bilingual interface. Switch between English and Spanish at any time without restarting the application.",
+    screenshots_title: "See it in action",
+    cap_settings: "Piano Settings",
+    cap_tones:    "Tone Browser",
+    cap_metro:    "Metronome",
+    cap_pd:       "Piano Designer",
+    dl_title:   "Free. No account. No strings.",
+    dl_p:       "Download the latest release for your platform. Or install from source if you prefer Python.",
+    disclaimer: "<strong>Independent project.</strong> PianoPilot is not affiliated with, endorsed by, or sponsored by Roland Corporation. \u201cRoland\u201d and \u201cFP-30X\u201d are trademarks of Roland Corporation. This app communicates with the instrument using standard USB MIDI \u2014 no proprietary software is required.",
+    source_link: "View source on GitHub \u2192",
+    footer_disclaimer: "Not affiliated with Roland Corporation.",
+    sup_donate_title:   "Support the project",
+    sup_donate_text:    "PianoPilot is free and open source. If it saves you time or you find it useful, consider supporting its development.",
+    sup_donate_btn:     "Donate",
+    sup_feedback_title: "Send feedback",
+    sup_feedback_text:  "Have a suggestion or found a bug? We read every message and use it to improve PianoPilot.",
+    sup_feedback_btn:   "Send feedback",
+    fb_title:           "Send feedback",
+    fb_help:            "Send us suggestions or bugs you\u2019ve found.",
+    fb_name:            "Name",
+    fb_email:           "Email",
+    fb_message:         "Message",
+    fb_send:            "Send",
+    fb_close:           "Close",
+    fb_sending:         "Sending\u2026",
+    fb_ok:              "Thanks! Message sent.",
+    fb_error:           "Could not send. Please try again.",
+  },
+  es: {
+    nav_features:      "Caracter\u00edsticas",
+    nav_screenshots:   "Capturas",
+    nav_download:      "Descarga",
+    nav_cta:           "Descargar gratis",
+    btn_github:        "Ver en GitHub",
+    badge_free:        "Gratis y c\u00f3digo abierto",
+    hero_h1:           "Tu Roland FP-30X,<br><span>completamente bajo control.</span>",
+    hero_p:            "PianoPilot es una app de escritorio gratuita para macOS y Windows que te permite editar cada par\u00e1metro de tu Roland FP-30X desde una c\u00f3moda interfaz a pantalla completa \u2014 por USB o Bluetooth.",
+    features_title:    "Todo lo que puede hacer el panel del piano \u2014 y m\u00e1s",
+    f1_title: "M\u00e1s de 200 tonos",
+    f1_desc:  "Explora y carga cualquier tono del FP-30X \u2014 Piano, E.Piano, \u00d3rgano, Cuerdas, Pads, GM2 y m\u00e1s \u2014 desde un desplegable, enviado al piano en tiempo real.",
+    f2_title: "Configuraci\u00f3n del piano",
+    f2_desc:  "Volumen maestro, sensibilidad de teclas, brillo, transposici\u00f3n, afinaci\u00f3n maestra (visualizaci\u00f3n en Hz) y profundidad de ambiente \u2014 todo en un \u00fanico panel.",
+    f3_title: "Modos Split, Dual y Twin",
+    f3_desc:  "Configura los modos de teclado con selecci\u00f3n de tono, balance, desplazamiento de octava y punto de divisi\u00f3n independientes \u2014 sin tocar el piano.",
+    f4_title: "Control completo del metr\u00f3nomo",
+    f4_desc:  "Ajusta el tempo (10\u2013500 BPM), el volumen, el tipo de clic y el comp\u00e1s con patrones de subdivisi\u00f3n. Arranca y para sin levantarte del asiento.",
+    f5_title: "Piano Designer (beta)",
+    f5_desc:  "Ajusta la resonancia de cuerdas, la resonancia del apagador, la posici\u00f3n de la tapa y elige entre temperamentos hist\u00f3ricos \u2014 pitag\u00f3rico, mesot\u00f3nico, Kirnberger y m\u00e1s.",
+    f6_title: "Voicing de notas (beta)",
+    f6_desc:  "Ajusta el tono y el car\u00e1cter de cada una de las 88 teclas individualmente. El tipo de personalizaci\u00f3n que normalmente se reserva para t\u00e9cnicos de cola de concierto.",
+    f7_title: "USB y Bluetooth",
+    f7_desc:  "Funciona con cualquier conexi\u00f3n que haga que tu FP-30X aparezca como dispositivo MIDI \u2014 cable USB est\u00e1ndar o Bluetooth MIDI emparejado con el sistema.",
+    f8_title: "Sincronizaci\u00f3n bidireccional",
+    f8_desc:  "Lee opcionalmente el estado actual del piano por entrada MIDI para que la interfaz refleje siempre lo que el instrumento est\u00e1 haciendo.",
+    f9_title: "Ingl\u00e9s y espa\u00f1ol",
+    f9_desc:  "Interfaz completamente biling\u00fce. Cambia entre ingl\u00e9s y espa\u00f1ol en cualquier momento sin reiniciar la aplicaci\u00f3n.",
+    screenshots_title: "V\u00e9alo en acci\u00f3n",
+    cap_settings: "Configuraci\u00f3n del piano",
+    cap_tones:    "Explorador de tonos",
+    cap_metro:    "Metr\u00f3nomo",
+    cap_pd:       "Dise\u00f1ador de piano",
+    dl_title:   "Gratis. Sin cuenta. Sin complicaciones.",
+    dl_p:       "Descarga la \u00faltima versi\u00f3n para tu plataforma. O instala desde el c\u00f3digo fuente si prefieres Python.",
+    disclaimer: "<strong>Proyecto independiente.</strong> PianoPilot no est\u00e1 afiliado, respaldado ni patrocinado por Roland Corporation. \u201cRoland\u201d y \u201cFP-30X\u201d son marcas comerciales de Roland Corporation. Esta app se comunica con el instrumento mediante USB MIDI est\u00e1ndar \u2014 no se requiere software propietario.",
+    source_link: "Ver c\u00f3digo en GitHub \u2192",
+    footer_disclaimer: "No afiliado con Roland Corporation.",
+    sup_donate_title:   "Apoya el proyecto",
+    sup_donate_text:    "PianoPilot es gratuito y de c\u00f3digo abierto. Si te ahorra tiempo o te resulta \u00fatil, considera apoyar su desarrollo.",
+    sup_donate_btn:     "Donar",
+    sup_feedback_title: "Enviar comentarios",
+    sup_feedback_text:  "\u00bfTienes una sugerencia o encontraste un error? Leemos todos los mensajes y los usamos para mejorar PianoPilot.",
+    sup_feedback_btn:   "Enviar comentarios",
+    fb_title:           "Enviar comentarios",
+    fb_help:            "Env\u00edanos sugerencias o errores que hayas detectado.",
+    fb_name:            "Nombre",
+    fb_email:           "Email",
+    fb_message:         "Comentario",
+    fb_send:            "Enviar",
+    fb_close:           "Cerrar",
+    fb_sending:         "Enviando\u2026",
+    fb_ok:              "\u00a1Gracias! Mensaje enviado.",
+    fb_error:           "No se pudo enviar. Int\u00e9ntalo de nuevo.",
+  },
+};
+
+const LS_KEY = "fmc_lang";
+
+function detectLang() {
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved === "es" || saved === "en") return saved;
+  const nav = (navigator.language || "en").toLowerCase();
+  return nav.startsWith("es") ? "es" : "en";
+}
+
+function applyLang(lang) {
+  const t = TRANSLATIONS[lang];
+  document.documentElement.lang = lang;
+  document.getElementById("langBtn").textContent = lang === "en" ? "ES" : "EN";
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => {
+    const key = el.getAttribute("data-i18n-html");
+    if (t[key] !== undefined) el.innerHTML = t[key];
+  });
+}
+
+function toggleLang() {
+  const next = detectLang() === "en" ? "es" : "en";
+  localStorage.setItem(LS_KEY, next);
+  applyLang(next);
+}
+
+function openLightbox(src) {
+  document.getElementById("lightbox-img").src = src;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightbox-img").src = "";
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeLightbox(); closeFeedback(); }
+});
+
+applyLang(detectLang());
+
+// ── FEEDBACK MODAL ──
+function openFeedback() { document.getElementById("feedbackModal").classList.remove("hidden"); }
+function closeFeedback() { document.getElementById("feedbackModal").classList.add("hidden"); }
+
+document.getElementById("feedbackForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const lang = detectLang();
+  const t = TRANSLATIONS[lang];
+  const submitBtn = document.getElementById("fbSubmit");
+  const status = document.getElementById("fbStatus");
+  const name    = document.getElementById("fbName").value.trim();
+  const email   = document.getElementById("fbEmail").value.trim();
+  const message = document.getElementById("fbMessage").value.trim();
+  if (!name || !email || !message) { status.textContent = t.fb_error; return; }
+  submitBtn.disabled = true;
+  status.textContent = t.fb_sending;
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, message, mode: "fp30x", language: lang, page_url: location.href }),
+    });
+    const out = await res.json();
+    if (out?.sent) {
+      e.target.reset();
+      status.textContent = t.fb_ok;
+    } else { throw new Error(); }
+  } catch {
+    status.textContent = t.fb_error;
+  } finally {
+    submitBtn.disabled = false;
   }
-  function closeLightbox() {
-    document.getElementById("lightbox").classList.remove("open");
-    document.getElementById("lightbox-img").src = "";
-  }
-  document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
+});
 </script>
 </body>
 </html>

@@ -202,6 +202,37 @@
     footer a:hover { color: var(--accent); }
     .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-bottom: 12px; }
 
+    /* ── SCREENSHOTS ── */
+    .screenshots-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 24px; }
+    .screenshots-inner { max-width: 1140px; margin: 0 auto; }
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; margin-top: 48px;
+    }
+    .screenshot-item {
+      border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: transform .2s, border-color .2s;
+    }
+    .screenshot-item:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .screenshot-item img { width: 100%; display: block; }
+    .screenshot-cap {
+      background: var(--surface2); padding: 10px 14px;
+      font-size: .8rem; color: var(--muted); font-weight: 500;
+    }
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.88); align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 90vh; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 24px; font-size: 2rem; color: #fff;
+      cursor: pointer; line-height: 1; background: none; border: none;
+    }
+
     /* ── SUPPORT ── */
     .support-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
@@ -355,6 +386,38 @@
   </div>
 </section>
 
+<!-- SCREENSHOTS -->
+<div class="screenshots-section" id="screenshots">
+  <div class="screenshots-inner">
+    <span class="section-label" data-i18n="ss_label">Screenshots</span>
+    <h2 class="section-title" data-i18n="ss_title">See it in action</h2>
+    <div class="screenshots-grid">
+      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.png')">
+        <img src="/static/screenshots/detection.png" alt="Chord detection" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap1">Chord Detection</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.png')">
+        <img src="/static/screenshots/generation.png" alt="Chord generation" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap2">Chord Generation</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.png')">
+        <img src="/static/screenshots/guitar.png" alt="Guitar chords" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap3">Guitar Chords</div>
+      </div>
+      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.png')">
+        <img src="/static/screenshots/scales.png" alt="Scales" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="Screenshot" />
+</div>
+
 <!-- CTA BAND -->
 <div class="cta-band">
   <h2 data-i18n="cta_h2">Ready to play?</h2>
@@ -453,6 +516,12 @@ const TRANSLATIONS = {
     cta_h2:             "Ready to play?",
     cta_p:              "The web app works right now in your browser \u2014 no account, no download, no ads.",
     cta_btn:            "Open FreeMIDIChords \u2192",
+    ss_label: "Screenshots",
+    ss_title: "See it in action",
+    ss_cap1:  "Chord Detection",
+    ss_cap2:  "Chord Generation",
+    ss_cap3:  "Guitar Chords",
+    ss_cap4:  "Scales",
     sup_donate_title:   "Support the project",
     sup_donate_text:    "This project is designed to stay free and ad-free forever. Your support helps cover development, maintenance, infrastructure, and support time.",
     sup_donate_btn:     "Donate",
@@ -499,6 +568,12 @@ const TRANSLATIONS = {
     cta_h2:             "\u00bfListo para tocar?",
     cta_p:              "La app web funciona ahora mismo en tu navegador \u2014 sin cuenta, sin descarga, sin anuncios.",
     cta_btn:            "Abrir FreeMIDIChords \u2192",
+    ss_label: "Capturas",
+    ss_title: "V\u00e9alo en acci\u00f3n",
+    ss_cap1:  "Detecci\u00f3n de acordes",
+    ss_cap2:  "Generaci\u00f3n de acordes",
+    ss_cap3:  "Acordes de guitarra",
+    ss_cap4:  "Escalas",
     sup_donate_title:   "Apoya el proyecto",
     sup_donate_text:    "Este proyecto est\u00e1 pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y soporte.",
     sup_donate_btn:     "Donar",
@@ -550,11 +625,20 @@ function toggleLang() {
 
 applyLang(detectLang());
 
+// ── LIGHTBOX ──
+function openLightbox(src) {
+  document.getElementById("lightbox-img").src = src;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightbox-img").src = "";
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeLightbox(); closeFeedback(); } });
+
 // ── FEEDBACK MODAL ──
 function openFeedback() { document.getElementById("feedbackModal").classList.remove("hidden"); }
 function closeFeedback() { document.getElementById("feedbackModal").classList.add("hidden"); }
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeFeedback(); });
-
 document.getElementById("feedbackForm").addEventListener("submit", async e => {
   e.preventDefault();
   const lang = detectLang();

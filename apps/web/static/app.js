@@ -224,7 +224,7 @@ const UI_TEXTS = {
     downloads_macos_dmg: "macOS (App Store)",
     downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
     downloads_ios_appstore: "iOS (App Store)",
-    downloads_android_pending: "Android (Google Play): pendiente de aprobación",
+    downloads_android_googleplay: "Android (Google Play)",
     feedback_send: "Enviar comentario",
     feedback_sending: "Enviando...",
     feedback_ok: "Gracias. Comentario enviado.",
@@ -398,7 +398,7 @@ const UI_TEXTS = {
     downloads_macos_dmg: "macOS (App Store)",
     downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
     downloads_ios_appstore: "iOS (App Store)",
-    downloads_android_pending: "Android (Google Play): pending approval",
+    downloads_android_googleplay: "Android (Google Play)",
     feedback_send: "Send feedback",
     feedback_sending: "Sending...",
     feedback_ok: "Thanks. Feedback sent.",
@@ -2177,7 +2177,7 @@ function applyTranslations() {
   setText("downloadMacosLink", "downloads_macos_dmg");
   setText("downloadLinuxDebLink", "downloads_linux_deb");
   setText("downloadIosLink", "downloads_ios_appstore");
-  setText("downloadAndroidPending", "downloads_android_pending");
+  setText("downloadAndroidLink", "downloads_android_googleplay");
   setText("downloadsCloseBtn", "close");
   setText("helpToggle", "help_button");
   setText("midiStartupTitle", "midi_startup_title");

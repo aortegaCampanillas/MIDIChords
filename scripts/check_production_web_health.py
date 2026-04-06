@@ -235,6 +235,27 @@ def validate_static_asset(
     return errs
 
 
+def check_html_page(url: str, failures: list[str]) -> str:
+    """GET url, verifica HTTP 200 + Content-Type HTML. Devuelve el cuerpo decodificado."""
+    try:
+        status, headers, html_bytes = _request(url)
+    except RuntimeError as e:
+        failures.append(str(e))
+        return ""
+    ct = (headers.get("content-type") or "").lower()
+    if status != 200:
+        failures.append(f"GET {url} → HTTP {status}")
+    if "text/html" not in ct:
+        failures.append(f"GET {url} → Content-Type inesperado: {ct!r}")
+    try:
+        html = html_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        html = ""
+    if "<html" not in html.lower() and "<!doctype" not in html.lower():
+        failures.append(f"GET {url} → cuerpo no parece HTML")
+    return html
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Comprueba HTML/CSS/JS de la web en producción.")
     parser.add_argument(
@@ -251,55 +272,40 @@ def main() -> int:
     base = args.base_url
     failures: list[str] = []
 
-    # --- Documento principal ---
-    index_url = f"{base}/"
-    try:
-        status, headers, html_bytes = _request(index_url)
-    except RuntimeError as e:
-        _fail(str(e))
-        return 1
+    # --- Landing principal (/) — HTML sin CSS/JS propios ---
+    check_html_page(f"{base}/", failures)
 
-    ct = (headers.get("content-type") or "").lower()
-    if status != 200:
-        failures.append(f"GET {index_url} → HTTP {status}")
-    if "text/html" not in ct:
-        failures.append(f"GET {index_url} → Content-Type inesperado: {ct!r}")
+    # --- Landing PianoPilot (/fp30x) — HTML sin CSS/JS propios ---
+    check_html_page(f"{base}/fp30x", failures)
 
-    try:
-        html = html_bytes.decode("utf-8", errors="replace")
-    except Exception:
-        html = ""
-
-    if "<html" not in html.lower() and "<!doctype" not in html.lower():
-        failures.append(f"GET {index_url} → cuerpo no parece HTML (primeros bytes no reconocidos)")
+    # --- App SPA (/app) — HTML + CSS + JS ---
+    app_url = f"{base}/app"
+    app_html = check_html_page(app_url, failures)
 
     p = AssetParser()
     try:
-        p.feed(html)
+        p.feed(app_html)
         p.close()
     except Exception as e:
-        failures.append(f"Error parseando HTML: {e}")
+        failures.append(f"Error parseando HTML de {app_url}: {e}")
 
-    css_urls = [urljoin(index_url, h) for h in p.stylesheet_hrefs]
-    js_urls = [urljoin(index_url, h) for h in p.script_srcs]
+    css_urls = [urljoin(app_url, h) for h in p.stylesheet_hrefs]
+    js_urls = [urljoin(app_url, h) for h in p.script_srcs]
 
     css_url = pick_css_bundle_url(css_urls)
     js_url = pick_js_bundle_url(js_urls)
 
     if not css_url:
         failures.append(
-            "No se encontró <link rel=stylesheet> a /static/style…css (p. ej. style.<hash>.css)."
+            f"GET {app_url} → no se encontró <link rel=stylesheet> a /static/style…css"
         )
     if not js_url:
         failures.append(
-            "No se encontró <script src=…> a /static/app…js (p. ej. app.<hash>.js)."
+            f"GET {app_url} → no se encontró <script src=…> a /static/app…js"
         )
 
-    # --- CSS ---
     if css_url:
         failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
-
-    # --- JS ---
     if js_url:
         failures.extend(validate_static_asset(js_url, kind="js", min_len=500))
 
@@ -341,7 +347,8 @@ def main() -> int:
         return 1
 
     print(
-        f"OK: {index_url} (HTML), CSS ({css_url}), JS ({js_url})"
+        f"OK: {base}/ (landing), {base}/app (SPA, CSS={css_url}, JS={js_url}), "
+        f"{base}/fp30x (PianoPilot)"
         + ("" if args.skip_api else f", API {base}/api/meta")
     )
     return 0

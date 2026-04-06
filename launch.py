@@ -140,16 +140,16 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     app_src.rename(static_dir / app_name)
     css_src.rename(static_dir / css_name)
 
-    idx_path = pages_dist / "index.html"
-    html = idx_path.read_text(encoding="utf-8")
+    app_path = pages_dist / "app.html"
+    html = app_path.read_text(encoding="utf-8")
     if "/static/app.js" not in html or "/static/style.css" not in html:
-        raise SystemExit("[pages-dist] index.html debe enlazar /static/app.js y /static/style.css")
+        raise SystemExit("[pages-dist] app.html debe enlazar /static/app.js y /static/style.css")
     html = html.replace('href="/static/style.css"', f'href="/static/{css_name}"')
     html = html.replace('src="/static/app.js"', f'src="/static/{app_name}"')
-    idx_path.write_text(html, encoding="utf-8")
+    app_path.write_text(html, encoding="utf-8")
     print(f"[pages-dist] Fingerprint estáticos: /static/{css_name}, /static/{app_name}")
 
-    for name in ("index.html", "_worker.js", "_routes.json"):
+    for name in ("index.html", "app.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
     if not (static_dir / app_name).is_file() or not (static_dir / css_name).is_file():

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Google Search Console (verificación por meta): añade en <head> la etiqueta que indique GSC. Guía: apps/web/README.md § Google Search Console. -->
+    <title>MIDI Piano &amp; Guitar Chords — Acordes, escalas, metrónomo y MIDI gratis</title>
+    <meta
+      name="description"
+      content="Herramienta online gratuita: detecta y genera acordes en piano y guitarra, círculo de quintas interactivo, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador."
+    />
+    <link rel="canonical" href="https://freemidichords.com/app" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://freemidichords.com/app" />
+    <meta
+      property="og:title"
+      content="MIDI Piano &amp; Guitar Chords — Acordes, escalas, metrónomo y MIDI gratis"
+    />
+    <meta
+      property="og:description"
+      content="Herramienta online gratuita: detecta y genera acordes en piano y guitarra, círculo de quintas interactivo, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador."
+    />
+    <meta property="og:image" content="https://freemidichords.com/static/og-image.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="500" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="MIDI Piano &amp; Guitar Chords — Acordes, escalas, metrónomo y MIDI gratis"
+    />
+    <meta
+      name="twitter:description"
+      content="Herramienta online gratuita: detecta y genera acordes en piano y guitarra, círculo de quintas interactivo, escalas, metrónomo y afinador. Usa teclado MIDI o ratón. Sin instalación en el navegador."
+    />
+    <meta name="twitter:image" content="https://freemidichords.com/static/og-image.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "MIDI Piano & Guitar Chords",
+        "alternateName": ["MIDIChords", "Free MIDI Chords"],
+        "url": "https://freemidichords.com/app",
+        "applicationCategory": "MusicApplication",
+        "operatingSystem": "Web browser",
+        "browserRequirements": "Requires JavaScript. MIDI optional.",
+        "inLanguage": ["es", "en"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "softwareVersion": "1.0.2",
+        "description": "Web app for piano and guitar chords, interactive circle of fifths, scales, metronome and tuner. Spanish and English UI. Free; MIDI keyboard optional."
+      }
+    </script>
+    <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
+    <link rel="apple-touch-icon" href="/static/favicon.png" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>MIDI Piano & Guitar Chords</h1>
+      <div class="topbar-center">
+        <select id="modeSelect">
+          <option value="detection">Detección de Acordes</option>
+          <option value="generation">Generación de Acordes</option>
+          <option value="circle_fifths">Círculo de quintas</option>
+          <option value="scales">Escalas</option>
+          <option value="metronome">Metrónomo</option>
+          <option value="tuner">Afinador</option>
+        </select>
+      </div>
+      <div class="topbar-controls">
+        <div class="controls-inline">
+          <select id="language">
+            <option value="es">Español</option>
+            <option value="en">English</option>
+          </select>
+          <select id="accidental">
+            <option value="sharp">#</option>
+            <option value="flat">♭</option>
+          </select>
+        </div>
+        <div id="instrumentSwitch" class="controls-inline">
+          <button id="midiToggle" class="ghost" title="Entrada MIDI Web">MIDI: Off</button>
+          <button id="helpToggle" class="ghost" title="Ayuda">Ayuda</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section id="modeScreen" class="mode-screen">
+        <div class="mode-layout">
+          <section id="staffArea" class="staff-panel">
+            <div id="staffHeader" class="staff-header">Pentagrama</div>
+            <div id="circleChordOverStaff" class="circle-chord-over-staff" aria-hidden="true" hidden>
+              <div id="circleFieldChord"><span id="labelCircleChord" class="label">Acorde:</span> <strong id="circleChordName">-</strong></div>
+            </div>
+            <canvas id="staffCanvas" width="900" height="520"></canvas>
+            <div id="circleFifthsStaffFooter" class="circle-fifths-staff-footer" aria-hidden="true" hidden>
+              <p id="circleFifthsHint" class="muted circle-fifths-hint"></p>
+            </div>
+          </section>
+          <aside class="sidebar">
+            <div class="sidebar-top">
+              <section id="panelDetection" class="mode-panel hidden">
+                <h3 id="headingDetection">Detección</h3>
+                <p id="detectionHint" class="muted">Pulsa notas en piano/guitarra para detectar acordes.</p>
+                <div class="controls-inline">
+                  <button id="detectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                  <button id="detectClear">Limpiar</button>
+                  <button id="detectMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
+                </div>
+                <div class="result-block">
+                  <div id="detectFieldChord"><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
+                  <div id="detectFieldNotes"><span id="labelDetectNotes" class="label">Notas:</span> <span id="detectNotes">-</span></div>
+                  <div id="detectFieldExtras"><span id="labelDetectExtras" class="label">Sobrantes:</span> <span id="detectExtras">-</span></div>
+                  <div id="detectFieldIntervals"><span id="labelDetectIntervals" class="label">Intervalos:</span> <span id="detectIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelGeneration" class="mode-panel hidden">
+                <h3 id="headingGeneration">Generación de Acordes</h3>
+                <div class="row">
+                  <label id="labelGenRoot" for="genRoot">Tónica</label>
+                  <select id="genRoot"></select>
+                </div>
+                <div class="row">
+                  <label id="labelGenVariant" for="genVariant">Variante</label>
+                  <select id="genVariant"></select>
+                </div>
+                <div class="row">
+                  <label id="labelGenInversion" for="genInversion">Inversión</label>
+                  <select id="genInversion"></select>
+                </div>
+                <div class="controls-inline">
+                  <button id="genPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                </div>
+                <div class="result-block">
+                  <div id="genFieldChord"><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong></div>
+                  <div id="genFieldNotes"><span id="labelGenNotes" class="label">Notas:</span> <span id="genNotes">-</span></div>
+                  <div id="genFieldIntervals"><span id="labelGenIntervals" class="label">Intervalos:</span> <span id="genIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelCircleFifths" class="mode-panel mode-panel-circle-fifths hidden">
+                <div class="circle-fifths-wrap">
+                  <div class="circle-fifths-canvas-shell">
+                    <button type="button" id="circlePlay" class="icon-play-btn circle-fifths-play-overlay" aria-label="Reproducir" title="Reproducir">▶</button>
+                    <canvas id="circleFifthsCanvas" width="480" height="480" aria-label="Círculo de quintas"></canvas>
+                  </div>
+                </div>
+              </section>
+
+              <section id="panelScales" class="mode-panel hidden">
+                <h3 id="headingScales">Escalas</h3>
+                <div class="row">
+                  <label id="labelScaleRoot" for="scaleRoot">Tónica</label>
+                  <select id="scaleRoot"></select>
+                </div>
+                <div class="row">
+                  <label id="labelScaleType" for="scaleType">Tipo</label>
+                  <select id="scaleType"></select>
+                </div>
+                <div class="controls-inline scale-controls-inline">
+                  <button id="scalePlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                  <button id="scaleModeMetronome" class="icon-play-btn scale-mode-btn" type="button" aria-label="Modo metrónomo" title="Modo metrónomo">⏱</button>
+                  <div id="scaleMetronomeVolumeWrap" class="scale-metronome-volume hidden">
+                    <label id="labelScaleMetronomeVolume" for="scaleMetroVolume">Volumen</label>
+                    <input id="scaleMetroVolume" type="range" min="0" max="100" value="100" />
+                    <span id="scaleMetroVolumeValue">100%</span>
+                  </div>
+                </div>
+                <div class="row">
+                  <label id="labelScaleBpm" for="scaleBpm">Velocidad</label>
+                  <input id="scaleBpm" type="range" min="1" max="300" value="120" />
+                  <span id="scaleBpmValue">120 PPM</span>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelScaleName" class="label">Escala:</span> <strong id="scaleName">-</strong></div>
+                  <div><span id="labelScaleNotes" class="label">Notas:</span> <span id="scaleNotes">-</span></div>
+                  <div><span id="labelScaleIntervals" class="label">Intervalos:</span> <span id="scaleIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelMetronome" class="mode-panel hidden">
+                <h3 id="headingMetronome">Configuración de Metrónomo</h3>
+                <div class="controls-inline">
+                  <button id="metroToggle" class="icon-play-btn" aria-label="Iniciar metrónomo" title="Iniciar metrónomo">▶</button>
+                  <button id="metroMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
+                </div>
+                <div class="row metronome-volume-row">
+                  <label id="labelMetronomeVolume" for="metroVolume">Volumen</label>
+                  <span></span>
+                  <input id="metroVolume" type="range" min="0" max="100" value="100" />
+                  <span id="metroVolumeValue">100%</span>
+                  <span></span>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeBpm" for="bpm">BPM</label>
+                  <button id="metroBpmMinus" type="button">−</button>
+                  <input id="bpm" type="range" min="40" max="220" value="120" />
+                  <button id="metroBpmPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="metro-bpm-meta">
+                  <div id="bpmValue">120 BPM</div>
+                  <div id="metroPresetValue">Moderato</div>
+                </div>
+                <div class="row">
+                  <label id="labelMetronomeBeats" for="metroMeter">Pulsos</label>
+                  <button id="metroMeterMinus" type="button">−</button>
+                  <input id="metroMeter" type="range" min="1" max="16" value="4" />
+                  <button id="metroMeterPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="metro-meter-meta">
+                  <div id="metroMeterValue">4</div>
+                </div>
+                <div id="metroRowSubdivision" class="row">
+                  <label id="labelMetronomeSubdivision">Subdivisión</label>
+                  <div id="metroFigures" class="controls-inline">
+                    <button class="metro-figure active" data-clicks="1" type="button">♩</button>
+                    <button class="metro-figure" data-clicks="2" type="button">♪♪</button>
+                    <button class="metro-figure" data-clicks="4" type="button">♬</button>
+                    <button class="metro-figure triplet" data-clicks="3" type="button"><span class="triplet-num">3</span><span class="triplet-glyph">♪♪♪</span></button>
+                    <button class="metro-figure triplet" data-clicks="6" type="button"><span class="triplet-num">3</span><span class="triplet-glyph">♬♬</span></button>
+                  </div>
+                </div>
+                <div id="metroRowBarAccent" class="row">
+                  <label id="labelMetronomeBarAccent" for="metroBarAccent">Acento de compás</label>
+                  <input id="metroBarAccent" type="checkbox" checked />
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div id="metroRowTimerEnabled" class="row">
+                  <label id="labelMetronomeTimerEnabled" for="metroTimerEnabled">Temporizador</label>
+                  <input id="metroTimerEnabled" type="checkbox" />
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div id="metroRowTimer" class="row metro-timer-row">
+                  <label id="labelMetronomeTimer" for="metroTimerMinutes">Tiempo</label>
+                  <input id="metroTimerMinutes" type="number" min="0" max="99" value="2" />
+                  <span>:</span>
+                  <input id="metroTimerSeconds" type="number" min="0" max="59" value="0" />
+                  <span id="metroTimerDisplay">00:00</span>
+                </div>
+              </section>
+
+              <section id="panelTuner" class="mode-panel hidden">
+                <h3 id="headingTuner">Configuración de Afinador</h3>
+                <div class="controls-inline">
+                  <button id="tunerToggle" class="icon-play-btn" aria-label="Iniciar afinador" title="Iniciar afinador">▶</button>
+                </div>
+                <div class="row">
+                  <label id="labelTunerInput" for="tunerInput">Entrada</label>
+                  <select id="tunerInput"></select>
+                </div>
+                <div class="row">
+                  <label id="labelTunerTuning" for="tunerTuning">Afinación</label>
+                  <select id="tunerTuning"></select>
+                </div>
+                <div class="row">
+                  <label id="labelTunerGain" for="tunerGain">Ganancia de entrada</label>
+                  <button id="tunerGainMinus" type="button">−</button>
+                  <input id="tunerGain" type="range" min="0" max="200" value="100" />
+                  <button id="tunerGainPlus" type="button">+</button>
+                  <span></span>
+                </div>
+                <div class="tuner-meta">
+                  <div id="tunerGainValue">100%</div>
+                </div>
+                <div class="row">
+                  <label id="labelTunerSpectrumRange" for="tunerRangeMin">Rango del espectro</label>
+                  <input id="tunerRangeMin" type="number" min="0" max="2990" step="1" value="20" />
+                  <span>-</span>
+                  <input id="tunerRangeMax" type="number" min="10" max="3000" step="1" value="500" />
+                  <span>Hz</span>
+                </div>
+                <div class="result-block">
+                  <div><span id="labelTunerNote" class="label">Nota:</span> <strong id="tunerNote">-</strong></div>
+                  <div><span id="labelTunerCents" class="label">Desviación:</span> <span id="tunerCents">-</span></div>
+                  <div><span id="labelTunerFreq" class="label">Frecuencia:</span> <span id="tunerFreq">-</span></div>
+                </div>
+              </section>
+            </div>
+          </aside>
+          <section id="instrumentArea" class="instrument-panel">
+            <div class="instrument-dock">
+              <button id="instPianoBtn" class="inst-btn active" data-inst="piano">Piano</button>
+              <button id="instGuitarBtn" class="inst-btn" data-inst="guitar">Guitarra</button>
+              <select id="guitarHandedness" class="hidden" title="Orientación de guitarra">
+                <option value="right">Diestro</option>
+                <option value="left">Zurdo</option>
+              </select>
+            </div>
+            <div id="sharedPiano" class="piano"></div>
+            <canvas id="sharedGuitarCanvas" class="guitar-canvas hidden" width="1400" height="320"></canvas>
+            <canvas id="tunerSpectrumCanvas" class="tuner-spectrum-canvas hidden" width="1400" height="320"></canvas>
+            <div id="guitarVariationBar" class="controls-inline hidden">
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="donationSection" class="donation-section">
+        <div class="support-grid">
+          <div class="support-card">
+            <h3 id="donationTitle">Apoya MIDI Piano & Guitar Chords</h3>
+            <p id="donationText">
+              Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.
+            </p>
+            <a id="donateBtn" class="donate-btn" href="#" target="_blank" rel="noopener noreferrer">Donar</a>
+          </div>
+          <div class="support-card">
+            <h3 id="feedbackPanelTitle">Comentarios</h3>
+            <p id="feedbackPanelText">
+              Puedes enviarnos comentarios sobre la página y sugerencias de mejora para seguir evolucionando la herramienta.
+            </p>
+            <button id="feedbackOpenBtn" class="donate-btn feedback-open-btn" type="button">Enviar comentarios</button>
+          </div>
+          <div class="support-card">
+            <h3 id="downloadsPanelTitle">Descargas</h3>
+            <p id="downloadsPanelText" class="muted">
+              Descarga la app para PC y móvil, o abre las tiendas oficiales.
+            </p>
+            <button id="downloadsOpenBtn" class="donate-btn feedback-open-btn" type="button">Ver descargas</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="midiStartupModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="midiStartupTitle">
+      <div class="modal-card">
+        <h3 id="midiStartupTitle">Activar entrada MIDI</h3>
+        <p id="midiStartupText">
+          Para usar un teclado/controlador MIDI en detección, activa la entrada MIDI.
+        </p>
+        <div class="controls-inline">
+          <button id="midiStartupEnableBtn">Activar MIDI</button>
+          <button id="midiStartupCloseBtn" class="ghost">Ahora no</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="feedbackModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <div class="modal-card feedback-modal-card">
+        <h3 id="feedbackModalTitle">Enviar comentarios</h3>
+        <p id="feedbackHelp" class="muted">Envíanos sugerencias o errores que hayas detectado.</p>
+        <form id="feedbackForm" class="feedback-form">
+          <div class="feedback-row">
+            <label id="feedbackNameLabel" for="feedbackName">Nombre</label>
+            <input id="feedbackName" name="name" type="text" maxlength="120" required />
+          </div>
+          <div class="feedback-row">
+            <label id="feedbackEmailLabel" for="feedbackEmail">Email</label>
+            <input id="feedbackEmail" name="email" type="email" maxlength="200" required />
+          </div>
+          <div class="feedback-row">
+            <label id="feedbackMessageLabel" for="feedbackMessage">Comentario</label>
+            <textarea id="feedbackMessage" name="message" rows="4" maxlength="4000" required></textarea>
+          </div>
+          <div class="feedback-actions">
+            <button id="feedbackSubmit" type="submit">Enviar comentario</button>
+            <button id="feedbackCloseBtn" type="button" class="ghost">Cerrar</button>
+            <span id="feedbackStatus" class="muted" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="downloadsModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="downloadsModalTitle">
+      <div class="modal-card downloads-modal-card">
+        <h3 id="downloadsModalTitle">Descargas</h3>
+        <p id="downloadsModalIntro" class="muted">Elige tu plataforma para descargar la app.</p>
+        <div class="downloads-grid">
+          <div class="downloads-card">
+            <div id="downloadsPcTitle" class="downloads-title">PC/Mac</div>
+            <ul class="downloads-list">
+              <li>
+                <a id="downloadWindowsLink" href="https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare" target="_blank" rel="noopener noreferrer">
+                  Windows (Microsoft Store)
+                </a>
+              </li>
+              <li>
+                <a id="downloadMacosLink" href="https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776" target="_blank" rel="noopener noreferrer">
+                  macOS (App Store)
+                </a>
+              </li>
+              <li>
+                <a id="downloadLinuxDebLink" href="https://github.com/aortegaCampanillas/FreeMIDIChords_Releases/releases/latest/download/MIDIChords-debian-amd64.deb" target="_blank" rel="noopener noreferrer">
+                  Linux (.deb) (GitHub Releases)
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="downloads-card">
+            <div id="downloadsMobileTitle" class="downloads-title">Móvil</div>
+            <ul class="downloads-list">
+              <li>
+                <a id="downloadIosLink" href="https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776" target="_blank" rel="noopener noreferrer">
+                  iOS (App Store)
+                </a>
+              </li>
+              <li>
+                <a id="downloadAndroidLink" href="https://play.google.com/store/apps/details?id=com.FPAlanTuring.FreeMIDIChords" target="_blank" rel="noopener noreferrer">
+                  Android (Google Play)
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="downloads-actions">
+          <button id="downloadsCloseBtn" type="button" class="ghost">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="helpOverlay" class="help-overlay hidden" aria-hidden="true"></div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

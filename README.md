@@ -1,5 +1,7 @@
 # MIDIChords Monorepo
 
+Sitio web del proyecto: [freemidichords.com](https://freemidichords.com)
+
 Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas. **Documentación**: [AGENTS.md](AGENTS.md) (para agentes IA), [PROJECT_SPEC.md](PROJECT_SPEC.md) (especificación para regenerar el proyecto).
 
 - `apps/desktop`: aplicación de escritorio (Tkinter, Python)

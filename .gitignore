@@ -38,6 +38,9 @@ htmlcov/
 # Logs
 *.log
 
+# Claude Code
+.claude/
+
 # IDE / editor
 .idea/
 .vscode/*

@@ -36,6 +36,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Web**: nuevo modo **Detección de intervalos** en la SPA (`apps/web/static/app.js`, `app.html`, `style.css`) con captura de las dos últimas notas desde teclado o MIDI, nombre del intervalo, semitonos, reproducción ascendente/descendente y modo **Recordar** con melodías mnemotécnicas dibujadas y reproducidas en el pentagrama. La landing (`apps/web/index.html`) y la documentación (`apps/web/README.md`) reflejan la nueva funcionalidad.
+
 - **Móvil (Flutter)**: pestaña **Círculo de quintas** (`circle_of_fifths.dart`) — canvas, grados diatónicos y armadura del pentagrama alineados con la web; tour de ayuda; reordenación de pestañas (Escalas y Metrónomo a índices posteriores cuando el afinador está activo).
 
 - **Escritorio (Tk)**: modo **Círculo de quintas** (`circle_fifths_mixin`, `ui/circle_of_fifths`) — pestaña y canvas alineados con web/móvil; integración en `main_app` y pentagrama.

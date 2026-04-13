@@ -115,6 +115,11 @@ const state = {
   },
   detectionMouseChordNotes: new Set(),
   detectionMidiHeldNotes: new Set(),
+  intervalNotes: [],
+  intervalMelodyActive: false,
+  intervalPlayingNote: null,
+  intervalPlayingIdx: null,
+  intervalPlayGeneration: 0,
   midiInputSoundEnabled: true,
   /** Screen Wake Lock (detección + MIDI); renovar con cada nota. */
   midiScreenWakeLock: null,
@@ -128,6 +133,7 @@ const state = {
 const UI_TEXTS = {
   es: {
     mode_detection: "Detección de Acordes",
+    mode_interval_detection: "Detección de Intervalos",
     mode_generation: "Generación de Acordes",
     mode_circle_fifths: "Círculo de quintas",
     mode_scales: "Escalas",
@@ -135,6 +141,7 @@ const UI_TEXTS = {
     mode_tuner: "Afinador",
     staff: "Pentagrama",
     heading_detection: "Detección",
+    heading_interval_detection: "Intervalos",
     heading_generation: "Generación de Acordes",
     heading_circle_fifths: "Círculo de quintas",
     heading_scales: "Escalas",
@@ -143,6 +150,22 @@ const UI_TEXTS = {
     heading_metronome_settings: "Configuración de Metrónomo",
     heading_tuner_settings: "Configuración de Afinador",
     hint_detection: "Pulsa notas en piano/guitarra para detectar acordes o usa un dispositivo MIDI.",
+    hint_interval_detection: "Pulsa dos notas (ratón, teclado o MIDI) para detectar el intervalo.",
+    interval_play_reverse: "Reproducir descendente",
+    label_interval_notes: "Notas:",
+    label_interval_name: "Intervalo:",
+    label_interval_semitones: "Semitonos:",
+    help_staff_interval: "Pentagrama de intervalos: muestra las dos últimas notas pulsadas.",
+    help_interval_panel: "Panel de intervalos: controles y resultado del intervalo actual.",
+    help_interval_play: "Reproduce las dos notas del intervalo de forma melódica.",
+    help_interval_clear: "Limpia las notas activas para comenzar de nuevo.",
+    help_interval_field_notes: "Notas: las dos últimas notas pulsadas.",
+    help_interval_field_name: "Nombre del intervalo detectado.",
+    help_interval_field_semitones: "Número de semitonos entre las dos notas.",
+    help_interval_field_recuerda: "Canción mnemotécnica: pulsa el nombre para activar la melodía de referencia en el pentagrama y reproducirla.",
+    help_instrument_surface_interval: "Teclado interactivo: pulsa notas para detectar intervalos (también vía MIDI). Cada pulsación añade la nota al par; la más antigua se descarta automáticamente.",
+    label_interval_recuerda: "Ejemplo:",
+    help_interval_play_reverse: "Reproduce el intervalo de forma descendente (nota alta → nota baja).",
     clear: "Limpiar",
     label_chord: "Acorde:",
     label_notes: "Notas:",
@@ -302,6 +325,7 @@ const UI_TEXTS = {
   },
   en: {
     mode_detection: "Chord Detection",
+    mode_interval_detection: "Interval Detection",
     mode_generation: "Chord Generation",
     mode_circle_fifths: "Circle of Fifths",
     mode_scales: "Scales",
@@ -309,6 +333,7 @@ const UI_TEXTS = {
     mode_tuner: "Tuner",
     staff: "Staff",
     heading_detection: "Detection",
+    heading_interval_detection: "Intervals",
     heading_generation: "Chord Generation",
     heading_circle_fifths: "Circle of Fifths",
     heading_scales: "Scales",
@@ -317,6 +342,22 @@ const UI_TEXTS = {
     heading_metronome_settings: "Metronome Settings",
     heading_tuner_settings: "Tuner Settings",
     hint_detection: "Press notes on piano/guitar to detect chords or use a MIDI device.",
+    hint_interval_detection: "Press two notes (mouse, keyboard or MIDI) to detect the interval.",
+    interval_play_reverse: "Play descending",
+    label_interval_notes: "Notes:",
+    label_interval_name: "Interval:",
+    label_interval_semitones: "Semitones:",
+    help_staff_interval: "Interval staff: shows the two latest pressed notes.",
+    help_interval_panel: "Interval panel: controls and current interval output.",
+    help_interval_play: "Play the two interval notes melodically.",
+    help_interval_clear: "Clear active notes and start over.",
+    help_interval_field_notes: "Notes: the two latest pressed notes.",
+    help_interval_field_name: "Name of the detected interval.",
+    help_interval_field_semitones: "Number of semitones between the two notes.",
+    help_interval_field_recuerda: "Mnemonic song: tap the name to activate the reference melody on the staff and play it.",
+    help_instrument_surface_interval: "Interactive keyboard: press notes to detect intervals (also via MIDI). Each press adds a note to the pair; the oldest is automatically discarded.",
+    label_interval_recuerda: "Example:",
+    help_interval_play_reverse: "Play the interval descending (high note → low note).",
     clear: "Clear",
     label_chord: "Chord:",
     label_notes: "Notes:",
@@ -489,7 +530,8 @@ const NOTE_LABELS = {
 
 const SHARP_KEY_SIGNATURES = ["F", "C", "G", "D", "A", "E", "B"];
 const FLAT_KEY_SIGNATURES = ["B", "E", "A", "D", "G", "C", "F"];
-const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // convención sostenidos
+const PC_TO_DIATONIC_FLAT   = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6]; // convención bemoles
 
 const PIANO_SAMPLE_URLS = {
   48: "/static/samples/grand_piano/C3.mp3",
@@ -629,8 +671,27 @@ const HELP_CALLOUTS_METRONOME = [
   { selector: "#helpMetroRedBall", textKey: "help_metro_red_ball", side: "top" },
 ];
 
+const HELP_CALLOUTS_INTERVAL_DETECTION = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#staffCanvas", textKey: "help_staff_interval", side: "top" },
+  { selector: "#panelIntervalDetection", textKey: "help_interval_panel", side: "left" },
+  { selector: "#intervalPlayReverse", textKey: "help_interval_play_reverse", side: "bottom" },
+  { selector: "#intervalPlay", textKey: "help_interval_play", side: "bottom" },
+  { selector: "#intervalClear", textKey: "help_interval_clear", side: "bottom" },
+  { selector: "#intervalMidiSoundToggle", textKey: "help_detect_midi_sound", side: "top" },
+  { selector: "#intervalFieldNotes", textKey: "help_interval_field_notes", side: "left" },
+  { selector: "#intervalFieldName", textKey: "help_interval_field_name", side: "left" },
+  { selector: "#intervalFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
+  { selector: "#intervalFieldRecuerda", textKey: "help_interval_field_recuerda", side: "left" },
+  { selector: "#sharedPiano", textKey: "help_instrument_surface_interval", side: "top" },
+];
+
 function helpCalloutsForMode(mode) {
   if (mode === "detection") return HELP_CALLOUTS_DETECTION;
+  if (mode === "interval_detection") return HELP_CALLOUTS_INTERVAL_DETECTION;
   if (mode === "generation") return HELP_CALLOUTS_GENERATION;
   if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
   if (mode === "scales") return HELP_CALLOUTS_SCALES;
@@ -1777,7 +1838,7 @@ function midiButtonTooltipForState(status = null) {
 
 function refreshMidiInputSoundToggleButton() {
   const label = state.midiInputSoundEnabled ? tr("midi_input_sound_on") : tr("midi_input_sound_off");
-  ["detectMidiSoundToggle", "metroMidiSoundToggle"].forEach((id) => {
+  ["detectMidiSoundToggle", "intervalMidiSoundToggle", "metroMidiSoundToggle"].forEach((id) => {
     const btn = el(id);
     if (!btn) return;
     btn.textContent = label;
@@ -2098,6 +2159,7 @@ function applyTranslations() {
       if (o) o.textContent = tr(key);
     };
     opt("detection", "mode_detection");
+    opt("interval_detection", "mode_interval_detection");
     opt("generation", "mode_generation");
     opt("circle_fifths", "mode_circle_fifths");
     opt("scales", "mode_scales");
@@ -2113,6 +2175,13 @@ function applyTranslations() {
   };
   setText("staffHeader", "staff");
   setText("headingDetection", "heading_detection");
+  setText("headingIntervalDetection", "heading_interval_detection");
+  setText("intervalDetectionHint", "hint_interval_detection");
+  setText("intervalClear", "clear");
+  setText("labelIntervalNotes", "label_interval_notes");
+  setText("labelIntervalName", "label_interval_name");
+  setText("labelIntervalSemitones", "label_interval_semitones");
+  setText("labelIntervalRecuerda", "label_interval_recuerda");
   setText("headingGeneration", "heading_generation");
   setText("headingScales", "heading_scales");
   setText("headingMetronome", "heading_metronome_settings");
@@ -2196,11 +2265,21 @@ function applyTranslations() {
   if (handedness) handedness.setAttribute("title", `${tr("inst_guitar")} (${tr("guitar_right")}/${tr("guitar_left")})`);
 
   const detectPlay = el("detectPlay");
+  const intervalPlay = el("intervalPlay");
+  const intervalPlayReverse = el("intervalPlayReverse");
   const genPlay = el("genPlay");
   const scaleModeMetronome = el("scaleModeMetronome");
   if (detectPlay) {
     detectPlay.setAttribute("aria-label", tr("play"));
     detectPlay.setAttribute("title", tr("play"));
+  }
+  if (intervalPlay) {
+    intervalPlay.setAttribute("aria-label", tr("play"));
+    intervalPlay.setAttribute("title", tr("play"));
+  }
+  if (intervalPlayReverse) {
+    intervalPlayReverse.setAttribute("aria-label", tr("interval_play_reverse"));
+    intervalPlayReverse.setAttribute("title", tr("interval_play_reverse"));
   }
   if (genPlay) {
     genPlay.setAttribute("aria-label", tr("play"));
@@ -2301,11 +2380,12 @@ async function fetchJson(url, options = {}) {
 }
 
 function activeModeSupportsInstrument() {
-  return state.mode === "detection" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
+  return state.mode === "detection" || state.mode === "interval_detection" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
 }
 
 function activeModeSupportsStaff() {
   return state.mode === "detection"
+    || state.mode === "interval_detection"
     || state.mode === "generation"
     || state.mode === "circle_fifths"
     || state.mode === "scales"
@@ -2357,7 +2437,7 @@ function setMode(mode) {
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
-  if (mode !== "detection") {
+  if (mode !== "detection" && mode !== "interval_detection") {
     resetMidiScreenWakeLockFully();
   }
   if (state.help.active && !isHelpAvailableForMode(state.mode)) state.help.active = false;
@@ -2365,7 +2445,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-detection", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-detection", "mode-interval_detection", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -2375,6 +2455,7 @@ function setMode(mode) {
   document.querySelectorAll(".mode-panel").forEach((p) => p.classList.add("hidden"));
   const panelMap = {
     detection: "panelDetection",
+    interval_detection: "panelIntervalDetection",
     generation: "panelGeneration",
     circle_fifths: "panelCircleFifths",
     scales: "panelScales",
@@ -2427,7 +2508,7 @@ function setMode(mode) {
     if (guitarVariationBar) guitarVariationBar.classList.add("hidden");
   }
 
-  if (mode === "detection") {
+  if (mode === "detection" || mode === "interval_detection") {
     setInstrument("piano");
   } else if (mode === "metronome") {
     setInstrument("piano");
@@ -2627,6 +2708,10 @@ function getActivePcsForMode() {
   if (state.mode === "detection") {
     return new Set(Array.from(state.activeDetectionNotes).map((n) => Number(n) % 12));
   }
+  if (state.mode === "interval_detection") {
+    if (state.intervalPlayingNote != null) return new Set([Number(state.intervalPlayingNote) % 12]);
+    return new Set(state.intervalNotes.map((n) => Number(n) % 12));
+  }
   return new Set();
 }
 
@@ -2639,6 +2724,10 @@ function getActiveMidiForMode() {
   }
   if (state.mode === "detection") {
     return new Set(Array.from(state.activeDetectionNotes));
+  }
+  if (state.mode === "interval_detection") {
+    if (state.intervalPlayingNote != null) return new Set([Number(state.intervalPlayingNote)]);
+    return new Set(state.intervalNotes.map((n) => Number(n)));
   }
   if (state.mode === "metronome") {
     return new Set(Array.from(state.activeMidiLiveNotes));
@@ -2733,6 +2822,285 @@ function formatIntervalsFromMidi(notesMidi) {
   if (ordered.length === 0) return "-";
   const base = ordered[0];
   return ordered.map((n) => `+${n - base}`).join(" - ");
+}
+
+const INTERVAL_NAMES = {
+  es: {
+    0: "Unísono justo", 1: "Segunda menor", 2: "Segunda mayor",
+    3: "Tercera menor", 4: "Tercera mayor", 5: "Cuarta justa",
+    6: "Cuarta aum. / Quinta dim.", 7: "Quinta justa",
+    8: "Sexta menor", 9: "Sexta mayor", 10: "Séptima menor",
+    11: "Séptima mayor", 12: "Octava justa",
+  },
+  en: {
+    0: "Perfect Unison", 1: "Minor Second", 2: "Major Second",
+    3: "Minor Third", 4: "Major Third", 5: "Perfect Fourth",
+    6: "Aug. Fourth / Dim. Fifth", 7: "Perfect Fifth",
+    8: "Minor Sixth", 9: "Major Sixth", 10: "Minor Seventh",
+    11: "Major Seventh", 12: "Perfect Octave",
+  },
+};
+
+// durations: "w"=redonda  "h"=blanca  "q"=negra  "e"=corchea  "s"=semicorchea
+//            Añadir "." para puntillo. null=silencio
+// jumpAt: índice donde ocurre el intervalo (por defecto 0 = salto entre notas 0 y 1)
+const INTERVAL_MELODIES = {
+  1:  { name_es: "Tiburón (Jaws)",             name_en: "Jaws Theme",
+        beatsPerBar: 4,
+        offsets:   [0, 1, null, 0, 1, null, 0, 1, 0, 1, 3, 5],
+        durations: ["h","e","q", "q","q","e", "e","e","e","e","q","h"] },
+
+  2:  { name_es: "Cumpleaños feliz",            name_en: "Happy Birthday",
+        beatsPerBar: 3, anacrusis: 1,
+        jumpAt: 1,
+        beams: [[0, 1]],
+        offsets:   [0, 0, 2, 0, 5, 4],
+        durations: ["e.","s","q","q","q","h"] },
+
+  3:  { name_es: "Smoke on the Water",          name_en: "Smoke on the Water",
+        beatsPerBar: 4,
+        offsets:   [0, 3, 5, null, 0, 3, 6, 5, null, 0, 3, 5, 3, 0],
+        durations: ["q","q","q.","e","q","q","e","q","e","q","q","q","q","h"] },
+
+  4:  { name_es: "Oh! Susanna",                 name_en: "Oh! Susanna",
+        beatsPerBar: 4,
+        offsets:   [0, 4, 7, 7, 9, 7, 4, 0, 4, 2, 2],
+        durations: ["q","q","q","e","e","q","q","q","q","q","h"] },
+
+  5:  { name_es: "Aquí el que no corre vuela",  name_en: "Here Comes the Bride",
+        beatsPerBar: 4,
+        offsets:   [0, 5, 5, 4, 5, 7, 5, 4, 0],
+        durations: ["q","h.","q","q","h","q","q","q","h"] },
+
+  6:  { name_es: "María (West Side Story)",     name_en: "Maria (West Side Story)",
+        beatsPerBar: 3,
+        offsets:   [0, 6, 7, null, 0, 6, 7],
+        durations: ["h","q","h.","q","h","q","h."] },
+
+  7:  { name_es: "Star Wars",                   name_en: "Star Wars",
+        beatsPerBar: 4,
+        offsets:   [0, 7, 7, 7, 3, 10, 7],
+        durations: ["q","e","e","q.","e","e","h"] },
+
+  8:  { name_es: "El sueño imposible",          name_en: "The Impossible Dream",
+        beatsPerBar: 3,
+        offsets:   [0, 8, 7, 5, 4, 5, 7, 8],
+        durations: ["q","h","q.","e","q","q","q.","h"] },
+
+  9:  { name_es: "My Way",                      name_en: "My Way",
+        beatsPerBar: 4,
+        offsets:   [0, 9, 7, 5, 7, 9, 12],
+        durations: ["q","h.","q","q","q","q","h"] },
+
+  10: { name_es: "Somewhere (West Side Story)", name_en: "Somewhere (West Side Story)",
+        beatsPerBar: 4,
+        offsets:   [0, 10, 9, 7, 9, 7, 3, 7],
+        durations: ["h","h","q","q","q.","e","q","h"] },
+
+  11: { name_es: "Take On Me",                  name_en: "Take On Me",
+        beatsPerBar: 4,
+        offsets:   [0, 11, 12, 9, 7, 9, 11],
+        durations: ["e","e","q","e","e","q","h"] },
+
+  12: { name_es: "Somewhere Over the Rainbow",  name_en: "Somewhere Over the Rainbow",
+        beatsPerBar: 4,
+        offsets:   [0, 12, 11, 9, 8, 6, 9],
+        durations: ["h","h","q.","e","q","q","h"] },
+};
+
+function getIntervalName(semitones) {
+  const lang = state.language in INTERVAL_NAMES ? state.language : "es";
+  return INTERVAL_NAMES[lang][semitones] || "-";
+}
+
+function getIntervalSemitones() {
+  const n = state.intervalNotes;
+  if (n.length < 2) return null;
+  const raw = Math.abs(n[1] - n[0]);
+  const mod = raw % 12;
+  return (mod === 0 && raw > 0) ? 12 : mod;
+}
+
+function getIntervalMelodyNotes() {
+  if (state.intervalNotes.length < 2) return [...state.intervalNotes].sort((a, b) => a - b);
+  const semitones = getIntervalSemitones();
+  const melody = INTERVAL_MELODIES[semitones];
+  if (!melody) return [...state.intervalNotes].sort((a, b) => a - b);
+  const base = Math.min(...state.intervalNotes);
+  // Mapear a null en vez de filtrar: preserva longitud de array y alineación con durations[]
+  return melody.offsets.map((offset) => {
+    if (offset === null) return null;
+    const n = base + offset;
+    return (n >= 0 && n <= 127) ? n : null;
+  });
+}
+
+function getIntervalMelodySongName() {
+  const semitones = getIntervalSemitones();
+  if (semitones === null) return null;
+  const entry = INTERVAL_MELODIES[semitones];
+  if (!entry) return null;
+  return state.language === "en" ? entry.name_en : entry.name_es;
+}
+
+/** Adds a MIDI note to the interval queue (keeps last 2, insertion order preserved for correct oldest-removal). */
+function intervalAddNote(midi) {
+  const note = Number(midi);
+  if (!Number.isFinite(note)) return;
+  state.intervalMelodyActive = false;
+  state.intervalPlayGeneration++;
+  state.intervalPlayingNote = null;
+  state.intervalPlayingIdx = null;
+  state.intervalNotes.push(note);
+  if (state.intervalNotes.length > 2) state.intervalNotes.shift();
+  // Do NOT sort in place — insertion order is needed so shift() always removes the oldest note.
+}
+
+/** Duración de cada símbolo en múltiplos de un tiempo (negra = 1). */
+const DURATION_BEATS = { w: 4, "h.": 3, h: 2, "q.": 1.5, q: 1, "e.": 0.75, e: 0.5, "s.": 0.375, s: 0.25 };
+
+/**
+ * Devuelve los índices DESPUÉS de los cuales hay que dibujar una barra de compás.
+ * Cuando una nota atraviesa el límite del compás, la barra se coloca antes de esa nota.
+ */
+/**
+ * anacrusis: tiempos del compás de anacrusa (0 = sin anacrusa).
+ * Con anacrusa, la primera barra cae en `anacrusis` tiempos; el resto en múltiplos de beatsPerBar.
+ */
+function getMelodyBarLines(durations, beatsPerBar, anacrusis = 0) {
+  if (!beatsPerBar || beatsPerBar <= 0) return [];
+  const result = [];
+  let cumBeats = 0;
+  // Inicializar lastBarBeat de forma que nextBoundary = anacrusis si hay anacrusa,
+  // o = beatsPerBar si no la hay.
+  let lastBarBeat = anacrusis > 0 ? anacrusis - beatsPerBar : 0;
+  for (let i = 0; i < durations.length; i++) {
+    const beats = DURATION_BEATS[durations[i]] ?? 1;
+    cumBeats += beats;
+    const nextBoundary = lastBarBeat + beatsPerBar;
+    if (cumBeats >= nextBoundary - 0.001) {
+      if (Math.abs(cumBeats - nextBoundary) < 0.001) {
+        result.push(i); // nota acaba justo en el límite → barra después de ella
+      } else if (i > 0) {
+        result.push(i - 1); // nota atraviesa el límite → barra antes de ella
+      }
+      while (lastBarBeat + beatsPerBar <= cumBeats + 0.001) lastBarBeat += beatsPerBar;
+    }
+  }
+  return result;
+}
+
+/** Plays notes one by one with piano/staff highlighting. Generation counter cancels previous runs.
+ *  audioNotes: array paralela opcional (pitch de audio distinto al visual).
+ *  durations:  array paralela con "w"/"h"/"q"/"e"/null; si se omite todas duran stepMs. */
+function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = null) {
+  const gen = ++state.intervalPlayGeneration;
+  state.intervalPlayingNote = null;
+  state.intervalPlayingIdx = null;
+
+  // Calcular tiempos acumulados de inicio para cada nota
+  let cursor = 0;
+  const startTimes = notes.map((midi, idx) => {
+    const t = cursor;
+    const beats = durations ? (DURATION_BEATS[durations[idx]] ?? 0.5) : 1;
+    cursor += beats * stepMs;
+    return t;
+  });
+  const totalMs = cursor;
+
+  notes.forEach((midi, idx) => {
+    const t = startTimes[idx];
+    const beats = durations ? (DURATION_BEATS[durations[idx]] ?? 0.5) : 1;
+    const noteMs = beats * stepMs;
+
+    if (midi === null) {
+      setTimeout(() => {
+        if (state.intervalPlayGeneration !== gen) return;
+        state.intervalPlayingNote = null;
+        state.intervalPlayingIdx = null;
+        renderInstrument();
+        renderStaff();
+      }, t);
+      return;
+    }
+
+    const playMidi = (audioNotes && audioNotes[idx] != null) ? audioNotes[idx] : Number(midi);
+    setTimeout(() => {
+      if (state.intervalPlayGeneration !== gen) return;
+      state.intervalPlayingNote = Number(midi);
+      state.intervalPlayingIdx = idx;
+      playSingle(playMidi, "piano");
+      renderInstrument();
+      renderStaff();
+    }, t);
+    setTimeout(() => {
+      if (state.intervalPlayGeneration !== gen) return;
+      if (state.intervalPlayingIdx === idx) {
+        state.intervalPlayingNote = null;
+        state.intervalPlayingIdx = null;
+        renderInstrument();
+        renderStaff();
+      }
+    }, t + Math.round(noteMs * 0.82));
+  });
+
+  setTimeout(() => {
+    if (state.intervalPlayGeneration !== gen) return;
+    state.intervalPlayingNote = null;
+    state.intervalPlayingIdx = null;
+    renderInstrument();
+    renderStaff();
+  }, totalMs);
+}
+
+function refreshIntervalButtonsState() {
+  const hasTwo = state.intervalNotes.length >= 2;
+  const playBtn = el("intervalPlay");
+  const playRevBtn = el("intervalPlayReverse");
+  const clearBtn = el("intervalClear");
+  const recuerdaBtn = el("intervalRecuerdaBtn");
+  if (playBtn) playBtn.disabled = !hasTwo;
+  if (playRevBtn) playRevBtn.disabled = !hasTwo || !!state.intervalMelodyActive;
+  if (clearBtn) clearBtn.disabled = state.intervalNotes.length === 0;
+  if (recuerdaBtn) {
+    const songName = hasTwo ? getIntervalMelodySongName() : null;
+    recuerdaBtn.textContent = songName || "-";
+    recuerdaBtn.disabled = !songName;
+    recuerdaBtn.classList.toggle("active", !!state.intervalMelodyActive);
+  }
+}
+
+function refreshIntervalResult() {
+  refreshIntervalButtonsState();
+  renderInstrument();
+  renderStaff();
+
+  const raw = state.intervalNotes;
+  if (raw.length === 0) {
+    el("intervalNoteNames").textContent = "-";
+    el("intervalName").textContent = "-";
+    el("intervalSemitones").textContent = "-";
+    return;
+  }
+  const n = [...raw].sort((a, b) => a - b);
+  if (n.length === 1) {
+    el("intervalNoteNames").textContent = noteNameWithOctave(n[0]);
+    el("intervalName").textContent = "-";
+    el("intervalSemitones").textContent = "-";
+    return;
+  }
+  const rawSt = Math.abs(n[1] - n[0]);
+  const mod = rawSt % 12;
+  const semitones = (mod === 0 && rawSt > 0) ? 12 : mod;
+  el("intervalNoteNames").textContent = noteNameWithOctave(n[0]) + " – " + noteNameWithOctave(n[1]);
+  el("intervalName").textContent = getIntervalName(semitones);
+  el("intervalSemitones").textContent = String(rawSt);
+}
+
+function noteNameWithOctave(midi) {
+  const m = Number(midi);
+  const octave = Math.floor(m / 12) - 1;
+  return noteNameFromPc(m % 12) + octave;
 }
 
 function pianoFingeringForCount(count, hand) {
@@ -3347,6 +3715,14 @@ function handleInstrumentNote(note, options = {}) {
     }
     return;
   }
+  if (state.mode === "interval_detection") {
+    if (pressed || (!pressed && !released)) {
+      intervalAddNote(note);
+      playSingle(Number(note), "piano");
+      refreshIntervalResult();
+    }
+    return;
+  }
   if (isChordGenerationLikeMode() && state.generatedChord) {
     const setGenerationCurrent = (midi) => {
       if (state.generationCurrentClearTimer != null) {
@@ -3678,30 +4054,31 @@ function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig) {
   return Math.max(xTrebleEnd, xBassEnd) + 10;
 }
 
-function midiToDiatonicIndex(midi) {
+function midiToDiatonicIndex(midi, preferFlat = false) {
   const note = Number(midi);
   const pc = ((note % 12) + 12) % 12;
   const octave = Math.floor(note / 12) - 1;
-  return (octave * 7) + PC_TO_DIATONIC_LETTER[pc];
+  const map = preferFlat ? PC_TO_DIATONIC_FLAT : PC_TO_DIATONIC_LETTER;
+  return (octave * 7) + map[pc];
 }
 
-function midiToTrebleY(midi, trebleTop, gap) {
+function midiToTrebleY(midi, trebleTop, gap, preferFlat = false) {
   const trebleBottomLineDiatonic = (4 * 7) + 2; // E4
-  const diatonicIdx = midiToDiatonicIndex(midi);
+  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
   const staffBaseY = trebleTop + (4 * gap);
   return staffBaseY - ((diatonicIdx - trebleBottomLineDiatonic) * (gap / 2));
 }
 
-function midiToBassY(midi, bassTop, gap) {
+function midiToBassY(midi, bassTop, gap, preferFlat = false) {
   const bassBottomLineDiatonic = (2 * 7) + 4; // G2
-  const diatonicIdx = midiToDiatonicIndex(midi);
+  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
   const staffBaseY = bassTop + (4 * gap);
   return staffBaseY - ((diatonicIdx - bassBottomLineDiatonic) * (gap / 2));
 }
 
-function drawLedgerLines(ctx, x, y, staffTop, gap) {
+function drawLedgerLines(ctx, x, y, staffTop, gap, strokeColor = "#cad3e0") {
   const staffBottom = staffTop + gap * 4;
-  ctx.strokeStyle = "#cad3e0";
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 1;
   if (y < staffTop - 1) {
     for (let ly = staffTop - gap; ly >= y - 1; ly -= gap) {
@@ -3720,9 +4097,35 @@ function drawLedgerLines(ctx, x, y, staffTop, gap) {
   }
 }
 
-function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, current = false, currentStroke = null) {
-  const stroke = current ? (currentStroke || "#6fe0ff") : (extra ? "#ff9a9a" : "#d7dde7");
-  const fill = current ? (currentStroke || "#6fe0ff") : "rgba(0,0,0,0)";
+/**
+ * duration: null = nota normal sin duración explícita (comportamiento original)
+ *   "w"=redonda  "h"=blanca  "q"=negra  "e"=corchea  "s"=semicorchea
+ *   Añadir "." para puntillo: "q."=negra con puntillo, "h."=blanca con puntillo, "e."=corchea con puntillo
+ */
+function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, current = false, currentStroke = null, ghost = false, duration = null, beamed = false) {
+  const isDotted = typeof duration === "string" && duration.endsWith(".");
+  const base = isDotted ? duration.slice(0, -1) : duration;
+  const isMelodic = base != null;
+  const isOpen = base === "w" || base === "h";
+  const hasStem = base === "h" || base === "q" || base === "e" || base === "s";
+  const hasFlag = !beamed && (base === "e" || base === "s");
+  const flagCount = base === "s" ? 2 : 1;
+
+  let stroke, fill;
+  if (current) {
+    stroke = currentStroke || "#6fe0ff";
+    fill = isOpen ? "rgba(0,0,0,0)" : (currentStroke || "#6fe0ff");
+  } else if (ghost) {
+    stroke = "#768496";
+    fill = isOpen ? "rgba(0,0,0,0)" : "#768496";
+  } else if (extra) {
+    stroke = "#ff9a9a";
+    fill = (isMelodic && !isOpen) ? "#ff9a9a" : "rgba(0,0,0,0)";
+  } else {
+    stroke = "#d7dde7";
+    fill = (isMelodic && !isOpen) ? "#d7dde7" : "rgba(0,0,0,0)";
+  }
+
   ctx.beginPath();
   ctx.ellipse(x, y, 9, 6.5, -0.35, 0, Math.PI * 2);
   ctx.fillStyle = fill;
@@ -3730,7 +4133,144 @@ function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, curren
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 2;
   ctx.stroke();
-  drawLedgerLines(ctx, x, y, staffTop, gap);
+
+  drawLedgerLines(ctx, x, y, staffTop, gap, ghost ? "#768496" : "#cad3e0");
+
+  if (isDotted) {
+    ctx.beginPath();
+    ctx.arc(x + 13, y - 2, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = stroke;
+    ctx.fill();
+  }
+
+  if (hasStem) {
+    const staffMiddle = staffTop + gap * 2;
+    const stemUp = y >= staffMiddle;
+    const stemX = stemUp ? x + 8 : x - 8;
+    const stemStartY = stemUp ? y - 5 : y + 5;
+    const stemEndY = stemUp ? y - gap * 3.5 : y + gap * 3.5;
+    ctx.beginPath();
+    ctx.moveTo(stemX, stemStartY);
+    ctx.lineTo(stemX, stemEndY);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    if (hasFlag) {
+      const d = stemUp ? 1 : -1;
+      for (let f = 0; f < flagCount; f++) {
+        const fOff = f * d * gap * 0.65;
+        ctx.beginPath();
+        ctx.moveTo(stemX, stemEndY + fOff);
+        ctx.bezierCurveTo(
+          stemX + gap * 1.2, stemEndY + d * gap * 0.6 + fOff,
+          stemX + gap * 1.4, stemEndY + d * gap * 1.5 + fOff,
+          stemX + gap * 0.4, stemEndY + d * gap * 2.4 + fOff,
+        );
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    ctx.lineWidth = 2;
+  }
+}
+
+/** Dibuja un símbolo de silencio. duration igual que en drawNote (base + puntillo opcional). */
+function drawRest(ctx, x, staffTop, gap, duration, stroke) {
+  const isDotted = typeof duration === "string" && duration.endsWith(".");
+  const base = isDotted ? duration.slice(0, -1) : (duration || "q");
+  ctx.fillStyle = stroke;
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 1.5;
+  const midY = staffTop + gap * 2;
+
+  if (base === "w") {
+    // Silencio de redonda: rectángulo colgando bajo la 4ª línea
+    ctx.fillRect(x - 7, staffTop + gap * 3, 14, gap * 0.55);
+  } else if (base === "h") {
+    // Silencio de blanca: rectángulo sentado sobre la 3ª línea
+    ctx.fillRect(x - 7, staffTop + gap * 2 - gap * 0.55, 14, gap * 0.55);
+  } else if (base === "q") {
+    // Silencio de negra: zigzag simplificado
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 3, midY - gap * 0.9);
+    ctx.lineTo(x - 3, midY - gap * 0.3);
+    ctx.lineTo(x + 4, midY + gap * 0.1);
+    ctx.bezierCurveTo(x + 6, midY + gap * 0.35, x - 2, midY + gap * 0.7, x - 1, midY + gap * 0.9);
+    ctx.stroke();
+    ctx.lineWidth = 1.5;
+  } else {
+    // Silencio de corchea/semicorchea: punto + trazo diagonal + banderita(s)
+    const flagCount = base === "s" ? 2 : 1;
+    const flagY = midY - gap * 0.6;
+    ctx.beginPath();
+    ctx.arc(x + 4, flagY, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 4, flagY);
+    ctx.lineTo(x - 4, midY + gap * 0.6);
+    ctx.stroke();
+    for (let f = 0; f < flagCount; f++) {
+      const fy = flagY + f * gap * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 4, fy);
+      ctx.bezierCurveTo(x + 12, fy + gap * 0.4, x + 12, fy + gap * 0.9, x + 4, fy + gap * 1.1);
+      ctx.stroke();
+    }
+  }
+
+  if (isDotted) {
+    ctx.beginPath();
+    ctx.arc(x + 14, midY - gap * 0.1, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * Dibuja la barra (beam) entre notas barradas (corcheas/semicorcheas unidas).
+ * positions: array de {stemX, stemEndY, stemUp, base} para cada nota del grupo.
+ */
+function drawBeam(ctx, positions, stroke) {
+  if (positions.length < 2) return;
+  const p0 = positions[0];
+  const pN = positions[positions.length - 1];
+  const bh = 4;    // grosor de cada barra
+  const bGap = 3;  // separación entre barras
+  const dir = p0.stemUp ? 1 : -1; // 1 = barras hacia el pentagrama (abajo); -1 = hacia arriba
+
+  const drawBar = (xa, ya, xb, yb) => {
+    ctx.fillStyle = stroke;
+    ctx.beginPath();
+    ctx.moveTo(xa, ya);
+    ctx.lineTo(xb, yb);
+    ctx.lineTo(xb, yb + dir * bh);
+    ctx.lineTo(xa, ya + dir * bh);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  // Barra primaria: recorre todo el grupo
+  drawBar(p0.stemX, p0.stemEndY, pN.stemX, pN.stemEndY);
+
+  // Barras secundarias: para semicorcheas (2 banderas → 2 barras)
+  const dx = pN.stemX - p0.stemX;
+  const dy = pN.stemEndY - p0.stemEndY;
+  positions.forEach((p, i) => {
+    if (p.base !== "s") return;
+    const adj = i > 0 ? positions[i - 1] : positions[i + 1];
+    const halfX = (p.stemX + adj.stemX) / 2;
+    const t = dx !== 0 ? (halfX - p0.stemX) / dx : 0;
+    const halfY = p0.stemEndY + t * dy;
+    const off = dir * (bh + bGap);
+    if (i > 0) {
+      drawBar(halfX, halfY + off, p.stemX, p.stemEndY + off);
+    } else {
+      drawBar(p.stemX, p.stemEndY + off, halfX, halfY + off);
+    }
+  });
 }
 
 function drawMetronomeCanvas(ctx, width, height) {
@@ -4084,6 +4624,10 @@ function drawTunerCanvas(ctx, width, height) {
 
 function getStaffNotes() {
   if (state.mode === "detection") return Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
+  if (state.mode === "interval_detection") {
+    if (state.intervalMelodyActive) return getIntervalMelodyNotes();
+    return [...state.intervalNotes].sort((a, b) => a - b);
+  }
   if (isChordGenerationLikeMode() && state.generatedChord) {
     const rh = getGenerationBaseNotes();
     if (state.instrument === "guitar") {
@@ -4146,6 +4690,41 @@ function wrapCanvasTextLines(ctx, text, maxWidth) {
   }
   lines.push(line);
   return lines;
+}
+
+/** Dibuja la indicación de compás (p.ej. 3/4 o 4/4) en un pentagrama. */
+function drawTimeSignature(ctx, x, staffTop, gap, numerator, denominator, color) {
+  ctx.save();
+  ctx.fillStyle = color || "#cad3e0";
+  ctx.font = `bold ${Math.round(gap * 1.9)}px serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(numerator),   x, staffTop + gap * 1);
+  ctx.fillText(String(denominator), x, staffTop + gap * 3);
+  ctx.restore();
+}
+
+/**
+ * Devuelve el símbolo de alteración necesario para una nota dado la armadura activa,
+ * o null si la nota es natural o está cubierta por la armadura.
+ */
+function getNoteAccidental(midi, signature) {
+  const pc = ((midi % 12) + 12) % 12;
+  const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]); // C D E F G A B
+  if (NATURAL_PCS.has(pc)) return null;
+  const SHARP_PC_ORDER = [6, 1, 8, 3, 10]; // F# C# G# D# A#
+  const FLAT_PC_ORDER  = [10, 3, 8, 1, 6]; // Bb Eb Ab Db Gb
+  // For C major (0 accidentals) respect the user's UI preference; otherwise follow key sig
+  const useFlat = signature.count > 0 ? signature.preferFlats : currentIsFlat();
+  if (useFlat) {
+    const covered = new Set(FLAT_PC_ORDER.slice(0, signature.count));
+    if (covered.has(pc)) return null;
+    return "♭";
+  } else {
+    const covered = new Set(SHARP_PC_ORDER.slice(0, signature.count));
+    if (covered.has(pc)) return null;
+    return "♯";
+  }
 }
 
 function renderStaff() {
@@ -4215,10 +4794,12 @@ function renderStaff() {
   const tonicPc = staffCtx.tonicPc;
   const compactChordStaff = isChordGenerationLikeMode();
   const detectionStaff = state.mode === "detection";
+  const intervalDetectionStaff = state.mode === "interval_detection";
+  const intervalMelodyStaff = intervalDetectionStaff && !!state.intervalMelodyActive;
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
-  if (detectionStaff && notes.length === 0) {
+  if ((detectionStaff || intervalDetectionStaff) && notes.length === 0) {
     ctx.fillStyle = "#cfcfcf";
     ctx.font = "italic 13px sans-serif";
     ctx.textAlign = "center";
@@ -4304,9 +4885,60 @@ function renderStaff() {
     const currentEntry = scaleStaffEntries.find((entry) => Number(entry.midi) === Number(scaleCurrentDisplayMidi));
     if (currentEntry) scaleCurrentDegree = Number(currentEntry.degree);
   }
+  const intervalMelodyDurations = (() => {
+    if (!intervalMelodyStaff) return [];
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel ? mel.durations : [];
+  })();
+  const intervalMelodyJumpAt = (() => {
+    if (!intervalMelodyStaff) return 0;
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel ? (mel.jumpAt ?? 0) : 0;
+  })();
+  // Grupos de barras (beams) para la melodía del intervalo
+  const melodyBeamGroups = (() => {
+    if (!intervalMelodyStaff) return [];
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel?.beams || [];
+  })();
+  const beamedIdxSet = new Set(melodyBeamGroups.flat());
+  const beamStemData = new Map(); // idx → {stemX, stemEndY, stemUp, base}
+
+  // Espaciado adaptativo: reduce el paso si la melodía tiene muchas notas
+  const intervalNoteStep = intervalDetectionStaff && notes.length > 1
+    ? Math.min(42, Math.floor((width - startX - 66) / (notes.length - 1)))
+    : 42;
+
+  // Guardar posiciones de notas de setup para dibujar ligadura después
+  const setupNotePositions = [];
+  let lastRestClef = "treble"; // para colocar silencios en la clave correcta
   notes.forEach((midi, idx) => {
+    if (midi === null) {
+      // Silencio: dibujar símbolo en la clave del último contexto visto
+      if (intervalMelodyStaff) {
+        const restX = startX + 46 + idx * intervalNoteStep;
+        const dur = intervalMelodyDurations[idx] || "q";
+        const restColor = "#768496";
+        const restStaffTop = lastRestClef === "bass" ? bassTop : trebleTop;
+        drawRest(ctx, restX, restStaffTop, gap, dur, restColor);
+      }
+      return;
+    }
+
+    // Determinar alteración antes de calcular la posición Y (la convención #/b afecta la altura)
+    const noteAcc = (intervalDetectionStaff || detectionStaff)
+      ? getNoteAccidental(Number(midi), staffCtx.signature)
+      : null;
+    const notePreferFlat = noteAcc === "♭";
+
     const useTreble = Number(midi) >= 60;
-    const y = useTreble ? midiToTrebleY(midi, trebleTop, gap) : midiToBassY(midi, bassTop, gap);
+    lastRestClef = useTreble ? "treble" : "bass";
+    const y = useTreble
+      ? midiToTrebleY(midi, trebleTop, gap, notePreferFlat)
+      : midiToBassY(midi, bassTop, gap, notePreferFlat);
     const staffTop = useTreble ? trebleTop : bassTop;
     const key = `${useTreble ? "T" : "B"}:${Math.round(y)}`;
     const used = xByLine.get(key) || 0;
@@ -4334,6 +4966,8 @@ function renderStaff() {
       x = startX + 62 + (c * noteRx * 1.8);
     } else if (scaleStaff) {
       x = startX + 46 + degreeIdx * 44;
+    } else if (intervalDetectionStaff) {
+      x = startX + 46 + idx * intervalNoteStep;
     } else if (detectionStaff) {
       const placedCols = useTreble ? placedTrebleCols : placedBassCols;
       let c = 0;
@@ -4358,7 +4992,8 @@ function renderStaff() {
       || scaleNoteHovered
       || scaleNotePressed
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
-      || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)));
+      || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)))
+      || (intervalDetectionStaff && state.intervalPlayingIdx != null && idx === state.intervalPlayingIdx);
     const currentStroke = current
       ? (
           ((isChordGenerationLikeMode()
@@ -4370,7 +5005,41 @@ function renderStaff() {
             : "#6fe0ff"
         )
       : null;
-    drawNote(ctx, x, y, staffTop, gap, extra, tonic, current, currentStroke);
+    const ghost = intervalMelodyStaff && idx > intervalMelodyJumpAt + 1;
+    const duration = intervalMelodyStaff ? (intervalMelodyDurations[idx] || "q") : null;
+    const beamedNote = intervalMelodyStaff && beamedIdxSet.has(idx);
+
+    // Dibujar alteración (sostenido/bemol) antes de la cabeza si la nota lo requiere
+    if (noteAcc) {
+      const accColor = current ? (currentStroke || "#6fe0ff")
+                     : ghost   ? "#768496"
+                     : extra   ? "#ff9a9a"
+                     : "#d7dde7";
+      ctx.save();
+      ctx.font = `bold ${Math.round(gap * 1.4)}px serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = accColor;
+      ctx.fillText(noteAcc, x - 11, y);
+      ctx.restore();
+    }
+
+    drawNote(ctx, x, y, staffTop, gap, extra, tonic, current, currentStroke, ghost, duration, beamedNote);
+
+    // Registrar datos de stem para notas barradas
+    if (beamedNote) {
+      const bStaffMiddle = staffTop + gap * 2;
+      const bStemUp = y >= bStaffMiddle;
+      const bStemX = bStemUp ? x + 8 : x - 8;
+      const bStemEndY = bStemUp ? y - gap * 3.5 : y + gap * 3.5;
+      const bBase = typeof duration === "string" && duration.endsWith(".") ? duration.slice(0, -1) : duration;
+      beamStemData.set(idx, { stemX: bStemX, stemEndY: bStemEndY, stemUp: bStemUp, base: bBase });
+    }
+
+    // Guardar posición de notas de setup para ligadura
+    if (intervalMelodyStaff && idx <= intervalMelodyJumpAt && intervalMelodyJumpAt > 0) {
+      setupNotePositions.push({ x, y });
+    }
 
     if (scaleStaff || generationStaff) {
       state.staff.scaleRegions.push({
@@ -4385,7 +5054,7 @@ function renderStaff() {
       });
     }
 
-    if (!compactChordStaff && !detectionStaff) {
+    if (!compactChordStaff && !detectionStaff && !intervalDetectionStaff) {
       const labelCurrent = scaleStaff
         ? (
             scaleNoteCurrent
@@ -4413,6 +5082,62 @@ function renderStaff() {
       }
     }
   });
+
+  // Dibujar barras (beams) entre notas barradas
+  if (intervalMelodyStaff && melodyBeamGroups.length > 0) {
+    melodyBeamGroups.forEach((group) => {
+      const positions = group.map((i) => beamStemData.get(i)).filter(Boolean);
+      if (positions.length >= 2) {
+        const isGhost = group[0] > intervalMelodyJumpAt + 1;
+        drawBeam(ctx, positions, isGhost ? "#768496" : "#d7dde7");
+      }
+    });
+  }
+
+  // Dibujar indicación de compás y barras de compás
+  if (intervalMelodyStaff) {
+    const mel = INTERVAL_MELODIES[getIntervalSemitones()];
+    const bpb = mel?.beatsPerBar;
+    if (bpb) {
+      // Indicación de compás (p.ej. 3/4 o 4/4) en clave de sol y fa
+      const timeSigX = startX + 22;
+      drawTimeSignature(ctx, timeSigX, trebleTop, gap, bpb, 4, "#8fa1b7");
+      drawTimeSignature(ctx, timeSigX, bassTop,   gap, bpb, 4, "#8fa1b7");
+
+      // Barras de compás (líneas verticales entre los dos pentagramas)
+      const barLineIdxs = getMelodyBarLines(intervalMelodyDurations, bpb, mel?.anacrusis ?? 0);
+      ctx.strokeStyle = "#8fa1b7";
+      ctx.lineWidth = 1.2;
+      barLineIdxs.forEach((afterIdx) => {
+        const bx = Math.round(startX + 46 + afterIdx * intervalNoteStep + intervalNoteStep / 2);
+        ctx.beginPath();
+        ctx.moveTo(bx, trebleTop);
+        ctx.lineTo(bx, bassTop + gap * 4);
+        ctx.stroke();
+      });
+    }
+  }
+
+  // Dibujar ligadura entre notas de setup (cuando jumpAt > 0)
+  if (intervalMelodyStaff && intervalMelodyJumpAt > 0 && setupNotePositions.length >= 1) {
+    const from = setupNotePositions[0];
+    // La nota de llegada (interval lower, idx=jumpAt) se calcula a partir de su posición X
+    const toX = startX + 46 + intervalMelodyJumpAt * intervalNoteStep;
+    const noteAtJumpAt = notes[intervalMelodyJumpAt];
+    if (noteAtJumpAt != null) {
+      const toY = Number(noteAtJumpAt) >= 60
+        ? midiToTrebleY(noteAtJumpAt, trebleTop, gap)
+        : midiToBassY(noteAtJumpAt, bassTop, gap);
+      const midX = (from.x + toX) / 2;
+      const arcHeight = -14;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y + 10);
+      ctx.quadraticCurveTo(midX, Math.min(from.y, toY) + 10 + arcHeight, toX, toY + 10);
+      ctx.strokeStyle = "#768496";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
 
   if (scaleStaff && scalePlaybackInstrument === "guitar") {
     ctx.fillStyle = "#8fa1b7";
@@ -5837,6 +6562,18 @@ function handleMidiMessage(event) {
     return;
   }
 
+  if (state.mode === "interval_detection") {
+    if (isNoteOn) {
+      intervalAddNote(note);
+      if (state.midiInputSoundEnabled) startHeldMidiInputNote(note, "piano");
+      refreshIntervalResult();
+    } else {
+      stopHeldMidiInputNote(note);
+    }
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
+
   if (state.mode === "metronome") {
     if (isNoteOn) {
       state.activeMidiLiveNotes.add(note);
@@ -5862,6 +6599,7 @@ async function toggleMidi() {
     stopAllHeldMidiInputNotes();
     state.detectionMidiHeldNotes.clear();
     if (state.mode === "detection") refreshDetectionActiveNotes();
+    if (state.mode === "interval_detection") refreshIntervalResult();
     if (state.mode === "metronome") renderInstrument();
     resetMidiScreenWakeLockFully();
     btn.textContent = tr("midi_off");
@@ -6092,6 +6830,8 @@ function bindEvents() {
   if (detectMidiSoundToggle) detectMidiSoundToggle.addEventListener("click", toggleMidiInputSound);
   const metroMidiSoundToggle = el("metroMidiSoundToggle");
   if (metroMidiSoundToggle) metroMidiSoundToggle.addEventListener("click", toggleMidiInputSound);
+  const intervalMidiSoundToggle = el("intervalMidiSoundToggle");
+  if (intervalMidiSoundToggle) intervalMidiSoundToggle.addEventListener("click", toggleMidiInputSound);
 
   bindImmediatePress(el("detectPlay"), () => {
     playChordMidi(Array.from(state.activeDetectionNotes).sort((a, b) => a - b), { instrument: "piano" });
@@ -6106,6 +6846,60 @@ function bindEvents() {
       stopHeldChord();
     },
   });
+
+  el("intervalClear").addEventListener("click", () => {
+    state.intervalPlayGeneration++;
+    state.intervalPlayingNote = null;
+    state.intervalPlayingIdx = null;
+    state.intervalMelodyActive = false;
+    stopAllHeldInputNotes();
+    stopAllHeldMidiInputNotes();
+    state.intervalNotes = [];
+    refreshIntervalResult();
+  });
+
+  bindImmediatePress(el("intervalPlayReverse"), () => {
+    if (state.intervalNotes.length < 2) return;
+    playIntervalNoteSequence([...state.intervalNotes].sort((a, b) => b - a), 500);
+  }, { highlightWhilePressed: true });
+
+  bindImmediatePress(el("intervalPlay"), () => {
+    if (state.intervalMelodyActive) {
+      const melodyNotes = getIntervalMelodyNotes();
+      if (!melodyNotes.length) return;
+      const sem = getIntervalSemitones();
+      const melodyDurs = sem != null ? (INTERVAL_MELODIES[sem]?.durations || null) : null;
+      playIntervalNoteSequence(melodyNotes, 420, null, melodyDurs);
+    } else {
+      if (state.intervalNotes.length < 2) return;
+      playIntervalNoteSequence([...state.intervalNotes].sort((a, b) => a - b), 500);
+    }
+  }, { highlightWhilePressed: true });
+
+  const intervalRecuerdaBtn = el("intervalRecuerdaBtn");
+  if (intervalRecuerdaBtn) {
+    intervalRecuerdaBtn.addEventListener("click", () => {
+      if (state.intervalNotes.length < 2) return;
+      if (!INTERVAL_MELODIES[getIntervalSemitones()]) return;
+      state.intervalMelodyActive = !state.intervalMelodyActive;
+      if (!state.intervalMelodyActive) {
+        state.intervalPlayGeneration++;
+        state.intervalPlayingNote = null;
+        state.intervalPlayingIdx = null;
+        refreshIntervalButtonsState();
+        renderInstrument();
+        renderStaff();
+      } else {
+        refreshIntervalButtonsState();
+        renderInstrument();
+        renderStaff();
+        const mn = getIntervalMelodyNotes();
+        const semAuto = getIntervalSemitones();
+        const mdAuto = semAuto != null ? (INTERVAL_MELODIES[semAuto]?.durations || null) : null;
+        playIntervalNoteSequence(mn, 420, null, mdAuto);
+      }
+    });
+  }
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !el("downloadsModal")?.classList.contains("hidden")) {
@@ -6422,6 +7216,7 @@ async function main() {
   }
 
   refreshDetectionButtonsState();
+  refreshIntervalButtonsState();
   setMode("detection");
   showMidiStartupModal();
   renderMetronomeDots();

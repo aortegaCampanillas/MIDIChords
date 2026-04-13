@@ -61,6 +61,7 @@
       <div class="topbar-center">
         <select id="modeSelect">
           <option value="detection">Detección de Acordes</option>
+          <option value="interval_detection">Detección de Intervalos</option>
           <option value="generation">Generación de Acordes</option>
           <option value="circle_fifths">Círculo de quintas</option>
           <option value="scales">Escalas</option>
@@ -114,6 +115,23 @@
                   <div id="detectFieldNotes"><span id="labelDetectNotes" class="label">Notas:</span> <span id="detectNotes">-</span></div>
                   <div id="detectFieldExtras"><span id="labelDetectExtras" class="label">Sobrantes:</span> <span id="detectExtras">-</span></div>
                   <div id="detectFieldIntervals"><span id="labelDetectIntervals" class="label">Intervalos:</span> <span id="detectIntervals">-</span></div>
+                </div>
+              </section>
+
+              <section id="panelIntervalDetection" class="mode-panel hidden">
+                <h3 id="headingIntervalDetection">Intervalos</h3>
+                <p id="intervalDetectionHint" class="muted">Pulsa dos notas para detectar el intervalo.</p>
+                <div class="controls-inline">
+                  <button id="intervalPlayReverse" class="icon-play-btn" aria-label="Reproducir descendente" title="Reproducir descendente" disabled>◀</button>
+                  <button id="intervalPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir" disabled>▶</button>
+                  <button id="intervalClear" disabled>Limpiar</button>
+                  <button id="intervalMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
+                </div>
+                <div class="result-block">
+                  <div id="intervalFieldNotes"><span id="labelIntervalNotes" class="label">Notas:</span> <span id="intervalNoteNames">-</span></div>
+                  <div id="intervalFieldName"><span id="labelIntervalName" class="label">Intervalo:</span> <strong id="intervalName">-</strong></div>
+                  <div id="intervalFieldSemitones"><span id="labelIntervalSemitones" class="label">Semitonos:</span> <span id="intervalSemitones">-</span></div>
+                  <div id="intervalFieldRecuerda"><span id="labelIntervalRecuerda" class="label">Recordar:</span> <button id="intervalRecuerdaBtn" class="interval-recuerda-btn" disabled>-</button></div>
                 </div>
               </section>
 

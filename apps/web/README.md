@@ -224,7 +224,16 @@ Este comando usa `wrangler dev` con el mismo Worker que producción.
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+
+### Detección de intervalos (`interval_detection`)
+
+- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "interval_detection"`, panel `#panelIntervalDetection`, funciones `intervalAddNote`, `getIntervalSemitones`, `getIntervalMelodyNotes`, `playIntervalNoteSequence`, `refreshIntervalResult`, `refreshIntervalButtonsState`.
+- **Funcionamiento**: registra las **últimas 2 notas** pulsadas (teclado interactivo o MIDI), ordena ascendentemente para el pentagrama y muestra nombre del intervalo, semitonos y una **canción mnemotécnica** (`INTERVAL_MELODIES`). Las notas se guardan en orden de inserción para que `shift()` descarte siempre la más antigua.
+- **Melodía mnemotécnica** (botón «Recordar»): activa `state.intervalMelodyActive`; el pentagrama pasa a mostrar la melodía completa (`getIntervalMelodyNotes()`). Las dos notas del intervalo aparecen en blanco, el resto en gris. Algunas canciones usan `jumpAt > 0` cuando el salto del intervalo ocurre en la 2.ª→3.ª nota (p. ej. «Cumpleaños feliz»); en ese caso las notas de preparación llevan ligadura. El botón ▶ toca la melodía con duraciones reales (`DURATION_BEATS`); el botón ◀ toca el intervalo en orden inverso.
+- **Duraciones**: `DURATION_BEATS` mapea `"w"/"h"/"h."/"q"/"q."/"e"/"e."/"s"/"s."` a tiempos; `playIntervalNoteSequence` calcula tiempos acumulados para respetar el ritmo y usa `state.intervalPlayingIdx` para resaltar la nota exacta en curso (no todas las del mismo pitch).
+- **Silencios**: `null` en el array de offsets de `INTERVAL_MELODIES` → silencio; se dibuja el símbolo de silencio correspondiente con `drawRest()`.
+- **Ayuda**: `HELP_CALLOUTS_INTERVAL_DETECTION` cubre todos los controles del panel.
 
 ### Círculo de quintas (`circle_fifths`)
 

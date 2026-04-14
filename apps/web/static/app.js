@@ -2847,8 +2847,11 @@ const INTERVAL_NAMES = {
 const INTERVAL_MELODIES = {
   1:  { name_es: "Tiburón (Jaws)",             name_en: "Jaws Theme",
         beatsPerBar: 4,
-        offsets:   [0, 1, null, 0, 1, null, 0, 1, 0, 1, 3, 5],
-        durations: ["h","e","q", "q","q","e", "e","e","e","e","q","h"] },
+        showFull: true,
+        accent: true,
+        beams: [[0, 7]],
+        offsets:   [0, 1, 0, 1, 0, 1, 0, 1],
+        durations: ["e","e","e","e","e","e","e","e"] },
 
   2:  { name_es: "Cumpleaños feliz",            name_en: "Happy Birthday",
         beatsPerBar: 3, anacrusis: 1,
@@ -2859,28 +2862,34 @@ const INTERVAL_MELODIES = {
 
   3:  { name_es: "Smoke on the Water",          name_en: "Smoke on the Water",
         beatsPerBar: 4,
-        offsets:   [0, 3, 5, null, 0, 3, 6, 5, null, 0, 3, 5, 3, 0],
-        durations: ["q","q","q.","e","q","q","e","q","e","q","q","q","q","h"] },
+        offsets:   [0, 3, 5, null, 0, null, 3, 6, 5],
+        durations: ["q","q","q","e","e","e","q","e","h"] },
 
   4:  { name_es: "Oh! Susanna",                 name_en: "Oh! Susanna",
-        beatsPerBar: 4,
-        offsets:   [0, 4, 7, 7, 9, 7, 4, 0, 4, 2, 2],
-        durations: ["q","q","q","e","e","q","q","q","q","q","h"] },
+        beatsPerBar: 4, anacrusis: 1,
+        jumpAt: 2,
+        setupSlur: false,
+        beams: [[0, 1]],
+        offsets:   [0, 2, 4, 7, 7, 9, 7, 4, 0, 2, 4, 4, 2, 0, 2, null],
+        durations: ["e","e","q","q","q.","e","q","q","q","q","q","q","q","q","h.","q"] },
 
-  5:  { name_es: "Aquí el que no corre vuela",  name_en: "Here Comes the Bride",
+  5:  { name_es: "Here Comes the Bride",  name_en: "Here Comes the Bride",
         beatsPerBar: 4,
-        offsets:   [0, 5, 5, 4, 5, 7, 5, 4, 0],
-        durations: ["q","h.","q","q","h","q","q","q","h"] },
+        jumpAt: 3,
+        setupSlur: false,
+        offsets:   [0, 5, 5, 5, 0, 7, 4, 5],
+        durations: ["q","e.","s","h","q","e.","s","h"] },
 
   6:  { name_es: "María (West Side Story)",     name_en: "Maria (West Side Story)",
         beatsPerBar: 3,
-        offsets:   [0, 6, 7, null, 0, 6, 7],
-        durations: ["h","q","h.","q","h","q","h."] },
+        setupSlur: false,
+        offsets:   [0, 6, 7, 4, 0, -5],
+        durations: ["q.","e","h","q","q","h"] },
 
   7:  { name_es: "Star Wars",                   name_en: "Star Wars",
         beatsPerBar: 4,
-        offsets:   [0, 7, 7, 7, 3, 10, 7],
-        durations: ["q","e","e","q.","e","e","h"] },
+        offsets:   [0, 0, 7, null, 5, 4, 2, 12],
+        durations: ["h.","e","e","q","q.","e","q","h"] },
 
   8:  { name_es: "El sueño imposible",          name_en: "The Impossible Dream",
         beatsPerBar: 3,
@@ -4715,7 +4724,7 @@ function getNoteAccidental(midi, signature) {
   const SHARP_PC_ORDER = [6, 1, 8, 3, 10]; // F# C# G# D# A#
   const FLAT_PC_ORDER  = [10, 3, 8, 1, 6]; // Bb Eb Ab Db Gb
   // For C major (0 accidentals) respect the user's UI preference; otherwise follow key sig
-  const useFlat = signature.count > 0 ? signature.preferFlats : currentIsFlat();
+  const useFlat = signature.count > 0 ? signature.preferFlats : accidentalPreferFlatFromUi();
   if (useFlat) {
     const covered = new Set(FLAT_PC_ORDER.slice(0, signature.count));
     if (covered.has(pc)) return null;
@@ -4897,6 +4906,18 @@ function renderStaff() {
     const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
     return mel ? (mel.jumpAt ?? 0) : 0;
   })();
+  const intervalMelodyShowFull = (() => {
+    if (!intervalMelodyStaff) return false;
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel?.showFull ?? false;
+  })();
+  const intervalMelodyAccent = (() => {
+    if (!intervalMelodyStaff) return false;
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel?.accent ?? false;
+  })();
   // Grupos de barras (beams) para la melodía del intervalo
   const melodyBeamGroups = (() => {
     if (!intervalMelodyStaff) return [];
@@ -5005,7 +5026,7 @@ function renderStaff() {
             : "#6fe0ff"
         )
       : null;
-    const ghost = intervalMelodyStaff && idx > intervalMelodyJumpAt + 1;
+    const ghost = intervalMelodyStaff && !intervalMelodyShowFull && idx > intervalMelodyJumpAt + 1;
     const duration = intervalMelodyStaff ? (intervalMelodyDurations[idx] || "q") : null;
     const beamedNote = intervalMelodyStaff && beamedIdxSet.has(idx);
 
@@ -5034,6 +5055,27 @@ function renderStaff() {
       const bStemEndY = bStemUp ? y - gap * 3.5 : y + gap * 3.5;
       const bBase = typeof duration === "string" && duration.endsWith(".") ? duration.slice(0, -1) : duration;
       beamStemData.set(idx, { stemX: bStemX, stemEndY: bStemEndY, stemUp: bStemUp, base: bBase });
+    }
+
+    // Dibujar acento (>) bajo/sobre la nota si la melodía lo indica
+    if (intervalMelodyAccent && midi !== null) {
+      const accStaffTop = Number(midi) >= 60 ? trebleTop : bassTop;
+      const accStaffMiddle = accStaffTop + gap * 2;
+      const stemUp = y >= accStaffMiddle;
+      const accentY = stemUp ? y + gap * 0.85 : y - gap * 0.85;
+      const aw = gap * 0.5;
+      const ah = gap * 0.2;
+      const accentColor = current ? (currentStroke || "#6fe0ff") : ghost ? "#768496" : "#d7dde7";
+      ctx.save();
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(x - aw, accentY - ah);
+      ctx.lineTo(x + aw * 0.3, accentY);
+      ctx.lineTo(x - aw, accentY + ah);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Guardar posición de notas de setup para ligadura
@@ -5088,7 +5130,7 @@ function renderStaff() {
     melodyBeamGroups.forEach((group) => {
       const positions = group.map((i) => beamStemData.get(i)).filter(Boolean);
       if (positions.length >= 2) {
-        const isGhost = group[0] > intervalMelodyJumpAt + 1;
+        const isGhost = !intervalMelodyShowFull && group[0] > intervalMelodyJumpAt + 1;
         drawBeam(ctx, positions, isGhost ? "#768496" : "#d7dde7");
       }
     });
@@ -5119,7 +5161,12 @@ function renderStaff() {
   }
 
   // Dibujar ligadura entre notas de setup (cuando jumpAt > 0)
-  if (intervalMelodyStaff && intervalMelodyJumpAt > 0 && setupNotePositions.length >= 1) {
+  const intervalMelodySetupSlur = (() => {
+    if (!intervalMelodyStaff) return false;
+    const mel = INTERVAL_MELODIES[getIntervalSemitones()];
+    return mel?.setupSlur !== false;
+  })();
+  if (intervalMelodyStaff && intervalMelodySetupSlur && intervalMelodyJumpAt > 0 && setupNotePositions.length >= 1) {
     const from = setupNotePositions[0];
     // La nota de llegada (interval lower, idx=jumpAt) se calcula a partir de su posición X
     const toX = startX + 46 + intervalMelodyJumpAt * intervalNoteStep;

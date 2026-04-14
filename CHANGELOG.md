@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (detección de intervalos)**: ajustadas varias melodías mnemotécnicas (`Tiburón`, `Smoke on the Water`, `Oh! Susanna`, `Here Comes the Bride`, `Maria` y `Star Wars`) con nuevas transcripciones, anacrusas, silencios y control por melodía de ligadura previa. El pentagrama permite además mostrar la melodía completa y acentos cuando la referencia lo requiere.
+
 - **Escritorio (Qt)**: el selector **Diestro / Zurdo** usa los mismos parámetros que el `<select id="guitarHandedness">` de la web (`style.css`: altura **38px**, radio **10px**, fondo **#17273a**, borde **#4a6180**, texto **#e8effa**, negrita). La flecha se pinta en **`HandednessComboBox.paintEvent`** con **`assets/ui/combo_arrow_down.png`** (QSS `image:` en `::down-arrow` no es fiable en macOS).
 
 - **Escritorio (Qt)**: fila **Acorde:** + nombre (generación / círculo) — de nuevo **dos** `tk.Label`; el marco usa **borde + padding** en **una** hoja QSS (`setStyleSheet` en el `Frame`, sin `highlightthickness`) para que el trazo no quede tapado y el texto no se salga. El **`QLabel`** conserva **`fg`** al redimensionar (`configure(wraplength=…)`), para que el nombre del acorde no vuelva a **blanco** y use el color **accent** (dorado del botón Piano).

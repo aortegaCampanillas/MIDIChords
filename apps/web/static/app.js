@@ -43,6 +43,7 @@ const state = {
   scaleCurrentClearTimer: null,
   generationCurrentClearTimer: null,
   generationPlayClearTimer: null,
+  intervalPreviewClearTimer: null,
   metronomeRunning: false,
   metronomeTimer: null,
   metronomeAnimRaf: null,
@@ -96,6 +97,7 @@ const state = {
     scalePressedNote: null,
     scalePressedDegree: null,
     scaleSuppressNextClick: false,
+    intervalRegions: [],
     metronomeRegions: {},
   },
   heldChordVoices: new Map(),
@@ -2432,6 +2434,13 @@ function setMode(mode) {
     clearTimeout(state.generationPlayClearTimer);
     state.generationPlayClearTimer = null;
   }
+  if (state.intervalPreviewClearTimer != null) {
+    clearTimeout(state.intervalPreviewClearTimer);
+    state.intervalPreviewClearTimer = null;
+  }
+  state.intervalPlayGeneration++;
+  state.intervalPlayingNote = null;
+  state.intervalPlayingIdx = null;
   state.generationPlayingNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
@@ -2865,18 +2874,17 @@ const INTERVAL_MELODIES = {
         offsets:   [0, 3, 5, null, 0, null, 3, 6, 5],
         durations: ["q","q","q","e","e","e","q","e","h"] },
 
-  4:  { name_es: "Oh! Susanna",                 name_en: "Oh! Susanna",
+  4:  { name_es: "When the Saints Go Marching In", name_en: "When the Saints Go Marching In",
         beatsPerBar: 4, anacrusis: 1,
-        jumpAt: 2,
-        setupSlur: false,
-        beams: [[0, 1]],
-        offsets:   [0, 2, 4, 7, 7, 9, 7, 4, 0, 2, 4, 4, 2, 0, 2, null],
-        durations: ["e","e","q","q","q.","e","q","q","q","q","q","q","q","q","h.","q"] },
+        playbackStepMs: 320,
+        offsets:   [0, 4, 5, 7],
+        durations: ["q","q","q","w"] },
 
   5:  { name_es: "Here Comes the Bride",  name_en: "Here Comes the Bride",
         beatsPerBar: 4,
         jumpAt: 3,
         setupSlur: false,
+        highlightUntil: 1,
         offsets:   [0, 5, 5, 5, 0, 7, 4, 5],
         durations: ["q","e.","s","h","q","e.","s","h"] },
 
@@ -2888,8 +2896,10 @@ const INTERVAL_MELODIES = {
 
   7:  { name_es: "Star Wars",                   name_en: "Star Wars",
         beatsPerBar: 4,
-        offsets:   [0, 0, 7, null, 5, 4, 2, 12],
-        durations: ["h.","e","e","q","q.","e","q","h"] },
+        beams: [[2, 3, 4]],
+        tuplets: [[2, 3, 4]],
+        offsets:   [0, 7, 5, 4, 2, 12, 7],
+        durations: ["h","h","et","et","et","h","q"] },
 
   8:  { name_es: "El sueño imposible",          name_en: "The Impossible Dream",
         beatsPerBar: 3,
@@ -2952,12 +2962,40 @@ function getIntervalMelodySongName() {
   return state.language === "en" ? entry.name_en : entry.name_es;
 }
 
+function previewIntervalMelodyNote(midi, idx = null) {
+  const note = Number(midi);
+  if (!Number.isFinite(note)) return;
+  state.intervalPlayGeneration++;
+  if (state.intervalPreviewClearTimer != null) {
+    clearTimeout(state.intervalPreviewClearTimer);
+    state.intervalPreviewClearTimer = null;
+  }
+  state.intervalPlayingNote = note;
+  state.intervalPlayingIdx = idx == null ? null : Number(idx);
+  playSingle(note, "piano");
+  renderInstrument();
+  renderStaff();
+  state.intervalPreviewClearTimer = setTimeout(() => {
+    state.intervalPlayingNote = null;
+    state.intervalPlayingIdx = null;
+    state.intervalPreviewClearTimer = null;
+    if (state.mode === "interval_detection") {
+      renderInstrument();
+      renderStaff();
+    }
+  }, 720);
+}
+
 /** Adds a MIDI note to the interval queue (keeps last 2, insertion order preserved for correct oldest-removal). */
 function intervalAddNote(midi) {
   const note = Number(midi);
   if (!Number.isFinite(note)) return;
   state.intervalMelodyActive = false;
   state.intervalPlayGeneration++;
+  if (state.intervalPreviewClearTimer != null) {
+    clearTimeout(state.intervalPreviewClearTimer);
+    state.intervalPreviewClearTimer = null;
+  }
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
   state.intervalNotes.push(note);
@@ -2966,7 +3004,7 @@ function intervalAddNote(midi) {
 }
 
 /** Duración de cada símbolo en múltiplos de un tiempo (negra = 1). */
-const DURATION_BEATS = { w: 4, "h.": 3, h: 2, "q.": 1.5, q: 1, "e.": 0.75, e: 0.5, "s.": 0.375, s: 0.25 };
+const DURATION_BEATS = { w: 4, "h.": 3, h: 2, "q.": 1.5, q: 1, "e.": 0.75, e: 0.5, et: (1 / 3), "s.": 0.375, s: 0.25 };
 
 /**
  * Devuelve los índices DESPUÉS de los cuales hay que dibujar una barra de compás.
@@ -3004,6 +3042,10 @@ function getMelodyBarLines(durations, beatsPerBar, anacrusis = 0) {
  *  durations:  array paralela con "w"/"h"/"q"/"e"/null; si se omite todas duran stepMs. */
 function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = null) {
   const gen = ++state.intervalPlayGeneration;
+  if (state.intervalPreviewClearTimer != null) {
+    clearTimeout(state.intervalPreviewClearTimer);
+    state.intervalPreviewClearTimer = null;
+  }
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
 
@@ -4116,8 +4158,8 @@ function drawNote(ctx, x, y, staffTop, gap, extra = false, tonic = false, curren
   const base = isDotted ? duration.slice(0, -1) : duration;
   const isMelodic = base != null;
   const isOpen = base === "w" || base === "h";
-  const hasStem = base === "h" || base === "q" || base === "e" || base === "s";
-  const hasFlag = !beamed && (base === "e" || base === "s");
+  const hasStem = base === "h" || base === "q" || base === "e" || base === "et" || base === "s";
+  const hasFlag = !beamed && (base === "e" || base === "et" || base === "s");
   const flagCount = base === "s" ? 2 : 1;
 
   let stroke, fill;
@@ -4280,6 +4322,21 @@ function drawBeam(ctx, positions, stroke) {
       drawBar(p.stemX, p.stemEndY + off, halfX, halfY + off);
     }
   });
+}
+
+function drawTupletNumber(ctx, positions, label, stroke) {
+  if (positions.length < 2) return;
+  const p0 = positions[0];
+  const pN = positions[positions.length - 1];
+  const midX = (p0.stemX + pN.stemX) / 2;
+  const midY = (p0.stemEndY + pN.stemEndY) / 2;
+  ctx.save();
+  ctx.fillStyle = stroke;
+  ctx.font = "bold 14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(label), midX, midY + (p0.stemUp ? 12 : -12));
+  ctx.restore();
 }
 
 function drawMetronomeCanvas(ctx, width, height) {
@@ -4808,6 +4865,7 @@ function renderStaff() {
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
+  state.staff.intervalRegions = [];
   if ((detectionStaff || intervalDetectionStaff) && notes.length === 0) {
     ctx.fillStyle = "#cfcfcf";
     ctx.font = "italic 13px sans-serif";
@@ -4912,6 +4970,12 @@ function renderStaff() {
     const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
     return mel?.showFull ?? false;
   })();
+  const intervalMelodyHighlightUntil = (() => {
+    if (!intervalMelodyStaff) return 1;
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel?.highlightUntil ?? (intervalMelodyJumpAt + 1);
+  })();
   const intervalMelodyAccent = (() => {
     if (!intervalMelodyStaff) return false;
     const sem = getIntervalSemitones();
@@ -4924,6 +4988,12 @@ function renderStaff() {
     const sem = getIntervalSemitones();
     const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
     return mel?.beams || [];
+  })();
+  const melodyTupletGroups = (() => {
+    if (!intervalMelodyStaff) return [];
+    const sem = getIntervalSemitones();
+    const mel = sem != null ? INTERVAL_MELODIES[sem] : null;
+    return mel?.tuplets || [];
   })();
   const beamedIdxSet = new Set(melodyBeamGroups.flat());
   const beamStemData = new Map(); // idx → {stemX, stemEndY, stemUp, base}
@@ -5026,7 +5096,7 @@ function renderStaff() {
             : "#6fe0ff"
         )
       : null;
-    const ghost = intervalMelodyStaff && !intervalMelodyShowFull && idx > intervalMelodyJumpAt + 1;
+    const ghost = intervalMelodyStaff && !intervalMelodyShowFull && idx > intervalMelodyHighlightUntil;
     const duration = intervalMelodyStaff ? (intervalMelodyDurations[idx] || "q") : null;
     const beamedNote = intervalMelodyStaff && beamedIdxSet.has(idx);
 
@@ -5083,6 +5153,17 @@ function renderStaff() {
       setupNotePositions.push({ x, y });
     }
 
+    if (intervalMelodyStaff) {
+      state.staff.intervalRegions.push({
+        note: Number(midi),
+        idx,
+        x,
+        y,
+        rx: noteRx,
+        ry: noteRx * 0.72,
+      });
+    }
+
     if (scaleStaff || generationStaff) {
       state.staff.scaleRegions.push({
         note: Number(midi),
@@ -5130,8 +5211,17 @@ function renderStaff() {
     melodyBeamGroups.forEach((group) => {
       const positions = group.map((i) => beamStemData.get(i)).filter(Boolean);
       if (positions.length >= 2) {
-        const isGhost = !intervalMelodyShowFull && group[0] > intervalMelodyJumpAt + 1;
+        const isGhost = !intervalMelodyShowFull && group[0] > intervalMelodyHighlightUntil;
         drawBeam(ctx, positions, isGhost ? "#768496" : "#d7dde7");
+      }
+    });
+  }
+  if (intervalMelodyStaff && melodyTupletGroups.length > 0) {
+    melodyTupletGroups.forEach((group) => {
+      const positions = group.map((i) => beamStemData.get(i)).filter(Boolean);
+      if (positions.length >= 2) {
+        const isGhost = !intervalMelodyShowFull && group[0] > intervalMelodyHighlightUntil;
+        drawTupletNumber(ctx, positions, 3, isGhost ? "#768496" : "#d7dde7");
       }
     });
   }
@@ -5196,7 +5286,40 @@ function renderStaff() {
     ctx.textBaseline = "alphabetic";
   }
 
-  if (scaleStaff || detectionStaff || generationStaff) {
+  if (intervalMelodyStaff) {
+    const getIntervalHit = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+      const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+      let best = null;
+      let bestDist = Infinity;
+      state.staff.intervalRegions.forEach((r) => {
+        const nx = (x - r.x) / Math.max(1, r.rx + 4);
+        const ny = (y - r.y) / Math.max(1, r.ry + 3);
+        if (((nx * nx) + (ny * ny)) > 1) return;
+        const dist = Math.abs(x - r.x) + Math.abs(y - r.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = r;
+        }
+      });
+      return best;
+    };
+    canvas.onmousemove = (event) => {
+      const hit = getIntervalHit(event);
+      canvas.style.cursor = hit ? "pointer" : "";
+    };
+    canvas.onmouseleave = () => {
+      canvas.style.cursor = "";
+    };
+    canvas.onmousedown = null;
+    canvas.onmouseup = null;
+    canvas.onclick = (event) => {
+      const hit = getIntervalHit(event);
+      if (!hit) return;
+      previewIntervalMelodyNote(Number(hit.note), Number(hit.idx));
+    };
+  } else if (scaleStaff || detectionStaff || generationStaff) {
     const getScaleHit = (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
@@ -5321,6 +5444,7 @@ function renderStaff() {
     state.staff.scalePressedNote = null;
     state.staff.scalePressedDegree = null;
     state.staff.scaleSuppressNextClick = false;
+    state.staff.intervalRegions = [];
     canvas.onmousemove = null;
     canvas.onmouseleave = null;
     canvas.onmousedown = null;
@@ -6896,6 +7020,10 @@ function bindEvents() {
 
   el("intervalClear").addEventListener("click", () => {
     state.intervalPlayGeneration++;
+    if (state.intervalPreviewClearTimer != null) {
+      clearTimeout(state.intervalPreviewClearTimer);
+      state.intervalPreviewClearTimer = null;
+    }
     state.intervalPlayingNote = null;
     state.intervalPlayingIdx = null;
     state.intervalMelodyActive = false;
@@ -6915,8 +7043,9 @@ function bindEvents() {
       const melodyNotes = getIntervalMelodyNotes();
       if (!melodyNotes.length) return;
       const sem = getIntervalSemitones();
-      const melodyDurs = sem != null ? (INTERVAL_MELODIES[sem]?.durations || null) : null;
-      playIntervalNoteSequence(melodyNotes, 420, null, melodyDurs);
+      const melody = sem != null ? (INTERVAL_MELODIES[sem] || null) : null;
+      const melodyDurs = melody?.durations || null;
+      playIntervalNoteSequence(melodyNotes, melody?.playbackStepMs || 420, null, melodyDurs);
     } else {
       if (state.intervalNotes.length < 2) return;
       playIntervalNoteSequence([...state.intervalNotes].sort((a, b) => a - b), 500);
@@ -6931,6 +7060,10 @@ function bindEvents() {
       state.intervalMelodyActive = !state.intervalMelodyActive;
       if (!state.intervalMelodyActive) {
         state.intervalPlayGeneration++;
+        if (state.intervalPreviewClearTimer != null) {
+          clearTimeout(state.intervalPreviewClearTimer);
+          state.intervalPreviewClearTimer = null;
+        }
         state.intervalPlayingNote = null;
         state.intervalPlayingIdx = null;
         refreshIntervalButtonsState();
@@ -6942,8 +7075,9 @@ function bindEvents() {
         renderStaff();
         const mn = getIntervalMelodyNotes();
         const semAuto = getIntervalSemitones();
-        const mdAuto = semAuto != null ? (INTERVAL_MELODIES[semAuto]?.durations || null) : null;
-        playIntervalNoteSequence(mn, 420, null, mdAuto);
+        const melodyAuto = semAuto != null ? (INTERVAL_MELODIES[semAuto] || null) : null;
+        const mdAuto = melodyAuto?.durations || null;
+        playIntervalNoteSequence(mn, melodyAuto?.playbackStepMs || 420, null, mdAuto);
       }
     });
   }

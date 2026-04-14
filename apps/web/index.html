@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FreeMIDIChords — Free Music Theory Tools for Every Platform</title>
-  <meta name="description" content="Free music theory tools: chord detection and generation, circle of fifths, scales, metronome and tuner — available as a web app, mobile app (iOS &amp; Android), desktop app (Mac &amp; Windows), and Roland FP-30X controller." />
+  <meta name="description" content="Free music theory tools: chord and interval detection, chord generation, circle of fifths, scales and metronome — available as a web app, mobile app (iOS &amp; Android), desktop app (Mac &amp; Windows), and Roland FP-30X controller." />
   <link rel="canonical" href="https://freemidichords.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://freemidichords.com/" />
   <meta property="og:title" content="FreeMIDIChords — Free Music Theory Tools" />
-  <meta property="og:description" content="Chord detection, circle of fifths, scales, metronome and tuner — web, mobile, desktop and Roland FP-30X controller. All free." />
+  <meta property="og:description" content="Chord and interval detection, circle of fifths, scales and metronome — web, mobile, desktop and Roland FP-30X controller. All free." />
   <meta property="og:image" content="https://freemidichords.com/static/og-image.png" />
   <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
@@ -321,7 +321,6 @@
   <div class="feat-pill"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></div>
   <div class="feat-pill"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></div>
   <div class="feat-pill"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></div>
-  <div class="feat-pill"><span>🔊</span> <span data-i18n="pill_tuner">Tuner</span></div>
   <div class="feat-pill"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></div>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
   <div class="feat-pill"><span>🆓</span> <span data-i18n="pill_free">Always free</span></div>
@@ -338,7 +337,7 @@
       <div class="card-icon">🌐</div>
       <div class="card-title" data-i18n="card_web_title">Web App</div>
       <div class="card-desc" data-i18n="card_web_desc">
-        The full tool suite in your browser — no installation required. Detect and generate piano and guitar chords, interactive circle of fifths, scales, metronome, and tuner. MIDI keyboard optional.
+        The full tool suite in your browser — no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.
       </div>
       <div class="card-links">
         <span class="card-link" data-i18n="card_open">Open →</span>
@@ -495,7 +494,7 @@ const TRANSLATIONS = {
     nav_cta:            "Open web app",
     hero_eyebrow:       "Free \u0026 Open Source",
     hero_h1:            "Music theory tools<br>for <em>every</em> platform.",
-    hero_p:             "Detect and generate chords, explore the circle of fifths, practice scales, use the metronome \u2014 on the web, your phone, or your desktop.",
+    hero_p:             "Detect chords and intervals, explore the circle of fifths, practice scales, and use the metronome \u2014 on the web, your phone, or your desktop.",
     hero_explore:       "Explore all apps",
     pill_chords:        "Chord detection",
     pill_intervals:     "Interval detection",
@@ -503,12 +502,11 @@ const TRANSLATIONS = {
     pill_circle:        "Circle of fifths",
     pill_scales:        "Scales",
     pill_metro:         "Metronome",
-    pill_tuner:         "Tuner",
     pill_midi:          "MIDI input",
     pill_free:          "Always free",
     products_title:     "One tool suite, every platform",
     card_web_title:     "Web App",
-    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, metronome, and tuner. MIDI keyboard optional.",
+    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.",
     card_open:          "Open \u2192",
     card_mobile_title:  "Mobile App",
     card_mobile_desc:   "Take FreeMIDIChords anywhere. Same chord tools and circle of fifths, optimized for touch on iPhone, iPad and Android.",
@@ -548,7 +546,7 @@ const TRANSLATIONS = {
     nav_cta:            "Abrir app web",
     hero_eyebrow:       "Gratis y c\u00f3digo abierto",
     hero_h1:            "Herramientas de teor\u00eda musical<br>para <em>todas</em> las plataformas.",
-    hero_p:             "Detecta y genera acordes, explora el c\u00edrculo de quintas, practica escalas, usa el metr\u00f3nomo \u2014 en la web, tu m\u00f3vil o tu escritorio.",
+    hero_p:             "Detecta acordes e intervalos, explora el c\u00edrculo de quintas, practica escalas y usa el metr\u00f3nomo \u2014 en la web, tu m\u00f3vil o tu escritorio.",
     hero_explore:       "Ver todas las apps",
     pill_chords:        "Detecci\u00f3n de acordes",
     pill_intervals:     "Detecci\u00f3n de intervalos",
@@ -556,12 +554,11 @@ const TRANSLATIONS = {
     pill_circle:        "C\u00edrculo de quintas",
     pill_scales:        "Escalas",
     pill_metro:         "Metr\u00f3nomo",
-    pill_tuner:         "Afinador",
     pill_midi:          "Entrada MIDI",
     pill_free:          "Siempre gratis",
     products_title:     "Una suite de herramientas, todas las plataformas",
     card_web_title:     "App Web",
-    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas, metr\u00f3nomo y afinador. Teclado MIDI opcional.",
+    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas y metr\u00f3nomo. Teclado MIDI opcional.",
     card_open:          "Abrir \u2192",
     card_mobile_title:  "App M\u00f3vil",
     card_mobile_desc:   "Lleva FreeMIDIChords a todas partes. Las mismas herramientas de acordes y el c\u00edrculo de quintas, optimizadas para pantalla t\u00e1ctil en iPhone, iPad y Android.",

@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (front page)**: la landing prioriza ahora la **detección de intervalos** en metadatos, hero y tarjeta de la app web; se elimina la referencia visible al **afinador** en la franja de features y textos promocionales.
+
 - **Web (detección de intervalos)**: ajustadas varias melodías mnemotécnicas (`Tiburón`, `Smoke on the Water`, `When the Saints Go Marching In`, `Here Comes the Bride`, `Maria`, `Star Wars`, `Love Story`, `My Way`, `Somewhere`, `Take On Me` y `Somewhere Over the Rainbow`) con nuevas transcripciones, anacrusas, silencios, tresillos, tempos específicos y control por melodía de ligadura previa o límite de resaltado. El pentagrama permite además mostrar la melodía completa, acentos y reproducir/resaltar temporalmente una nota concreta al pulsarla.
 
 - **Escritorio (Qt)**: el selector **Diestro / Zurdo** usa los mismos parámetros que el `<select id="guitarHandedness">` de la web (`style.css`: altura **38px**, radio **10px**, fondo **#17273a**, borde **#4a6180**, texto **#e8effa**, negrita). La flecha se pinta en **`HandednessComboBox.paintEvent`** con **`assets/ui/combo_arrow_down.png`** (QSS `image:` en `::down-arrow` no es fiable en macOS).

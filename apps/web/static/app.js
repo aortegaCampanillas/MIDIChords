@@ -2925,8 +2925,8 @@ const INTERVAL_MELODIES = {
 
   12: { name_es: "Somewhere Over the Rainbow",  name_en: "Somewhere Over the Rainbow",
         beatsPerBar: 4,
-        offsets:   [0, 12, 11, 9, 8, 6, 9],
-        durations: ["h","h","q.","e","q","q","h"] },
+        offsets:   [0, 12, 11, 7, 9, 11, 12],
+        durations: ["h","h","q","e","e","q","q"] },
 };
 
 function getIntervalName(semitones) {

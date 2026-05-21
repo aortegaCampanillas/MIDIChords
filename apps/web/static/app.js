@@ -30,6 +30,8 @@ const state = {
   scaleGuitarStartNote: null,
   generationCurrentNote: null,
   generationPlayingNotes: new Set(),
+  generationMidiHeldNotes: new Set(),
+  generationMidiForbiddenNotes: new Set(),
   guitarChordCache: null,
   guitarVariations: [],
   guitarSelectedVariationIdx: null,
@@ -2442,6 +2444,8 @@ function setMode(mode) {
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
   state.generationPlayingNotes.clear();
+  state.generationMidiHeldNotes.clear();
+  state.generationMidiForbiddenNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
@@ -3269,7 +3273,10 @@ function renderPiano() {
     if (generationPianoMode) {
       if (rhFingerByNote.has(midi)) key.classList.add("rh");
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
-      if (generationCurrentMidi != null && Number(midi) === generationCurrentMidi) key.classList.add("active");
+      if (
+        (generationCurrentMidi != null && Number(midi) === generationCurrentMidi)
+        || state.generationMidiHeldNotes.has(midi)
+      ) key.classList.add("active");
     } else if (state.mode === "detection") {
       if (activeMidi.has(midi)) key.classList.add("active");
     } else if (scalePianoMode) {
@@ -3284,6 +3291,7 @@ function renderPiano() {
       key.classList.add("active");
     }
     if (extraMidi.has(midi)) key.classList.add("extra");
+    if (state.generationMidiForbiddenNotes.has(midi)) key.classList.add("forbidden-flash");
     if (state.mode === "scales" && scaleCurrent) {
       const keepYellow = !scalePianoMode || (scaleRawOutsideDisplay && scaleInputRawMidi === midi);
       if (keepYellow) key.classList.add("active");
@@ -3802,6 +3810,8 @@ function handleInstrumentNote(note, options = {}) {
         if (pressed) startHeldInputNote(note, "piano");
         else playSingleAt(note, null, 0.95, "piano");
         setGenerationCurrent(note);
+      } else {
+        showForbiddenOnPianoKey(note);
       }
       return;
     }
@@ -3810,6 +3820,8 @@ function handleInstrumentNote(note, options = {}) {
       if (pressed) startHeldInputNote(note, "guitar");
       else playSingleAt(note, null, 1.05, "guitar");
       setGenerationCurrent(note);
+    } else {
+      showForbiddenOnPianoKey(note);
     }
     return;
   }
@@ -4922,6 +4934,18 @@ function renderStaff() {
       if (staffSet.has(lhNote)) generationPlayingDisplay.add(lhNote);
     });
   }
+  const generationMidiHeldDisplay = new Set(
+    isChordGenerationLikeMode() ? Array.from(state.generationMidiHeldNotes).map((n) => Number(n)) : []
+  );
+  if (isChordGenerationLikeMode() && state.instrument === "piano" && generationMidiHeldDisplay.size) {
+    const staffSet = new Set(notes.map((n) => Number(n)));
+    Array.from(generationMidiHeldDisplay).forEach((note) => {
+      if (!staffSet.has(note) && staffSet.has(note + 12)) {
+        generationMidiHeldDisplay.delete(note);
+        generationMidiHeldDisplay.add(note + 12);
+      }
+    });
+  }
 
   const xByLine = new Map();
   const placedTrebleCols = new Map();
@@ -5086,6 +5110,7 @@ function renderStaff() {
       || scaleNotePressed
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
       || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)))
+      || (isChordGenerationLikeMode() && generationMidiHeldDisplay.has(Number(midi)))
       || (intervalDetectionStaff && state.intervalPlayingIdx != null && idx === state.intervalPlayingIdx);
     const currentStroke = current
       ? (
@@ -6742,6 +6767,44 @@ function handleMidiMessage(event) {
       refreshIntervalResult();
     } else {
       stopHeldMidiInputNote(note);
+    }
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
+
+  if (isChordGenerationLikeMode()) {
+    if (isNoteOn) {
+      handleInstrumentNote(note, { pressed: true });
+      if (state.generatedChord) {
+        const chordNotes = (state.generatedChord.notes_midi || []).map((n) => Number(n));
+        const inChord = state.instrument === "piano"
+          ? new Set([...chordNotes, ...chordNotes.map((n) => n - 12)]).has(note)
+          : new Set(chordNotes.map((n) => n % 12)).has(note % 12);
+        if (inChord) {
+          state.generationMidiHeldNotes.add(note);
+          renderInstrument();
+          renderStaff();
+        } else {
+          state.generationMidiForbiddenNotes.add(note);
+          renderInstrument();
+        }
+      }
+    } else {
+      const wasForbidden = state.generationMidiForbiddenNotes.delete(note);
+      state.generationMidiHeldNotes.delete(note);
+      stopHeldInputNote(note);
+      renderInstrument();
+      if (!wasForbidden) renderStaff();
+    }
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
+
+  if (state.mode === "scales") {
+    if (isNoteOn) {
+      handleInstrumentNote(note, { pressed: true });
+    } else {
+      stopHeldInputNote(note);
     }
     void bumpMidiScreenWakeLockFromMidi();
     return;

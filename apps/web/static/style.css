@@ -1382,3 +1382,14 @@ button:disabled {
   color: #ffd24a;
   font-weight: bold;
 }
+
+#appFooter {
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding: 20px 24px;
+  text-align: center;
+  font-size: .75rem;
+  color: var(--muted);
+}
+#appFooter p {
+  margin: 2px 0;
+}

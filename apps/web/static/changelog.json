@@ -6,6 +6,12 @@
       {
         "date": "2026-05-30",
         "publish": true,
+        "es": "Escalas: lista ampliada con nuevas escalas y modos, botón Básicas/Todas para filtrar, alias de nombre común junto al nombre modal",
+        "en": "Scales: expanded list with new scales and modes, Basic/All filter button, common name alias shown alongside modal name"
+      },
+      {
+        "date": "2026-05-30",
+        "publish": true,
         "es": "Escalas: digitación de mano derecha e izquierda en el piano",
         "en": "Scales: right and left hand fingering on the piano"
       },

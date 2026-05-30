@@ -10,7 +10,8 @@ const state = {
   scalePlayMode: "piano",
   scaleMetronomeEnabled: false,
   scaleOctaves: 1,
-  scaleFingeringMode: "none",
+  scaleFingeringMode: "right",
+  scaleFilterMode: "basic",
   guitarHandedness: "right",
   language: "es",
   accidental: "sharp",
@@ -308,6 +309,9 @@ const UI_TEXTS = {
     help_scale_play: "Reproduce la escala actual.",
     help_scale_metronome_mode: "Activa reproducción de escala con pulsos de metrónomo.",
     help_scale_octaves: "Número de octavas que se reproducen y se marcan en el piano (1, 2 o 3).",
+    scale_filter_basic: "Básicas",
+    scale_filter_advanced: "Todas",
+    help_scale_filter: "Alterna entre el conjunto de escalas más habituales (Básicas) y la lista completa (Todas).",
     help_scale_fingering: "Digitación para tocar la escala en piano: elige mano derecha o mano izquierda para ver los números de dedo en las teclas. Los recuadros naranjas indican el dedo sugerido; los rojos marcan un paso de dedo (cruce del pulgar o del dedo 3).",
     scale_fingering_label: "Digitación",
     scale_fingering_none: "No",
@@ -509,6 +513,9 @@ const UI_TEXTS = {
     help_scale_play: "Play the current scale.",
     help_scale_metronome_mode: "Enable scale playback synced with metronome pulses.",
     help_scale_octaves: "Number of octaves to play and highlight on the piano (1, 2 or 3).",
+    scale_filter_basic: "Basic",
+    scale_filter_advanced: "All",
+    help_scale_filter: "Toggle between the most common scales (Basic) and the full list (All).",
     help_scale_fingering: "Fingering for playing the scale on piano: choose right hand or left hand to see finger numbers on the keys. Orange squares indicate the suggested finger; red squares mark a thumb or finger crossing.",
     scale_fingering_label: "Fingering",
     scale_fingering_none: "None",
@@ -658,6 +665,7 @@ const HELP_CALLOUTS_SCALES = [
   { selector: "#panelScales", textKey: "help_scales_panel", side: "left" },
   { selector: "#scaleRoot", textKey: "help_scale_root", side: "left" },
   { selector: "#scaleType", textKey: "help_scale_type", side: "left" },
+  { selector: "#scaleFilterToggle", textKey: "help_scale_filter", side: "left" },
   { selector: "#scalePlay", textKey: "help_scale_play", side: "bottom" },
   { selector: "#scaleModeMetronome", textKey: "help_scale_metronome_mode", side: "top" },
   { selector: ".scale-octaves-wrap", textKey: "help_scale_octaves", side: "top" },
@@ -2361,6 +2369,7 @@ function applyTranslations() {
   if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
   if (state.help.active) refreshHelpOverlay();
   if (cachedChangelogEntries) renderChangelog(cachedChangelogEntries);
+  renderScaleFilterToggle();
 }
 
 async function submitFeedbackForm(event) {
@@ -2810,6 +2819,20 @@ function getActiveMidiForMode() {
     return new Set(Array.from(state.activeMidiLiveNotes));
   }
   return new Set();
+}
+
+const SCALE_BASIC_NAMES = new Set([
+  "Ionian", "Aeolian", "Harmonic Minor", "Melodic Minor",
+  "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian",
+  "Major Pentatonic", "Minor Pentatonic",
+  "Blues Major", "Minor Blues",
+  "Chromatic", "Whole Tone (WT)",
+]);
+
+function getScaleAliases() {
+  return state.language === "en"
+    ? { Ionian: "Major", Aeolian: "Natural Minor", "Super Locrian": "Altered" }
+    : { Ionian: "Mayor", Aeolian: "Menor Natural", "Super Locrian": "Alterada" };
 }
 
 function getScaleBaseNotes() {
@@ -4150,6 +4173,7 @@ function scalePrefersMinor(patternName) {
     "Half Diminished",
     "Minor Pentatonic",
     "Minor Blues",
+    "Dorian b2",
   ]);
   return String(patternName || "").includes("Minor") || minorNames.has(String(patternName || ""));
 }
@@ -5765,17 +5789,45 @@ function buildSelectors() {
     genVariant.value = state.chordPatterns.some((p) => p.suffix === prevVariant) ? prevVariant : state.chordPatterns[0].suffix;
   }
 
+  repopulateScaleTypeSelect(prevScaleType);
+  updateInversionMax();
+}
+
+function repopulateScaleTypeSelect(prevValue) {
+  const scaleType = el("scaleType");
+  if (!scaleType) return;
+  const prev = prevValue != null ? prevValue : (scaleType.value || "Ionian");
+  const scaleAliases = getScaleAliases();
+  const visiblePatterns = state.scaleFilterMode === "basic"
+    ? state.scalePatterns.filter((p) => SCALE_BASIC_NAMES.has(p.name))
+    : state.scalePatterns;
   scaleType.innerHTML = "";
-  state.scalePatterns.forEach((p) => {
+  visiblePatterns.forEach((p) => {
     const opt = document.createElement("option");
     opt.value = p.name;
-    opt.textContent = p.localized_name;
+    const alias = scaleAliases[p.name];
+    opt.textContent = alias ? `${alias} (${p.localized_name})` : p.localized_name;
     scaleType.appendChild(opt);
   });
-  if (state.scalePatterns.length > 0) {
-    scaleType.value = state.scalePatterns.some((p) => p.name === prevScaleType) ? prevScaleType : state.scalePatterns[0].name;
+  if (visiblePatterns.length > 0) {
+    const keepCurrent = visiblePatterns.some((p) => p.name === prev);
+    scaleType.value = keepCurrent ? prev : visiblePatterns[0].name;
   }
-  updateInversionMax();
+  renderScaleFilterToggle();
+}
+
+function renderScaleFilterToggle() {
+  const btn = el("scaleFilterToggle");
+  if (!btn) return;
+  const isBasic = state.scaleFilterMode === "basic";
+  btn.textContent = isBasic ? tr("scale_filter_basic") : tr("scale_filter_advanced");
+  btn.classList.toggle("active", isBasic);
+}
+
+function setScaleFilterMode(mode) {
+  state.scaleFilterMode = mode;
+  repopulateScaleTypeSelect();
+  runGenerateScale();
 }
 
 function updateInversionMax() {
@@ -5866,7 +5918,10 @@ async function runGenerateScale() {
   state.generatedScale = out;
   state.scaleGuitarStartNote = Array.isArray(out.notes_midi) && out.notes_midi.length ? Number(out.notes_midi[0]) : null;
   const tonic = noteNameFromPc(out.tonic_pc || 0);
-  el("scaleName").textContent = `${tonic} ${out.pattern_localized_name || out.pattern_name || ""}`.trim();
+  const scaleAlias = getScaleAliases()[out.pattern_name];
+  const patternLabel = out.pattern_localized_name || out.pattern_name || "";
+  const patternWithAlias = scaleAlias ? `${scaleAlias} (${patternLabel})` : patternLabel;
+  el("scaleName").textContent = `${tonic} ${patternWithAlias}`.trim();
   el("scaleNotes").textContent = (out.notes || []).join(" - ") || "-";
   el("scaleIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
   if (state.mode === "scales") {
@@ -7469,6 +7524,9 @@ function bindEvents() {
   }
   el("scaleRoot").addEventListener("change", runGenerateScale);
   el("scaleType").addEventListener("change", runGenerateScale);
+  el("scaleFilterToggle").addEventListener("click", () => {
+    setScaleFilterMode(state.scaleFilterMode === "basic" ? "advanced" : "basic");
+  });
   el("scaleBpm").addEventListener("input", (e) => {
     const v = String(e.target.value || "120");
     el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;

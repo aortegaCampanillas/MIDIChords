@@ -177,6 +177,7 @@
                 <div class="row">
                   <label id="labelScaleType" for="scaleType">Tipo</label>
                   <select id="scaleType"></select>
+                  <button id="scaleFilterToggle" type="button" class="scale-filter-toggle active">Básicas</button>
                 </div>
                 <div class="controls-inline scale-controls-inline">
                   <button id="scalePlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
@@ -206,9 +207,9 @@
                 <div class="row scale-fingering-row">
                   <span id="labelScaleFingering" class="label">Digitación</span>
                   <div class="scale-fingering-opts">
-                    <label><input type="radio" name="scaleFingering" id="scaleFingeringNo" value="none" checked> <span id="labelScaleFingeringNo">No</span></label>
+                    <label><input type="radio" name="scaleFingering" id="scaleFingeringNo" value="none"> <span id="labelScaleFingeringNo">No</span></label>
                     <label><input type="radio" name="scaleFingering" id="scaleFingeringLeft" value="left"> <span id="labelScaleFingeringLeft">Mano izquierda</span></label>
-                    <label><input type="radio" name="scaleFingering" id="scaleFingeringRight" value="right"> <span id="labelScaleFingeringRight">Mano derecha</span></label>
+                    <label><input type="radio" name="scaleFingering" id="scaleFingeringRight" value="right" checked> <span id="labelScaleFingeringRight">Mano derecha</span></label>
                   </div>
                 </div>
               </section>

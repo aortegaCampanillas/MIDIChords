@@ -224,6 +224,20 @@ body.help-active * {
   color: var(--muted);
 }
 
+.small {
+  font-size: 0.82em;
+}
+
+#midiStartupSoundChoice {
+  margin-bottom: 12px;
+}
+
+#midiStartupSoundChoice .label {
+  margin: 0 0 6px 0;
+  font-size: 0.88em;
+  color: var(--muted);
+}
+
 .donation-section h3 {
   margin: 0 0 8px 0;
 }
@@ -495,6 +509,14 @@ button:disabled {
 
 #detectMidiSoundToggle.active,
 #metroMidiSoundToggle.active {
+  background-color: #ffd060 !important;
+  color: #0f1b28 !important;
+  border-color: #ffd060 !important;
+  border-style: solid;
+}
+
+#midiStartupSoundAudio.active,
+#midiStartupSoundMidi.active {
   background-color: #ffd060 !important;
   color: #0f1b28 !important;
   border-color: #ffd060 !important;

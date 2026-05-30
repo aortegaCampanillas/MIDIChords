@@ -82,6 +82,7 @@
         </div>
         <div id="instrumentSwitch" class="controls-inline">
           <button id="midiToggle" class="ghost" title="Entrada MIDI Web">MIDI: Off</button>
+          <button id="soundOutputToggle" class="ghost hidden" title="Salida de sonido">Audio</button>
           <button id="helpToggle" class="ghost" title="Ayuda">Ayuda</button>
         </div>
       </div>
@@ -108,7 +109,6 @@
                 <div class="controls-inline">
                   <button id="detectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
                   <button id="detectClear">Limpiar</button>
-                  <button id="detectMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="result-block">
                   <div id="detectFieldChord"><span id="labelDetectChord" class="label">Acorde:</span> <strong id="detectChord">-</strong></div>
@@ -125,7 +125,6 @@
                   <button id="intervalPlayReverse" class="icon-play-btn" aria-label="Reproducir descendente" title="Reproducir descendente" disabled>◀</button>
                   <button id="intervalPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir" disabled>▶</button>
                   <button id="intervalClear" disabled>Limpiar</button>
-                  <button id="intervalMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="result-block">
                   <div id="intervalFieldNotes"><span id="labelIntervalNotes" class="label">Notas:</span> <span id="intervalNoteNames">-</span></div>
@@ -218,7 +217,6 @@
                 <h3 id="headingMetronome">Configuración de Metrónomo</h3>
                 <div class="controls-inline">
                   <button id="metroToggle" class="icon-play-btn" aria-label="Iniciar metrónomo" title="Iniciar metrónomo">▶</button>
-                  <button id="metroMidiSoundToggle" class="midi-sound-toggle">Reproducir entrada MIDI</button>
                 </div>
                 <div class="row metronome-volume-row">
                   <label id="labelMetronomeVolume" for="metroVolume">Volumen</label>
@@ -367,6 +365,14 @@
         <p id="midiStartupText">
           Para usar un teclado/controlador MIDI en detección, activa la entrada MIDI.
         </p>
+        <div id="midiStartupSoundChoice">
+          <p id="midiStartupSoundLabel" class="label"></p>
+          <div class="controls-inline">
+            <button id="midiStartupSoundAudio" class="active"></button>
+            <button id="midiStartupSoundMidi"></button>
+          </div>
+          <p id="midiStartupSoundWarning" class="muted small hidden"></p>
+        </div>
         <div class="controls-inline">
           <button id="midiStartupEnableBtn">Activar MIDI</button>
           <button id="midiStartupCloseBtn" class="ghost">Ahora no</button>

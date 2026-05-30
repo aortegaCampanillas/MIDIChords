@@ -30,6 +30,7 @@ const state = {
   generatedScale: null,
   scaleCurrentNote: null,
   scaleInputRawNote: null,
+  scaleFingeringDirection: 1,
   scaleGuitarStartNote: null,
   generationCurrentNote: null,
   generationPlayingNotes: new Set(),
@@ -2723,6 +2724,8 @@ function setInstrument(inst) {
   el("sharedPiano").classList.toggle("hidden", inst !== "piano");
   const fingeringStripEl = el("fingeringStrip");
   if (fingeringStripEl) fingeringStripEl.classList.toggle("hidden", inst !== "piano");
+  const fingeringStripDescEl = el("fingeringStripDesc");
+  if (fingeringStripDescEl) fingeringStripDescEl.classList.toggle("hidden", inst !== "piano");
   el("sharedGuitarCanvas").classList.toggle("hidden", inst !== "guitar");
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
   if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.add("hidden");
@@ -2898,7 +2901,7 @@ const SCALE_BASIC_NAMES = new Set([
   "Ionian", "Aeolian", "Harmonic Minor", "Melodic Minor",
   "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian",
   "Major Pentatonic", "Minor Pentatonic",
-  "Blues Major", "Minor Blues",
+  "Blues Pentatonic", "Minor Blues",
   "Chromatic", "Whole Tone (WT)",
 ]);
 
@@ -3356,29 +3359,279 @@ function pianoFingeringForCount(count, hand) {
   return Array.from({ length: n }, (_, i) => Math.max(1, 5 - i));
 }
 
+// Locrian fingerings. LH identical to Harmonic Minor; G#(8),D#(3),E(4),A(9),D(2),G(7) differ in RH.
+const LOCRIAN_RH = {
+  11:[1,2,3,1,2,3,4,5], 6: [1,2,3,1,2,3,4,5], 1: [1,2,3,1,2,3,4,5], // B F# C#
+  8: [1,2,3,1,2,3,4,5], 3: [1,2,3,1,2,3,4,5],                        // G# D#
+  4: [1,2,3,4,1,2,3,4], 9: [1,2,3,4,1,2,3,4],                        // E A
+  2: [2,3,4,1,2,3,4,1], 7: [2,3,4,1,2,3,4,1], 0: [2,3,4,1,2,3,4,1], // D G C
+  5: [2,3,4,1,2,3,4,1],                                                // F
+};
+
+// Major Pentatonic (6 notes/oct). Multi-oct: pure cyclic P[i % 6].
+const MAJOR_PENT_RH = {
+  0:[1,2,3,1,2,3],7:[1,2,3,1,2,3],2:[1,2,3,1,2,3],9:[1,2,3,1,2,3],4:[1,2,3,1,2,3], // C G D A E
+  5:[2,3,1,2,3,1],10:[2,3,1,2,3,1],3:[2,3,1,2,3,1],8:[2,3,1,2,3,1],1:[2,3,1,2,3,1], // F Bb Eb Ab Db
+};
+const MAJOR_PENT_LH = {
+  0:[4,3,2,1,2,1],7:[4,3,2,1,2,1],2:[4,3,2,1,2,1],9:[4,3,2,1,2,1],4:[4,3,2,1,2,1],
+  5:[3,2,1,2,1,3],10:[3,2,1,2,1,3],3:[3,2,1,2,1,3],8:[3,2,1,2,1,3],1:[3,2,1,2,1,3],
+};
+
+// Minor Pentatonic (6 notes/oct). Group 1 same as Major Pent; Group 2 different keys.
+const MINOR_PENT_RH = {
+  9:[1,2,3,1,2,3],4:[1,2,3,1,2,3],11:[1,2,3,1,2,3],6:[1,2,3,1,2,3],1:[1,2,3,1,2,3], // A E B F# C#
+  2:[2,3,1,2,3,1],7:[2,3,1,2,3,1],0:[2,3,1,2,3,1],5:[2,3,1,2,3,1],10:[2,3,1,2,3,1], // D G C F Bb
+};
+const MINOR_PENT_LH = {
+  9:[4,3,2,1,2,1],4:[4,3,2,1,2,1],11:[4,3,2,1,2,1],6:[4,3,2,1,2,1],1:[4,3,2,1,2,1],
+  2:[3,2,1,2,1,3],7:[3,2,1,2,1,3],0:[3,2,1,2,1,3],5:[3,2,1,2,1,3],10:[3,2,1,2,1,3],
+};
+
+// Major Blues (7 notes/oct). Multi-oct: pure cyclic P[i % 7].
+const MAJOR_BLUES_RH = {
+  0:[1,2,3,1,2,3,4],7:[1,2,3,1,2,3,4],2:[1,2,3,1,2,3,4],9:[1,2,3,1,2,3,4],4:[1,2,3,1,2,3,4], // C G D A E
+  5:[2,3,1,2,3,1,2],10:[2,3,1,2,3,1,2],3:[2,3,1,2,3,1,2],8:[2,3,1,2,3,1,2],1:[2,3,1,2,3,1,2],
+};
+const MAJOR_BLUES_LH = {
+  0:[4,3,2,1,2,1,2],7:[4,3,2,1,2,1,2],2:[4,3,2,1,2,1,2],9:[4,3,2,1,2,1,2],4:[4,3,2,1,2,1,2],
+  5:[3,2,1,2,1,2,3],10:[3,2,1,2,1,2,3],3:[3,2,1,2,1,2,3],8:[3,2,1,2,1,2,3],1:[3,2,1,2,1,2,3],
+};
+
+// Minor Blues (7 notes/oct). Group 1 = A keys, Group 2 = D keys.
+const MINOR_BLUES_RH = {
+  9:[1,2,3,1,2,3,4],4:[1,2,3,1,2,3,4],11:[1,2,3,1,2,3,4],6:[1,2,3,1,2,3,4],1:[1,2,3,1,2,3,4],
+  2:[2,3,1,2,3,1,2],7:[2,3,1,2,3,1,2],0:[2,3,1,2,3,1,2],5:[2,3,1,2,3,1,2],10:[2,3,1,2,3,1,2],
+};
+const MINOR_BLUES_LH = {
+  9:[4,3,2,1,2,1,2],4:[4,3,2,1,2,1,2],11:[4,3,2,1,2,1,2],6:[4,3,2,1,2,1,2],1:[4,3,2,1,2,1,2],
+  2:[3,2,1,2,1,2,3],7:[3,2,1,2,1,2,3],0:[3,2,1,2,1,2,3],5:[3,2,1,2,1,2,3],10:[3,2,1,2,1,2,3],
+};
+
+// Whole Tone (7 notes/oct). Two groups covering all 12 pcs (6 each).
+const WHOLE_TONE_RH = {
+  0:[1,2,3,1,2,3,1],2:[1,2,3,1,2,3,1],4:[1,2,3,1,2,3,1],6:[1,2,3,1,2,3,1],8:[1,2,3,1,2,3,1],10:[1,2,3,1,2,3,1],
+  1:[2,3,1,2,3,1,2],3:[2,3,1,2,3,1,2],5:[2,3,1,2,3,1,2],7:[2,3,1,2,3,1,2],9:[2,3,1,2,3,1,2],11:[2,3,1,2,3,1,2],
+};
+const WHOLE_TONE_LH = {
+  0:[3,2,1,3,2,1,3],2:[3,2,1,3,2,1,3],4:[3,2,1,3,2,1,3],6:[3,2,1,3,2,1,3],8:[3,2,1,3,2,1,3],10:[3,2,1,3,2,1,3],
+  1:[3,2,1,2,1,2,3],3:[3,2,1,2,1,2,3],5:[3,2,1,2,1,2,3],7:[3,2,1,2,1,2,3],9:[3,2,1,2,1,2,3],11:[3,2,1,2,1,2,3],
+};
+
+// Chromatic (13 notes/oct). Same for all keys.
+const CHROMATIC_RH = [1,3,1,2,1,1,3,1,2,1,2,3,1];
+const CHROMATIC_LH = [1,3,1,2,1,3,1,2,1,2,1,3,1];
+
+// Mixolydian fingerings. LH identical to Harmonic Minor; G(7),D(2),C(0),F(5),Db(1) differ in RH.
+const MIXOLYDIAN_RH = {
+  7: [1,2,3,1,2,3,4,5], 2: [1,2,3,1,2,3,4,5], 9: [1,2,3,1,2,3,4,5], // G D A
+  4: [1,2,3,1,2,3,4,5], 11:[1,2,3,1,2,3,4,5], 6: [1,2,3,1,2,3,4,5], // E B F#
+  0: [1,2,3,4,1,2,3,4], 5: [1,2,3,4,1,2,3,4],                        // C F
+  10:[2,3,4,1,2,3,4,1], 3: [2,3,4,1,2,3,4,1], 8: [2,3,4,1,2,3,4,1], // Bb Eb Ab
+  1: [2,3,4,1,2,3,4,1],                                                // Db
+};
+
+// Lydian fingerings. LH identical to Harmonic Minor; G#(8), D#(3), A(9), G(7) differ in RH.
+const LYDIAN_RH = {
+  4: [1,2,3,1,2,3,4,5], 11:[1,2,3,1,2,3,4,5], 6: [1,2,3,1,2,3,4,5], // E B F#
+  1: [1,2,3,1,2,3,4,5], 8: [1,2,3,1,2,3,4,5], 3: [1,2,3,1,2,3,4,5], // C# G# D#
+  9: [1,2,3,4,1,2,3,4], 2: [1,2,3,4,1,2,3,4],                        // A D
+  7: [2,3,4,1,2,3,4,1], 0: [2,3,4,1,2,3,4,1], 5: [2,3,4,1,2,3,4,1], // G C F
+  10:[2,3,4,1,2,3,4,1],                                                // Bb
+};
+
+// Dorian fingerings. LH identical to Harmonic Minor; only D(pc=2) and C(pc=0) differ in RH.
+const DORIAN_RH = {
+  2: [1,2,3,1,2,3,4,5], 9: [1,2,3,1,2,3,4,5], 4: [1,2,3,1,2,3,4,5], // D A E
+  11:[1,2,3,1,2,3,4,5], 6: [1,2,3,1,2,3,4,5], 1: [1,2,3,1,2,3,4,5], // B F# C#
+  7: [1,2,3,4,1,2,3,4], 0: [1,2,3,4,1,2,3,4],                        // G C
+  5: [2,3,4,1,2,3,4,1], 10:[2,3,4,1,2,3,4,1], 3: [2,3,4,1,2,3,4,1], // F Bb Eb
+  8: [2,3,4,1,2,3,4,1],                                                // Ab
+};
+
+// Harmonic Minor fingerings. No sharp/flat distinction needed (pc uniquely identifies group).
+const HARMONIC_MINOR_RH = {
+  9: [1,2,3,1,2,3,4,5], 4: [1,2,3,1,2,3,4,5], 11:[1,2,3,1,2,3,4,5], // A E B
+  6: [1,2,3,1,2,3,4,5], 1: [1,2,3,1,2,3,4,5],                        // F# C#
+  2: [1,2,3,4,1,2,3,4], 7: [1,2,3,4,1,2,3,4],                        // D G
+  0: [2,3,4,1,2,3,4,1], 5: [2,3,4,1,2,3,4,1], 10:[2,3,4,1,2,3,4,1], // C F Bb
+  3: [2,3,4,1,2,3,4,1], 8: [2,3,4,1,2,3,4,1],                        // Eb Ab
+};
+const HARMONIC_MINOR_LH = {
+  9: [5,4,3,2,1,3,2,1], 4: [5,4,3,2,1,3,2,1], 11:[5,4,3,2,1,3,2,1], // A E B
+  6: [5,4,3,2,1,3,2,1], 1: [5,4,3,2,1,3,2,1],                        // F# C#
+  2: [5,4,3,2,1,3,2,1], 7: [5,4,3,2,1,3,2,1],                        // D G
+  0: [3,2,1,4,3,2,1,3], 5: [3,2,1,4,3,2,1,3], 10:[3,2,1,4,3,2,1,3], // C F Bb
+  3: [3,2,1,4,3,2,1,3], 8: [3,2,1,4,3,2,1,3],                        // Eb Ab
+};
+
+// LH Ionian fingerings (1 octave = 8 notes). No sharp/flat distinction needed for LH.
+const IONIAN_LH = {
+  0:  [5,4,3,2,1,3,2,1], // C
+  7:  [5,4,3,2,1,3,2,1], // G
+  2:  [5,4,3,2,1,3,2,1], // D
+  9:  [5,4,3,2,1,3,2,1], // A
+  4:  [5,4,3,2,1,3,2,1], // E
+  5:  [5,4,3,2,1,3,2,1], // F
+  11: [4,3,2,1,4,3,2,1], // B / Cb
+  6:  [4,3,2,1,4,3,2,1], // F# / Gb
+  10: [3,2,1,4,3,2,1,3], // Bb
+  3:  [3,2,1,4,3,2,1,3], // Eb
+  8:  [3,2,1,4,3,2,1,3], // Ab
+  1:  [3,2,1,4,3,2,1,3], // C# / Db
+};
+
+// RH Ionian fingerings (1 octave = 8 notes). Multi-octave: period of 7 + last note = pattern[7].
+// preferFlat distinguishes enharmonic equivalents (B vs Cb, C# vs Db, F# vs Gb).
+const IONIAN_RH = {
+  sharp: {
+    0:  [1,2,3,1,2,3,4,5], // C
+    2:  [1,2,3,1,2,3,4,5], // D
+    4:  [1,2,3,1,2,3,4,5], // E
+    5:  [1,2,3,4,1,2,3,4], // F
+    7:  [1,2,3,1,2,3,4,5], // G
+    9:  [1,2,3,1,2,3,4,5], // A
+    11: [1,2,3,4,1,2,3,4], // B
+    1:  [2,3,4,1,2,3,4,1], // C#
+    6:  [2,3,4,1,2,3,1,2], // F# (same as Gb)
+    10: [2,3,4,1,2,3,4,1], // Bb/A#
+    3:  [3,1,2,3,1,2,3,4], // Eb/D#
+    8:  [3,4,1,2,3,1,2,3], // Ab/G#
+  },
+  flat: {
+    0:  [1,2,3,1,2,3,4,5], // C
+    2:  [1,2,3,1,2,3,4,5], // D
+    4:  [1,2,3,1,2,3,4,5], // E
+    5:  [1,2,3,4,1,2,3,4], // F
+    7:  [1,2,3,1,2,3,4,5], // G
+    9:  [1,2,3,1,2,3,4,5], // A
+    11: [1,2,3,4,1,2,3,4], // Cb (same as B)
+    1:  [2,3,1,2,3,4,1,2], // Db
+    6:  [2,3,4,1,2,3,1,2], // Gb
+    10: [2,3,4,1,2,3,4,1], // Bb
+    3:  [3,1,2,3,1,2,3,4], // Eb
+    8:  [3,4,1,2,3,1,2,3], // Ab
+  },
+};
+
+function fingerArrayToResult(fingers) {
+  return fingers.map((f, i) => ({
+    finger: f,
+    crossover: i > 0 && i < fingers.length - 1 && Math.abs(f - fingers[i - 1]) > 1,
+  }));
+}
+
+function extendFingerPattern(pattern, n) {
+  const len = pattern.length;
+  if (n <= len) return pattern.slice(0, n);
+  if (len === 8) {
+    // 8-note scales: octave boundary = thumb if pattern starts on thumb, else ending finger
+    const ob = pattern[0] === 1 ? 1 : pattern[7];
+    const period = pattern.slice(0, 7);
+    const fingers = [];
+    for (let i = 0; i < n - 1; i++) {
+      fingers.push(i > 0 && i % 7 === 0 ? ob : period[i % 7]);
+    }
+    fingers.push(pattern[7]);
+    return fingers;
+  }
+  // Other lengths: if pattern[0] === pattern[last] (octave note = start note),
+  // use period = len-1 (last element is the octave boundary); otherwise full cyclic.
+  if (pattern[0] === pattern[len - 1]) {
+    const period = len - 1;
+    const out = [];
+    for (let i = 0; i < n - 1; i++) out.push(pattern[i % period]);
+    out.push(pattern[len - 1]);
+    return out;
+  }
+  return Array.from({ length: n }, (_, i) => pattern[i % len]);
+}
+
 // Returns [{finger: 1-5, crossover: bool}] for each note in midiNotes (ascending).
 // crossover=true marks a "paso de dedo" (thumb passing under for RH, finger-3 crossing over for LH).
-// ctx: optional { tonicPc, patternName } for scale-specific overrides.
+// ctx: optional { tonicPc, patternName, preferFlat } for scale-specific overrides.
 function computeScaleFingering(midiNotes, hand, ctx = {}) {
   const n = midiNotes.length;
   if (n === 0) return [];
-  const result = [];
 
-  // F Major (Ionian, tonic F = pc 5): both hands use groups of 4 — 1 2 3 4 | 1 2 3 4 …
-  const isFMajor = ctx.tonicPc === 5 && ctx.patternName === "Ionian";
-  if (isFMajor) {
-    let isFirst = true;
-    let i = 0;
-    while (i < n) {
-      for (let g = 0; g < 4 && i < n; g++, i++) {
-        result.push({ finger: g + 1, crossover: !isFirst && g === 0 });
-      }
-      isFirst = false;
+  if (ctx.patternName === "Ionian") {
+    if (hand === "right") {
+      const table = ctx.preferFlat ? IONIAN_RH.flat : IONIAN_RH.sharp;
+      const pattern8 = table[ctx.tonicPc];
+      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
+    } else {
+      const pattern8 = IONIAN_LH[ctx.tonicPc];
+      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
     }
-    if (result.length > 0) result[result.length - 1].crossover = false;
-    return result;
   }
 
+  if (ctx.patternName === "Mixolydian" && ctx.tonicPc != null) {
+    const p = hand === "right" ? MIXOLYDIAN_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
+    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  if (ctx.patternName === "Lydian" && ctx.tonicPc != null) {
+    const p = hand === "right" ? LYDIAN_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
+    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  if (ctx.patternName === "Dorian" && ctx.tonicPc != null) {
+    const p = hand === "right" ? DORIAN_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
+    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  if ((ctx.patternName === "Harmonic Minor" || ctx.patternName === "Melodic Minor") && ctx.tonicPc != null) {
+    const p = hand === "right" ? HARMONIC_MINOR_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
+    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  if (ctx.patternName === "Locrian" && ctx.tonicPc != null) {
+    const p = hand === "right" ? LOCRIAN_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
+    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  for (const [names, rh, lh] of [
+    [["Major Pentatonic"], MAJOR_PENT_RH, MAJOR_PENT_LH],
+    [["Minor Pentatonic"], MINOR_PENT_RH, MINOR_PENT_LH],
+    [["Major Blues", "Blues Pentatonic"], MAJOR_BLUES_RH, MAJOR_BLUES_LH],
+    [["Minor Blues"], MINOR_BLUES_RH, MINOR_BLUES_LH],
+    [["Whole Tone (WT)"], WHOLE_TONE_RH, WHOLE_TONE_LH],
+  ]) {
+    if (names.includes(ctx.patternName) && ctx.tonicPc != null) {
+      const p = hand === "right" ? rh[ctx.tonicPc] : lh[ctx.tonicPc];
+      if (p) return fingerArrayToResult(extendFingerPattern(p, n));
+    }
+  }
+
+  if (ctx.patternName === "Chromatic") {
+    const p = hand === "right" ? CHROMATIC_RH : CHROMATIC_LH;
+    return fingerArrayToResult(extendFingerPattern(p, n));
+  }
+
+  // Non-basic scales: family-based generic fingering (RH only; LH uses generic algorithm)
+  const HEXATONIC_SCALES = new Set(["Prometheus","Prometheus Neapolitan","Six Tone Symmetric","Pelog"]);
+  const OCTATONIC_SCALES = new Set(["Bebop","Bebop Major","Bebop Minor","Diminished","Diminished WT","Eight Tone Spanish"]);
+  if (hand === "right") {
+    if (HEXATONIC_SCALES.has(ctx.patternName))
+      return fingerArrayToResult(extendFingerPattern([1,2,3,1,2,3,1], n));
+    if (OCTATONIC_SCALES.has(ctx.patternName))
+      return fingerArrayToResult(extendFingerPattern([1,2,3,1,2,3,1,2,3], n));
+  }
+
+  // Aeolian (natural minor): same fingering as relative major (minor tonic + 3 semitones)
+  if (ctx.patternName === "Aeolian" && ctx.tonicPc != null) {
+    const relMajorPc = (Number(ctx.tonicPc) + 3) % 12;
+    if (hand === "right") {
+      const table = ctx.preferFlat ? IONIAN_RH.flat : IONIAN_RH.sharp;
+      const pattern8 = table[relMajorPc];
+      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
+    } else {
+      const pattern8 = IONIAN_LH[relMajorPc];
+      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
+    }
+  }
+
+  const result = [];
   if (hand === "right") {
     // Groups 3-4-3-4-… ascending; crossover at start of every group after the first.
     // If exactly 1 note remains after completing a 4-note group, it gets finger 5 (no crossover).
@@ -3609,9 +3862,11 @@ function renderPiano() {
 
 function updateFingeringStrip() {
   const strip = el("fingeringStrip");
+  const stripDesc = el("fingeringStripDesc");
   if (!strip) return;
   strip.innerHTML = "";
   strip.classList.remove("active");
+  if (stripDesc) { stripDesc.innerHTML = ""; stripDesc.classList.remove("active"); }
 
   if (state.mode !== "scales" || !state.generatedScale || state.scaleFingeringMode === "none") return;
   if (getScalePlaybackInstrument() !== "piano") return;
@@ -3619,44 +3874,82 @@ function updateFingeringStrip() {
   const piano = el("sharedPiano");
   if (!piano) return;
 
-  const rhFingerMap = new Map();
-  const lhFingerMap = new Map();
   const fingeringCtx = {
     tonicPc: state.generatedScale ? Number(state.generatedScale.tonic_pc) : null,
     patternName: state.generatedScale ? String(state.generatedScale.pattern_name || "") : "",
+    preferFlat: state.accidental === "flat",
   };
-  if (state.scaleFingeringMode === "right") {
-    const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
-    computeScaleFingering(sorted, "right", fingeringCtx).forEach((d, i) => rhFingerMap.set(sorted[i], d));
-  } else {
-    const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
-    computeScaleFingering(sorted, "left", fingeringCtx).forEach((d, i) => lhFingerMap.set(sorted[i], d));
+  const hand = state.scaleFingeringMode === "right" ? "right" : "left";
+  const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
+  const ascResult = computeScaleFingering(sorted, hand, fingeringCtx);
+
+  // Ascending map: note → {finger, crossover}
+  const ascMap = new Map();
+  ascResult.forEach((d, i) => ascMap.set(sorted[i], d));
+
+  // Descending map: reverse the ascending result (same notes, reversed finger sequence)
+  const descMap = new Map();
+  const n = sorted.length;
+  ascResult.forEach((d, i) => {
+    const descIdx = n - 1 - i;
+    const isFirst = descIdx === n - 1;
+    // crossover marks where the finger-position change happens going down
+    const crossover = !isFirst && ascResult[i + 1] && ascResult[i + 1].crossover;
+    descMap.set(sorted[descIdx], { finger: d.finger, crossover });
+  });
+  if (descMap.size > 0) {
+    const lastKey = sorted[n - 1];
+    const entry = descMap.get(lastKey);
+    if (entry) descMap.set(lastKey, { ...entry, crossover: false });
   }
 
+  const isDescending = state.scaleLoop.active && state.scaleFingeringDirection < 0;
   const activeMidi = state.scaleCurrentNote != null ? Number(state.scaleCurrentNote) : null;
   const rawMidi = state.scaleInputRawNote != null ? Number(state.scaleInputRawNote) : null;
 
   const BADGE_W = 20;
   const stripRect = strip.getBoundingClientRect();
-  let placed = 0;
+  const stripDescRect = stripDesc ? stripDesc.getBoundingClientRect() : null;
+  let placedAsc = 0;
+  let placedDesc = 0;
 
   piano.querySelectorAll(".key[data-midi]").forEach((key) => {
     const midi = Number(key.dataset.midi);
-    const data = rhFingerMap.get(midi) || lhFingerMap.get(midi);
-    if (!data) return;
     const keyRect = key.getBoundingClientRect();
-    const left = keyRect.left - stripRect.left + (keyRect.width - BADGE_W) / 2;
-    if (left + BADGE_W < 0 || left > stripRect.width) return;
-    const isActive = midi === activeMidi || (rawMidi != null && midi === rawMidi);
-    const badge = document.createElement("span");
-    badge.className = "fingering-strip-badge" + (data.crossover ? " crossover" : "") + (isActive ? " active" : "");
-    badge.textContent = String(data.finger);
-    badge.style.left = left + "px";
-    strip.appendChild(badge);
-    placed++;
+
+    const ascData = ascMap.get(midi);
+    if (ascData) {
+      const left = keyRect.left - stripRect.left + (keyRect.width - BADGE_W) / 2;
+      if (left + BADGE_W >= 0 && left <= stripRect.width) {
+        const isActive = !isDescending && (midi === activeMidi || (rawMidi != null && midi === rawMidi));
+        const badge = document.createElement("span");
+        badge.className = "fingering-strip-badge" + (ascData.crossover ? " crossover" : "") + (isActive ? " active" : "");
+        badge.textContent = String(ascData.finger);
+        badge.style.left = left + "px";
+        strip.appendChild(badge);
+        placedAsc++;
+      }
+    }
+
+    if (stripDesc && stripDescRect) {
+      const descData = descMap.get(midi);
+      if (descData) {
+        const left = keyRect.left - stripDescRect.left + (keyRect.width - BADGE_W) / 2;
+        if (left + BADGE_W >= 0 && left <= stripDescRect.width) {
+          const isActive = isDescending && (midi === activeMidi || (rawMidi != null && midi === rawMidi));
+          const badge = document.createElement("span");
+          badge.className = "fingering-strip-badge" + (descData.crossover ? " crossover" : "") + (isActive ? " active" : "");
+          badge.textContent = String(descData.finger);
+          badge.style.left = left + "px";
+          stripDesc.appendChild(badge);
+          placedDesc++;
+        }
+      }
+    }
   });
 
-  if (placed > 0) strip.classList.add("active");
+  if (placedAsc > 0) strip.classList.add("active");
+  if (stripDesc && placedDesc > 0) stripDesc.classList.add("active");
 }
 
 function renderGuitar() {
@@ -6602,6 +6895,7 @@ function stepScaleLoop() {
   const note = notes[idx];
   state.scaleCurrentNote = note;
   state.scaleInputRawNote = null;
+  state.scaleFingeringDirection = state.scaleLoop.direction;
   if (state.scaleMetronomeEnabled) {
     beep((idx === 0 && state.scaleLoop.direction > 0) ? 1720 : 1120, 70, 0.46 * metronomeVolumeGain());
   } else {

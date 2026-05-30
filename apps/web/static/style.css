@@ -1082,6 +1082,27 @@ button:disabled {
   box-shadow: 0 0 0 2px #2fb8ff66;
 }
 
+.fingering-strip-desc {
+  margin-top: 2px;
+}
+
+.fingering-strip-desc .fingering-strip-badge {
+  background: #5a7a9a;
+  border-color: #2f4d6a;
+}
+
+.fingering-strip-desc .fingering-strip-badge.crossover {
+  background: #7a3a7a;
+  border-color: #4a1a4a;
+}
+
+.fingering-strip-desc .fingering-strip-badge.active {
+  background: #2fb8ff;
+  border-color: #1580b0;
+  color: #071926;
+  box-shadow: 0 0 0 2px #2fb8ff66;
+}
+
 .scale-metronome-volume {
   display: grid;
   grid-template-columns: 72px 1fr 72px;

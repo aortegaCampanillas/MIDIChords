@@ -1,0 +1,20 @@
+{
+  "_notes": "Natural minor (Aeolian) scales use the same fingering as their relative major (minor tonic + 3 semitones). Sharp minor keys use sharp-context major tables; flat minor keys use flat-context major tables.",
+
+  "A":  { "sameAsMajor": "C",   "preferFlat": false },
+  "E":  { "sameAsMajor": "G",   "preferFlat": false },
+  "B":  { "sameAsMajor": "D",   "preferFlat": false },
+  "F#": { "sameAsMajor": "A",   "preferFlat": false },
+  "C#": { "sameAsMajor": "E",   "preferFlat": false },
+  "G#": { "sameAsMajor": "B",   "preferFlat": false },
+  "D#": { "sameAsMajor": "F#",  "preferFlat": false },
+  "A#": { "sameAsMajor": "C#",  "preferFlat": false },
+
+  "D":  { "sameAsMajor": "F",   "preferFlat": true },
+  "G":  { "sameAsMajor": "Bb",  "preferFlat": true },
+  "C":  { "sameAsMajor": "Eb",  "preferFlat": true },
+  "F":  { "sameAsMajor": "Ab",  "preferFlat": true },
+  "Bb": { "sameAsMajor": "Db",  "preferFlat": true },
+  "Eb": { "sameAsMajor": "Gb",  "preferFlat": true },
+  "Ab": { "sameAsMajor": "Cb",  "preferFlat": true }
+}

@@ -1,0 +1,231 @@
+{
+  "_notes": "RH fingering patterns per family. Multi-octave uses period-len-1 if P[0]==P[-1], else full cyclic. Desc=reversed(Asc).",
+  "pentatonic_5": {
+    "notesIn1Oct": 6,
+    "notesIn2Oct_app": 11,
+    "rightHand": {
+      "1OctAsc": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3
+      ],
+      "1OctDesc": [
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ],
+      "2OctAsc_app": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2
+      ],
+      "2OctDesc_app": [
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ]
+    }
+  },
+  "hexatonic_6": {
+    "notesIn1Oct": 7,
+    "notesIn2Oct_app": 13,
+    "rightHand": {
+      "1OctAsc": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1
+      ],
+      "1OctDesc": [
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ],
+      "2OctAsc_app": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1
+      ],
+      "2OctDesc_app": [
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ]
+    }
+  },
+  "heptatonic_7": {
+    "notesIn1Oct": 8,
+    "notesIn2Oct_app": 15,
+    "rightHand": {
+      "1OctAsc": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "1OctDesc": [
+        5,
+        4,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ],
+      "2OctAsc_app": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        4,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "2OctDesc_app": [
+        5,
+        4,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        4,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ]
+    }
+  },
+  "octatonic_8": {
+    "notesIn1Oct": 9,
+    "notesIn2Oct_app": 17,
+    "rightHand": {
+      "1OctAsc": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3
+      ],
+      "1OctDesc": [
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ],
+      "2OctAsc_app": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        1,
+        2
+      ],
+      "2OctDesc_app": [
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1,
+        3,
+        2,
+        1
+      ]
+    }
+  }
+}

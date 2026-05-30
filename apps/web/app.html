@@ -181,6 +181,12 @@
                 <div class="controls-inline scale-controls-inline">
                   <button id="scalePlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
                   <button id="scaleModeMetronome" class="icon-play-btn scale-mode-btn" type="button" aria-label="Modo metrónomo" title="Modo metrónomo">⏱</button>
+                  <div class="scale-octaves-wrap">
+                    <span class="scale-octaves-label">Octavas:</span>
+                    <button class="scale-oct-btn active" data-oct="1">1</button>
+                    <button class="scale-oct-btn" data-oct="2">2</button>
+                    <button class="scale-oct-btn" data-oct="3">3</button>
+                  </div>
                   <div id="scaleMetronomeVolumeWrap" class="scale-metronome-volume hidden">
                     <label id="labelScaleMetronomeVolume" for="scaleMetroVolume">Volumen</label>
                     <input id="scaleMetroVolume" type="range" min="0" max="100" value="100" />

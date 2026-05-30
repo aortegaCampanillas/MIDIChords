@@ -9,6 +9,7 @@ const state = {
   instrument: "piano",
   scalePlayMode: "piano",
   scaleMetronomeEnabled: false,
+  scaleOctaves: 1,
   guitarHandedness: "right",
   language: "es",
   accidental: "sharp",
@@ -302,6 +303,7 @@ const UI_TEXTS = {
     help_scale_type: "Tipo de escala (mayor, menor, modos, etc.).",
     help_scale_play: "Reproduce la escala actual.",
     help_scale_metronome_mode: "Activa reproducción de escala con pulsos de metrónomo.",
+    help_scale_octaves: "Número de octavas que se reproducen y se marcan en el piano (1, 2 o 3).",
     help_scale_bpm: "Velocidad de reproducción de la escala.",
     help_scale_result_name: "Nombre completo de la escala seleccionada.",
     help_scale_result_notes: "Notas de la escala.",
@@ -494,6 +496,7 @@ const UI_TEXTS = {
     help_scale_type: "Scale type (major, minor, modes, etc.).",
     help_scale_play: "Play the current scale.",
     help_scale_metronome_mode: "Enable scale playback synced with metronome pulses.",
+    help_scale_octaves: "Number of octaves to play and highlight on the piano (1, 2 or 3).",
     help_scale_bpm: "Scale playback speed.",
     help_scale_result_name: "Full selected scale name.",
     help_scale_result_notes: "Scale notes.",
@@ -640,6 +643,7 @@ const HELP_CALLOUTS_SCALES = [
   { selector: "#scaleType", textKey: "help_scale_type", side: "left" },
   { selector: "#scalePlay", textKey: "help_scale_play", side: "bottom" },
   { selector: "#scaleModeMetronome", textKey: "help_scale_metronome_mode", side: "top" },
+  { selector: ".scale-octaves-wrap", textKey: "help_scale_octaves", side: "top" },
   { selector: "#scaleBpm", textKey: "help_scale_bpm", side: "left" },
   { selector: "#scaleName", textKey: "help_scale_result_name", side: "left" },
   { selector: "#scaleNotes", textKey: "help_scale_result_notes", side: "left" },
@@ -2410,6 +2414,26 @@ function renderScaleModeButtons() {
   if (metroBtn) metroBtn.classList.toggle("active", !!state.scaleMetronomeEnabled);
   const metroVolWrap = el("scaleMetronomeVolumeWrap");
   if (metroVolWrap) metroVolWrap.classList.toggle("hidden", !state.scaleMetronomeEnabled);
+  renderScaleOctaveButtons();
+}
+
+function renderScaleOctaveButtons() {
+  const isPiano = getScalePlaybackInstrument() === "piano";
+  document.querySelectorAll(".scale-oct-btn").forEach((btn) => {
+    btn.classList.toggle("active", isPiano && Number(btn.dataset.oct) === state.scaleOctaves);
+    btn.disabled = !isPiano;
+  });
+  const wrap = document.querySelector(".scale-octaves-wrap");
+  if (wrap) wrap.classList.toggle("disabled", !isPiano);
+}
+
+function setScaleOctaves(oct) {
+  state.scaleOctaves = oct;
+  renderScaleOctaveButtons();
+  const wasActive = state.scaleLoop.active;
+  if (wasActive) stopScaleLoop();
+  if (state.mode === "scales") renderInstrument();
+  if (wasActive) toggleScaleLoop();
 }
 
 function setScalePlayMode(mode) {
@@ -2761,6 +2785,18 @@ function getScaleBaseNotes() {
   if ((((start % 12) + 12) % 12) !== (((first % 12) + 12) % 12)) return base;
   const delta = start - first;
   return base.map((n) => Number(n) + delta).filter((n) => Number.isFinite(n));
+}
+
+function getScaleNotesForOctaves() {
+  const base = getScaleBaseNotes();
+  if (!base.length) return base;
+  const oct = state.scaleOctaves || 1;
+  if (oct <= 1) return base;
+  const result = new Set(base);
+  for (let o = 1; o < oct; o++) {
+    for (const n of base) result.add(n + 12 * o);
+  }
+  return Array.from(result).sort((a, b) => a - b);
 }
 
 function setScaleGuitarStartNote(note) {
@@ -3253,12 +3289,15 @@ function renderPiano() {
     && !scaleDisplaySet.has(scaleInputRawMidi);
   const scaleCentralOnly = state.mode === "scales" && state.scaleLoop.active;
   const scaleCentralMin = 60; // C4
+  const scaleMarkMidiSet = state.mode === "scales" && state.generatedScale
+    ? new Set(getScaleNotesForOctaves())
+    : null;
   const scaleCentralMax = 72; // C5
 
   for (let midi = low; midi <= high; midi += 1) {
     const pc = midi % 12;
     const black = blackPcs.has(pc);
-    const scaleMarked = state.mode === "scales" && activePcs.has(pc);
+    const scaleMarked = state.mode === "scales" && scaleMarkMidiSet !== null && scaleMarkMidiSet.has(midi);
     const scaleTonic = scaleMarked && tonicPc !== null && pc === tonicPc;
     const scaleCurrent = scaleMarked && (
       scaleCentralOnly
@@ -6185,7 +6224,7 @@ function stepScaleLoop() {
     clearTimeout(state.scaleCurrentClearTimer);
     state.scaleCurrentClearTimer = null;
   }
-  const notes = getScaleBaseNotes();
+  const notes = getScaleNotesForOctaves();
   if (!notes.length) {
     stopScaleLoop();
     return;
@@ -7244,6 +7283,10 @@ function bindEvents() {
   });
   bindImmediatePress(el("scalePlay"), () => {
     toggleScaleLoop();
+  });
+
+  document.querySelectorAll(".scale-oct-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setScaleOctaves(Number(btn.dataset.oct)));
   });
 
   const syncMeterDisplay = () => {

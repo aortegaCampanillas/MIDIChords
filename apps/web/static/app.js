@@ -10,6 +10,7 @@ const state = {
   scalePlayMode: "piano",
   scaleMetronomeEnabled: false,
   scaleOctaves: 1,
+  scaleFingeringMode: "none",
   guitarHandedness: "right",
   language: "es",
   accidental: "sharp",
@@ -307,6 +308,11 @@ const UI_TEXTS = {
     help_scale_play: "Reproduce la escala actual.",
     help_scale_metronome_mode: "Activa reproducción de escala con pulsos de metrónomo.",
     help_scale_octaves: "Número de octavas que se reproducen y se marcan en el piano (1, 2 o 3).",
+    help_scale_fingering: "Digitación para tocar la escala en piano: elige mano derecha o mano izquierda para ver los números de dedo en las teclas. Los recuadros naranjas indican el dedo sugerido; los rojos marcan un paso de dedo (cruce del pulgar o del dedo 3).",
+    scale_fingering_label: "Digitación",
+    scale_fingering_none: "No",
+    scale_fingering_left: "Mano izquierda",
+    scale_fingering_right: "Mano derecha",
     help_scale_bpm: "Velocidad de reproducción de la escala.",
     help_scale_result_name: "Nombre completo de la escala seleccionada.",
     help_scale_result_notes: "Notas de la escala.",
@@ -503,6 +509,11 @@ const UI_TEXTS = {
     help_scale_play: "Play the current scale.",
     help_scale_metronome_mode: "Enable scale playback synced with metronome pulses.",
     help_scale_octaves: "Number of octaves to play and highlight on the piano (1, 2 or 3).",
+    help_scale_fingering: "Fingering for playing the scale on piano: choose right hand or left hand to see finger numbers on the keys. Orange squares indicate the suggested finger; red squares mark a thumb or finger crossing.",
+    scale_fingering_label: "Fingering",
+    scale_fingering_none: "None",
+    scale_fingering_left: "Left hand",
+    scale_fingering_right: "Right hand",
     help_scale_bpm: "Scale playback speed.",
     help_scale_result_name: "Full selected scale name.",
     help_scale_result_notes: "Scale notes.",
@@ -654,6 +665,7 @@ const HELP_CALLOUTS_SCALES = [
   { selector: "#scaleName", textKey: "help_scale_result_name", side: "left" },
   { selector: "#scaleNotes", textKey: "help_scale_result_notes", side: "left" },
   { selector: "#scaleIntervals", textKey: "help_scale_result_intervals", side: "left" },
+  { selector: ".scale-fingering-row", textKey: "help_scale_fingering", side: "left" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_scales", side: "top" },
 ];
 const HELP_CALLOUTS_METRONOME = [
@@ -2220,6 +2232,10 @@ function applyTranslations() {
   setText("labelScaleName", "label_scale");
   setText("labelScaleNotes", "label_notes");
   setText("labelScaleIntervals", "label_intervals");
+  setText("labelScaleFingering", "scale_fingering_label");
+  setText("labelScaleFingeringNo", "scale_fingering_none");
+  setText("labelScaleFingeringLeft", "scale_fingering_left");
+  setText("labelScaleFingeringRight", "scale_fingering_right");
   setText("labelMetronomeBpm", "label_metronome_tempo");
   setText("labelMetronomeVolume", "label_metronome_volume");
   setText("labelMetronomeBeats", "label_beats");
@@ -2422,6 +2438,7 @@ function renderScaleModeButtons() {
   const metroVolWrap = el("scaleMetronomeVolumeWrap");
   if (metroVolWrap) metroVolWrap.classList.toggle("hidden", !state.scaleMetronomeEnabled);
   renderScaleOctaveButtons();
+  renderScaleFingeringControls();
 }
 
 function renderScaleOctaveButtons() {
@@ -2432,6 +2449,19 @@ function renderScaleOctaveButtons() {
   });
   const wrap = document.querySelector(".scale-octaves-wrap");
   if (wrap) wrap.classList.toggle("disabled", !isPiano);
+}
+
+function renderScaleFingeringControls() {
+  const isPiano = getScalePlaybackInstrument() === "piano";
+  if (!isPiano && state.scaleFingeringMode !== "none") {
+    state.scaleFingeringMode = "none";
+  }
+  document.querySelectorAll("input[name='scaleFingering']").forEach((inp) => {
+    inp.disabled = !isPiano;
+    inp.checked = inp.value === state.scaleFingeringMode;
+  });
+  const row = document.querySelector(".scale-fingering-row");
+  if (row) row.classList.toggle("disabled", !isPiano);
 }
 
 function setScaleOctaves(oct) {
@@ -3227,6 +3257,47 @@ function pianoFingeringForCount(count, hand) {
   return Array.from({ length: n }, (_, i) => Math.max(1, 5 - i));
 }
 
+// Returns [{finger: 1-5, crossover: bool}] for each note in midiNotes (ascending).
+// crossover=true marks a "paso de dedo" (thumb passing under for RH, finger-3 crossing over for LH).
+function computeScaleFingering(midiNotes, hand) {
+  const n = midiNotes.length;
+  if (n === 0) return [];
+  const result = [];
+  if (hand === "right") {
+    // Groups 3-4-3-4-… ascending; crossover at start of every group after the first.
+    let groupSize = 3;
+    let isFirst = true;
+    let i = 0;
+    while (i < n) {
+      for (let g = 0; g < groupSize && i < n; g++, i++) {
+        result.push({ finger: g + 1, crossover: !isFirst && g === 0 });
+      }
+      isFirst = false;
+      groupSize = groupSize === 3 ? 4 : 3;
+    }
+    return result;
+  }
+  // Left hand ascending: first group 5-4-3-2-1, then groups 3-2-1 with crossover on finger-3.
+  let i = 0;
+  for (let g = 0; g < 5 && i < n; g++, i++) {
+    result.push({ finger: 5 - g, crossover: false });
+  }
+  while (i < n) {
+    const lhGroup = [3, 2, 1];
+    for (let g = 0; g < lhGroup.length && i < n; g++, i++) {
+      result.push({ finger: lhGroup[g], crossover: g === 0 });
+    }
+  }
+  return result;
+}
+
+function setScaleFingeringMode(mode) {
+  if (!["none", "right", "left"].includes(mode)) mode = "none";
+  state.scaleFingeringMode = mode;
+  renderScaleFingeringControls();
+  if (state.mode === "scales") renderInstrument();
+}
+
 function inversionLabel(inversion) {
   const inv = Number(inversion) || 0;
   if (inv === 0) {
@@ -3301,6 +3372,22 @@ function renderPiano() {
     : null;
   const scaleCentralMax = 72; // C5
 
+  // Precompute scale fingering maps (outside loop for performance).
+  const scaleFingeringActive = scalePianoMode && state.scaleFingeringMode !== "none";
+  const scaleRhFingerMap = new Map();
+  const scaleLhFingerMap = new Map();
+  if (scaleFingeringActive && scaleMarkMidiSet) {
+    const rhSorted = Array.from(scaleMarkMidiSet).sort((a, b) => a - b);
+    const lhSorted = Array.from(scaleLhSet).sort((a, b) => a - b);
+    if (state.scaleFingeringMode === "right") {
+      const rhFing = computeScaleFingering(rhSorted, "right");
+      rhSorted.forEach((n, i) => scaleRhFingerMap.set(n, rhFing[i]));
+    } else if (state.scaleFingeringMode === "left") {
+      const lhFing = computeScaleFingering(lhSorted, "left");
+      lhSorted.forEach((n, i) => scaleLhFingerMap.set(n, lhFing[i]));
+    }
+  }
+
   for (let midi = low; midi <= high; midi += 1) {
     const pc = midi % 12;
     const black = blackPcs.has(pc);
@@ -3360,11 +3447,21 @@ function renderPiano() {
         badge.textContent = String(lhFinger);
         key.appendChild(badge);
       }
-    } else if (state.mode === "scales" && scaleMarked) {
-      const badge = document.createElement("span");
-      badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
-      badge.textContent = noteNameFromPc(pc);
-      key.appendChild(badge);
+    } else if (state.mode === "scales") {
+      const isRhFinger = scaleFingeringActive && state.scaleFingeringMode === "right" && scaleRhFingerMap.has(midi);
+      const isLhFinger = scaleFingeringActive && state.scaleFingeringMode === "left" && scaleLhFingerMap.has(midi);
+      if (isRhFinger || isLhFinger) {
+        const { finger, crossover } = isRhFinger ? scaleRhFingerMap.get(midi) : scaleLhFingerMap.get(midi);
+        const badge = document.createElement("span");
+        badge.className = `scale-badge scale-finger-badge ${black ? "black-key" : "white-key"}${crossover ? " crossover" : ""}`;
+        badge.textContent = String(finger);
+        key.appendChild(badge);
+      } else if (scaleMarked) {
+        const badge = document.createElement("span");
+        badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
+        badge.textContent = noteNameFromPc(pc);
+        key.appendChild(badge);
+      }
     }
 
     let suppressNextClick = false;
@@ -7346,6 +7443,12 @@ function bindEvents() {
 
   document.querySelectorAll(".scale-oct-btn").forEach((btn) => {
     btn.addEventListener("click", () => setScaleOctaves(Number(btn.dataset.oct)));
+  });
+
+  document.querySelectorAll("input[name='scaleFingering']").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      if (inp.checked) setScaleFingeringMode(inp.value);
+    });
   });
 
   const syncMeterDisplay = () => {

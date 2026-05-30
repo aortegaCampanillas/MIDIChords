@@ -6,6 +6,12 @@
       {
         "date": "2026-05-30",
         "publish": true,
+        "es": "Escalas: digitación de mano derecha e izquierda en el piano — recuadros naranjas para cada dedo, rojos para pasos de dedo (cruce de pulgar o dedo 3)",
+        "en": "Scales: right and left hand fingering on the piano — orange squares for each finger, red for crossings (thumb pass-under or finger 3 cross-over)"
+      },
+      {
+        "date": "2026-05-30",
+        "publish": true,
         "es": "Escalas: selector de octavas (1, 2 o 3) para reproducción y marcado en el piano",
         "en": "Scales: octave selector (1, 2 or 3) for playback and piano highlighting"
       },

@@ -966,6 +966,60 @@ button:disabled {
   opacity: 0.38;
 }
 
+.scale-fingering-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+
+.scale-fingering-row .label {
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+.scale-fingering-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scale-fingering-opts label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88em;
+  color: #cdd6e0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.scale-fingering-opts input[type="radio"] {
+  accent-color: #ffd060;
+  cursor: pointer;
+}
+
+.scale-fingering-row.disabled .scale-fingering-opts label {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.scale-badge.scale-finger-badge {
+  background: #e07818;
+  border-color: #9a4a08;
+  color: #fff;
+  border-radius: 4px;
+  min-width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scale-badge.scale-finger-badge.crossover {
+  background: #d42010;
+  border-color: #8a1208;
+}
+
 .scale-metronome-volume {
   display: grid;
   grid-template-columns: 72px 1fr 72px;

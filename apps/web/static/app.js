@@ -3887,21 +3887,14 @@ function updateFingeringStrip() {
   const ascMap = new Map();
   ascResult.forEach((d, i) => ascMap.set(sorted[i], d));
 
-  // Descending map: reverse the ascending result (same notes, reversed finger sequence)
+  // Descending map: same finger per key as ascending; crossover where finger jumps going leftward.
   const descMap = new Map();
   const n = sorted.length;
   ascResult.forEach((d, i) => {
-    const descIdx = n - 1 - i;
-    const isFirst = descIdx === n - 1;
-    // crossover marks where the finger-position change happens going down
-    const crossover = !isFirst && ascResult[i + 1] && ascResult[i + 1].crossover;
-    descMap.set(sorted[descIdx], { finger: d.finger, crossover });
+    const nextFinger = ascResult[i + 1] ? ascResult[i + 1].finger : d.finger;
+    const crossover = i > 0 && i < n - 1 && Math.abs(d.finger - nextFinger) > 1;
+    descMap.set(sorted[i], { finger: d.finger, crossover });
   });
-  if (descMap.size > 0) {
-    const lastKey = sorted[n - 1];
-    const entry = descMap.get(lastKey);
-    if (entry) descMap.set(lastKey, { ...entry, crossover: false });
-  }
 
   const isDescending = state.scaleLoop.active && state.scaleFingeringDirection < 0;
   const activeMidi = state.scaleCurrentNote != null ? Number(state.scaleCurrentNote) : null;

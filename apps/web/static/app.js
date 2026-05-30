@@ -2639,6 +2639,8 @@ function setInstrument(inst) {
   });
   el("instrumentArea").classList.toggle("guitar-active", inst === "guitar");
   el("sharedPiano").classList.toggle("hidden", inst !== "piano");
+  const fingeringStripEl = el("fingeringStrip");
+  if (fingeringStripEl) fingeringStripEl.classList.toggle("hidden", inst !== "piano");
   el("sharedGuitarCanvas").classList.toggle("hidden", inst !== "guitar");
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
   if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.add("hidden");
@@ -3266,29 +3268,39 @@ function computeScaleFingering(midiNotes, hand) {
   const result = [];
   if (hand === "right") {
     // Groups 3-4-3-4-… ascending; crossover at start of every group after the first.
+    // If exactly 1 note remains after completing a 4-note group, it gets finger 5 (no crossover).
     let groupSize = 3;
     let isFirst = true;
     let i = 0;
     while (i < n) {
+      if (!isFirst && groupSize === 3 && n - i === 1) {
+        result.push({ finger: 5, crossover: false });
+        break;
+      }
       for (let g = 0; g < groupSize && i < n; g++, i++) {
         result.push({ finger: g + 1, crossover: !isFirst && g === 0 });
       }
       isFirst = false;
       groupSize = groupSize === 3 ? 4 : 3;
     }
+    if (result.length > 0) result[result.length - 1].crossover = false;
     return result;
   }
-  // Left hand ascending: first group 5-4-3-2-1, then groups 3-2-1 with crossover on finger-3.
+  // Left hand ascending: initial group 5-4-3-2-1, then alternating (3,2,1) and (4,3,2,1).
   let i = 0;
   for (let g = 0; g < 5 && i < n; g++, i++) {
     result.push({ finger: 5 - g, crossover: false });
   }
+  const lhGroups = [[3, 2, 1], [4, 3, 2, 1]];
+  let lhGroupIdx = 0;
   while (i < n) {
-    const lhGroup = [3, 2, 1];
-    for (let g = 0; g < lhGroup.length && i < n; g++, i++) {
-      result.push({ finger: lhGroup[g], crossover: g === 0 });
+    const group = lhGroups[lhGroupIdx % 2];
+    for (let g = 0; g < group.length && i < n; g++, i++) {
+      result.push({ finger: group[g], crossover: g === 0 });
     }
+    lhGroupIdx++;
   }
+  if (result.length > 0) result[result.length - 1].crossover = false;
   return result;
 }
 
@@ -3373,22 +3385,6 @@ function renderPiano() {
     : null;
   const scaleCentralMax = 72; // C5
 
-  // Precompute scale fingering maps (outside loop for performance).
-  const scaleFingeringActive = scalePianoMode && state.scaleFingeringMode !== "none";
-  const scaleRhFingerMap = new Map();
-  const scaleLhFingerMap = new Map();
-  if (scaleFingeringActive && scaleMarkMidiSet) {
-    const rhSorted = Array.from(scaleMarkMidiSet).sort((a, b) => a - b);
-    const lhSorted = Array.from(scaleLhSet).sort((a, b) => a - b);
-    if (state.scaleFingeringMode === "right") {
-      const rhFing = computeScaleFingering(rhSorted, "right");
-      rhSorted.forEach((n, i) => scaleRhFingerMap.set(n, rhFing[i]));
-    } else if (state.scaleFingeringMode === "left") {
-      const lhFing = computeScaleFingering(lhSorted, "left");
-      lhSorted.forEach((n, i) => scaleLhFingerMap.set(n, lhFing[i]));
-    }
-  }
-
   for (let midi = low; midi <= high; midi += 1) {
     const pc = midi % 12;
     const black = blackPcs.has(pc);
@@ -3448,21 +3444,11 @@ function renderPiano() {
         badge.textContent = String(lhFinger);
         key.appendChild(badge);
       }
-    } else if (state.mode === "scales") {
-      const isRhFinger = scaleFingeringActive && state.scaleFingeringMode === "right" && scaleRhFingerMap.has(midi);
-      const isLhFinger = scaleFingeringActive && state.scaleFingeringMode === "left" && scaleLhFingerMap.has(midi);
-      if (isRhFinger || isLhFinger) {
-        const { finger, crossover } = isRhFinger ? scaleRhFingerMap.get(midi) : scaleLhFingerMap.get(midi);
-        const badge = document.createElement("span");
-        badge.className = `scale-badge scale-finger-badge ${black ? "black-key" : "white-key"}${crossover ? " crossover" : ""}`;
-        badge.textContent = String(finger);
-        key.appendChild(badge);
-      } else if (scaleMarked) {
-        const badge = document.createElement("span");
-        badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
-        badge.textContent = noteNameFromPc(pc);
-        key.appendChild(badge);
-      }
+    } else if (state.mode === "scales" && scaleMarked) {
+      const badge = document.createElement("span");
+      badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
+      badge.textContent = noteNameFromPc(pc);
+      key.appendChild(badge);
     }
 
     let suppressNextClick = false;
@@ -3505,6 +3491,51 @@ function renderPiano() {
     });
     container.appendChild(key);
   }
+  requestAnimationFrame(updateFingeringStrip);
+}
+
+function updateFingeringStrip() {
+  const strip = el("fingeringStrip");
+  if (!strip) return;
+  strip.innerHTML = "";
+  strip.classList.remove("active");
+
+  if (state.mode !== "scales" || !state.generatedScale || state.scaleFingeringMode === "none") return;
+  if (getScalePlaybackInstrument() !== "piano") return;
+
+  const piano = el("sharedPiano");
+  if (!piano) return;
+
+  const rhFingerMap = new Map();
+  const lhFingerMap = new Map();
+  if (state.scaleFingeringMode === "right") {
+    const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
+    computeScaleFingering(sorted, "right").forEach((d, i) => rhFingerMap.set(sorted[i], d));
+  } else {
+    const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
+    computeScaleFingering(sorted, "left").forEach((d, i) => lhFingerMap.set(sorted[i], d));
+  }
+
+  const BADGE_W = 20;
+  const stripRect = strip.getBoundingClientRect();
+  let placed = 0;
+
+  piano.querySelectorAll(".key[data-midi]").forEach((key) => {
+    const midi = Number(key.dataset.midi);
+    const data = rhFingerMap.get(midi) || lhFingerMap.get(midi);
+    if (!data) return;
+    const keyRect = key.getBoundingClientRect();
+    const left = keyRect.left - stripRect.left + (keyRect.width - BADGE_W) / 2;
+    if (left + BADGE_W < 0 || left > stripRect.width) return;
+    const badge = document.createElement("span");
+    badge.className = "fingering-strip-badge" + (data.crossover ? " crossover" : "");
+    badge.textContent = String(data.finger);
+    badge.style.left = left + "px";
+    strip.appendChild(badge);
+    placed++;
+  });
+
+  if (placed > 0) strip.classList.add("active");
 }
 
 function renderGuitar() {
@@ -7454,6 +7485,8 @@ function bindEvents() {
       if (inp.checked) setScaleFingeringMode(inp.value);
     });
   });
+
+  el("sharedPiano").addEventListener("scroll", updateFingeringStrip);
 
   const syncMeterDisplay = () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4));

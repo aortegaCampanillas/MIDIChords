@@ -980,8 +980,9 @@ button:disabled {
 
 .scale-fingering-opts {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px 12px;
 }
 
 .scale-fingering-opts label {
@@ -1004,18 +1005,35 @@ button:disabled {
   pointer-events: none;
 }
 
-.scale-badge.scale-finger-badge {
-  background: #e07818;
-  border-color: #9a4a08;
-  color: #fff;
-  border-radius: 4px;
-  min-width: 20px;
-  height: 20px;
-  font-size: 11px;
-  font-weight: 800;
+.fingering-strip {
+  position: relative;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.12s ease;
 }
 
-.scale-badge.scale-finger-badge.crossover {
+.fingering-strip.active {
+  height: 26px;
+  margin-bottom: 2px;
+}
+
+.fingering-strip-badge {
+  position: absolute;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #9a4a08;
+  background: #e07818;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.fingering-strip-badge.crossover {
   background: #d42010;
   border-color: #8a1208;
 }

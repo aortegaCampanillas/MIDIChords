@@ -1038,6 +1038,13 @@ button:disabled {
   border-color: #8a1208;
 }
 
+.fingering-strip-badge.active {
+  background: #2fb8ff;
+  border-color: #1580b0;
+  color: #071926;
+  box-shadow: 0 0 0 2px #2fb8ff66;
+}
+
 .scale-metronome-volume {
   display: grid;
   grid-template-columns: 72px 1fr 72px;

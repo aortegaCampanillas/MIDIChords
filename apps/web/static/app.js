@@ -3516,6 +3516,9 @@ function updateFingeringStrip() {
     computeScaleFingering(sorted, "left").forEach((d, i) => lhFingerMap.set(sorted[i], d));
   }
 
+  const activeMidi = state.scaleCurrentNote != null ? Number(state.scaleCurrentNote) : null;
+  const rawMidi = state.scaleInputRawNote != null ? Number(state.scaleInputRawNote) : null;
+
   const BADGE_W = 20;
   const stripRect = strip.getBoundingClientRect();
   let placed = 0;
@@ -3527,8 +3530,9 @@ function updateFingeringStrip() {
     const keyRect = key.getBoundingClientRect();
     const left = keyRect.left - stripRect.left + (keyRect.width - BADGE_W) / 2;
     if (left + BADGE_W < 0 || left > stripRect.width) return;
+    const isActive = midi === activeMidi || (rawMidi != null && midi === rawMidi);
     const badge = document.createElement("span");
-    badge.className = "fingering-strip-badge" + (data.crossover ? " crossover" : "");
+    badge.className = "fingering-strip-badge" + (data.crossover ? " crossover" : "") + (isActive ? " active" : "");
     badge.textContent = String(data.finger);
     badge.style.left = left + "px";
     strip.appendChild(badge);

@@ -1,0 +1,194 @@
+[
+  {
+    "version": "v1.0.3",
+    "date": "2026-05-30",
+    "items": [
+      {
+        "date": "2026-05-30",
+        "publish": true,
+        "es": "Escalas: selector de octavas (1, 2 o 3) para reproducción y marcado en el piano",
+        "en": "Scales: octave selector (1, 2 or 3) for playback and piano highlighting"
+      },
+      {
+        "date": "2026-05-30",
+        "publish": true,
+        "es": "Panel de novedades integrado en la propia aplicación web",
+        "en": "What's New panel built into the web app itself"
+      }
+    ]
+  },
+  {
+    "version": "v1.0.2",
+    "date": "2026-05-21",
+    "items": [
+      {
+        "date": "2026-05-21",
+        "publish": true,
+        "es": "MIDI en generación de acordes: notas mantenidas en el teclado se resaltan en tiempo real",
+        "en": "MIDI in chord generation: held keyboard notes highlighted in real time on the piano"
+      },
+      {
+        "date": "2026-04-13",
+        "publish": true,
+        "es": "Nuevo modo: detección de intervalos melódicos con canciones de referencia",
+        "en": "New mode: melodic interval detection with reference songs for each interval"
+      },
+      {
+        "date": "2026-04-02",
+        "publish": true,
+        "es": "Círculo de quintas interactivo: visualiza tonalidades, acordes diatónicos y armaduras",
+        "en": "Interactive circle of fifths: visualize keys, diatonic chords and key signatures"
+      },
+      {
+        "date": "2026-04-07",
+        "publish": true,
+        "es": "Nueva página de inicio con galería de capturas y descarga para Linux (.deb)",
+        "en": "New landing page with screenshot gallery and Linux (.deb) download"
+      },
+      {
+        "date": "2026-03-22",
+        "publish": true,
+        "es": "Nombres de nota (#/♭) según el selector del usuario, independiente de la armadura del acorde",
+        "en": "Note names (#/♭) follow the user's selector, independent of chord key signature"
+      }
+    ]
+  },
+  {
+    "version": "v1.0.1",
+    "date": "2026-03-21",
+    "items": [
+      {
+        "date": "2026-03-21",
+        "publish": true,
+        "es": "Primera versión estable publicada",
+        "en": "First stable release published"
+      },
+      {
+        "date": "2026-03-21",
+        "publish": false,
+        "es": "SEO técnico completo: metadatos Open Graph, JSON-LD, canonical, sitemap y robots.txt",
+        "en": "Full SEO: Open Graph metadata, JSON-LD, canonical URLs, sitemap and robots.txt"
+      },
+      {
+        "date": "2026-03-21",
+        "publish": false,
+        "es": "Favicon y apple-touch-icon en todas las páginas",
+        "en": "Favicon and apple-touch-icon on all pages"
+      },
+      {
+        "date": "2026-03-21",
+        "publish": false,
+        "es": "Escritorio Qt: metrónomo completo, detección de acordes y ajustes de audio/MIDI",
+        "en": "Desktop Qt app: full metronome, chord detection and audio/MIDI settings"
+      },
+      {
+        "date": "2026-03-17",
+        "publish": false,
+        "es": "Panel de descargas en la web: instaladores para PC, Mac, Linux, iOS y Android",
+        "en": "Downloads panel on the web: installers for PC, Mac, Linux, iOS and Android"
+      },
+      {
+        "date": "2026-03-14",
+        "publish": false,
+        "es": "Audio del metrónomo web alineado con la visualización del pulso",
+        "en": "Web metronome audio aligned with beat visualization"
+      },
+      {
+        "date": "2026-03-13",
+        "publish": false,
+        "es": "App móvil iOS: layout específico para iPhone y mejoras de audio del metrónomo",
+        "en": "iOS mobile app: iPhone-specific layout and metronome audio improvements"
+      },
+      {
+        "date": "2026-03-13",
+        "publish": false,
+        "es": "Sistema de comentarios y sugerencias funcionando en producción",
+        "en": "Feedback and suggestions form working in production"
+      }
+    ]
+  },
+  {
+    "version": "v0.1.9",
+    "date": "2026-03-09",
+    "items": [
+      {
+        "date": "2026-03-09",
+        "publish": false,
+        "es": "Mejoras de UX en la ayuda interactiva de la web; detección de acordes como modo por defecto",
+        "en": "Web interactive help UX improvements; chord detection restored as default mode"
+      }
+    ]
+  },
+  {
+    "version": "v0.1.8",
+    "date": "2026-03-08",
+    "items": [
+      {
+        "date": "2026-03-08",
+        "publish": false,
+        "es": "Unificación del runtime web con Cloudflare Worker; interacción de cejilla en guitarra mejorada",
+        "en": "Web runtime unified with Cloudflare Worker; guitar barre chord interaction improved"
+      },
+      {
+        "date": "2026-03-08",
+        "publish": false,
+        "es": "Envío de comentarios habilitado en producción",
+        "en": "Feedback submission enabled in production"
+      }
+    ]
+  },
+  {
+    "version": "v0.1.7",
+    "date": "2026-03-08",
+    "items": [
+      {
+        "date": "2026-03-08",
+        "publish": false,
+        "es": "Audio con muestras reales de piano, guitarra y metrónomo en la web",
+        "en": "Real sample-based audio for piano, guitar and metronome in the web app"
+      },
+      {
+        "date": "2026-03-08",
+        "publish": false,
+        "es": "Corrección de layout del pentagrama, pulsación táctil en guitarra y sonido del metrónomo",
+        "en": "Staff layout fix, guitar touch tap handling and metronome sound fix"
+      },
+      {
+        "date": "2026-03-05",
+        "publish": false,
+        "es": "API de acordes integrada en Cloudflare Pages Functions (sin servidor externo)",
+        "en": "Chord API integrated into Cloudflare Pages Functions (no external server)"
+      }
+    ]
+  },
+  {
+    "version": "v0.1.5",
+    "date": "2026-03-01",
+    "items": [
+      {
+        "date": "2026-03-01",
+        "publish": false,
+        "es": "App móvil Flutter: modo sin conexión y muestras de audio de piano y guitarra",
+        "en": "Flutter mobile app: offline mode and piano/guitar audio samples"
+      }
+    ]
+  },
+  {
+    "version": "v1.0.0",
+    "date": "2026-02-20",
+    "items": [
+      {
+        "date": "2026-02-22",
+        "publish": false,
+        "es": "Metrónomo, escalas y controles de volumen unificados entre web, escritorio y móvil",
+        "en": "Metronome, scales and volume controls unified across web, desktop and mobile"
+      },
+      {
+        "date": "2026-02-20",
+        "publish": false,
+        "es": "Lanzamiento de la versión 1.0: acordes, escalas, metrónomo y círculo de quintas en web, escritorio y móvil",
+        "en": "Version 1.0 launch: chords, scales, metronome and circle of fifths across web, desktop and mobile"
+      }
+    ]
+  }
+]

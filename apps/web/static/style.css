@@ -252,6 +252,72 @@ body.help-active * {
   font-weight: 700;
 }
 
+.changelog-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.changelog-ver-badge {
+  font-size: 0.72em;
+  font-weight: 600;
+  color: #ffd060;
+  background: rgba(255, 208, 96, 0.12);
+  border: 1px solid rgba(255, 208, 96, 0.35);
+  border-radius: 5px;
+  padding: 1px 6px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.changelog-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 200px;
+  margin-top: 8px;
+  font-size: 0.83em;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5a72 transparent;
+}
+
+.cl-version-header {
+  font-weight: 700;
+  color: #ffd060;
+  font-size: 0.92em;
+  margin: 10px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #3a4a5e;
+}
+
+.cl-version-header:first-child {
+  margin-top: 0;
+}
+
+.cl-items {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
+}
+
+.cl-item {
+  display: flex;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1e2b3a;
+  line-height: 1.35;
+}
+
+.cl-item:last-child {
+  border-bottom: none;
+}
+
+.cl-date {
+  color: #6a7f99;
+  white-space: nowrap;
+  font-size: 0.9em;
+  padding-top: 1px;
+  flex-shrink: 0;
+}
+
 .feedback-modal-card {
   width: min(640px, 96vw);
 }

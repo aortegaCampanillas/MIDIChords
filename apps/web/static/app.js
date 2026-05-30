@@ -236,6 +236,9 @@ const UI_TEXTS = {
     feedback_panel_title: "Comentarios",
     feedback_panel_text: "Puedes enviarnos comentarios sobre la página y sugerencias de mejora para seguir evolucionando la herramienta.",
     feedback_open: "Enviar comentarios",
+    changelog_title: "Novedades",
+    changelog_loading: "Cargando...",
+    changelog_error: "No disponible",
     feedback_modal_title: "Enviar comentarios",
     feedback_help: "Envíanos sugerencias o errores que hayas detectado.",
     feedback_name: "Nombre",
@@ -429,6 +432,9 @@ const UI_TEXTS = {
     feedback_panel_title: "Feedback",
     feedback_panel_text: "You can send comments about the website and suggestions for improvements to keep evolving the tool.",
     feedback_open: "Send feedback",
+    changelog_title: "What's New",
+    changelog_loading: "Loading...",
+    changelog_error: "Not available",
     feedback_modal_title: "Send feedback",
     feedback_help: "Send us suggestions or report issues you found.",
     feedback_name: "Name",
@@ -2235,6 +2241,7 @@ function applyTranslations() {
   setText("donateBtn", "donation_button");
   setText("feedbackPanelTitle", "feedback_panel_title");
   setText("feedbackPanelText", "feedback_panel_text");
+  setText("changelogTitleText", "changelog_title");
   setText("feedbackOpenBtn", "feedback_open");
   setText("feedbackModalTitle", "feedback_modal_title");
   setText("feedbackHelp", "feedback_help");
@@ -5519,6 +5526,58 @@ function renderStaff() {
   }
 }
 
+function renderChangelog(entries) {
+  const list = el("changelogList");
+  if (!list) return;
+
+  if (!Array.isArray(entries) || !entries.length) {
+    list.textContent = tr("changelog_error");
+    return;
+  }
+
+  list.innerHTML = "";
+  const lang = state.language === "en" ? "en" : "es";
+
+  for (const group of entries) {
+    const visibleItems = (group.items || []).filter((item) => item.publish !== false);
+    if (!visibleItems.length) continue;
+
+    const header = document.createElement("div");
+    header.className = "cl-version-header";
+    header.textContent = `${group.version} — ${group.date}`;
+    list.appendChild(header);
+
+    const ul = document.createElement("ul");
+    ul.className = "cl-items";
+    for (const item of visibleItems) {
+      const li = document.createElement("li");
+      li.className = "cl-item";
+      const dateSpan = document.createElement("span");
+      dateSpan.className = "cl-date";
+      dateSpan.textContent = item.date;
+      const desc = document.createElement("span");
+      desc.textContent = item[lang] || item.es || "";
+      li.appendChild(dateSpan);
+      li.appendChild(desc);
+      ul.appendChild(li);
+    }
+    list.appendChild(ul);
+  }
+}
+
+async function loadChangelog() {
+  const list = el("changelogList");
+  if (!list) return;
+  list.textContent = tr("changelog_loading");
+  try {
+    const entries = await fetchJson("/static/changelog.json");
+    renderChangelog(entries);
+  } catch (err) {
+    console.warn("Failed to load changelog:", err);
+    if (list) list.textContent = tr("changelog_error");
+  }
+}
+
 async function loadMeta() {
   try {
     const data = await fetchJson(`/api/meta?language=${state.language}`);
@@ -7476,6 +7535,8 @@ async function main() {
   } catch (err) {
     console.warn("Failed to load /api/meta during startup:", err);
   }
+
+  loadChangelog().catch((err) => console.warn("Changelog load error:", err));
 
   if (TUNER_FEATURE_ENABLED) {
     try {

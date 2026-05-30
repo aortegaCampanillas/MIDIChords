@@ -3358,10 +3358,27 @@ function pianoFingeringForCount(count, hand) {
 
 // Returns [{finger: 1-5, crossover: bool}] for each note in midiNotes (ascending).
 // crossover=true marks a "paso de dedo" (thumb passing under for RH, finger-3 crossing over for LH).
-function computeScaleFingering(midiNotes, hand) {
+// ctx: optional { tonicPc, patternName } for scale-specific overrides.
+function computeScaleFingering(midiNotes, hand, ctx = {}) {
   const n = midiNotes.length;
   if (n === 0) return [];
   const result = [];
+
+  // F Major (Ionian, tonic F = pc 5): both hands use groups of 4 — 1 2 3 4 | 1 2 3 4 …
+  const isFMajor = ctx.tonicPc === 5 && ctx.patternName === "Ionian";
+  if (isFMajor) {
+    let isFirst = true;
+    let i = 0;
+    while (i < n) {
+      for (let g = 0; g < 4 && i < n; g++, i++) {
+        result.push({ finger: g + 1, crossover: !isFirst && g === 0 });
+      }
+      isFirst = false;
+    }
+    if (result.length > 0) result[result.length - 1].crossover = false;
+    return result;
+  }
+
   if (hand === "right") {
     // Groups 3-4-3-4-… ascending; crossover at start of every group after the first.
     // If exactly 1 note remains after completing a 4-note group, it gets finger 5 (no crossover).
@@ -3604,12 +3621,16 @@ function updateFingeringStrip() {
 
   const rhFingerMap = new Map();
   const lhFingerMap = new Map();
+  const fingeringCtx = {
+    tonicPc: state.generatedScale ? Number(state.generatedScale.tonic_pc) : null,
+    patternName: state.generatedScale ? String(state.generatedScale.pattern_name || "") : "",
+  };
   if (state.scaleFingeringMode === "right") {
     const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
-    computeScaleFingering(sorted, "right").forEach((d, i) => rhFingerMap.set(sorted[i], d));
+    computeScaleFingering(sorted, "right", fingeringCtx).forEach((d, i) => rhFingerMap.set(sorted[i], d));
   } else {
     const sorted = Array.from(new Set(getScaleNotesForOctaves())).sort((a, b) => a - b);
-    computeScaleFingering(sorted, "left").forEach((d, i) => lhFingerMap.set(sorted[i], d));
+    computeScaleFingering(sorted, "left", fingeringCtx).forEach((d, i) => lhFingerMap.set(sorted[i], d));
   }
 
   const activeMidi = state.scaleCurrentNote != null ? Number(state.scaleCurrentNote) : null;

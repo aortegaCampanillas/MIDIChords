@@ -2360,6 +2360,7 @@ function applyTranslations() {
   if (circleHint) circleHint.textContent = tr("circle_hint");
   if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
   if (state.help.active) refreshHelpOverlay();
+  if (cachedChangelogEntries) renderChangelog(cachedChangelogEntries);
 }
 
 async function submitFeedbackForm(event) {
@@ -5662,12 +5663,15 @@ function renderChangelog(entries) {
   }
 }
 
+let cachedChangelogEntries = null;
+
 async function loadChangelog() {
   const list = el("changelogList");
   if (!list) return;
   list.textContent = tr("changelog_loading");
   try {
     const entries = await fetchJson("/static/changelog.json");
+    cachedChangelogEntries = entries;
     renderChangelog(entries);
   } catch (err) {
     console.warn("Failed to load changelog:", err);

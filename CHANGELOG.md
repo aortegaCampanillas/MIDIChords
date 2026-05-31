@@ -24,6 +24,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web (pentagrama)**: las claves de sol y fa recuperan el mismo margen que en escalas/generación; las armaduras empiezan más a la derecha para evitar solapamientos sin sacar las claves del pentagrama.
 
+- **Web (escalas)**: el selector de octavas en piano añade la segunda octava hacia la izquierda (grave) y reserva la tercera para extender hacia la derecha (agudo).
+
 - **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.
 
 ### Android (Google Play — prueba cerrada)

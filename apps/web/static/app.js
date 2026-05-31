@@ -2932,8 +2932,11 @@ function getScaleNotesForOctaves() {
   const oct = state.scaleOctaves || 1;
   if (oct <= 1) return base;
   const result = new Set(base);
-  for (let o = 1; o < oct; o++) {
-    for (const n of base) result.add(n + 12 * o);
+  if (oct >= 2) {
+    for (const n of base) result.add(n - 12);
+  }
+  if (oct >= 3) {
+    for (const n of base) result.add(n + 12);
   }
   return Array.from(result).sort((a, b) => a - b);
 }

@@ -4,6 +4,12 @@
     "date": "2026-05-30",
     "items": [
       {
+        "date": "2026-05-31",
+        "publish": false,
+        "es": "Pentagrama web: claves de sol y fa con el margen normal; las armaduras se separan hacia la derecha para no solaparse.",
+        "en": "Web staff: treble and bass clefs keep the normal margin; key signatures are spaced farther right to avoid overlap."
+      },
+      {
         "date": "2026-05-30",
         "publish": true,
         "es": "MIDI: nuevo botón de salida de sonido (Audio / MIDI out). En modo MIDI out la app no genera audio propio; las notas se envían al dispositivo MIDI conectado. El ajuste se recuerda entre sesiones. La opción activa se resalta en amarillo en el diálogo de inicio.",

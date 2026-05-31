@@ -4703,7 +4703,7 @@ function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef
 
 function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig) {
   if (!sig || !sig.count) return 132;
-  const xStart = 138;
+  const xStart = 162;
   const xTrebleEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, false);
   const xBassEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, true);
   return Math.max(xTrebleEnd, xBassEnd) + 10;

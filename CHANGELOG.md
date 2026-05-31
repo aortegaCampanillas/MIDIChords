@@ -26,6 +26,10 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web (escalas)**: el selector de octavas en piano añade la segunda octava hacia la izquierda (grave) y reserva la tercera para extender hacia la derecha (agudo).
 
+- **Web (escalas)**: los círculos de notas sobre el piano usan ahora la escritura diatónica de la escala generada (por ejemplo, `Si#` en Sol#) en lugar del nombre cromático enarmónico (`Do`).
+
+- **Web (escalas)**: la lista de notas del panel de resultado ya no muestra el número de octava al final de cada nota.
+
 - **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.
 
 ### Android (Google Play — prueba cerrada)

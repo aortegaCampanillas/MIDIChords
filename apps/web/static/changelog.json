@@ -16,6 +16,18 @@
         "en": "Web scales: on piano, two octaves add the lower octave to the left; three octaves also add the upper octave to the right."
       },
       {
+        "date": "2026-05-31",
+        "publish": false,
+        "es": "Escalas web: los círculos del piano muestran la escritura diatónica de la escala (por ejemplo Si# en Sol#) en vez del enarmónico cromático.",
+        "en": "Web scales: piano note badges show the scale's diatonic spelling (for example B# in G#) instead of the chromatic enharmonic name."
+      },
+      {
+        "date": "2026-05-31",
+        "publish": false,
+        "es": "Escalas web: la lista de notas del panel de resultado ya no muestra el número de octava al final de cada nota.",
+        "en": "Web scales: the result panel's note list no longer shows octave numbers after each note."
+      },
+      {
         "date": "2026-05-30",
         "publish": true,
         "es": "MIDI: nuevo botón de salida de sonido (Audio / MIDI out). En modo MIDI out la app no genera audio propio; las notas se envían al dispositivo MIDI conectado. El ajuste se recuerda entre sesiones. La opción activa se resalta en amarillo en el diálogo de inicio.",

@@ -2941,6 +2941,29 @@ function getScaleNotesForOctaves() {
   return Array.from(result).sort((a, b) => a - b);
 }
 
+function scaleLabelWithoutOctave(label) {
+  return String(label || "").replace(/-?\d+$/g, "");
+}
+
+function scaleLabelForMidi(midi) {
+  const target = Number(midi);
+  if (!Number.isFinite(target) || !state.generatedScale) return null;
+  const notesMidi = state.generatedScale.notes_midi;
+  const labels = state.generatedScale.notes;
+  if (!Array.isArray(notesMidi) || !Array.isArray(labels)) return null;
+  const targetPc = ((target % 12) + 12) % 12;
+  let best = null;
+  notesMidi.forEach((baseMidi, idx) => {
+    const base = Number(baseMidi);
+    if (!Number.isFinite(base) || (((base % 12) + 12) % 12) !== targetPc) return;
+    const label = scaleLabelWithoutOctave(labels[idx]);
+    if (!label) return;
+    const distance = Math.abs(target - base);
+    if (!best || distance < best.distance) best = { label, distance };
+  });
+  return best ? best.label : null;
+}
+
 function setScaleGuitarStartNote(note) {
   const target = Number(note);
   if (!Number.isFinite(target) || !state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return;
@@ -3816,7 +3839,7 @@ function renderPiano() {
     } else if (state.mode === "scales" && scaleMarked) {
       const badge = document.createElement("span");
       badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
-      badge.textContent = noteNameFromPc(pc);
+      badge.textContent = scaleLabelForMidi(midi) || noteNameFromPc(pc);
       key.appendChild(badge);
     }
 
@@ -5560,7 +5583,7 @@ function renderStaff() {
     }
   }
   const scaleLabels = scaleStaff && Array.isArray(state.generatedScale?.notes)
-    ? state.generatedScale.notes.map((label) => String(label || "").replace(/\d+/g, ""))
+    ? state.generatedScale.notes.map(scaleLabelWithoutOctave)
     : [];
   const scaleHoveredNote = scaleStaff ? state.staff.scaleHoverNote : null;
   const scaleHoveredDegree = scaleStaff ? state.staff.scaleHoverDegree : null;
@@ -6312,7 +6335,7 @@ async function runGenerateScale() {
   const patternLabel = out.pattern_localized_name || out.pattern_name || "";
   const patternWithAlias = scaleAlias ? `${scaleAlias} (${patternLabel})` : patternLabel;
   el("scaleName").textContent = `${tonic} ${patternWithAlias}`.trim();
-  el("scaleNotes").textContent = (out.notes || []).join(" - ") || "-";
+  el("scaleNotes").textContent = (out.notes || []).map(scaleLabelWithoutOctave).join(" - ") || "-";
   el("scaleIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
   if (state.mode === "scales") {
     renderInstrument();

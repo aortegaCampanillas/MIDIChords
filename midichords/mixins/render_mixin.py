@@ -7,6 +7,7 @@ import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.music_theory import WHITE_PCS
+from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 
 class RenderMixin:
@@ -235,6 +236,10 @@ class RenderMixin:
         if n in templates:
             return templates[n]
         return [max(1, 5 - i) for i in range(n)]
+
+    def _scale_fingering_tomplay(self, scale_type: str, key: int, hand: str, count: int) -> list[int]:
+        """Get TomPlay fingering for a scale in a specific key and hand."""
+        return get_fingering_for_scale(scale_type, key, hand, count)
 
     def _scale_note_name_map(self) -> dict[int, str]:
         if not self.scale_preview_notes:

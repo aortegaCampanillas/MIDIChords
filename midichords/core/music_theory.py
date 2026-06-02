@@ -173,8 +173,13 @@ def format_intervals(notes: set[int]) -> str:
     if not notes:
         return "-"
     ordered = sorted(notes)
-    base = ordered[0]
-    return " - ".join(f"+{note - base}" for note in ordered)
+    if not ordered:
+        return "-"
+    result = [f"{ordered[0]}"]
+    for i in range(1, len(ordered)):
+        increment = ordered[i] - ordered[i - 1]
+        result.append(f"+{increment}")
+    return " ".join(result)
 
 
 def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordPattern], Optional[int]]:

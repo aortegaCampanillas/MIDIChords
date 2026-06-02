@@ -175,7 +175,7 @@ def format_intervals(notes: set[int]) -> str:
     ordered = sorted(notes)
     if not ordered:
         return "-"
-    result = [f"{ordered[0]}"]
+    result = ["0"]
     for i in range(1, len(ordered)):
         increment = ordered[i] - ordered[i - 1]
         result.append(f"+{increment}")

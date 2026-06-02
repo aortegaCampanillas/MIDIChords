@@ -3034,7 +3034,7 @@ function getExtraMidiForMode() {
 function formatIntervalsFromMidi(notesMidi) {
   const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
   if (ordered.length === 0) return "-";
-  const result = [ordered[0].toString()];
+  const result = ["0"];
   for (let i = 1; i < ordered.length; i++) {
     result.push(`+${ordered[i] - ordered[i - 1]}`);
   }

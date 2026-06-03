@@ -28,6 +28,18 @@
         "en": "Web scales: the result panel's note list no longer shows octave numbers after each note."
       },
       {
+        "date": "2026-06-02",
+        "publish": false,
+        "es": "Escalas web: digitaciones de piano revisadas con tablas documentadas; Blues Pentatonic usa pentatónica menor y se eliminan digitaciones genéricas sin referencia.",
+        "en": "Web scales: piano fingerings revised against documented tables; Blues Pentatonic uses minor pentatonic fingering and generic unsourced fingerings were removed."
+      },
+      {
+        "date": "2026-06-03",
+        "publish": false,
+        "es": "Detección / Generación / Escalas: los intervalos ahora se muestran de forma incremental (distancias entre notas consecutivas) comenzando siempre desde 0. Ejemplo: 0 +4 +3 en lugar de 60 +4 +7. Más intuitivo para educación musical.",
+        "en": "Detection / Generation / Scales: intervals now display as incremental (distances between consecutive notes) always starting from 0. Example: 0 +4 +3 instead of 60 +4 +7. More intuitive for music education."
+      },
+      {
         "date": "2026-05-30",
         "publish": true,
         "es": "MIDI: nuevo botón de salida de sonido (Audio / MIDI out). En modo MIDI out la app no genera audio propio; las notas se envían al dispositivo MIDI conectado. El ajuste se recuerda entre sesiones. La opción activa se resalta en amarillo en el diálogo de inicio.",

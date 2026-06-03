@@ -30,6 +30,10 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web (escalas)**: la lista de notas del panel de resultado ya no muestra el número de octava al final de cada nota.
 
+- **Detección / Generación / Escalas (escritorio y web)**: los intervalos ahora se muestran de forma incremental (distancias entre notas consecutivas) en lugar de acumulativa desde la raíz, con base siempre en 0. Ejemplo: `0 +4 +3` (Do, +4 semitonos a Mi, +3 semitonos a Sol) en lugar de `60 +4 +7`. Más intuitivo y educativo para teoría musical.
+
+- **Web (escalas)**: revisadas las digitaciones de piano con tablas documentadas para escalas mayores, menores naturales, armónicas, melódicas, pentatónicas, cromática y tono entero. **Blues Pentatonic** usa la digitación de pentatónica menor (su patrón real en la app) y se eliminan las digitaciones genéricas sin referencia para modos/exóticas o blues mayor. **Blues menor** solo muestra digitación cuando hay referencia documentada.
+
 - **Web (CI)**: Tras **`wrangler pages deploy`**, el edge puede tardar en aplicar **`_worker.js`** y **`_routes.json`** en el dominio personalizado (`/api/meta` en **404** vacío hasta entonces). El workflow **Deploy Cloudflare (Production)** espera **120 s** antes del smoke test (y **120 s** tras un redeploy de retry); **web-production-health** espera **120 s** post-deploy y **120 s** tras autocuración antes del segundo chequeo.
 
 ### Android (Google Play — prueba cerrada)

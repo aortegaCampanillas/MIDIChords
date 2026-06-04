@@ -60,6 +60,38 @@
       }
     },
     {
+      "name": "Web Backend: MIDIChords",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
+      "args": [
+        "web",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      },
+      "env": {
+        "MIDICHORDS_FEEDBACK_TO": "aortega98@gmail.com"
+      }
+    },
+    {
+      "name": "Web: MIDIChords (HTTPS + Backend)",
+      "type": "compound",
+      "request": "launch",
+      "configurations": [
+        "Web: MIDIChords (HTTPS)",
+        "Web Backend: MIDIChords"
+      ]
+    },
+    {
       "name": "Mobile iPad: MIDIChords",
       "type": "debugpy",
       "request": "launch",

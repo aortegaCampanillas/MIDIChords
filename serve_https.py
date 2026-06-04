@@ -11,6 +11,8 @@ import ssl
 import argparse
 import os
 import sys
+import urllib.request
+import json
 from pathlib import Path
 
 class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -29,6 +31,10 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests con soporte para SPAs y rutas dinámicas."""
+        # Proxy de API a backend
+        if self.path.startswith('/api/'):
+            return self._proxy_api_request('GET')
+
         # Rutas SPA conocidas
         spa_routes = {
             '/app': '/app.html',
@@ -50,6 +56,46 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Servir archivos estáticos
         return super().do_GET()
+
+    def do_POST(self):
+        """Handle POST requests (API proxy)."""
+        if self.path.startswith('/api/'):
+            return self._proxy_api_request('POST')
+        self.send_error(405)
+
+    def _proxy_api_request(self, method):
+        """Proxy API requests to backend server."""
+        backend_url = f'http://localhost:8000{self.path}'
+
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b''
+
+            req = urllib.request.Request(backend_url, data=body, method=method)
+            req.add_header('Content-Type', self.headers.get('Content-Type', 'application/json'))
+
+            with urllib.request.urlopen(req) as response:
+                response_data = response.read()
+                self.send_response(response.status)
+                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/json'))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(response_data)
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            error_data = json.dumps({'error': str(e)}).encode()
+            self.wfile.write(error_data)
+        except Exception as e:
+            print(f'[API Proxy Error] {method} {self.path}: {e}')
+            self.send_response(502)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            error_data = json.dumps({'error': 'Backend unavailable'}).encode()
+            self.wfile.write(error_data)
 
     def translate_path(self, path):
         """Translate a /-separated PATH to the local filename syntax."""
@@ -110,7 +156,8 @@ def main():
     print('=' * 70)
     print('🔒 ¡SERVIDOR HTTPS INICIADO!')
     print('=' * 70)
-    print(f'   📍 URL: https://localhost:{args.port}')
+    print(f'   📍 Frontend URL: https://localhost:{args.port}')
+    print(f'   🔌 Backend API: http://localhost:8000/api/ (con proxy)')
     print(f'   📁 Directorio: {web_dir}')
     print(f'   🔐 Certificado: {cert_path}')
     print()
@@ -119,6 +166,11 @@ def main():
     print('   es auto-firmado. Esto es NORMAL en desarrollo.')
     print()
     print('   ✅ Haz clic en "Avanzado" o "Continuar de todas formas"')
+    print()
+    print('💡 Para usar este servidor con el backend:')
+    print('   Lanza la configuración "Web: MIDIChords (HTTPS + Backend)"')
+    print('   desde VS Code o ejecuta en otra terminal:')
+    print('   python launch.py web --host 0.0.0.0 --port 8000')
     print()
     print('=' * 70)
     print('Presiona Ctrl+C para detener el servidor...')

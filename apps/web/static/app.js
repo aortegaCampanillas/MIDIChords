@@ -7467,9 +7467,13 @@ function handleMidiMessage(event) {
 }
 
 async function requestMidiAccessWithCaching() {
-  // Los navegadores modernos cachean automáticamente los permisos de MIDI
-  console.log("[MIDI] Solicitando acceso...");
+  console.log("[MIDI] Verificando estado de permisos...");
   try {
+    // Verificar primero si ya tenemos permiso
+    const permissionStatus = await navigator.permissions.query({ name: 'midi' });
+    console.log("[MIDI] Estado de permiso:", permissionStatus.state);
+
+    // Solicitar acceso (si ya está permitido, no debería mostrar diálogo)
     const access = await navigator.requestMIDIAccess();
     console.log("[MIDI] ✓ Acceso concedido. Inputs:", access.inputs.size, "Outputs:", access.outputs.size);
     return access;

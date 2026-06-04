@@ -7487,6 +7487,7 @@ async function toggleMidi() {
   const btn = el("midiToggle");
   if (state.midi.enabled) {
     state.midi.enabled = false;
+    localStorage.setItem("midiEnabled", "false");
     if (state.midi.access) {
       state.midi.access.inputs.forEach((input) => {
         input.onmidimessage = null;
@@ -7531,6 +7532,7 @@ async function toggleMidi() {
     }
     if (!state.midi.access) state.midi.access = await requestMidiAccessWithCaching();
     state.midi.enabled = true;
+    localStorage.setItem("midiEnabled", "true");
     state.midi.access.inputs.forEach((input) => {
       input.onmidimessage = handleMidiMessage;
     });
@@ -8162,7 +8164,15 @@ async function main() {
   refreshDetectionButtonsState();
   refreshIntervalButtonsState();
   setMode("detection");
+
+  // Restaurar preferencias desde localStorage
+  const savedSoundOutput = localStorage.getItem("soundOutput");
+  if (savedSoundOutput === "midi") {
+    state.soundOutput = "midi";
+  }
+
   showMidiStartupModal();
+
   renderMetronomeDots();
   renderStaff();
 }

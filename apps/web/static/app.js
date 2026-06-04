@@ -138,6 +138,9 @@ const state = {
   audioSampleLoadPromise: null,
 };
 
+const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
+const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
+
 const UI_TEXTS = {
   es: {
     mode_detection: "Detección de Acordes",
@@ -1909,8 +1912,32 @@ function stopAllHeldMidiOutputNotes() {
   Array.from(state.heldMidiChordNotes).forEach((note) => sendMidiNoteOff(note));
 }
 
+function loadSavedSoundOutputPref() {
+  try {
+    const saved = localStorage.getItem(SOUND_OUTPUT_STORAGE_KEY);
+    return saved === "midi" || saved === "audio" ? saved : null;
+  } catch (_e) {
+    return null;
+  }
+}
+
 function saveSoundOutputPref() {
-  try { localStorage.setItem("soundOutput", state.soundOutput); } catch (_e) {}
+  try { localStorage.setItem(SOUND_OUTPUT_STORAGE_KEY, state.soundOutput); } catch (_e) {}
+}
+
+function loadSavedMidiEnabledPref() {
+  try {
+    const saved = localStorage.getItem(MIDI_ENABLED_STORAGE_KEY);
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+  } catch (_e) {
+    // Ignore storage failures and fall back to first-run behavior.
+  }
+  return null;
+}
+
+function saveMidiEnabledPref(enabled) {
+  try { localStorage.setItem(MIDI_ENABLED_STORAGE_KEY, enabled ? "true" : "false"); } catch (_e) {}
 }
 
 function refreshSoundOutputToggle() {
@@ -1958,8 +1985,19 @@ function refreshMidiStartupModalContent() {
   const closeBtn = el("midiStartupCloseBtn");
   const choice = el("midiStartupSoundChoice");
   if (!text || !enableBtn || !closeBtn) return;
+  const unavailableStatus = midiUnavailableStatus();
   if (isSafariBrowser()) {
     text.textContent = tr("midi_startup_safari_warning");
+    enableBtn.classList.add("hidden");
+    closeBtn.textContent = tr("close");
+    if (choice) choice.classList.add("hidden");
+  } else if (unavailableStatus === "unsupported") {
+    text.textContent = tr("midi_try_chrome");
+    enableBtn.classList.add("hidden");
+    closeBtn.textContent = tr("close");
+    if (choice) choice.classList.add("hidden");
+  } else if (unavailableStatus === "secure_required") {
+    text.textContent = tr("midi_requires_secure");
     enableBtn.classList.add("hidden");
     closeBtn.textContent = tr("close");
     if (choice) choice.classList.add("hidden");
@@ -7466,85 +7504,155 @@ function handleMidiMessage(event) {
   }
 }
 
-async function requestMidiAccessWithCaching() {
-  console.log("[MIDI] Verificando estado de permisos...");
+async function queryMidiPermissionState() {
+  if (!navigator.permissions || typeof navigator.permissions.query !== "function") return "unknown";
   try {
-    // Verificar primero si ya tenemos permiso
-    const permissionStatus = await navigator.permissions.query({ name: 'midi' });
-    console.log("[MIDI] Estado de permiso:", permissionStatus.state);
-
-    // Solicitar acceso (si ya está permitido, no debería mostrar diálogo)
-    const access = await navigator.requestMIDIAccess();
-    console.log("[MIDI] ✓ Acceso concedido. Inputs:", access.inputs.size, "Outputs:", access.outputs.size);
-    return access;
-  } catch (err) {
-    console.error("[MIDI] ✗ Acceso denegado:", err.message);
-    throw err;
+    const permissionStatus = await navigator.permissions.query({ name: "midi" });
+    return permissionStatus?.state || "unknown";
+  } catch (_err) {
+    return "unknown";
   }
 }
 
-async function toggleMidi() {
+function midiUnavailableStatus() {
+  if (!window.isSecureContext) return "secure_required";
+  if (!navigator.requestMIDIAccess) return "unsupported";
+  return null;
+}
+
+function setMidiButtonStatus(status) {
   const btn = el("midiToggle");
-  if (state.midi.enabled) {
-    state.midi.enabled = false;
-    localStorage.setItem("midiEnabled", "false");
-    if (state.midi.access) {
-      state.midi.access.inputs.forEach((input) => {
-        input.onmidimessage = null;
-      });
-    }
-    state.activeMidiLiveNotes.clear();
-    stopAllHeldMidiInputNotes();
-    state.detectionMidiHeldNotes.clear();
-    if (state.mode === "detection") refreshDetectionActiveNotes();
-    if (state.mode === "interval_detection") refreshIntervalResult();
-    if (state.mode === "metronome") renderInstrument();
-    resetMidiScreenWakeLockFully();
-    btn.textContent = tr("midi_off");
-    btn.setAttribute("title", midiButtonTooltipForState("off"));
-    refreshMidiToggleButtonState();
-    refreshSoundOutputToggle();
-    return;
-  }
-
-  if (!window.isSecureContext) {
+  if (!btn) return;
+  if (status === "on") {
+    btn.textContent = tr("midi_on");
+  } else if (status === "secure_required") {
     btn.textContent = tr("midi_requires_secure");
-    btn.setAttribute("title", midiButtonTooltipForState("secure_required"));
-    refreshMidiToggleButtonState();
-    return;
-  }
-
-  if (!navigator.requestMIDIAccess) {
+  } else if (status === "unsupported") {
     btn.textContent = tr("midi_try_chrome");
-    btn.setAttribute("title", midiButtonTooltipForState("unsupported"));
-    refreshMidiToggleButtonState();
-    return;
+  } else if (status === "denied") {
+    btn.textContent = tr("midi_denied");
+  } else {
+    btn.textContent = tr("midi_off");
+  }
+  btn.setAttribute("title", midiButtonTooltipForState(status || "off"));
+  refreshMidiToggleButtonState();
+}
+
+async function requestMidiAccessWithCaching() {
+  const permissionState = await queryMidiPermissionState();
+  if (permissionState === "denied") {
+    throw new Error("MIDI permission denied");
+  }
+  return navigator.requestMIDIAccess();
+}
+
+function attachMidiInputHandlers() {
+  if (!state.midi.access) return;
+  state.midi.access.inputs.forEach((input) => {
+    input.onmidimessage = handleMidiMessage;
+  });
+}
+
+function detachMidiInputHandlers() {
+  if (!state.midi.access) return;
+  state.midi.access.inputs.forEach((input) => {
+    input.onmidimessage = null;
+  });
+}
+
+function disableMidiInput(options = {}) {
+  const remember = options.remember !== false;
+  state.midi.enabled = false;
+  if (remember) saveMidiEnabledPref(false);
+  detachMidiInputHandlers();
+  state.activeMidiLiveNotes.clear();
+  stopAllHeldMidiInputNotes();
+  state.detectionMidiHeldNotes.clear();
+  if (state.mode === "detection") refreshDetectionActiveNotes();
+  if (state.mode === "interval_detection") refreshIntervalResult();
+  if (state.mode === "metronome") renderInstrument();
+  resetMidiScreenWakeLockFully();
+  setMidiButtonStatus("off");
+  refreshSoundOutputToggle();
+}
+
+async function enableMidiInput(options = {}) {
+  const remember = options.remember !== false;
+  const rememberOnFailure = !!options.rememberOnFailure;
+  const fromUserGesture = !!options.fromUserGesture;
+  const unavailableStatus = midiUnavailableStatus();
+  if (unavailableStatus) {
+    setMidiButtonStatus(unavailableStatus);
+    return false;
   }
 
   try {
-    try {
-      const ctx = ensureAudioCtx();
-      if (ctx.state !== "running") {
-        await ctx.resume();
+    if (fromUserGesture) {
+      try {
+        const ctx = ensureAudioCtx();
+        if (ctx.state !== "running") {
+          await ctx.resume();
+        }
+      } catch (_e) {
+        // Audio resume may require user gesture; MIDI init should continue anyway.
       }
-    } catch (_e) {
-      // Audio resume may require user gesture; MIDI init should continue anyway.
     }
     if (!state.midi.access) state.midi.access = await requestMidiAccessWithCaching();
     state.midi.enabled = true;
-    localStorage.setItem("midiEnabled", "true");
-    state.midi.access.inputs.forEach((input) => {
-      input.onmidimessage = handleMidiMessage;
-    });
-    btn.textContent = tr("midi_on");
-    btn.setAttribute("title", midiButtonTooltipForState("on"));
-    refreshMidiToggleButtonState();
+    if (remember) saveMidiEnabledPref(true);
+    attachMidiInputHandlers();
+    setMidiButtonStatus("on");
     refreshSoundOutputToggle();
+    if (state.soundOutput === "midi") sendMidiProgramChange(state.instrument);
+    return true;
   } catch (_err) {
-    btn.textContent = tr("midi_denied");
-    btn.setAttribute("title", midiButtonTooltipForState("denied"));
-    refreshMidiToggleButtonState();
+    state.midi.enabled = false;
+    detachMidiInputHandlers();
+    if (remember && rememberOnFailure) saveMidiEnabledPref(false);
+    setMidiButtonStatus("denied");
+    refreshSoundOutputToggle();
+    return false;
   }
+}
+
+async function initializeMidiFromPreferences() {
+  const savedMidiEnabled = loadSavedMidiEnabledPref();
+  const unavailableStatus = midiUnavailableStatus();
+  if (unavailableStatus) {
+    setMidiButtonStatus(unavailableStatus);
+    if (savedMidiEnabled !== false) showMidiStartupModal();
+    return;
+  }
+
+  const permissionState = await queryMidiPermissionState();
+  if (permissionState === "denied") {
+    setMidiButtonStatus("denied");
+    return;
+  }
+
+  if (permissionState === "granted" && savedMidiEnabled !== false) {
+    const enabled = await enableMidiInput({ remember: true, rememberOnFailure: false });
+    if (enabled) {
+      hideMidiStartupModal();
+      return;
+    }
+  }
+
+  if (savedMidiEnabled === false) {
+    setMidiButtonStatus("off");
+    return;
+  }
+
+  showMidiStartupModal();
+}
+
+async function toggleMidi() {
+  if (state.midi.enabled) {
+    disableMidiInput({ remember: true });
+    return;
+  }
+
+  await enableMidiInput({ remember: true, rememberOnFailure: true, fromUserGesture: true });
 }
 
 function bindEvents() {
@@ -7636,6 +7744,7 @@ function bindEvents() {
   const midiStartupCloseBtn = el("midiStartupCloseBtn");
   if (midiStartupCloseBtn) {
     midiStartupCloseBtn.addEventListener("click", () => {
+      saveMidiEnabledPref(false);
       hideMidiStartupModal();
     });
   }
@@ -8104,10 +8213,8 @@ function bindEvents() {
 }
 
 async function main() {
-  try {
-    const saved = localStorage.getItem("soundOutput");
-    if (saved === "midi" || saved === "audio") state.soundOutput = saved;
-  } catch (_e) {}
+  const savedSoundOutput = loadSavedSoundOutputPref();
+  if (savedSoundOutput) state.soundOutput = savedSoundOutput;
   initStaffAssets();
   void preloadAudioSamples();
   bindEvents();
@@ -8165,13 +8272,7 @@ async function main() {
   refreshIntervalButtonsState();
   setMode("detection");
 
-  // Restaurar preferencias desde localStorage
-  const savedSoundOutput = localStorage.getItem("soundOutput");
-  if (savedSoundOutput === "midi") {
-    state.soundOutput = "midi";
-  }
-
-  showMidiStartupModal();
+  await initializeMidiFromPreferences();
 
   renderMetronomeDots();
   renderStaff();

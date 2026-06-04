@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (MIDI)**: el arranque ya no muestra siempre el modal de activación. Si el navegador conserva el permiso MIDI y el usuario no lo había desactivado, la entrada MIDI se reactiva automáticamente; también se respeta la última salida elegida (`Audio` / `MIDI out`) desde `localStorage`.
+
 - **Web (front page)**: la landing prioriza ahora la **detección de intervalos** en metadatos, hero y tarjeta de la app web; se elimina la referencia visible al **afinador** en la franja de features y textos promocionales.
 
 - **Web (detección de intervalos)**: ajustadas varias melodías mnemotécnicas (`Tiburón`, `Smoke on the Water`, `When the Saints Go Marching In`, `Here Comes the Bride`, `Maria`, `Star Wars`, `Love Story`, `My Way`, `Somewhere`, `Take On Me` y `Somewhere Over the Rainbow`) con nuevas transcripciones, anacrusas, silencios, tresillos, tempos específicos y control por melodía de ligadura previa o límite de resaltado. El pentagrama permite además mostrar la melodía completa, acentos y reproducir/resaltar temporalmente una nota concreta al pulsarla.

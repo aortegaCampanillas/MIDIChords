@@ -7466,6 +7466,19 @@ function handleMidiMessage(event) {
   }
 }
 
+async function requestMidiAccessWithCaching() {
+  // Los navegadores modernos cachean automáticamente los permisos de MIDI
+  console.log("[MIDI] Solicitando acceso...");
+  try {
+    const access = await navigator.requestMIDIAccess();
+    console.log("[MIDI] ✓ Acceso concedido. Inputs:", access.inputs.size, "Outputs:", access.outputs.size);
+    return access;
+  } catch (err) {
+    console.error("[MIDI] ✗ Acceso denegado:", err.message);
+    throw err;
+  }
+}
+
 async function toggleMidi() {
   const btn = el("midiToggle");
   if (state.midi.enabled) {
@@ -7512,7 +7525,7 @@ async function toggleMidi() {
     } catch (_e) {
       // Audio resume may require user gesture; MIDI init should continue anyway.
     }
-    if (!state.midi.access) state.midi.access = await navigator.requestMIDIAccess();
+    if (!state.midi.access) state.midi.access = await requestMidiAccessWithCaching();
     state.midi.enabled = true;
     state.midi.access.inputs.forEach((input) => {
       input.onmidimessage = handleMidiMessage;

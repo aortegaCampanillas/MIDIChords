@@ -43,6 +43,23 @@
       }
     },
     {
+      "name": "Web: MIDIChords (HTTPS)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/serve_https.py",
+      "args": [
+        "--port",
+        "8443"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      }
+    },
+    {
       "name": "Mobile iPad: MIDIChords",
       "type": "debugpy",
       "request": "launch",

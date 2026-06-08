@@ -1204,6 +1204,47 @@ class UiMixin:
             btn.set_selected(oct == 1)  # Default: 1 octava
             self.scale_octave_buttons.append(btn)
 
+        # Fingering hand selector (None, Right, Left)
+        self.scale_fingering_label = tk.Label(
+            self.tab_scale_frame,
+            text=self.tr("label_fingering_hand") if hasattr(self, "tr") else "Digitación:",
+            bg=self.color_surface_alt,
+            fg="#a8b6c8",
+            font=(self.ui_font_family, 12),
+        )
+        self.scale_fingering_label.grid(row=4, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
+
+        fingering_buttons_frame = tk.Frame(
+            self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        fingering_buttons_frame.grid(row=4, column=1, sticky="ew", pady=(8, 5))
+        fingering_buttons_frame.columnconfigure(0, weight=1)
+        fingering_buttons_frame.columnconfigure(1, weight=1)
+        fingering_buttons_frame.columnconfigure(2, weight=1)
+
+        self.scale_fingering_buttons = []
+        for hand, label_key in [("none", "label_fingering_none"), ("right", "label_fingering_right"), ("left", "label_fingering_left")]:
+            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano D.", "Mano I."][["none", "right", "left"].index(hand)]
+            btn = GrayRoundedButton(
+                fingering_buttons_frame,
+                text=label,
+                command=lambda h=hand: self._set_scale_fingering(h),
+                font_family=self.ui_font_family,
+                width=100,
+                height=40,
+                radius=16,
+                font_size=13,
+                text_color="#e6edf7",
+                selected_text_color="#1a222d",
+            )
+            idx = ["none", "right", "left"].index(hand)
+            btn.grid(row=0, column=idx, sticky="ew", padx=2)
+            btn.set_selected(hand == "none")  # Default: no fingerings
+            self.scale_fingering_buttons.append(btn)
+
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,
             bg=self.color_surface_alt,

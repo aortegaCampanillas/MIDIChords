@@ -139,6 +139,22 @@ class ScalesMixin:
             return
         for idx, btn in enumerate(self.scale_octave_buttons):
             btn.set_selected(idx + 1 == self.scale_octaves)
+
+    def _set_scale_fingering(self, hand: str) -> None:
+        """Cambia la mano de digitación (none, right, left)."""
+        self.scale_fingering_hand = hand if hand != "none" else None
+        self._refresh_scale_fingering_buttons()
+        self.redraw_keyboard()
+
+    def _refresh_scale_fingering_buttons(self) -> None:
+        """Actualiza el estado visual de los botones de digitación."""
+        if not hasattr(self, "scale_fingering_buttons"):
+            return
+        hand_values = ["none", "right", "left"]
+        current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
+        for idx, btn in enumerate(self.scale_fingering_buttons):
+            btn.set_selected(hand_values[idx] == current)
+
     def _refresh_scale_transport_styles(self) -> None:
         self._refresh_scale_metronome_volume_visibility()
         if self.scale_transport_buttons_are_images:

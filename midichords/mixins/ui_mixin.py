@@ -2971,6 +2971,9 @@ class UiMixin:
         )
 
         self.generation_tab_active = self.current_mode in ("generation", "circle_fifths")
+        # Clear MIDI held notes when exiting generation mode
+        if not self.generation_tab_active:
+            self.generation_midi_held_notes.clear()
         self.circle_fifths_tab_active = self.current_mode == "circle_fifths"
         self.scale_tab_active = self.current_mode == "scales"
         self.metronome_tab_active = self.current_mode == "metronome"

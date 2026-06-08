@@ -151,7 +151,7 @@ class MidiChordAnalyzerApp(
 
         # MIDI Output support
         self.midi_output_port: Optional[mido.ports.BaseOutput] = None
-        self.sound_output: str = "audio"  # "audio" o "midi"
+        self.sound_output: str = str(self.config_data.get("sound_output", "audio"))  # "audio" o "midi"
 
         self.input_names: list[str] = []
         self.audio_input_names: list[str] = []

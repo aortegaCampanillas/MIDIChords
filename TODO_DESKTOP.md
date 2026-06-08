@@ -3,7 +3,38 @@
 ## Current Status
 - **Progress:** 9/11 features (81.8%)
 - **Infrastructure:** ✅ Complete
-- **UI Integration:** Partial (Piano fingerings, MIDI highlighting staff)
+- **UI Integration:** Partial (Piano fingerings, MIDI highlighting staff, Interval detection)
+
+---
+
+## Tier 0: New Feature - Interval Detection Mode (3-4 hours)
+
+### Interval Detection Mode
+**Files:** `midichords/core/interval_data.py` (NEW), `midichords/mixins/interval_mixin.py` (NEW), `midichords/mixins/ui_mixin.py`, `midichords/main_app.py`
+
+**What to do:**
+- Create `interval_data.py` with INTERVAL_NAMES and INTERVAL_MELODIES tables (port from web app.js lines 3082-3176)
+- Create `interval_mixin.py` with interval detection logic:
+  - `interval_notes: list[int] = []` state (stores last 2 notes, auto-discard oldest)
+  - `get_interval_semitones()` → calculates semitones between 2 notes
+  - `get_interval_name()` → returns interval name (e.g., "Tercera mayor")
+  - `get_interval_melody_notes()` → returns note sequence for reference song
+  - `get_interval_melody_name()` → returns song name (e.g., "Cumpleaños feliz")
+
+- Add new tab in UI for Interval Detection mode
+- Display: Panel with Notas, Intervalo, Semitonos fields
+- Controls: "Reproducir" (play melody), "Reproducir descendente" (play reversed), "Limpiar" (clear)
+- Staff: Show detected interval with both notes highlighted
+- Piano: Track MIDI/mouse input → add note to interval_notes
+
+**Integration points:**
+- Hook MIDI/mouse input: when note pressed in interval mode, call `interval_notes.append(note)` + keep only last 2
+- Render: staff shows both interval notes in different colors or markers
+- Playback: button triggersInterval melody playback using audio_engine
+
+**Effort:** 3-4 hours
+
+**Reference:** Web implementation at app.js lines 3178-3211 (core functions), 7500-7700 (UI/interaction)
 
 ---
 

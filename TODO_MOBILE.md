@@ -1,9 +1,49 @@
 # TODO Mobile (Flutter/Dart)
 
 ## Current Status
-- **Progress:** 9/11 features (81.8%)
-- **Infrastructure:** ✅ Complete
-- **UI Integration:** Partial (Audio/MIDI, Piano fingerings, MIDI highlighting rendering)
+- **Progress:** 9/11 features (81.8%) + New: Interval Detection Mode
+- **Infrastructure:** ✅ Complete for existing features
+- **UI Integration:** Partial (Audio/MIDI, Piano fingerings, MIDI highlighting rendering, Interval detection)
+
+---
+
+## Tier 0: New Feature - Interval Detection Mode (3-4 hours)
+
+### Interval Detection Mode
+**File:** `apps/mobile_flutter/lib/main.dart`
+
+**Data structure (NEW):**
+- Create constants for INTERVAL_NAMES and INTERVAL_MELODIES (port from web app.js)
+- States: `_intervalNotes: List<int> = []`, `_intervalPlayingNote: int?`, `_intervalPlayingIdx: int?`
+
+**Core logic:**
+- `_getIntervalSemitones()` → abs difference % 12 between 2 notes
+- `_getIntervalName(semitones)` → lookup in INTERVAL_NAMES table
+- `_getIntervalMelodyNotes()` → returns note sequence for reference song
+- `_getIntervalMelodyName()` → returns song name
+
+**UI Tab:**
+- Add 6th tab in tab bar: "Intervalos" (or index 5)
+- Panel showing: Notas, Intervalo, Semitonos
+- Buttons: "Reproducir" (play ascending), "Reproducir descendente", "Limpiar"
+- Piano widget for input (same as detection mode)
+- Staff widget showing interval melody
+
+**Interaction:**
+- When note pressed in interval mode (tabIndex == 5):
+  - Add note to `_intervalNotes`
+  - Keep only last 2 notes (auto-discard oldest)
+  - Trigger interval calculation + UI update
+- Button taps: `playNote()` through melody offsets with timing
+
+**Playback:**
+- Use `_getIntervalMelodyNotes()` to get note sequence
+- Use durations from INTERVAL_MELODIES to time notes
+- Handle `playbackStepMs`, `jumpAt`, other melody parameters
+
+**Effort:** 3-4 hours
+
+**Reference:** Web app.js functions at lines 3178-3211 (core), 3213-3250 (playback)
 
 ---
 

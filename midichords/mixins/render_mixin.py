@@ -1499,6 +1499,10 @@ class RenderMixin:
                     else:
                         note_fill = ""
                         note_outline = "#d7dde7"
+                elif self.generation_tab_active and note in self.generation_midi_held_notes:
+                    # MIDI held notes in generation staff: gold/yellow highlight
+                    note_fill = "#f3bf2f"
+                    note_outline = "#d4a017"
                 elif self.generation_tab_active and note in generation_staff_playing_lh_notes:
                     if self.instrument_view == "guitar":
                         note_fill = "#39c5ff"

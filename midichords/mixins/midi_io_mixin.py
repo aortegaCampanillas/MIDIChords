@@ -279,3 +279,39 @@ while True:
                 proc.kill()
             except Exception:
                 pass
+
+    # MIDI Output support
+    def get_midi_output_names(self) -> list[str]:
+        """Lista los puertos MIDI de salida disponibles."""
+        try:
+            return [str(x) for x in mido.get_output_names()]
+        except Exception:
+            return []
+
+    def open_midi_output(self, output_name: str) -> Optional[mido.ports.BaseOutput]:
+        """Abre un puerto MIDI de salida."""
+        try:
+            return mido.open_output(output_name)
+        except Exception as exc:
+            vlog("midi", "open_output failed: %s", exc)
+            return None
+
+    def send_midi_note_on(self, midi_output: Optional[mido.ports.BaseOutput], note: int, velocity: int = 80) -> None:
+        """Envía un note_on al puerto MIDI de salida."""
+        if midi_output is None:
+            return
+        try:
+            msg = mido.Message("note_on", note=note, velocity=velocity)
+            midi_output.send(msg)
+        except Exception as exc:
+            vlog("midi", "send note_on failed: %s", exc)
+
+    def send_midi_note_off(self, midi_output: Optional[mido.ports.BaseOutput], note: int) -> None:
+        """Envía un note_off al puerto MIDI de salida."""
+        if midi_output is None:
+            return
+        try:
+            msg = mido.Message("note_off", note=note)
+            midi_output.send(msg)
+        except Exception as exc:
+            vlog("midi", "send note_off failed: %s", exc)

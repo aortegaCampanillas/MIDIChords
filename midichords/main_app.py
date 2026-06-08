@@ -149,6 +149,10 @@ class MidiChordAnalyzerApp(
         self.midi_bridge_thread: Optional[threading.Thread] = None
         self.midi_bridge_connected = False
 
+        # MIDI Output support
+        self.midi_output_port: Optional[mido.ports.BaseOutput] = None
+        self.sound_output: str = "audio"  # "audio" o "midi"
+
         self.input_names: list[str] = []
         self.audio_input_names: list[str] = []
         self.audio_input_map: dict[str, int] = {}

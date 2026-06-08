@@ -858,6 +858,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _scaleTonicPc = 0;
   String _scalePatternName = 'Ionian';
   String _scaleFilterMode = 'basic';  // 'basic' or 'all'
+  int _scaleOctaves = 1;  // 1, 2, or 3
   int _scaleBpm = 120;
   bool _scaleLoopRunning = false;
   bool _scaleMetronomeOnly = false;
@@ -934,6 +935,31 @@ class _HomeScreenState extends State<HomeScreen>
           .toList();
     }
     return patterns;
+  }
+
+  List<int> _getScaleNotesForOctaves(List<int> noteMidi, int octaves) {
+    if (noteMidi.isEmpty || octaves <= 1) {
+      return noteMidi;
+    }
+
+    final result = <int>[...noteMidi];
+
+    if (octaves >= 2) {
+      // Add lower octave
+      final lowerOctave = noteMidi
+          .where((note) => note - 12 >= 0)
+          .map((note) => note - 12)
+          .toList();
+      result.insertAll(0, lowerOctave);
+    }
+
+    if (octaves >= 3) {
+      // Add upper octave
+      final upperOctave = noteMidi.map((note) => note + 12).toList();
+      result.addAll(upperOctave);
+    }
+
+    return result;
   }
 
   GlobalKey _helpAnchorKey(String id) =>

@@ -854,6 +854,7 @@ class _HomeScreenState extends State<HomeScreen>
   /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).
   static const Duration _kMidiResetsIdleDuration = Duration(minutes: 3);
   Timer? _midiIdleExtensionTimer;
+  String _soundOutput = 'audio';  // 'audio' or 'midi' - controls note playback routing
 
   int _scaleTonicPc = 0;
   String _scalePatternName = 'Ionian';

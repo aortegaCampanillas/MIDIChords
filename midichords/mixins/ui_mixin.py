@@ -2760,70 +2760,12 @@ class UiMixin:
             return self.tr("mode_tuner")
         return self.tr("mode_detection")
     def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
-        """Show a simple dropdown menu with mode options."""
-        try:
-            if self.mode_selector_overlay is not None:
-                self._close_mode_selector_overlay()
-                return "break"
-
-            # Create a simple dropdown menu using native tkinter
-            # Get the root tkinter window
-            root = self.winfo_toplevel()
-            menu = tkinter.Menu(root, tearoff=False, bg=self.color_surface, fg=self.color_text, font=(self.ui_font_family, 12))
-            menu.config(activebackground=self.color_accent, activeforeground="#000000")
-
-            available_modes = self._available_mode_keys()
-            for mode in available_modes:
-                # Get translated label
-                mode_key = f"mode_{mode}"
-                label = UI_TEXTS.get(self.language, UI_TEXTS.get("es", {})).get(mode_key, mode)
-                is_selected = (self.current_mode == mode)
-                menu.add_command(
-                    label=f"✓ {label}" if is_selected else label,
-                    command=lambda m=mode: self._change_mode(m)
-                )
-
-            # Show menu at button position
-            x = self.mode_picker_trigger.winfo_rootx()
-            y = self.mode_picker_trigger.winfo_rooty() + self.mode_picker_trigger.winfo_height()
-            menu.post(x, y)
-
-            # Keep reference to prevent garbage collection
-            self._mode_dropdown_menu = menu
-        except Exception as e:
-            vlog(f"Error opening mode selector: {e}")
-            import traceback
-            traceback.print_exc()
-
+        """Toggle mode selector overlay."""
+        if self.mode_selector_overlay is not None:
+            self._close_mode_selector_overlay()
+        else:
+            self._open_mode_selector_overlay()
         return "break"
-
-    def _change_mode(self, new_mode: str) -> None:
-        """Change to a different mode."""
-        try:
-            if new_mode == self.current_mode:
-                return
-
-            self.current_mode = new_mode
-            self.config_data["mode"] = new_mode
-            save_config_file(self.config_data)
-
-            # Update display text
-            mode_key = f"mode_{new_mode}"
-            label = UI_TEXTS.get(self.language, UI_TEXTS.get("es", {})).get(mode_key, new_mode)
-            self.mode_trigger_var.set(label)
-
-            # Close any open menu and render
-            if hasattr(self, '_mode_dropdown_menu'):
-                try:
-                    self._mode_dropdown_menu.unpost()
-                except:
-                    pass
-
-            self.render()
-        except Exception as e:
-            vlog(f"Error changing mode to {new_mode}: {e}")
-            import traceback
-            traceback.print_exc()
     def _open_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()

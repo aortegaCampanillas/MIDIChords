@@ -44,23 +44,6 @@
     },
     {
       "name": "Web: MIDIChords (HTTPS)",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/serve_https.py",
-      "args": [
-        "--port",
-        "8443"
-      ],
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": true,
-      "python": "${workspaceFolder}/.venv/bin/python",
-      "windows": {
-        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
-      }
-    },
-    {
-      "name": "Web Backend: MIDIChords",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
@@ -69,7 +52,9 @@
         "--host",
         "0.0.0.0",
         "--port",
-        "8000"
+        "8443",
+        "--https",
+        "--reload"
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -81,15 +66,6 @@
       "env": {
         "MIDICHORDS_FEEDBACK_TO": "aortega98@gmail.com"
       }
-    },
-    {
-      "name": "Web: MIDIChords (HTTPS + Backend)",
-      "type": "compound",
-      "request": "launch",
-      "configurations": [
-        "Web: MIDIChords (HTTPS)",
-        "Web Backend: MIDIChords"
-      ]
     },
     {
       "name": "Mobile iPad: MIDIChords",

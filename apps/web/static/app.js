@@ -4332,7 +4332,8 @@ function handleInstrumentNote(note, options = {}) {
   const pressed = !!options.pressed;
   const instrumentHint = options.instrumentHint || null;
   const released = !!options.released;
-  const skipAudio = !!options.fromMidi && state.soundOutput === "midi";
+  const skipAudio = !!options.fromMidi
+    && (state.soundOutput === "midi" || !canPlayWebAudioFromMidiInput());
   if (state.mode === "detection") {
     if (pressed) {
       detectionManualPress(note, { instrumentHint });
@@ -6308,6 +6309,28 @@ function ensureAudioCtx() {
   return state.metronomeCtx;
 }
 
+function canPlayWebAudioFromMidiInput() {
+  return !!state.metronomeCtx && state.metronomeCtx.state === "running";
+}
+
+async function unlockAudioFromUserGesture() {
+  try {
+    const ctx = ensureAudioCtx();
+    if (ctx.state !== "running") await ctx.resume();
+  } catch (_e) {
+    // Browsers may still reject resume() for non-activating events.
+  }
+}
+
+function bindAudioUnlockGestures() {
+  const unlock = () => {
+    if (state.metronomeCtx && state.metronomeCtx.state === "running") return;
+    void unlockAudioFromUserGesture();
+  };
+  document.addEventListener("pointerdown", unlock, { passive: true });
+  document.addEventListener("keydown", unlock);
+}
+
 function ensureAudioBus(ctx) {
   if (state.audioBus && state.audioBus.context === ctx) return state.audioBus;
   const comp = ctx.createDynamicsCompressor();
@@ -6625,6 +6648,7 @@ function stopAllHeldInputNotes() {
 
 function startHeldMidiInputNote(midi, instrument = "piano") {
   if (state.soundOutput === "midi") return;
+  if (!canPlayWebAudioFromMidiInput()) return;
   const note = Number(midi);
   if (!Number.isFinite(note)) return;
   if (!(state.heldMidiInputVoices instanceof Map)) state.heldMidiInputVoices = new Map();
@@ -7656,6 +7680,8 @@ async function toggleMidi() {
 }
 
 function bindEvents() {
+  bindAudioUnlockGestures();
+
   const bindImmediatePress = (button, action, options = {}) => {
     if (!button || typeof action !== "function") return;
     const highlightWhilePressed = !!options.highlightWhilePressed;

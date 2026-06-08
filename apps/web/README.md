@@ -222,6 +222,14 @@ python launch.py web --host 127.0.0.1 --port 8000
 
 Este comando usa `wrangler dev` con el mismo Worker que producción.
 
+Si necesitas HTTPS local, usa el mismo launcher con `--https`:
+
+```bash
+python launch.py web --host 127.0.0.1 --port 8443 --https
+```
+
+Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangler puede usar certificados propios con `--https-key-path` y `--https-cert-path` si hace falta.
+
 ## Frontend (modos SPA)
 
 El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.

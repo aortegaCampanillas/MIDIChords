@@ -19,12 +19,26 @@ def run_desktop() -> None:
     main()
 
 
-def run_web(host: str, port: int, reload: bool) -> None:
+def run_web(
+    host: str,
+    port: int,
+    reload: bool,
+    *,
+    https: bool = False,
+    https_key_path: str | None = None,
+    https_cert_path: str | None = None,
+) -> None:
     if reload:
         print("[web] Nota: --reload se ignora; wrangler ya sirve en modo desarrollo.")
 
+    has_custom_tls = bool(https_key_path or https_cert_path)
+    if bool(https_key_path) != bool(https_cert_path):
+        raise SystemExit("[web] --https-key-path y --https-cert-path deben usarse juntos.")
+    https = bool(https or has_custom_tls)
+
     wrangler_cmd = _get_wrangler_cmd()
     project_root = Path(__file__).resolve().parent
+    protocol = "https" if https else "http"
     cmd = [
         *wrangler_cmd,
         "dev",
@@ -35,7 +49,14 @@ def run_web(host: str, port: int, reload: bool) -> None:
         host,
         "--port",
         str(port),
+        "--local-protocol",
+        protocol,
     ]
+    if https_key_path:
+        cmd.extend(["--https-key-path", https_key_path])
+    if https_cert_path:
+        cmd.extend(["--https-cert-path", https_cert_path])
+    print(f"[web] Arrancando en {protocol}://{host}:{port}")
     try:
         subprocess.run(cmd, cwd=str(project_root), check=True)
     except subprocess.CalledProcessError as exc:
@@ -568,6 +589,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
     parser.add_argument(
+        "--https",
+        action="store_true",
+        help="Para web: arranca wrangler dev con HTTPS local.",
+    )
+    parser.add_argument(
+        "--https-key-path",
+        default=None,
+        help="Para web --https: ruta a una clave privada TLS personalizada.",
+    )
+    parser.add_argument(
+        "--https-cert-path",
+        default=None,
+        help="Para web --https: ruta a un certificado TLS personalizado.",
+    )
+    parser.add_argument(
         "--project-name",
         default=None,
         help="Para deploy-web: nombre del proyecto en Cloudflare Pages (o usa CLOUDFLARE_PAGES_PROJECT).",
@@ -616,7 +652,14 @@ def main() -> None:
         run_deploy_web(project_name=args.project_name)
         return
     if args.target == "web":
-        run_web(host=args.host, port=args.port, reload=bool(args.reload))
+        run_web(
+            host=args.host,
+            port=args.port,
+            reload=bool(args.reload),
+            https=bool(args.https),
+            https_key_path=args.https_key_path,
+            https_cert_path=args.https_cert_path,
+        )
         return
     if args.target == "mobile":
         mobile_args = args.mobile_args if args.mobile_args else []

@@ -10,6 +10,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (desarrollo local)**: eliminadas las configuraciones obsoletas de VS Code **HTTPS + Backend**, el servidor proxy `serve_https.py` y la guía `HTTPS_SETUP.md`. El flujo local queda unificado en `python launch.py web`, con nueva opción `--https` para arrancar el mismo Worker con HTTPS nativo de Wrangler.
+
+- **Web (MIDI + audio)**: si la entrada MIDI se reactiva automáticamente antes de cualquier gesto del usuario, las notas MIDI ya no intentan arrancar WebAudio hasta que Chrome permita reanudar el `AudioContext`; la detección visual sigue funcionando y el audio se desbloquea con el primer clic o tecla en la página.
+
 - **Web (MIDI)**: el arranque ya no muestra siempre el modal de activación. Si el navegador conserva el permiso MIDI y el usuario no lo había desactivado, la entrada MIDI se reactiva automáticamente; también se respeta la última salida elegida (`Audio` / `MIDI out`) desde `localStorage`.
 
 - **Web (front page)**: la landing prioriza ahora la **detección de intervalos** en metadatos, hero y tarjeta de la app web; se elimina la referencia visible al **afinador** en la franja de features y textos promocionales.

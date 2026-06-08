@@ -2984,7 +2984,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onMidiPacket(MidiPacket packet) {
-    if (!_midiInputEnabled || _tabIndex != 0) return;
+    if (!_midiInputEnabled) return;
     final bytes = packet.data;
     var hadNoteChannelMessage = false;
     for (var i = 0; i + 2 < bytes.length; i += 3) {
@@ -2995,26 +2995,39 @@ class _HomeScreenState extends State<HomeScreen>
       final isNoteOff = status == 0x80 || (status == 0x90 && velocity == 0);
       if (!isNoteOn && !isNoteOff) continue;
       hadNoteChannelMessage = true;
-      if (isNoteOn) {
-        if (_detectionMidiHeldNotes.isEmpty &&
-            _detectionSelectedNotes.isNotEmpty) {
-          _detectionSelectedNotes.clear();
-          _stopHeldInputs();
+
+      // Track held notes for MIDI highlighting in generation mode (tabIndex 1 or 2)
+      if (_tabIndex == 1 || _tabIndex == 2) {
+        if (isNoteOn) {
+          _generationMidiHeldNotes.add(note);
+        } else {
+          _generationMidiHeldNotes.remove(note);
         }
-        _detectionMidiHeldNotes.add(note);
-        if (_midiInputSoundEnabled) {
-          unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
+      }
+
+      // Detection mode handling (tabIndex 0)
+      if (_tabIndex == 0) {
+        if (isNoteOn) {
+          if (_detectionMidiHeldNotes.isEmpty &&
+              _detectionSelectedNotes.isNotEmpty) {
+            _detectionSelectedNotes.clear();
+            _stopHeldInputs();
+          }
+          _detectionMidiHeldNotes.add(note);
+          if (_midiInputSoundEnabled) {
+            unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
+          }
+        } else {
+          _detectionMidiHeldNotes.remove(note);
+          _releaseHeldMidiInputNote(note);
         }
-      } else {
-        _detectionMidiHeldNotes.remove(note);
-        _releaseHeldMidiInputNote(note);
       }
     }
     if (hadNoteChannelMessage) {
       _bumpMidiScreenActivityTimer();
     }
     if (mounted) setState(() {});
-    if (!_requestInFlight) {
+    if (_tabIndex == 0 && !_requestInFlight) {
       unawaited(_callDetect());
     }
   }

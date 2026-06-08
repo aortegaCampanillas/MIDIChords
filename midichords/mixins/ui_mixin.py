@@ -2463,18 +2463,18 @@ class UiMixin:
         # Solo note_off al soltar de notas donde note_on creó voz (si ya sonaba, note_on se ignora y no hacemos off).
         owned: set[int] = set()
         for note in detection_notes:
-            if self.audio_engine.note_on(int(note), 108):
+            if self.play_note(int(note), 108):
                 owned.add(int(note))
         if not owned and detection_notes:
             # Todas las notas ya estaban en el motor (duplicado): cortar y volver a disparar para que el transport se oiga.
             for note in detection_notes:
-                self.audio_engine.note_off(int(note))
+                self.stop_note(int(note))
             try:
                 self.sounding_notes -= set(int(n) for n in detection_notes)
             except Exception:
                 pass
             for note in detection_notes:
-                if self.audio_engine.note_on(int(note), 108):
+                if self.play_note(int(note), 108):
                     owned.add(int(note))
         self._detection_preview_owned_notes = owned
         self.detection_play_btn.set_playing(True)
@@ -2516,7 +2516,7 @@ class UiMixin:
         owned = set(getattr(self, "_detection_preview_owned_notes", set()))
         if owned:
             for note in owned:
-                self.audio_engine.note_off(int(note))
+                self.stop_note(int(note))
         self._detection_preview_owned_notes = set()
         if hasattr(self, "detection_play_btn"):
             self.detection_play_btn.set_playing(False)

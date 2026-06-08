@@ -356,10 +356,10 @@ class OverlaysMixin:
         previous = str(self.audio_engine.preset)
         self.audio_engine.set_preset(preset)
         preview_note = 60
-        self.audio_engine.note_on(preview_note, 106)
+        self.play_note(preview_note, 106)
 
         def stop_preview() -> None:
-            self.audio_engine.note_off(preview_note)
+            self.stop_note(preview_note)
             self.audio_engine.set_preset(previous)
 
         self.after(520, stop_preview)

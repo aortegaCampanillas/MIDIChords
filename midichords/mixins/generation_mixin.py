@@ -500,7 +500,7 @@ class GenerationMixin:
                 self.redraw_staff()
             return
         for note in notes:
-            self.audio_engine.note_on(note, 108)
+            self.play_note(note, 108)
             self.generated_playing_notes.add(note)
         if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
             self.redraw_keyboard()
@@ -510,7 +510,7 @@ class GenerationMixin:
             setattr(self, "_preview_chord_after_id", None)
             for note in list(notes):
                 if note in self.generated_playing_notes:
-                    self.audio_engine.note_off(note)
+                    self.stop_note(note)
                     self.generated_playing_notes.discard(note)
             if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
                 self.redraw_keyboard()
@@ -544,7 +544,7 @@ class GenerationMixin:
                 pass
         self.generated_note_highlight_after.clear()
         for note in list(self.generated_playing_notes):
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         self.generated_playing_notes.clear()
         if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
             self.redraw_keyboard()
@@ -570,7 +570,7 @@ class GenerationMixin:
         if note in self.generated_playing_notes:
             self.generated_playing_notes.discard(note)
         if stop_audio:
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         if self.generation_tab_active:
             self.redraw_keyboard()
             self.redraw_guitar_fretboard()
@@ -612,14 +612,14 @@ class GenerationMixin:
             self.generated_note_highlight_after.clear()
             for n in list(self.generated_playing_notes):
                 if self.instrument_view != "guitar":
-                    self.audio_engine.note_off(n)
+                    self.stop_note(n)
             self.generated_playing_notes.clear()
         self.generated_playing_notes.add(note)
         if self.instrument_view == "guitar":
             self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
             stop_audio = False
         else:
-            self.audio_engine.note_on(note, 108)
+            self.play_note(note, 108)
             stop_audio = True
         if auto_clear_ms is not None and int(auto_clear_ms) > 0:
             self.generated_note_highlight_after[note] = self.after(
@@ -640,7 +640,7 @@ class GenerationMixin:
                 self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
         else:
             for note in notes:
-                self.audio_engine.note_on(note, 108)
+                self.play_note(note, 108)
                 self.generated_playing_notes.add(note)
         if self.generation_tab_active:
             self.redraw_keyboard()

@@ -114,7 +114,7 @@ class ScalesMixin:
             and self.scale_current_note is not None
         ):
             # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
-            self.audio_engine.note_off(self.scale_current_note)
+            self.stop_note(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
 
     def _set_scale_octaves(self, octaves: int) -> None:
@@ -491,11 +491,11 @@ class ScalesMixin:
                 pass
             self.scale_loop_after_id = None
         if self.scale_current_note is not None:
-            self.audio_engine.note_off(self.scale_current_note)
+            self.stop_note(self.scale_current_note)
             self.scale_current_note = None
         self.scale_input_raw_note = None
         for note in list(self.scale_playing_notes):
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         self.scale_playing_notes.clear()
         self.scale_play_btn.set_playing(False)
         if self.scale_tab_active:
@@ -513,7 +513,7 @@ class ScalesMixin:
             return
         self.scale_staff_drag_active = False
         for note in list(self.staff_pressed_scale_notes):
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         self.staff_pressed_scale_notes.clear()
         self.staff_pressed_scale_degrees.clear()
         self.scale_guitar_click_highlight_notes.clear()
@@ -636,12 +636,12 @@ class ScalesMixin:
 
         if self.scale_current_note is not None:
             if self.scale_current_note not in self.staff_pressed_scale_notes:
-                self.audio_engine.note_off(self.scale_current_note)
+                self.stop_note(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
         self.scale_current_note = note
         self.scale_input_raw_note = None
         if play_piano:
-            self.audio_engine.note_on(note, 104)
+            self.play_note(note, 104)
             self.scale_playing_notes.add(note)
         elif play_guitar:
             self.audio_engine.pluck_guitar_note(note, velocity=104, duration_seconds=1.2)

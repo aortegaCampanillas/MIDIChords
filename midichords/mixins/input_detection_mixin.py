@@ -172,7 +172,7 @@ class InputDetectionMixin:
 
     def _clear_live_input_state(self) -> None:
         for note in list(self.sounding_notes):
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         self.sounding_notes.clear()
         self.active_notes.clear()
         self.midi_held_notes.clear()
@@ -239,9 +239,9 @@ class InputDetectionMixin:
         to_start = next_sounding - self.sounding_notes
         to_stop = self.sounding_notes - next_sounding
         for note in to_start:
-            self.audio_engine.note_on(note, int(self.note_velocity.get(note, 100)))
+            self.play_note(note, int(self.note_velocity.get(note, 100)))
         for note in to_stop:
-            self.audio_engine.note_off(note)
+            self.stop_note(note)
         self.sounding_notes = next_sounding
         self._detection_last_audio_apply = time.monotonic()
 

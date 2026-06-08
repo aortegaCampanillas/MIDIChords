@@ -90,7 +90,7 @@
       {
         "date": "2026-04-13",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Nuevo modo: detección de intervalos melódicos con canciones de referencia",
         "en": "New mode: melodic interval detection with reference songs for each interval"
       },

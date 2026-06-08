@@ -63,14 +63,14 @@
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop"],
         "es": "Escalas: selector de octavas (1, 2 o 3) para reproducción y marcado en el piano",
         "en": "Scales: octave selector (1, 2 or 3) for playback and piano highlighting"
       },
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop"],
         "es": "Panel de novedades integrado en la propia aplicación web",
         "en": "What's New panel built into the web app itself"
       }

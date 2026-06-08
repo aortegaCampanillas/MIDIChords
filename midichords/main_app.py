@@ -53,6 +53,7 @@ from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.ui_mixin import UiMixin
 from midichords.mixins.render_mixin import RenderMixin
 from midichords.mixins.overlays_mixin import OverlaysMixin
+from midichords.mixins.changelog_mixin import ChangelogMixin
 
 class MidiChordAnalyzerApp(
     UiMixin,
@@ -65,6 +66,7 @@ class MidiChordAnalyzerApp(
     CircleFifthsMixin,
     MidiIOMixin,
     InputDetectionMixin,
+    ChangelogMixin,
     QtSchedulerMixin,
     QMainWindow,
 ):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import midichords.qt.tk_compat as tk
 import time
-from midichords.core.music_theory import SCALE_PATTERNS, ScalePattern
+from midichords.core.music_theory import SCALE_PATTERNS, SCALE_BASIC_NAMES, ScalePattern
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 
@@ -322,17 +322,42 @@ class ScalesMixin:
 
         header = tk.Frame(overlay, bg="#2a2f36")
         header.pack(fill=tk.X, padx=10, pady=(10, 4))
+
+        # Título + botón toggle Básicas/Todas
+        header_left = tk.Frame(header, bg="#2a2f36")
+        header_left.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
         tk.Label(
-            header,
+            header_left,
             text=self.tr("label_scale_type"),
             bg="#2a2f36",
             fg="#f0f0f0",
             font=(self.ui_font_family, 15, "bold"),
         ).pack(side=tk.LEFT)
 
+        # Toggle Básicas/Todas
+        if not hasattr(self, "scale_filter_mode"):
+            self.scale_filter_mode = "basic"
+
+        filter_btn = GrayRoundedButton(
+            header_left,
+            text=self.tr("basic") if self.scale_filter_mode == "basic" else self.tr("all"),
+            command=self._toggle_scale_filter_mode,
+            font_family=self.ui_font_family,
+            width=90,
+            height=40,
+            radius=12,
+            font_size=12,
+            text_color="#f2f2f2",
+            selected_text_color="#000000",
+        )
+        filter_btn.pack(side=tk.RIGHT, padx=10)
+        self.scale_filter_btn = filter_btn
+
         body = tk.Frame(overlay, bg="#2a2f36")
         body.pack(fill=tk.BOTH, expand=True, padx=10, pady=(2, 10))
         search_var, entry = self._build_rounded_search_entry(body, self.tr("label_search_scale"))
+        self._scale_search_var = search_var  # Guardar para acceso desde _toggle_scale_filter_mode
 
         buttons_frame = self._build_scrollable_area(body, bg="#2a2f36", padx=0, pady=(0, 0))
         for col in range(2):
@@ -343,7 +368,12 @@ class ScalesMixin:
                 w.destroy()
 
             term = search_var.get().strip().lower()
-            filtered = [p for p in SCALE_PATTERNS if term in self.scale_name(p.name).lower()]
+            patterns = SCALE_PATTERNS
+            # Aplicar filtro de básicas si está activo
+            if self.scale_filter_mode == "basic":
+                patterns = [p for p in patterns if p.name in SCALE_BASIC_NAMES]
+            # Aplicar búsqueda
+            filtered = [p for p in patterns if term in self.scale_name(p.name).lower()]
             for idx, pattern in enumerate(filtered):
                 btn = GrayRoundedButton(
                     buttons_frame,
@@ -366,6 +396,17 @@ class ScalesMixin:
         search_var.trace_add("write", on_search)
         render_buttons()
         entry.focus_set()
+    def _toggle_scale_filter_mode(self) -> None:
+        self.scale_filter_mode = "all" if self.scale_filter_mode == "basic" else "basic"
+        # Actualizar el texto del botón y re-renderizar la lista
+        # Nota: Como estamos dentro del diálogo, necesitamos que se llame a render_buttons
+        # Para ello, simulamos un cambio en el campo de búsqueda
+        if hasattr(self, "scale_filter_btn"):
+            btn_text = self.tr("basic") if self.scale_filter_mode == "basic" else self.tr("all")
+            self.scale_filter_btn.set_text(btn_text)
+        # El cambio en search_var se captura automáticamente vía trace_add
+        if hasattr(self, "_scale_search_var"):
+            self._scale_search_var.set(self._scale_search_var.get())
     def _close_scale_type_overlay(self) -> None:
         if self.scale_type_overlay is not None:
             self.scale_type_overlay.destroy()

@@ -103,6 +103,25 @@ COMMON_CHORD_SUFFIX_ORDER = (
     "m7b5",
 )
 
+# Escalas básicas/más comunes para filtrar en UI
+SCALE_BASIC_NAMES = {
+    "Ionian",
+    "Aeolian",
+    "Harmonic Minor",
+    "Melodic Minor",
+    "Dorian",
+    "Phrygian",
+    "Lydian",
+    "Mixolydian",
+    "Locrian",
+    "Major Pentatonic",
+    "Minor Pentatonic",
+    "Blues Pentatonic",
+    "Minor Blues",
+    "Chromatic",
+    "Whole Tone (WT)",
+}
+
 SCALE_PATTERNS = [
     ScalePattern("Ionian", (0, 2, 4, 5, 7, 9, 11, 12)),
     ScalePattern("Dorian", (0, 2, 3, 5, 7, 9, 10, 12)),

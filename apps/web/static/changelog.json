@@ -42,30 +42,35 @@
       {
         "date": "2026-05-30",
         "publish": true,
+        "platforms": ["web"],
         "es": "MIDI: nuevo botón de salida de sonido (Audio / MIDI out). En modo MIDI out la app no genera audio propio; las notas se envían al dispositivo MIDI conectado. El ajuste se recuerda entre sesiones. La opción activa se resalta en amarillo en el diálogo de inicio.",
         "en": "MIDI: new sound output toggle (Audio / MIDI out). In MIDI out mode the app generates no audio of its own; notes are sent to the connected MIDI device. The setting is remembered across sessions. The active option is highlighted in yellow in the startup dialog."
       },
       {
         "date": "2026-05-30",
         "publish": true,
+        "platforms": ["web", "desktop"],
         "es": "Escalas: lista ampliada con nuevas escalas y modos, botón Básicas/Todas para filtrar, alias de nombre común junto al nombre modal",
         "en": "Scales: expanded list with new scales and modes, Basic/All filter button, common name alias shown alongside modal name"
       },
       {
         "date": "2026-05-30",
         "publish": true,
+        "platforms": ["web"],
         "es": "Escalas: digitación de mano derecha e izquierda en el piano",
         "en": "Scales: right and left hand fingering on the piano"
       },
       {
         "date": "2026-05-30",
         "publish": true,
+        "platforms": ["web"],
         "es": "Escalas: selector de octavas (1, 2 o 3) para reproducción y marcado en el piano",
         "en": "Scales: octave selector (1, 2 or 3) for playback and piano highlighting"
       },
       {
         "date": "2026-05-30",
         "publish": true,
+        "platforms": ["web"],
         "es": "Panel de novedades integrado en la propia aplicación web",
         "en": "What's New panel built into the web app itself"
       }
@@ -78,30 +83,35 @@
       {
         "date": "2026-05-21",
         "publish": true,
+        "platforms": ["web"],
         "es": "MIDI en generación de acordes: notas mantenidas en el teclado se resaltan en tiempo real",
         "en": "MIDI in chord generation: held keyboard notes highlighted in real time on the piano"
       },
       {
         "date": "2026-04-13",
         "publish": true,
+        "platforms": ["web"],
         "es": "Nuevo modo: detección de intervalos melódicos con canciones de referencia",
         "en": "New mode: melodic interval detection with reference songs for each interval"
       },
       {
         "date": "2026-04-02",
         "publish": true,
+        "platforms": ["web"],
         "es": "Círculo de quintas interactivo: visualiza tonalidades, acordes diatónicos y armaduras",
         "en": "Interactive circle of fifths: visualize keys, diatonic chords and key signatures"
       },
       {
         "date": "2026-04-07",
         "publish": true,
+        "platforms": ["web"],
         "es": "Nueva página de inicio con galería de capturas y descarga para Linux (.deb)",
         "en": "New landing page with screenshot gallery and Linux (.deb) download"
       },
       {
         "date": "2026-03-22",
         "publish": true,
+        "platforms": ["web"],
         "es": "Nombres de nota (#/♭) según el selector del usuario, independiente de la armadura del acorde",
         "en": "Note names (#/♭) follow the user's selector, independent of chord key signature"
       }
@@ -114,6 +124,7 @@
       {
         "date": "2026-03-21",
         "publish": true,
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Primera versión estable publicada",
         "en": "First stable release published"
       },

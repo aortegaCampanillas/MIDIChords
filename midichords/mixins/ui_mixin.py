@@ -421,7 +421,7 @@ class UiMixin:
             usable_w = max(1, w - gap)
             left_w = max(1, int(usable_w * 0.58))
             # Ancho mínimo panel derecho para que no se corten Notas ni Intervalos en Escalas.
-            right_w = max(580, usable_w - left_w)
+            right_w = max(480, usable_w - left_w)
             left_w = max(1, usable_w - gap - right_w)
             self.left_panel.place(x=0, y=0, width=left_w, height=h)
             self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
@@ -457,9 +457,12 @@ class UiMixin:
         )
         self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
-        self.right_side_panel.pack(fill=tk.BOTH, expand=True)
+        self.right_side_panel.pack(fill=tk.X, expand=False)
         self.right_side_panel.columnconfigure(0, weight=1)
-        self.right_side_panel.rowconfigure(0, weight=1)
+
+        # Spacer to absorb extra vertical space
+        _spacer = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        _spacer.pack(fill=tk.BOTH, expand=True)
 
         self.chord_panel = tk.Frame(
             self.right_side_panel,
@@ -469,14 +472,14 @@ class UiMixin:
             padx=0,
             pady=0,
         )
-        self.chord_panel.grid(row=0, column=0, sticky="nsew")
+        self.chord_panel.grid(row=0, column=0, sticky="new")
 
         self.tab_detection_frame = tk.Frame(
             self.chord_panel,
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
-            padx=4,
+            padx=0,
             pady=3,
         )
         self.tab_generation_frame = tk.Frame(
@@ -519,7 +522,7 @@ class UiMixin:
             padx=6,
             pady=6,
         )
-        self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
+        self.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
         # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
         for _hidden_tab in (
             self.tab_generation_frame,
@@ -537,7 +540,7 @@ class UiMixin:
             fg=self.color_text,
             font=(self.ui_font_family, 22, "bold"),
         )
-        self.chord_title_label.pack(anchor="w", pady=(0, 2))
+        self.chord_title_label.pack(anchor="w", pady=(0, 6))
         self.detection_help_label = tk.Label(
             self.tab_detection_frame,
             text="",
@@ -545,14 +548,14 @@ class UiMixin:
             fg=self.color_muted,
             justify="left",
             anchor="nw",
-            wraplength=550,
-            font=(self.ui_font_family, 16),
+            wraplength=800,
+            font=(self.ui_font_family, 14),
         )
         # Do not pack here - it's managed by _refresh_detection_help_label() in the detection tab
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
         # El botón MIDI solo ocupa el ancho del texto (no expande a todo el panel).
         # Margen inferior para separar los botones del bloque de resultados.
-        self.detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 2))
+        self.detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 8))
         # Igual que generación: el audio va en ButtonPress + bind_all release; no llamar command al soltar (doble note_on en Qt).
         self.detection_play_btn = PlayTransportButton(
             self.detection_controls_row,
@@ -2166,7 +2169,7 @@ class UiMixin:
                 self.detection_help_label.pack(
                     fill=tk.X,
                     anchor="w",
-                    pady=(0, 12),
+                    pady=(0, 10),
                     before=self.detection_controls_row,
                 )
             except Exception:

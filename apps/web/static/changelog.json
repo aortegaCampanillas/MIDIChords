@@ -111,7 +111,7 @@
       {
         "date": "2026-03-22",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Nombres de nota (#/♭) según el selector del usuario, independiente de la armadura del acorde",
         "en": "Note names (#/♭) follow the user's selector, independent of chord key signature"
       }

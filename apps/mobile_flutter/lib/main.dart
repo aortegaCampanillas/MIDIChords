@@ -9192,6 +9192,29 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  /// Play a note via audio or MIDI output based on _soundOutput setting.
+  /// Currently routes to audio. MIDI integration pending.
+  Future<void> playNote(int midiNote, {int velocity = 80}) async {
+    if (_soundOutput == 'midi') {
+      // TODO: Send MIDI note_on to connected device
+      // _midiCommand.sendMessageWithMidiPacket(midiNote, velocity);
+      return;
+    }
+    // Default: audio playback
+    // TODO: Integrate with actual note playback logic
+  }
+
+  /// Stop a note via audio or MIDI output based on _soundOutput setting.
+  Future<void> stopNote(int midiNote) async {
+    if (_soundOutput == 'midi') {
+      // TODO: Send MIDI note_off to connected device
+      // _midiCommand.sendMessageWithMidiPacket(midiNote, 0);
+      return;
+    }
+    // Default: audio playback
+    // TODO: Integrate with actual note stop logic
+  }
+
 }
 
 class _MiniStaffPainter extends CustomPainter {

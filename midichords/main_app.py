@@ -251,6 +251,7 @@ class MidiChordAnalyzerApp(
         self.generation_piano_staff_drag_active = False
         self.generation_drag_notes: set[int] = set()
         self.generation_drag_moved = False
+        self.generation_midi_held_notes: set[int] = set()  # MIDI notes held in chord generation mode
         self._settings_save_callback = None
         self.detect_hold_notes: set[int] = set()
         self.detect_hold_active = False

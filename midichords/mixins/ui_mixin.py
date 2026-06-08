@@ -2764,7 +2764,8 @@ class UiMixin:
             return "break"
 
         # Create a simple dropdown menu
-        menu = tk.Menu(self.mode_picker_trigger, tearoff=False, bg=self.color_surface, fg=self.color_text)
+        # Use self as parent instead of Canvas to ensure proper lifecycle
+        menu = tk.Menu(self, tearoff=False, bg=self.color_surface, fg=self.color_text)
         menu.config(activebackground=self.color_accent, activeforeground="#000000")
 
         available_modes = self._available_mode_keys()
@@ -2780,6 +2781,9 @@ class UiMixin:
         x = self.mode_picker_trigger.winfo_rootx()
         y = self.mode_picker_trigger.winfo_rooty() + self.mode_picker_trigger.winfo_height()
         menu.post(x, y)
+
+        # Keep reference to prevent garbage collection
+        self._mode_dropdown_menu = menu
 
         return "break"
 

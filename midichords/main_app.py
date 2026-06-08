@@ -420,10 +420,21 @@ class MidiChordAnalyzerApp(
 
 
 
+    # Audio/MIDI output wrapper methods
+    def play_note(self, midi_note: int, velocity: int = 80) -> bool:
+        """Play a note via audio engine or MIDI output based on sound_output setting."""
+        if self.sound_output == "midi" and self.midi_output_port is not None:
+            self.send_midi_note_on(self.midi_output_port, midi_note, velocity)
+            return True
+        else:
+            return self.audio_engine.note_on(midi_note, velocity)
 
-
-
-
+    def stop_note(self, midi_note: int) -> None:
+        """Stop a note via audio engine or MIDI output based on sound_output setting."""
+        if self.sound_output == "midi" and self.midi_output_port is not None:
+            self.send_midi_note_off(self.midi_output_port, midi_note)
+        else:
+            self.audio_engine.note_off(midi_note)
 
     def _set_instrument_view(self, view: str) -> None:
         self.instrument_view = "guitar" if view == "guitar" else "piano"

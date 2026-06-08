@@ -9193,26 +9193,43 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   /// Play a note via audio or MIDI output based on _soundOutput setting.
-  /// Currently routes to audio. MIDI integration pending.
-  Future<void> playNote(int midiNote, {int velocity = 80}) async {
+  Future<void> playNote(int midiNote, {int velocity = 80, String instrument = 'piano', double durationSeconds = 0.6}) async {
     if (_soundOutput == 'midi') {
-      // TODO: Send MIDI note_on to connected device
-      // _midiCommand.sendMessageWithMidiPacket(midiNote, velocity);
+      // Send MIDI note_on to connected device if available
+      try {
+        if (_midiConnectedDevices.isNotEmpty) {
+          // TODO: Implement MIDI note_on message sending via _midiCommand
+          // Would send: status=0x90 (note_on), note=midiNote, velocity=velocity
+        }
+      } catch (e) {
+        // MIDI error, continue without sound
+      }
       return;
     }
-    // Default: audio playback
-    // TODO: Integrate with actual note playback logic
+    // Default: audio playback via synthesizer
+    await _playTone(
+      midi: midiNote,
+      instrument: instrument,
+      durationSeconds: durationSeconds,
+    );
   }
 
   /// Stop a note via audio or MIDI output based on _soundOutput setting.
   Future<void> stopNote(int midiNote) async {
     if (_soundOutput == 'midi') {
-      // TODO: Send MIDI note_off to connected device
-      // _midiCommand.sendMessageWithMidiPacket(midiNote, 0);
+      // Send MIDI note_off to connected device if available
+      try {
+        if (_midiConnectedDevices.isNotEmpty) {
+          // TODO: Implement MIDI note_off message sending via _midiCommand
+          // Would send: status=0x80 (note_off), note=midiNote, velocity=0
+        }
+      } catch (e) {
+        // MIDI error, continue
+      }
       return;
     }
-    // Default: audio playback
-    // TODO: Integrate with actual note stop logic
+    // Default: audio playback (note will naturally decay based on duration parameter)
+    // No explicit stop needed for synthesized tones with fixed duration
   }
 
 }

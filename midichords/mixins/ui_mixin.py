@@ -118,7 +118,7 @@ class UiMixin:
         style.configure("TCombobox", font=(self.ui_font_family, 13))
         style.configure(
             "Panel.TCombobox",
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
             foreground=self.color_text,
             fieldbackground=self.color_surface,
             background=self.color_surface,
@@ -314,7 +314,7 @@ class UiMixin:
             anchor="w",
             text="",
             fill=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
             0,
@@ -322,7 +322,7 @@ class UiMixin:
             anchor="e",
             text="▼",
             fill=self.color_muted,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
 
         def _mode_picker_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
@@ -440,7 +440,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_muted,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="w",
         )
         self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
@@ -452,7 +452,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_muted,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="w",
         )
         self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
@@ -598,7 +598,7 @@ class UiMixin:
         self.detection_result_canvas = tk.Canvas(
             self.tab_detection_frame,
             bg=self.color_surface_alt,
-            height=160,
+            height=180,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
@@ -622,16 +622,82 @@ class UiMixin:
             w = max(40, int(self.detection_result_canvas.winfo_width()))
             h = max(180, int(self.detection_result_canvas.winfo_height()))
             self.detection_result_canvas.delete("result_block_bg")
+            radius = 15
             self.detection_result_canvas.create_rectangle(
-                1,
-                1,
-                w - 1,
-                h - 1,
+                radius, 1, w - radius, h - 1,
                 fill="#17273a",
-                outline="#73829a",
-                width=1,
-                dash=(3, 3),
+                outline="",
                 tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_rectangle(
+                1, radius, w - 1, h - radius,
+                fill="#17273a",
+                outline="",
+                tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=90, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=0, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=180, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=270, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_line(
+                radius + 1, 1, w - radius - 1, 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_line(
+                1, radius + 1, 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_line(
+                radius + 1, h - 1, w - radius - 1, h - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_line(
+                w - 1, radius + 1, w - 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=90, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=0, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=180, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.detection_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=270, extent=90, style=tk.ARC, tags="result_block_bg",
             )
             pad = 8
             self.detection_result_canvas.coords(self._detection_result_window_id, pad, pad)
@@ -645,69 +711,82 @@ class UiMixin:
         self.detection_result_canvas.bind("<Configure>", redraw_detection_result_block)
         redraw_detection_result_block()
 
-        self.chord_label = tk.Label(
-            self.detection_result_inner,
-            textvariable=self.chord_var,
-            bg="#17273a",
-            fg=self.color_text,
-            font=(self.ui_font_family, 42, "bold"),
-        )
-        self.chord_label.pack(anchor="w", pady=(0, 2))
-
-        self.notes_caption_label = tk.Label(
-            self.detection_result_inner,
+        self.chord_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.chord_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
+        self.chord_caption_label = tk.Label(
+            self.chord_row,
             text="",
             bg="#17273a",
-            fg=self.color_text,
-            font=(self.ui_font_family, 16, "bold"),
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
         )
-        self.notes_caption_label.pack(anchor="w")
+        self.chord_caption_label.pack(side=tk.LEFT)
+        self.chord_label = tk.Label(
+            self.chord_row,
+            textvariable=self.chord_var,
+            bg="#17273a",
+            fg=self.color_accent,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.chord_label.pack(side=tk.LEFT, padx=(4, 0))
+
+        self.notes_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.notes_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
+        self.notes_caption_label = tk.Label(
+            self.notes_row,
+            text="",
+            bg="#17273a",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+        )
+        self.notes_caption_label.pack(side=tk.LEFT)
         self.notes_var = tk.StringVar(value="-")
         self.notes_label = tk.Label(
-            self.detection_result_inner,
+            self.notes_row,
             textvariable=self.notes_var,
             bg="#17273a",
             fg=self.color_text,
-            wraplength=420,
-            font=(self.ui_mono_font_family, 16),
+            font=(self.ui_mono_font_family, 14),
         )
-        self.notes_label.pack(anchor="w", pady=(1, 1))
+        self.notes_label.pack(side=tk.LEFT, padx=(4, 0))
+        self.intervals_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.intervals_row.pack(anchor="w", pady=(0, 8), fill=tk.X)
         self.intervals_caption_label = tk.Label(
-            self.detection_result_inner,
+            self.intervals_row,
             text="",
             bg="#17273a",
-            fg=self.color_text,
-            font=(self.ui_font_family, 16, "bold"),
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
         )
-        self.intervals_caption_label.pack(anchor="w")
+        self.intervals_caption_label.pack(side=tk.LEFT)
         self.intervals_var = tk.StringVar(value="-")
         self.intervals_label = tk.Label(
-            self.detection_result_inner,
+            self.intervals_row,
             textvariable=self.intervals_var,
             bg="#17273a",
             fg=self.color_text,
-            wraplength=420,
-            font=(self.ui_mono_font_family, 16),
+            font=(self.ui_mono_font_family, 14),
         )
-        self.intervals_label.pack(anchor="w", pady=(1, 1))
+        self.intervals_label.pack(side=tk.LEFT, padx=(4, 0))
+        self.extra_notes_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.extra_notes_row.pack(anchor="w", pady=(0, 0), fill=tk.X)
         self.extra_notes_caption_label = tk.Label(
-            self.detection_result_inner,
+            self.extra_notes_row,
             text="",
             bg="#17273a",
-            fg=self.color_text,
-            font=(self.ui_font_family, 16, "bold"),
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
         )
-        self.extra_notes_caption_label.pack(anchor="w", pady=(0, 0))
+        self.extra_notes_caption_label.pack(side=tk.LEFT)
         self.extra_notes_var = tk.StringVar(value="")
         self.extra_notes_label = tk.Label(
-            self.detection_result_inner,
+            self.extra_notes_row,
             textvariable=self.extra_notes_var,
             bg="#17273a",
             fg="#ff5a5f",
-            wraplength=420,
-            font=(self.ui_mono_font_family, 16, "bold"),
+            font=(self.ui_mono_font_family, 14, "bold"),
         )
-        self.extra_notes_label.pack(anchor="w", pady=(0, 1))
+        self.extra_notes_label.pack(side=tk.LEFT, padx=(4, 0))
 
         self.generated_title_label = tk.Label(
             self.tab_generation_frame,
@@ -723,7 +802,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.generation_root_btn = GrayRoundedButton(
@@ -745,7 +824,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.generation_variant_btn = GrayRoundedButton(
@@ -767,7 +846,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 4), padx=(0, 8))
         self.generation_inversion_btn = GrayRoundedButton(
@@ -797,7 +876,7 @@ class UiMixin:
             text="",
             bg="transparent",
             fg=self.color_muted,
-            font=(self.ui_font_family, 15),
+            font=(self.ui_font_family, 14),
             highlightthickness=0,
         )
         self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
@@ -874,16 +953,82 @@ class UiMixin:
             w = max(40, int(self.generation_result_canvas.winfo_width()))
             h = max(120, int(self.generation_result_canvas.winfo_height()))
             self.generation_result_canvas.delete("result_block_bg")
+            radius = 15
             self.generation_result_canvas.create_rectangle(
-                1,
-                1,
-                w - 1,
-                h - 1,
+                radius, 1, w - radius, h - 1,
                 fill="#17273a",
-                outline="#73829a",
-                width=1,
-                dash=(3, 3),
+                outline="",
                 tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_rectangle(
+                1, radius, w - 1, h - radius,
+                fill="#17273a",
+                outline="",
+                tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=90, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=0, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=180, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=270, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_line(
+                radius + 1, 1, w - radius - 1, 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_line(
+                1, radius + 1, 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_line(
+                radius + 1, h - 1, w - radius - 1, h - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_line(
+                w - 1, radius + 1, w - 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=90, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=0, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=180, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.generation_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=270, extent=90, style=tk.ARC, tags="result_block_bg",
             )
             pad = 10
             self.generation_result_canvas.coords(self._generation_result_window_id, pad, pad)
@@ -902,7 +1047,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         self.generated_notes_caption_label.pack(anchor="w")
         self.generated_notes_var = tk.StringVar(value="-")
@@ -912,7 +1057,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 15),
+            font=(self.ui_mono_font_family, 14),
         )
         self.generated_notes_label.pack(anchor="w", pady=(3, 4))
         self.generated_intervals_caption_label = tk.Label(
@@ -920,7 +1065,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         self.generated_intervals_caption_label.pack(anchor="w")
         self.generated_intervals_var = tk.StringVar(value="-")
@@ -930,7 +1075,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 15),
+            font=(self.ui_mono_font_family, 14),
         )
         self.generated_intervals_label.pack(anchor="w", pady=(3, 0))
 
@@ -1033,7 +1178,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_muted,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
             anchor="w",
             width=8,
         )
@@ -1119,7 +1264,7 @@ class UiMixin:
             text="120 BPM",
             bg=panel_bg,
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             width=7,
             anchor="e",
         )
@@ -1131,7 +1276,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.scale_tonic_btn = GrayRoundedButton(
@@ -1153,7 +1298,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         self.scale_type_btn = GrayRoundedButton(
@@ -1176,7 +1321,7 @@ class UiMixin:
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.scale_octave_selector_label.grid(row=3, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
 
@@ -1289,16 +1434,82 @@ class UiMixin:
             w = max(40, int(self.scale_result_canvas.winfo_width()))
             h = max(120, int(self.scale_result_canvas.winfo_height()))
             self.scale_result_canvas.delete("result_block_bg")
+            radius = 15
             self.scale_result_canvas.create_rectangle(
-                1,
-                1,
-                w - 1,
-                h - 1,
+                radius, 1, w - radius, h - 1,
                 fill="#17273a",
-                outline="#73829a",
-                width=1,
-                dash=(3, 3),
+                outline="",
                 tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_rectangle(
+                1, radius, w - 1, h - radius,
+                fill="#17273a",
+                outline="",
+                tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=90, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                fill="#17273a",
+                outline="",
+                start=0, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=180, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                fill="#17273a",
+                outline="",
+                start=270, extent=90, style=tk.PIESLICE,
+                tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_line(
+                radius + 1, 1, w - radius - 1, 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_line(
+                1, radius + 1, 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_line(
+                radius + 1, h - 1, w - radius - 1, h - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_line(
+                w - 1, radius + 1, w - 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3), tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                1, 1, radius * 2 + 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=90, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                w - radius * 2 - 1, 1, w - 1, radius * 2 + 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=0, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                1, h - radius * 2 - 1, radius * 2 + 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=180, extent=90, style=tk.ARC, tags="result_block_bg",
+            )
+            self.scale_result_canvas.create_arc(
+                w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1,
+                outline="#73829a", width=1, dash=(3, 3),
+                start=270, extent=90, style=tk.ARC, tags="result_block_bg",
             )
             pad = 10
             self.scale_result_canvas.coords(self._scale_result_window_id, pad, pad)
@@ -1327,7 +1538,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         self.scale_notes_caption_label.pack(anchor="w")
         self.scale_notes_var = tk.StringVar(value="-")
@@ -1337,7 +1548,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 15),
+            font=(self.ui_mono_font_family, 14),
         )
         self.scale_notes_label.pack(anchor="w", pady=(3, 4))
 
@@ -1346,7 +1557,7 @@ class UiMixin:
             text="",
             bg="#17273a",
             fg=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         self.scale_intervals_caption_label.pack(anchor="w")
         self.scale_intervals_var = tk.StringVar(value="-")
@@ -1356,7 +1567,7 @@ class UiMixin:
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
-            font=(self.ui_mono_font_family, 15),
+            font=(self.ui_mono_font_family, 14),
         )
         self.scale_intervals_label.pack(anchor="w", pady=(3, 0))
 
@@ -1417,7 +1628,7 @@ class UiMixin:
         self.metronome_volume_label = ttk.Label(
             self.metronome_volume_row,
             text="",
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="e",
             fg=self.color_text,
         )
@@ -1453,7 +1664,7 @@ class UiMixin:
             textvariable=self.metronome_volume_var,
             bg=self.color_surface_alt,
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             width=7,
             anchor="center",
         )
@@ -1465,7 +1676,7 @@ class UiMixin:
         self.metronome_tempo_label = ttk.Label(
             self.metronome_slider_row,
             text="",
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="e",
             fg=self.color_text,
         )
@@ -1497,7 +1708,7 @@ class UiMixin:
             textvariable=self.metronome_bpm_var,
             bg=self.color_surface_alt,
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="center",
         )
         self.metronome_bpm_label.grid(row=1, column=2, sticky="", pady=(4, 0))
@@ -1508,7 +1719,7 @@ class UiMixin:
         self.metronome_meter_label = ttk.Label(
             self.metronome_meter_row,
             text="",
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="e",
             fg=self.color_text,
         )
@@ -1540,7 +1751,7 @@ class UiMixin:
             textvariable=self.metronome_meter_var,
             bg=self.color_surface_alt,
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             width=7,
             anchor="center",
         )
@@ -1549,7 +1760,7 @@ class UiMixin:
         self.metronome_clicks_label = ttk.Label(
             self._metronome_form_root,
             text="",
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="w",
             fg=self.color_text,
         )
@@ -1592,7 +1803,7 @@ class UiMixin:
         self.metronome_timer_label = ttk.Label(
             self.metronome_timer_row,
             text="",
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             fg=self.color_text,
         )
         self.metronome_timer_label.grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(0, 6))
@@ -1699,7 +1910,7 @@ class UiMixin:
             textvariable=self.tuner_gain_var,
             bg=self.cget("background"),
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             width=7,
             anchor="center",
         )
@@ -1779,7 +1990,7 @@ class UiMixin:
             textvariable=self.tuner_spectrum_range_var,
             bg=self.cget("background"),
             fg="#f3bf2f",
-            font=(self.ui_font_family, 13, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
             anchor="center",
         )
         self.tuner_spectrum_range_value_label.grid(row=8, column=0, sticky="ew", pady=(0, 2))
@@ -1808,7 +2019,7 @@ class UiMixin:
             state="readonly",
             values=[""],
             width=42,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.tuner_input_combo.grid(row=3, column=0, sticky="", pady=(0, 8))
         self.tuner_input_combo.bind("<<ComboboxSelected>>", self._on_tuner_input_changed)
@@ -1944,7 +2155,7 @@ class UiMixin:
             textvariable=self.guitar_handedness_var,
             state="readonly",
             width=10,
-            font=(self.ui_font_family, 13),
+            font=(self.ui_font_family, 14),
         )
         self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
         self._qt_apply_guitar_handedness_combo_style(self.guitar_handedness_combo)
@@ -2055,7 +2266,7 @@ class UiMixin:
                 text="120 BPM",
                 bg=panel_bg,
                 fg="#f3bf2f",
-                font=(self.ui_font_family, 13, "bold"),
+                font=(self.ui_font_family, 14, "bold"),
                 width=7,
                 anchor="e",
             )
@@ -2225,9 +2436,10 @@ class UiMixin:
         self.detection_clear_btn.set_text(self.tr("button_clear"))
         self._refresh_midi_input_sound_toggle_button()
         self._refresh_detection_controls_state()
-        self.notes_caption_label.configure(text=self.tr("label_active_notes"))
-        self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes"))
-        self.intervals_caption_label.configure(text=self.tr("label_intervals"))
+        self.chord_caption_label.configure(text=self.tr("label_chord"))
+        self.notes_caption_label.configure(text=self.tr("label_active_notes") + ":")
+        self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes") + ":")
+        self.intervals_caption_label.configure(text=self.tr("label_intervals") + ":")
         self.generated_title_label.configure(text=self.tr("mode_generation"))
         if hasattr(self, "circle_title_label"):
             self.circle_title_label.configure(text=self.tr("mode_circle_fifths"))
@@ -2666,7 +2878,7 @@ class UiMixin:
             bg=self.color_surface,
             fg=self.color_text,
             insertbackground=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
+            font=(self.ui_font_family, 14, "bold"),
         )
         entry_window = canvas.create_window(46, 21, anchor="w", window=entry, height=24)
         placeholder_id = canvas.create_text(50, 21, anchor="w", text=placeholder, fill=self.color_muted, font=(self.ui_font_family, 15, "bold"))

@@ -623,7 +623,7 @@ class InputDetectionMixin:
         elif self.tuner_tab_active:
             self.chord_var.set(self.tuner_status_var.get())
         else:
-            self.chord_var.set(detected_chord_name)
+            self.chord_var.set(detected_chord_name or "-")
         if self.tuner_tab_active:
             self._refresh_tuner_ui()
         self.redraw_keyboard()

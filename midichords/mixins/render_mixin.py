@@ -713,6 +713,10 @@ class RenderMixin:
             elif self.scale_tab_active and note == current_scale_note:
                 fill_color = "#65b7ff"
                 outline_color = "#2b6da6"
+            elif self.generation_tab_active and self.instrument_view == "piano" and note in self.generation_midi_held_notes:
+                # MIDI notes held in generation mode: gold/yellow highlight
+                fill_color = "#f3bf2f"
+                outline_color = "#d4a017"
             elif self.generation_tab_active and self.instrument_view == "piano" and note in generation_active_lh_notes:
                 fill_color = "#ff6a00"
                 outline_color = "#c8772f"

@@ -116,6 +116,21 @@ class ScalesMixin:
             # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
             self.audio_engine.note_off(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
+
+    def _set_scale_octaves(self, octaves: int) -> None:
+        """Cambia el número de octavas a reproducir en escalas (piano)."""
+        octaves = max(1, min(3, int(octaves)))
+        self.scale_octaves = octaves
+        self._refresh_scale_preview()
+        if self.scale_loop_active:
+            # Detener el loop actual y reiniciar con las nuevas notas
+            self._stop_scale_playback()
+            self._play_scale()
+        if self.scale_tab_active:
+            self.update_music_views()
+        # Opcionalmente, guardar la preferencia
+        self.config_data["scale_octaves"] = self.scale_octaves
+        self.save_config()
     def _refresh_scale_transport_styles(self) -> None:
         self._refresh_scale_metronome_volume_visibility()
         if self.scale_transport_buttons_are_images:
@@ -224,7 +239,37 @@ class ScalesMixin:
             if pattern.name == self.scale_pattern_name:
                 return pattern
         return SCALE_PATTERNS[0]
+
+    def _get_scale_notes_for_octaves(self, notes_midi: list[int], octaves: int) -> list[int]:
+        """Expande una lista de notas de una octava a múltiples octavas.
+
+        Si octaves=1, retorna las notas sin cambios.
+        Si octaves=2, añade la octava baja a la izquierda (notas - 12).
+        Si octaves=3, añade octavas baja y alta (notas - 12 y notas + 12).
+        """
+        if not notes_midi or octaves <= 1:
+            return notes_midi
+
+        result = list(notes_midi)
+        first_note = min(notes_midi)
+        last_note = max(notes_midi)
+
+        if octaves >= 2:
+            # Añadir octava baja (por debajo del mínimo)
+            lower_octave = [note - 12 for note in notes_midi if note - 12 >= 0]
+            result = lower_octave + result
+
+        if octaves >= 3:
+            # Añadir octava alta (por encima del máximo)
+            upper_octave = [note + 12 for note in notes_midi]
+            result = result + upper_octave
+
+        return result
     def _refresh_scale_preview(self) -> None:
+        # Inicializar scale_octaves si no existe
+        if not hasattr(self, "scale_octaves"):
+            self.scale_octaves = 1
+
         pattern = self._resolve_scale_pattern()
         tonic_name = self.note_name(self.scale_tonic_pc, with_octave=False)
         localized_scale_name = self.scale_name(pattern.name)
@@ -237,7 +282,14 @@ class ScalesMixin:
         if self.scale_guitar_start_note is None or (self.scale_guitar_start_note % 12) != self.scale_tonic_pc:
             self.scale_guitar_start_note = default_root_midi
         root_midi = self.scale_guitar_start_note if self.scale_play_mode == "guitar" else default_root_midi
-        self.scale_preview_notes = [root_midi + interval for interval in pattern.intervals]
+        base_notes = [root_midi + interval for interval in pattern.intervals]
+
+        # Expandir notas según el selector de octavas (solo en modo piano)
+        if self.scale_play_mode == "piano":
+            self.scale_preview_notes = self._get_scale_notes_for_octaves(base_notes, self.scale_octaves)
+        else:
+            self.scale_preview_notes = base_notes
+
         if self.scale_preview_notes:
             spelled = self._spelled_scale_note_names(
                 root_midi=root_midi,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import midichords.qt.tk_compat as tk
 import time
 from midichords.core.music_theory import SCALE_PATTERNS, SCALE_BASIC_NAMES, ScalePattern
+from midichords.core.tomplay_fingerings import get_fingering_for_scale
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 
@@ -154,6 +155,29 @@ class ScalesMixin:
         current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
         for idx, btn in enumerate(self.scale_fingering_buttons):
             btn.set_selected(hand_values[idx] == current)
+
+    def _get_scale_fingerings(self) -> dict[int, int]:
+        """Obtiene digitaciones para las notas actuales de escala.
+
+        Returns: {midi_note: finger_number} mapping
+        """
+        if self.scale_fingering_hand is None:
+            return {}
+
+        pattern = self._resolve_scale_pattern()
+        fingerings = get_fingering_for_scale(
+            pattern.name,
+            self.scale_tonic_pc,
+            self.scale_fingering_hand,
+            count=len(self.scale_preview_notes)
+        )
+
+        result = {}
+        for idx, midi_note in enumerate(self.scale_preview_notes):
+            if idx < len(fingerings):
+                result[midi_note] = fingerings[idx]
+
+        return result
 
     def _refresh_scale_transport_styles(self) -> None:
         self._refresh_scale_metronome_volume_visibility()

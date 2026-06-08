@@ -849,6 +849,7 @@ class _HomeScreenState extends State<HomeScreen>
   final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
   final Set<int> _detectionMidiHeldNotes = <int>{};
   final Set<int> _detectionPlayHeldNotes = <int>{};
+  final Set<int> _generationMidiHeldNotes = <int>{};  // MIDI notes held in chord generation mode
   bool _midiInputEnabled = false;
   /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
   /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).

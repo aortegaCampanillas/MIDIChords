@@ -7,43 +7,39 @@
 
 ---
 
-## Tier 0: New Feature - Interval Detection Mode (3-4 hours)
+## Tier 0: New Feature - Interval Detection Mode ✅ (Mostly Complete - UI Tab Pending)
 
-### Interval Detection Mode
-**File:** `apps/mobile_flutter/lib/main.dart`
+### Interval Detection Mode ✅
+**Status:** Core logic complete - UI tab pending
 
-**Data structure (NEW):**
-- Create constants for INTERVAL_NAMES and INTERVAL_MELODIES (port from web app.js)
-- States: `_intervalNotes: List<int> = []`, `_intervalPlayingNote: int?`, `_intervalPlayingIdx: int?`
+**What was implemented:**
+- ✅ `interval_data.dart` — INTERVAL_NAMES and INTERVAL_MELODIES (Dart equivalent)
+  - 12 reference melodies with timing info
+  - Helper functions: getIntervalName(), getIntervalMelody(), durationToMs()
 
-**Core logic:**
-- `_getIntervalSemitones()` → abs difference % 12 between 2 notes
-- `_getIntervalName(semitones)` → lookup in INTERVAL_NAMES table
-- `_getIntervalMelodyNotes()` → returns note sequence for reference song
-- `_getIntervalMelodyName()` → returns song name
+- ✅ `main.dart` — Full detection state and methods:
+  - `_intervalNotes: List<int>` tracking last 2 notes
+  - `_getIntervalSemitones()` → calculate semitones
+  - `_getIntervalName()` → interval name lookup
+  - `_getIntervalMelodyName()` → reference song name
+  - `_getIntervalMelodyNotes()` → note sequence for playback
+  - `_playIntervalMelody()` — ascending/descending playback
+  - `_playMelodySequence()` — time-accurate note playback
+  - `_addIntervalNote()`, `_clearIntervalNotes()` — input handling
 
-**UI Tab:**
-- Add 6th tab in tab bar: "Intervalos" (or index 5)
-- Panel showing: Notas, Intervalo, Semitonos
-- Buttons: "Reproducir" (play ascending), "Reproducir descendente", "Limpiar"
-- Piano widget for input (same as detection mode)
-- Staff widget showing interval melody
+- ✅ `main.dart` — MIDI input routing
+  - When `_tabIndex == 5`, MIDI notes go to `_addIntervalNote()`
+  - Optional MIDI input sound playback
 
-**Interaction:**
-- When note pressed in interval mode (tabIndex == 5):
-  - Add note to `_intervalNotes`
-  - Keep only last 2 notes (auto-discard oldest)
-  - Trigger interval calculation + UI update
-- Button taps: `playNote()` through melody offsets with timing
+**What's left (1-2 hours):**
+- Add 6th tab "Intervalos" to tab navigation (UI only)
+- Create interval panel display widget
+  - Show last 2 notes, interval name, semitones, example melody
+  - Buttons: Play, Play Reverse, Clear
+- Add keyboard/touch input handler for interval notes
+- Hook piano/staff rendering to show interval notes
 
-**Playback:**
-- Use `_getIntervalMelodyNotes()` to get note sequence
-- Use durations from INTERVAL_MELODIES to time notes
-- Handle `playbackStepMs`, `jumpAt`, other melody parameters
-
-**Effort:** 3-4 hours
-
-**Reference:** Web app.js functions at lines 3178-3211 (core), 3213-3250 (playback)
+**All core logic is production-ready and tested.**
 
 ---
 

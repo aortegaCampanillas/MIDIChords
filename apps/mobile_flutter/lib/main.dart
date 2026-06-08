@@ -1890,6 +1890,8 @@ class _HomeScreenState extends State<HomeScreen>
       case 4:
         return _ui('Metrónomo', 'Metronome');
       case 5:
+        return _ui('Detección de Intervalos', 'Interval Detection');
+      case 6:
         return _ui('Afinador', 'Tuner');
       default:
         return _ui('Detección de Acordes', 'Chord Detection');
@@ -5747,6 +5749,7 @@ class _HomeScreenState extends State<HomeScreen>
       _buildCircleOfFifthsPage(),
       _buildScaleGenerationPage(),
       _buildMetronomePage(),
+      _buildIntervalDetectionPage(),
       _buildTunerPage(),
     ];
 
@@ -5808,7 +5811,7 @@ class _HomeScreenState extends State<HomeScreen>
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
-                    if (!_kEnableMobileTuner && value == 5) return;
+                    if (!_kEnableMobileTuner && value == 6) return;
                     setState(() {
                       _tabIndex = value;
                       _setHelpMode(false);
@@ -5822,7 +5825,7 @@ class _HomeScreenState extends State<HomeScreen>
                     if (value != 4) {
                       _stopMetronome();
                     }
-                    if (value != 5 && _tunerRunning) {
+                    if (value != 6 && _tunerRunning) {
                       unawaited(_stopTuner());
                     }
                     _stopHeldChord();
@@ -8486,6 +8489,171 @@ class _HomeScreenState extends State<HomeScreen>
         },
       ),
     );
+  }
+
+  Widget _buildIntervalDetectionPage() {
+    return _buildModeScaffold(
+      controls: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    _ui('Detección de Intervalos', 'Interval Detection'),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _surfaceDark,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _border, width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        // Notes display
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              _ui('Notas', 'Notes'),
+                              style: const TextStyle(color: _muted, fontSize: 12),
+                            ),
+                            Text(
+                              _intervalNotes.isEmpty
+                                  ? '-'
+                                  : _intervalNotes.map((n) => _midiNoteToName(n)).join(' - '),
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 14,
+                                fontFamily: 'Courier',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Interval name
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              _ui('Intervalo', 'Interval'),
+                              style: const TextStyle(color: _muted, fontSize: 12),
+                            ),
+                            Text(
+                              _intervalNotes.length >= 2 ? _getIntervalName() : '-',
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Semitones
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              _ui('Semitonos', 'Semitones'),
+                              style: const TextStyle(color: _muted, fontSize: 12),
+                            ),
+                            Text(
+                              _intervalNotes.length >= 2
+                                  ? (_getIntervalSemitones()?.toString() ?? '-')
+                                  : '-',
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Melody name
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              _ui('Ejemplo', 'Example'),
+                              style: const TextStyle(color: _muted, fontSize: 12),
+                            ),
+                            Text(
+                              _intervalNotes.length >= 2 ? _getIntervalMelodyName() : '-',
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Buttons
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      ElevatedButton.icon(
+                        onPressed: _intervalNotes.length >= 2
+                            ? () => _playIntervalMelody()
+                            : null,
+                        icon: const Icon(Icons.play_arrow),
+                        label: Text(_ui('Reproducir', 'Play')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.black,
+                          disabledBackgroundColor: _panelA,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _intervalNotes.length >= 2
+                            ? () => _playIntervalMelody(reversed: true)
+                            : null,
+                        icon: const Icon(Icons.play_arrow),
+                        label: Text(_ui('Desc.', 'Rev.')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.black,
+                          disabledBackgroundColor: _panelA,
+                        ),
+                      ),
+                      OutlinedButton(
+                        onPressed: _intervalNotes.isEmpty ? null : _clearIntervalNotes,
+                        child: Text(_ui('Limpiar', 'Clear')),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _ui('Pulsa dos notas en el piano para detectar el intervalo',
+                        'Press two notes on the piano to detect the interval'),
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _midiNoteToName(int midiNote) {
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    if (_accidental == 'flat') {
+      const flatNames = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+      return flatNames[midiNote % 12];
+    }
+    return noteNames[midiNote % 12];
   }
 
   Widget _buildMetronomePage() {

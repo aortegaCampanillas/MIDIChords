@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import time
-import tkinter
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
-from midichords.core.verbose_log import vlog
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
 

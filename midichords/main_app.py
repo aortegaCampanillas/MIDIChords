@@ -222,6 +222,7 @@ class MidiChordAnalyzerApp(
         self.mode_selector_overlay: Optional[QWidget] = None
         self.instrument_view = "piano"
         self.scale_play_mode = "piano"
+        self.scale_fingering_hand: Optional[str] = None  # None, 'right', or 'left' for piano fingerings
         self.scale_metronome_only = False
         self.scale_bpm_min = 1
         self.scale_bpm_max = 300

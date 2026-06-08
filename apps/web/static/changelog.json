@@ -56,7 +56,7 @@
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web", "mobile"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Escalas: digitación de mano derecha e izquierda en el piano",
         "en": "Scales: right and left hand fingering on the piano"
       },

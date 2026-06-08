@@ -267,6 +267,12 @@ class InputDetectionMixin:
         velocity = int(max(1, min(127, velocity)))
         self.note_velocity[note] = velocity
         self.sustain_latched_notes.discard(note)
+
+        # Handle interval detection mode
+        if self.current_mode == "interval_detection":
+            self._add_interval_note(note)
+            return
+
         if source == "midi":
             self.midi_held_notes.add(note)
             self.midi_latched_notes.discard(note)

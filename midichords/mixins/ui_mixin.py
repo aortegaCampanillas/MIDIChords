@@ -11,7 +11,7 @@ from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, Play
 
 class UiMixin:
     def _available_mode_keys(self) -> list[str]:
-        modes = ["detection", "generation", "circle_fifths", "scales", "metronome"]
+        modes = ["detection", "interval_detection", "generation", "circle_fifths", "scales", "metronome"]
         if bool(getattr(self, "tuner_enabled", True)):
             modes.append("tuner")
         return modes

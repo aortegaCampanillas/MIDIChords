@@ -1,5 +1,6 @@
 """Interval detection mixin for chord analyzer app."""
 
+import midichords.qt.tk_compat as tk
 from midichords.core.interval_data import INTERVAL_NAMES, INTERVAL_MELODIES
 
 
@@ -144,3 +145,121 @@ class IntervalMixin:
             ms = ms * 1.5
 
         return int(ms)
+
+    def _get_ui_text(self, key: str) -> str:
+        """Helper to get translated UI text."""
+        from midichords.core.i18n import UI_TEXTS
+        lang = self.language if hasattr(self, 'language') else 'es'
+        texts = UI_TEXTS.get(lang, UI_TEXTS['es'])
+        return texts.get(key, key)
+
+    def _setup_interval_ui(self):
+        """Create interval detection UI panel."""
+        if hasattr(self, '_interval_panel_created'):
+            return
+
+        # Create panel frame
+        self.interval_panel = tk.Frame(self.master, bg=self.color_surface)
+
+        # Title
+        title = tk.Label(
+            self.interval_panel,
+            text=self._get_ui_text('heading_interval_detection'),
+            bg=self.color_surface,
+            fg=self.color_text,
+            font=("Arial", 14, "bold"),
+        )
+        title.pack(pady=(10, 15))
+
+        # Info frame
+        info_frame = tk.Frame(self.interval_panel, bg=self.color_surface)
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # Notes
+        notes_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_notes'), bg=self.color_surface, fg=self.color_muted)
+        notes_label.pack(anchor=tk.W)
+        self.interval_notes_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Courier", 11))
+        self.interval_notes_display.pack(anchor=tk.W)
+
+        # Interval name
+        name_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_name'), bg=self.color_surface, fg=self.color_muted)
+        name_label.pack(anchor=tk.W, pady=(10, 0))
+        self.interval_name_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 12))
+        self.interval_name_display.pack(anchor=tk.W)
+
+        # Semitones
+        semi_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_semitones'), bg=self.color_surface, fg=self.color_muted)
+        semi_label.pack(anchor=tk.W, pady=(10, 0))
+        self.interval_semitones_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 11))
+        self.interval_semitones_display.pack(anchor=tk.W)
+
+        # Melody name
+        melody_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_example'), bg=self.color_surface, fg=self.color_muted)
+        melody_label.pack(anchor=tk.W, pady=(10, 0))
+        self.interval_melody_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 11))
+        self.interval_melody_display.pack(anchor=tk.W)
+
+        # Buttons frame
+        button_frame = tk.Frame(self.interval_panel, bg=self.color_surface)
+        button_frame.pack(fill=tk.X, padx=10, pady=15)
+
+        play_btn = tk.Button(
+            button_frame,
+            text=self._get_ui_text('button_play_interval'),
+            command=self.play_interval_melody,
+            bg=self.color_accent,
+            fg="#000000",
+            relief=tk.FLAT,
+            padx=15,
+            pady=8,
+        )
+        play_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        play_reverse_btn = tk.Button(
+            button_frame,
+            text=self._get_ui_text('button_play_interval_reverse'),
+            command=lambda: self.play_interval_melody(reversed_=True),
+            bg=self.color_accent_soft,
+            fg="#000000",
+            relief=tk.FLAT,
+            padx=15,
+            pady=8,
+        )
+        play_reverse_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        clear_btn = tk.Button(
+            button_frame,
+            text=self._get_ui_text('button_clear'),
+            command=self._clear_interval_notes,
+            bg=self.color_card,
+            fg=self.color_text,
+            relief=tk.FLAT,
+            padx=15,
+            pady=8,
+        )
+        clear_btn.pack(side=tk.LEFT)
+
+        self._interval_panel_created = True
+
+    def _update_interval_display(self):
+        """Update interval detection UI with current data."""
+        if not hasattr(self, 'interval_panel'):
+            return
+
+        # Notes display
+        notes_str = " - ".join([self.note_name(n) for n in self.interval_notes]) if self.interval_notes else "-"
+        self.interval_notes_display.config(text=notes_str)
+
+        # Interval info
+        if len(self.interval_notes) >= 2:
+            name = self.get_interval_name()
+            semitones = self.get_interval_semitones()
+            melody_name = self.get_interval_melody_name()
+
+            self.interval_name_display.config(text=name)
+            self.interval_semitones_display.config(text=str(semitones) if semitones else "-")
+            self.interval_melody_display.config(text=melody_name)
+        else:
+            self.interval_name_display.config(text="-")
+            self.interval_semitones_display.config(text="-")
+            self.interval_melody_display.config(text="-")

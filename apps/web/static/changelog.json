@@ -42,7 +42,7 @@
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop"],
         "es": "MIDI: nuevo botón de salida de sonido (Audio / MIDI out). En modo MIDI out la app no genera audio propio; las notas se envían al dispositivo MIDI conectado. El ajuste se recuerda entre sesiones. La opción activa se resalta en amarillo en el diálogo de inicio.",
         "en": "MIDI: new sound output toggle (Audio / MIDI out). In MIDI out mode the app generates no audio of its own; notes are sent to the connected MIDI device. The setting is remembered across sessions. The active option is highlighted in yellow in the startup dialog."
       },

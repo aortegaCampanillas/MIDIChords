@@ -300,7 +300,7 @@ class UiMixin:
         self._mode_picker_hover = False
         self.mode_picker_trigger = tk.Canvas(
             mode_center,
-            width=320,
+            width=240,
             height=40,
             bg=topbar_bg,
             highlightthickness=0,
@@ -2752,18 +2752,129 @@ class UiMixin:
             return self.tr("mode_circle_fifths")
         if mode_key == "scales":
             return self.tr("mode_scales")
+        if mode_key == "interval_detection":
+            return self.tr("mode_interval_detection")
         if mode_key == "metronome":
             return self.tr("mode_metronome")
         if mode_key == "tuner":
             return self.tr("mode_tuner")
         return self.tr("mode_detection")
     def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
-        """Toggle mode selector overlay."""
-        if self.mode_selector_overlay is not None:
-            self._close_mode_selector_overlay()
-        else:
-            self._open_mode_selector_overlay()
+        """Show mode selector dropdown menu (like web/mobile)."""
+        from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QFont
+
+        # Create popup frame
+        popup = QFrame(self)
+        popup.setWindowFlags(Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint | Qt.Popup)
+        popup.setStyleSheet(f"""
+            QFrame {{
+                background-color: {self.color_surface};
+                border: 1px solid {self.color_border};
+            }}
+        """)
+
+        layout = QVBoxLayout(popup)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        available_modes = self._available_mode_keys()
+        mode_items = []
+
+        for mode in available_modes:
+            label_text = self._mode_label(mode)
+            is_selected = (self.current_mode == mode)
+            display_text = f"✓ {label_text}" if is_selected else label_text
+
+            # Create custom label that handles hover
+            # Selected items should not have background color, only checkmark
+            label = self._create_mode_label(
+                display_text, is_selected, mode, popup, has_selected_bg=False
+            )
+            mode_items.append(label)
+            layout.addWidget(label)
+
+        popup.setLayout(layout)
+        popup.adjustSize()
+        popup.setMinimumWidth(240)
+
+        # Show popup at button position, aligned to left edge of selector
+        trigger_rect = self.mode_picker_trigger.rect()
+        pos = self.mode_picker_trigger.mapToGlobal(trigger_rect.bottomLeft())
+        popup.move(int(pos.x()), int(pos.y()))
+        popup.show()
+        popup.raise_()
+
         return "break"
+
+    def _create_mode_label(self, display_text: str, is_selected: bool, mode: str, popup, has_selected_bg: bool = True) -> object:
+        """Create a clickable mode label with hover support."""
+        from PySide6.QtWidgets import QLabel
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QFont
+
+        label = QLabel(display_text)
+        # Selected items show checkmark but no background, unless has_selected_bg=True
+        bg_color = self.color_accent if (is_selected and has_selected_bg) else self.color_surface
+        text_color = self.color_text
+
+        label._is_selected = is_selected
+        label._mode = mode
+        label._popup = popup
+
+        original_style = f"""
+            QLabel {{
+                color: {text_color};
+                background-color: {bg_color};
+                padding: 10px 8px;
+                font-size: 14px;
+                border: none;
+            }}
+        """
+        label.setStyleSheet(original_style)
+
+        font = QFont(self.ui_font_family, 14)
+        label.setFont(font)
+        label.setCursor(Qt.PointingHandCursor)
+
+        label._hover_style = f"""
+            QLabel {{
+                color: #000000;
+                background-color: {self.color_accent};
+                padding: 10px 8px;
+                font-size: 14px;
+                border: none;
+            }}
+        """
+
+        # Override mouse events
+        def on_mouse_enter(event):
+            label.setStyleSheet(label._hover_style)
+
+        def on_mouse_leave(event):
+            label.setStyleSheet(original_style)
+
+        def on_mouse_press(event):
+            self._on_mode_selected_popup(mode, popup)
+
+        label.enterEvent = on_mouse_enter
+        label.leaveEvent = on_mouse_leave
+        label.mousePressEvent = on_mouse_press
+
+        return label
+
+    def _on_mode_selected_popup(self, mode_key: str, popup) -> None:
+        """Handle mode selection from popup."""
+        popup.close()
+        self._on_mode_selected(mode_key)
+
+    def _on_mode_selected(self, mode_key: str) -> None:
+        """Handle mode selection from dropdown."""
+        if mode_key not in self._available_mode_keys():
+            mode_key = "detection"
+        self.mode_var.set(self._mode_label(mode_key))
+        self._on_mode_combo_changed(None)
     def _open_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
@@ -2923,6 +3034,7 @@ class UiMixin:
             "generation": ("♬", "#39c8ff"),
             "circle_fifths": (_CIRCLE_FIFTHS_ICON_MARKER, "#9b7bff"),
             "scales": ("♪", "#e4eb3f"),
+            "interval_detection": ("⎵", "#ff69b4"),
             "metronome": ("⏱", "#ff8f40"),
             "tuner": ("🎸", "#8eea6b"),
         }

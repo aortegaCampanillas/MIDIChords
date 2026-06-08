@@ -48,6 +48,7 @@ from midichords.mixins.metronome_mixin import MetronomeMixin
 from midichords.mixins.scales_mixin import ScalesMixin
 from midichords.mixins.generation_mixin import GenerationMixin
 from midichords.mixins.circle_fifths_mixin import CircleFifthsMixin
+from midichords.mixins.interval_mixin import IntervalMixin
 from midichords.mixins.midi_io_mixin import MidiIOMixin
 from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.ui_mixin import UiMixin
@@ -64,6 +65,7 @@ class MidiChordAnalyzerApp(
     ScalesMixin,
     GenerationMixin,
     CircleFifthsMixin,
+    IntervalMixin,
     MidiIOMixin,
     InputDetectionMixin,
     ChangelogMixin,
@@ -258,6 +260,7 @@ class MidiChordAnalyzerApp(
         self.detect_hold_active = False
         self.detection_mouse_chord_notes: set[int] = set()
         self.detection_midi_held_notes: set[int] = set()
+        self._init_interval_state()
         self.detection_last_playable_notes: set[int] = set()
         self.detection_shift_pressed = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []

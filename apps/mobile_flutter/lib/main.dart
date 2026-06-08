@@ -3013,6 +3013,17 @@ class _HomeScreenState extends State<HomeScreen>
         }
       }
 
+      // Interval detection mode handling (tabIndex 5)
+      if (_tabIndex == 5) {
+        if (isNoteOn) {
+          _addIntervalNote(note);
+          if (_midiInputSoundEnabled) {
+            unawaited(playNote(note, instrument: 'piano'));
+          }
+        }
+        continue;
+      }
+
       // Detection mode handling (tabIndex 0)
       if (_tabIndex == 0) {
         if (isNoteOn) {

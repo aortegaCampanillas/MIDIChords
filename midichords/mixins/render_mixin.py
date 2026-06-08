@@ -763,6 +763,25 @@ class RenderMixin:
                 r = max(11, min(17, white_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
+
+            # Piano fingerings (hand numbers 1-5) for scale display
+            if self.scale_tab_active and self.scale_fingering_hand is not None:
+                try:
+                    scale_fingerings = self._get_scale_fingerings()
+                    if note in scale_fingerings:
+                        finger = scale_fingerings[note]
+                        fx = (x1 + x2) / 2
+                        fy = key_bottom - 44  # Above the circle or name
+                        finger_text = str(finger)
+                        canvas.create_text(
+                            fx, fy,
+                            text=finger_text,
+                            fill="#ffd700",  # Gold color
+                            font=("Helvetica", 14, "bold"),
+                            tags="fingering"
+                        )
+                except Exception:
+                    pass  # Fingering error, continue without displaying
             if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:

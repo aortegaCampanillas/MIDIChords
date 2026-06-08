@@ -2758,11 +2758,41 @@ class UiMixin:
             return self.tr("mode_tuner")
         return self.tr("mode_detection")
     def _toggle_mode_selector(self, _event: Optional[tk.Event] = None) -> str:
+        """Show a simple dropdown menu with mode options."""
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
-        else:
-            self._open_mode_selector_overlay()
+            return "break"
+
+        # Create a simple dropdown menu
+        menu = tk.Menu(self.mode_picker_trigger, tearoff=False, bg=self.color_surface, fg=self.color_text)
+        menu.config(activebackground=self.color_accent, activeforeground="#000000")
+
+        available_modes = self._available_mode_keys()
+        for mode in available_modes:
+            label = self.tr(f"mode_{mode}")
+            is_selected = (self.current_mode == mode)
+            menu.add_command(
+                label=f"✓ {label}" if is_selected else label,
+                command=lambda m=mode: self._change_mode(m)
+            )
+
+        # Show menu at button position
+        x = self.mode_picker_trigger.winfo_rootx()
+        y = self.mode_picker_trigger.winfo_rooty() + self.mode_picker_trigger.winfo_height()
+        menu.post(x, y)
+
         return "break"
+
+    def _change_mode(self, new_mode: str) -> None:
+        """Change to a different mode."""
+        if new_mode == self.current_mode:
+            return
+
+        self.current_mode = new_mode
+        self.config_data["mode"] = new_mode
+        save_config_file(self.config_data)
+        self.mode_trigger_var.set(self.tr(f"mode_{new_mode}"))
+        self.render()
     def _open_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()

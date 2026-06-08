@@ -49,7 +49,7 @@
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web", "desktop"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Escalas: lista ampliada con nuevas escalas y modos, botón Básicas/Todas para filtrar, alias de nombre común junto al nombre modal",
         "en": "Scales: expanded list with new scales and modes, Basic/All filter button, common name alias shown alongside modal name"
       },
@@ -63,7 +63,7 @@
       {
         "date": "2026-05-30",
         "publish": true,
-        "platforms": ["web", "desktop"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Escalas: selector de octavas (1, 2 o 3) para reproducción y marcado en el piano",
         "en": "Scales: octave selector (1, 2 or 3) for playback and piano highlighting"
       },

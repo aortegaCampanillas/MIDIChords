@@ -870,6 +870,24 @@ class RenderMixin:
                 r = max(9, min(13, black_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
+
+                # Piano fingerings for black keys in scale display
+                if self.scale_fingering_hand is not None:
+                    try:
+                        scale_fingerings = self._get_scale_fingerings()
+                        if note in scale_fingerings:
+                            finger = scale_fingerings[note]
+                            fx = (x1_i + x2_i) / 2
+                            fy = key_top + black_h - 40
+                            canvas.create_text(
+                                fx, fy,
+                                text=str(finger),
+                                fill="#ffd700",
+                                font=("Helvetica", 10, "bold"),
+                                tags="fingering"
+                            )
+                    except Exception:
+                        pass
             elif show_key_names:
                 is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
                 blabel = "#f0f4fc" if (note in display_active_notes or is_generation_active) else "#9aacbf"

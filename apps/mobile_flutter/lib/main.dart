@@ -5709,7 +5709,13 @@ class _HomeScreenState extends State<HomeScreen>
     if (currentTab != _tabIndex) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() => _tabIndex = currentTab);
+          setState(() {
+            _tabIndex = currentTab;
+            // Clean up held notes if exiting generation mode
+            if (!(_tabIndex == 1 || _tabIndex == 2)) {
+              _generationMidiHeldNotes.clear();
+            }
+          });
           if (currentTab != 0) {
             _cancelMidiScreenActivityExtension();
           }
@@ -9287,6 +9293,17 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Get finger number for a MIDI note in current scale
   int? getScaleFingering(int midiNote) => _scaleFingeringsMap[midiNote];
+
+  /// Get fingerings to display on piano in scales tab
+  Map<int, int> getDisplayScaleFingeringNotes() {
+    if (_tabIndex != 3 || _scaleFingeringHand == null) {
+      return <int, int>{};
+    }
+    return Map<int, int>.from(_scaleFingeringsMap);
+  }
+
+  /// Get MIDI notes held for highlighting in generation
+  Set<int> getGenerationMidiHeldNotes() => Set<int>.from(_generationMidiHeldNotes);
 
 }
 

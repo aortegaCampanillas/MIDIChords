@@ -16,6 +16,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'circle_of_fifths.dart';
 import 'fingerings.dart';
+import 'interval_data.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -869,6 +870,13 @@ class _HomeScreenState extends State<HomeScreen>
   bool _scaleMetronomeOnly = false;
   int _scaleLoopIndex = 0;
   int _scaleLoopDirection = 1;
+
+  // Interval detection state
+  List<int> _intervalNotes = <int>[];  // Last 2 notes for interval pair
+  int? _intervalPlayingNote;
+  int? _intervalPlayingIdx;
+  bool _intervalMelodyPlaying = false;
+  Timer? _intervalMelodyPlaybackTimer;
   Timer? _scaleLoopTimer;
   int? _scaleCurrentNote;
   bool? _scaleCurrentIsLeft;
@@ -9304,6 +9312,89 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Get MIDI notes held for highlighting in generation
   Set<int> getGenerationMidiHeldNotes() => Set<int>.from(_generationMidiHeldNotes);
+
+  // Interval detection methods
+  void _addIntervalNote(int midiNote) {
+    setState(() {
+      _intervalNotes.add(midiNote);
+      if (_intervalNotes.length > 2) {
+        _intervalNotes.removeAt(0);
+      }
+    });
+  }
+
+  void _clearIntervalNotes() {
+    setState(() {
+      _intervalNotes.clear();
+      _intervalPlayingNote = null;
+      _intervalPlayingIdx = null;
+      _intervalMelodyPlaybackTimer?.cancel();
+      _intervalMelodyPlaybackTimer = null;
+    });
+  }
+
+  int? _getIntervalSemitones() {
+    if (_intervalNotes.length < 2) return null;
+    final raw = (_intervalNotes[1] - _intervalNotes[0]).abs();
+    final mod = raw % 12;
+    return (mod == 0 && raw > 0) ? 12 : mod;
+  }
+
+  String _getIntervalName() {
+    final semitones = _getIntervalSemitones();
+    if (semitones == null) return "-";
+    return getIntervalName(semitones, _language);
+  }
+
+  String _getIntervalMelodyName() {
+    final semitones = _getIntervalSemitones();
+    if (semitones == null) return "-";
+    return getIntervalMelodyName(semitones, _language);
+  }
+
+  List<int?> _getIntervalMelodyNotes() {
+    return getIntervalMelodyNotes(_intervalNotes);
+  }
+
+  void _playIntervalMelody({bool reversed = false}) {
+    final notes = _getIntervalMelodyNotes();
+    final semitones = _getIntervalSemitones();
+    if (semitones == null) return;
+
+    final melody = getIntervalMelody(semitones);
+    if (melody == null) return;
+
+    final playNotes = reversed ? List<int?>.from(notes.reversed) : notes;
+    _playMelodySequence(playNotes, melody, 0);
+  }
+
+  void _playMelodySequence(List<int?> notes, IntervalMelody melody, int index) {
+    if (index >= notes.length) {
+      setState(() {
+        _intervalMelodyPlaying = false;
+        _intervalPlayingNote = null;
+        _intervalPlayingIdx = null;
+      });
+      return;
+    }
+
+    final note = notes[index];
+    if (note != null) {
+      unawaited(playNote(note, instrument: _instrumentView));
+      setState(() {
+        _intervalPlayingNote = note;
+        _intervalPlayingIdx = index;
+      });
+    }
+
+    final durations = melody.durations;
+    final durationCode = index < durations.length ? durations[index] : "q";
+    final durationMs = durationToMs(durationCode);
+
+    _intervalMelodyPlaybackTimer = Timer(Duration(milliseconds: durationMs), () {
+      _playMelodySequence(notes, melody, index + 1);
+    });
+  }
 
 }
 

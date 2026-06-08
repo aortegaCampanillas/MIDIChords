@@ -1165,6 +1165,45 @@ class UiMixin:
         )
         self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 5))
 
+        # Selector de octavas (piano only)
+        self.scale_octave_selector_label = tk.Label(
+            self.tab_scale_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 13),
+        )
+        self.scale_octave_selector_label.grid(row=3, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
+
+        octave_buttons_frame = tk.Frame(
+            self.tab_scale_frame,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        octave_buttons_frame.grid(row=3, column=1, sticky="ew", pady=(0, 5))
+        octave_buttons_frame.columnconfigure(0, weight=1)
+        octave_buttons_frame.columnconfigure(1, weight=1)
+        octave_buttons_frame.columnconfigure(2, weight=1)
+
+        self.scale_octave_buttons = []
+        for oct in [1, 2, 3]:
+            btn = GrayRoundedButton(
+                octave_buttons_frame,
+                text=f"{oct}",
+                command=lambda o=oct: self._set_scale_octaves(o),
+                font_family=self.ui_font_family,
+                width=100,
+                height=40,
+                radius=16,
+                font_size=15,
+                text_color="#e6edf7",
+                selected_text_color="#1a222d",
+            )
+            btn.grid(row=0, column=oct - 1, sticky="ew", padx=2)
+            btn.set_selected(oct == 1)  # Default: 1 octava
+            self.scale_octave_buttons.append(btn)
+
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,
             bg=self.color_surface_alt,
@@ -2156,6 +2195,8 @@ class UiMixin:
         self.scale_panel_title_label.configure(text=self.tr("mode_scales"))
         self.scale_tonic_selector_label.configure(text=self.tr("label_scale_tonic"))
         self.scale_type_selector_label.configure(text=self.tr("label_scale_type"))
+        if hasattr(self, "scale_octave_selector_label"):
+            self.scale_octave_selector_label.configure(text=self.tr("label_scale_octaves"))
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
         self.scale_metronome_volume_label.configure(text=self.tr("label_metronome_volume"))

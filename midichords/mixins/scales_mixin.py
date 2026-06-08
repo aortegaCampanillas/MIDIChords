@@ -122,15 +122,23 @@ class ScalesMixin:
         octaves = max(1, min(3, int(octaves)))
         self.scale_octaves = octaves
         self._refresh_scale_preview()
+        self._refresh_scale_octave_buttons()
         if self.scale_loop_active:
             # Detener el loop actual y reiniciar con las nuevas notas
             self._stop_scale_playback()
             self._play_scale()
         if self.scale_tab_active:
             self.update_music_views()
-        # Opcionalmente, guardar la preferencia
+        # Guardar la preferencia
         self.config_data["scale_octaves"] = self.scale_octaves
         self.save_config()
+
+    def _refresh_scale_octave_buttons(self) -> None:
+        """Actualiza el estado visual de los botones de octavas."""
+        if not hasattr(self, "scale_octave_buttons"):
+            return
+        for idx, btn in enumerate(self.scale_octave_buttons):
+            btn.set_selected(idx + 1 == self.scale_octaves)
     def _refresh_scale_transport_styles(self) -> None:
         self._refresh_scale_metronome_volume_visibility()
         if self.scale_transport_buttons_are_images:

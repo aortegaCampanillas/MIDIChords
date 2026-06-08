@@ -97,7 +97,7 @@
       {
         "date": "2026-04-02",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Círculo de quintas interactivo: visualiza tonalidades, acordes diatónicos y armaduras",
         "en": "Interactive circle of fifths: visualize keys, diatonic chords and key signatures"
       },

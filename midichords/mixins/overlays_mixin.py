@@ -492,6 +492,24 @@ class OverlaysMixin:
             command=lambda: self._preview_guitar_sound(guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")),
         ).grid(row=0, column=1, padx=(6, 0))
 
+        # Sound output: Audio vs MIDI
+        ttk.Label(frame, text=self.tr("settings_sound_output")).grid(row=5, column=0, sticky="w", pady=4)
+        sound_output_var = tk.StringVar(value=str(self.config_data.get("sound_output", "audio")))
+        sound_output_frame = ttk.Frame(frame)
+        sound_output_frame.grid(row=5, column=1, sticky="w", pady=4)
+        ttk.Radiobutton(
+            sound_output_frame,
+            text=self.tr("sound_output_audio"),
+            variable=sound_output_var,
+            value="audio",
+        ).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Radiobutton(
+            sound_output_frame,
+            text=self.tr("sound_output_midi"),
+            variable=sound_output_var,
+            value="midi",
+        ).pack(side=tk.LEFT)
+
         def refresh_device_lists() -> None:
             # En Qt no existe (o no se propaga) `postcommand` igual que en Tk.
             # Para que el usuario vea dispositivos conectados "después de arrancar",
@@ -564,7 +582,7 @@ class OverlaysMixin:
             text=self.tr("settings_show_key_labels"),
             variable=show_labels_var,
         )
-        show_labels_chk.grid(row=5, column=0, columnspan=2, sticky="w", pady=(6, 4))
+        show_labels_chk.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         build_muted = getattr(self, "color_muted", "#a8b6c8")
         ff = getattr(self, "ui_font_family", "Helvetica")
@@ -574,7 +592,7 @@ class OverlaysMixin:
             font=(ff, 11),
             foreground=build_muted,
         )
-        build_line.grid(row=6, column=0, columnspan=2, sticky="w", pady=(10, 8))
+        build_line.grid(row=7, column=0, columnspan=2, sticky="w", pady=(10, 8))
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
@@ -583,6 +601,8 @@ class OverlaysMixin:
             self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
             self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
+            self.config_data["sound_output"] = sound_output_var.get()
+            self.sound_output = sound_output_var.get()
             self.audio_engine.set_preset(str(self.config_data["sound_preset"]))
             self.audio_engine.set_guitar_preset(str(self.config_data["guitar_sound_preset"]))
             self.apply_ui_language()
@@ -598,7 +618,7 @@ class OverlaysMixin:
             return "break"
 
         buttons = ttk.Frame(frame)
-        buttons.grid(row=7, column=0, columnspan=2, sticky="e")
+        buttons.grid(row=8, column=0, columnspan=2, sticky="e")
 
         ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)

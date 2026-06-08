@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import time
+import tkinter
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
+from midichords.core.verbose_log import vlog
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
 
@@ -2764,9 +2766,10 @@ class UiMixin:
                 self._close_mode_selector_overlay()
                 return "break"
 
-            # Create a simple dropdown menu
-            # Use self as parent instead of Canvas to ensure proper lifecycle
-            menu = tk.Menu(self, tearoff=False, bg=self.color_surface, fg=self.color_text, font=(self.ui_font_family, 12))
+            # Create a simple dropdown menu using native tkinter
+            # Get the root tkinter window
+            root = self.winfo_toplevel()
+            menu = tkinter.Menu(root, tearoff=False, bg=self.color_surface, fg=self.color_text, font=(self.ui_font_family, 12))
             menu.config(activebackground=self.color_accent, activeforeground="#000000")
 
             available_modes = self._available_mode_keys()

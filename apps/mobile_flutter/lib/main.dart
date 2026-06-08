@@ -228,6 +228,24 @@ const List<Map<String, dynamic>> _kChordPatternDefs = <Map<String, dynamic>>[
   },
 ];
 
+const Set<String> _kScaleBasicNames = <String>{
+  'Ionian',
+  'Aeolian',
+  'Harmonic Minor',
+  'Melodic Minor',
+  'Dorian',
+  'Phrygian',
+  'Lydian',
+  'Mixolydian',
+  'Locrian',
+  'Major Pentatonic',
+  'Minor Pentatonic',
+  'Blues Pentatonic',
+  'Minor Blues',
+  'Chromatic',
+  'Whole Tone (WT)',
+};
+
 const List<Map<String, dynamic>> _kScalePatternDefs = <Map<String, dynamic>>[
   <String, dynamic>{
     'name': 'Ionian',
@@ -839,6 +857,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   int _scaleTonicPc = 0;
   String _scalePatternName = 'Ionian';
+  String _scaleFilterMode = 'basic';  // 'basic' or 'all'
   int _scaleBpm = 120;
   bool _scaleLoopRunning = false;
   bool _scaleMetronomeOnly = false;
@@ -905,6 +924,16 @@ class _HomeScreenState extends State<HomeScreen>
     return _kEnableMobileTuner
         ? const <int>[0, 1, 2, 3, 4, 5]
         : const <int>[0, 1, 2, 3, 4];
+  }
+
+  List<Map<String, dynamic>> _getFilteredScalePatterns() {
+    final patterns = _scalePatterns.cast<Map<String, dynamic>>();
+    if (_scaleFilterMode == 'basic') {
+      return patterns
+          .where((p) => _kScaleBasicNames.contains(p['name'] as String?))
+          .toList();
+    }
+    return patterns;
   }
 
   GlobalKey _helpAnchorKey(String id) =>

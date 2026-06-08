@@ -65,6 +65,7 @@ flutter:
     - assets/metronome.mp3
     - assets/metronome_bar_accent.mp3
     - assets/guitar_chord_cache.json
+    - assets/changelog.json
     - assets/samples/grand_piano/
     - assets/samples/guitar_nylon/
 

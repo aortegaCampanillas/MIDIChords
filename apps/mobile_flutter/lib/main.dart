@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'circle_of_fifths.dart';
+import 'fingerings.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -861,6 +862,8 @@ class _HomeScreenState extends State<HomeScreen>
   String _scalePatternName = 'Ionian';
   String _scaleFilterMode = 'basic';  // 'basic' or 'all'
   int _scaleOctaves = 1;  // 1, 2, or 3
+  String? _scaleFingeringHand;  // null, 'right', or 'left' for piano fingerings
+  Map<int, int> _scaleFingeringsMap = <int, int>{};  // MIDI note -> finger number
   int _scaleBpm = 120;
   bool _scaleLoopRunning = false;
   bool _scaleMetronomeOnly = false;
@@ -9231,6 +9234,46 @@ class _HomeScreenState extends State<HomeScreen>
     // Default: audio playback (note will naturally decay based on duration parameter)
     // No explicit stop needed for synthesized tones with fixed duration
   }
+
+  /// Set scale fingering hand preference (none, right, left)
+  void _setScaleFingeringHand(String? hand) {
+    setState(() {
+      _scaleFingeringHand = hand;
+      _updateScaleFingeringsMap();
+    });
+  }
+
+  /// Update fingerings map based on current scale and hand
+  void _updateScaleFingeringsMap() {
+    if (_scaleFingeringHand == null || _generatedScaleJson == null) {
+      _scaleFingeringsMap = <int, int>{};
+      return;
+    }
+
+    try {
+      final midiNotes = List<int>.from(_generatedScaleJson!['midi'] ?? <int>[]);
+      final scaleType = _scalePatternName;
+
+      // Import getFingeringForScale from fingerings.dart
+      final fingerings = getFingeringForScale(
+        scaleType,
+        _scaleTonicPc,
+        _scaleFingeringHand!,
+        count: midiNotes.length,
+      );
+
+      final result = <int, int>{};
+      for (int i = 0; i < midiNotes.length && i < fingerings.length; i++) {
+        result[midiNotes[i]] = fingerings[i];
+      }
+      _scaleFingeringsMap = result;
+    } catch (e) {
+      _scaleFingeringsMap = <int, int>{};
+    }
+  }
+
+  /// Get finger number for a MIDI note in current scale
+  int? getScaleFingering(int midiNote) => _scaleFingeringsMap[midiNote];
 
 }
 

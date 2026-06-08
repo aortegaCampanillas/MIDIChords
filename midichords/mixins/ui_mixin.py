@@ -445,16 +445,7 @@ class UiMixin:
         )
         self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.staff_canvas.pack(fill=tk.BOTH, expand=True)
-        self.detection_help_label = tk.Label(
-            self.left_panel.content,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            justify="left",
-            anchor="w",
-            wraplength=520,
-            font=(self.ui_font_family, 16),
-        )
+        # Created later in tab_detection_frame (line ~550)
 
         self.right_panel_title_label = tk.Label(
             self.right_panel.content,
@@ -547,6 +538,17 @@ class UiMixin:
             font=(self.ui_font_family, 22, "bold"),
         )
         self.chord_title_label.pack(anchor="w", pady=(0, 2))
+        self.detection_help_label = tk.Label(
+            self.tab_detection_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            justify="left",
+            anchor="nw",
+            wraplength=550,
+            font=(self.ui_font_family, 16),
+        )
+        # Do not pack here - it's managed by _refresh_detection_help_label() in the detection tab
         self.detection_controls_row = tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
         # El botón MIDI solo ocupa el ancho del texto (no expande a todo el panel).
         # Margen inferior para separar los botones del bloque de resultados.
@@ -593,13 +595,13 @@ class UiMixin:
         self.detection_result_canvas = tk.Canvas(
             self.tab_detection_frame,
             bg=self.color_surface_alt,
-            height=250,
+            height=160,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
         )
         # Margen superior para evitar que el subpanel toque visualmente la fila de botones.
-        self.detection_result_canvas.pack(fill=tk.BOTH, expand=True, pady=(2, 0))
+        self.detection_result_canvas.pack(fill=tk.X, expand=False, pady=(2, 0))
         self.detection_result_inner = tk.Frame(
             self.detection_result_canvas,
             bg="#17273a",
@@ -2150,7 +2152,7 @@ class UiMixin:
         self._set_panel_title(self.right_panel_title_label, right_title)
 
     def _refresh_detection_help_visibility(self) -> None:
-        """Ayuda de detección: bajo el pentagrama (panel izquierdo), solo en modo detección."""
+        """Ayuda de detección: bajo el título (panel derecho, tab detección), solo en modo detección."""
         if not hasattr(self, "detection_help_label"):
             return
         visible = self.current_mode == "detection"
@@ -2164,12 +2166,12 @@ class UiMixin:
                 self.detection_help_label.pack(
                     fill=tk.X,
                     anchor="w",
-                    pady=(6, 0),
-                    after=self.staff_canvas,
+                    pady=(0, 12),
+                    before=self.detection_controls_row,
                 )
             except Exception:
                 try:
-                    self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(6, 0))
+                    self.detection_help_label.pack(fill=tk.X, anchor="w", pady=(0, 12))
                 except Exception:
                     pass
         else:

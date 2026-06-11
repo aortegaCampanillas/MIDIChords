@@ -172,6 +172,7 @@ class UiMixin:
                 selection-background-color: {btn_bg};
                 selection-color: {fg};
                 border: 1px solid {border};
+                border-radius: 4px;
                 outline: 0;
             }}
             """

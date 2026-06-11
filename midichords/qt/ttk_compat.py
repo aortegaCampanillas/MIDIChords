@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, cast
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPaintEvent, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QGridLayout,
     QLabel,
+    QListView,
     QPushButton,
     QRadioButton,
     QSpinBox,
@@ -147,9 +148,18 @@ class Combobox(QComboBox, _LayoutCompat):
         font_spec = _kwargs.pop("font", None)
         postcommand = _kwargs.pop("postcommand", None)
         super().__init__(master)
+        self._popup_bg: str = "#3a4452"
         self._postcommand: Callable[[], None] | None = (
             cast(Callable[[], None], postcommand) if callable(postcommand) else None
         )
+        popup_view = QListView(self)
+        popup_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        popup_view.setTextElideMode(Qt.TextElideMode.ElideRight)
+        popup_view.setUniformItemSizes(False)
+        popup_view.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        popup_view.viewport().setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setView(popup_view)
+        self.setMaxVisibleItems(8)
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self._textvariable = textvariable
@@ -174,6 +184,37 @@ class Combobox(QComboBox, _LayoutCompat):
             except Exception:
                 pass
         super().showPopup()
+        self._position_popup_under_combo()
+        QTimer.singleShot(0, self._position_popup_under_combo)
+
+    def _position_popup_under_combo(self) -> None:
+        view = self.view()
+        if view is None:
+            return
+        try:
+            combo_width = max(1, int(self.width()))
+            row_count = max(1, int(self.count()))
+            visible_rows = min(row_count, max(1, int(self.maxVisibleItems())))
+            fallback_row_height = max(28, int(self.fontMetrics().height()) + 12)
+            rows_height = 0
+            for row in range(visible_rows):
+                row_height = int(view.sizeHintForRow(row))
+                rows_height += row_height if row_height > 0 else fallback_row_height
+            popup_height = rows_height + (2 * int(view.frameWidth())) + 4
+            popup_height = max(fallback_row_height + 6, popup_height)
+
+            view.setMinimumWidth(combo_width)
+            view.setMaximumWidth(combo_width)
+            view.setFixedWidth(combo_width)
+            view.setFixedHeight(popup_height)
+
+            popup = view.window()
+            if popup is not view:
+                popup.setStyleSheet(f"background-color: {self._popup_bg};")
+            popup.resize(combo_width, popup_height)
+            popup.move(self.mapToGlobal(self.rect().bottomLeft()))
+        except Exception:
+            return
 
     def configure(self, **kwargs: Any) -> None:
         if "postcommand" in kwargs:
@@ -297,4 +338,3 @@ class Scrollbar(QScrollBar, _LayoutCompat):
         if command is not None:
             # Cuando el scrollbar cambia, notifica.
             self.valueChanged.connect(lambda _v: command("moveto", _v))
-

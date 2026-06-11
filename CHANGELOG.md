@@ -10,6 +10,14 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (configuración)**: los combos de **Entrada MIDI** y **Salida de audio** muestran ahora `<no seleccionado>` como primera opción visible, también tras refrescar dispositivos, en lugar de una entrada en blanco.
+
+- **Escritorio (configuración)**: la ventana de ajustes ya no usa una geometría fija; se ajusta al tamaño real de sus controles, queda bloqueada contra redimensionado manual y muestra **Guardar** y **Cancelar** como botones separados con recuadro redondeado.
+
+- **Escritorio (configuración)**: los selectores de **Sonido de piano** y **Sonido de guitarra** usan el mismo estilo de combo que **Entrada MIDI** y **Salida de audio**.
+
+- **Escritorio (Qt)**: los desplegables de los combos se abren debajo del control, con el mismo ancho y bordes redondeados, en lugar de aparecer como una caja rectangular sobre el selector.
+
 - **Web (desarrollo local)**: eliminadas las configuraciones obsoletas de VS Code **HTTPS + Backend**, el servidor proxy `serve_https.py` y la guía `HTTPS_SETUP.md`. El flujo local queda unificado en `python launch.py web`, con nueva opción `--https` para arrancar el mismo Worker con HTTPS nativo de Wrangler.
 
 - **Web (MIDI + audio)**: si la entrada MIDI se reactiva automáticamente antes de cualquier gesto del usuario, las notas MIDI ya no intentan arrancar WebAudio hasta que Chrome permita reanudar el `AudioContext`; la detección visual sigue funcionando y el audio se desbloquea con el primer clic o tecla en la página.

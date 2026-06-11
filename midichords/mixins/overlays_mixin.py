@@ -5,7 +5,7 @@ import threading
 from typing import Any, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QScrollArea
+from PySide6.QtWidgets import QHBoxLayout, QScrollArea
 
 import midichords.qt.tk_compat as tk
 import midichords.qt.ttk_compat as ttk
@@ -71,26 +71,13 @@ class OverlaysMixin:
                 f" QScrollBar::handle:vertical {{ background: {getattr(self, 'color_border', '#56627a')}; min-height: 24px; border-radius: 4px; }}"
             )
 
-    def _qt_style_settings_form(self, form: Any) -> None:
-        """Tema oscuro coherente con la app (Qt/Windows: evita texto negro sobre gris del estilo nativo)."""
-        if not hasattr(form, "setStyleSheet"):
-            return
-        bg = getattr(self, "color_surface_alt", "#2f3a4b")
+    def _qt_settings_combo_stylesheet(self) -> str:
         fg = getattr(self, "color_text", "#e9edf2")
         card = getattr(self, "color_card", "#3a4452")
         border = getattr(self, "color_border", "#56627a")
         hover_border = getattr(self, "color_border_hover", "#6a7a98")
         btn_bg = getattr(self, "color_card_hover", "#465465")
-        form.setStyleSheet(
-            f"""
-            QWidget {{
-                background-color: {bg};
-                color: {fg};
-            }}
-            QLabel {{
-                color: {fg};
-                background-color: transparent;
-            }}
+        return f"""
             QComboBox {{
                 background-color: {card};
                 color: {fg};
@@ -116,9 +103,39 @@ class OverlaysMixin:
                 selection-background-color: {btn_bg};
                 selection-color: {fg};
                 border: 1px solid {border};
+                border-radius: 8px;
                 outline: 0;
                 padding: 2px;
             }}
+        """
+
+    def _qt_style_settings_combo(self, combo: Any) -> None:
+        if not hasattr(combo, "setStyleSheet"):
+            return
+        combo.setStyleSheet(self._qt_settings_combo_stylesheet())
+        if hasattr(combo, "_popup_bg"):
+            combo._popup_bg = getattr(self, "color_card", "#3a4452")
+
+    def _qt_style_settings_form(self, form: Any) -> None:
+        """Tema oscuro coherente con la app (Qt/Windows: evita texto negro sobre gris del estilo nativo)."""
+        if not hasattr(form, "setStyleSheet"):
+            return
+        bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        fg = getattr(self, "color_text", "#e9edf2")
+        border = getattr(self, "color_border", "#56627a")
+        hover_border = getattr(self, "color_border_hover", "#6a7a98")
+        btn_bg = getattr(self, "color_card_hover", "#465465")
+        form.setStyleSheet(
+            f"""
+            QWidget {{
+                background-color: {bg};
+                color: {fg};
+            }}
+            QLabel {{
+                color: {fg};
+                background-color: transparent;
+            }}
+            {self._qt_settings_combo_stylesheet()}
             QCheckBox {{
                 color: {fg};
                 spacing: 8px;
@@ -140,7 +157,7 @@ class OverlaysMixin:
                 border: 1px solid {hover_border};
             }}
             QPushButton:pressed {{
-                background-color: {card};
+                background-color: {getattr(self, "color_card", "#3a4452")};
             }}
             """
         )
@@ -198,6 +215,8 @@ class OverlaysMixin:
         self._refresh_tuner_ui()
         self._close_tuner_tuning_overlay()
     def _is_widget_inside(self, parent: tk.Widget, child: object) -> bool:
+        if child is parent:
+            return True
         current: Any = child
         if isinstance(child, str):
             try:
@@ -386,13 +405,30 @@ class OverlaysMixin:
 
         dialog = tk.Toplevel(self)
         dialog.title(self.tr("settings_title"))
-        dialog.geometry("500x600")
         dialog.resizable(False, False)
+        dialog_bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        dialog.setStyleSheet(f"QDialog {{ background-color: {dialog_bg}; }}")
 
         dialog.columnconfigure(0, weight=1)
 
         self.settings_overlay = dialog
         self._settings_overlay_opened_ts = time.monotonic()
+
+        def fit_settings_dialog_to_content() -> None:
+            if self.settings_overlay is not dialog:
+                return
+            try:
+                dialog.setMinimumSize(0, 0)
+                dialog.setMaximumSize(16777215, 16777215)
+                layout = dialog.layout()
+                if layout is not None:
+                    layout.activate()
+                dialog.adjustSize()
+                size = dialog.sizeHint()
+                dialog.resize(size)
+                dialog.setFixedSize(size.width(), size.height())
+            except Exception:
+                pass
 
         frame = ttk.Frame(dialog, padding=14)
         frame.grid(row=0, column=0, sticky="w", padx=0, pady=0)
@@ -417,27 +453,37 @@ class OverlaysMixin:
                 value=lang_id,
             ).pack(side=tk.LEFT, padx=(0, 16))
 
+        not_selected_label = self.tr("settings_not_selected")
+
+        def set_combo_text(combo: Any, var: Any, value: str) -> None:
+            if hasattr(combo, "setCurrentText"):
+                combo.setCurrentText(value)
+            else:
+                var.set(value)
+
         ttk.Label(frame, text=self.tr("settings_midi_input")).grid(row=1, column=0, sticky="w", pady=0)
-        in_values = ["Sin seleccionar"] + self.input_names
+        in_values = [not_selected_label] + self.input_names
         in_var = tk.StringVar()
         in_combo = ttk.Combobox(frame, textvariable=in_var, state="readonly", values=in_values)
+        self._qt_style_settings_combo(in_combo)
         in_combo.grid(row=1, column=1, sticky="ew", pady=0)
         midi_current = self.config_data.get("midi_input", "")
         if midi_current in in_values:
-            in_combo.setCurrentText(midi_current) if hasattr(in_combo, 'setCurrentText') else in_var.set(midi_current)
+            set_combo_text(in_combo, in_var, str(midi_current))
         else:
-            in_combo.setCurrentText("Sin seleccionar") if hasattr(in_combo, 'setCurrentText') else in_var.set("Sin seleccionar")
+            set_combo_text(in_combo, in_var, not_selected_label)
 
         ttk.Label(frame, text=self.tr("settings_audio_output")).grid(row=2, column=0, sticky="w", pady=0)
-        out_values = ["Sin seleccionar"] + self.audio_output_names
+        out_values = [not_selected_label] + self.audio_output_names
         out_var = tk.StringVar()
         out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values)
+        self._qt_style_settings_combo(out_combo)
         out_combo.grid(row=2, column=1, sticky="ew", pady=0)
         audio_current = self.config_data.get("audio_output", "")
         if audio_current in out_values:
-            out_combo.setCurrentText(audio_current) if hasattr(out_combo, 'setCurrentText') else out_var.set(audio_current)
+            set_combo_text(out_combo, out_var, str(audio_current))
         else:
-            out_combo.setCurrentText("Sin seleccionar") if hasattr(out_combo, 'setCurrentText') else out_var.set("Sin seleccionar")
+            set_combo_text(out_combo, out_var, not_selected_label)
 
         piano_sound_options = [
             ("acoustic", self.tr("sound_acoustic")),
@@ -470,12 +516,13 @@ class OverlaysMixin:
         piano_sound_row.grid(row=3, column=1, sticky="ew", pady=0)
         piano_sound_row.columnconfigure(0, weight=1)
         piano_sound_var = tk.StringVar(value=piano_sound_id_to_label[current_piano_sound])
-        piano_sound_combo = ttk.HandednessComboBox(
+        piano_sound_combo = ttk.Combobox(
             piano_sound_row,
             textvariable=piano_sound_var,
             state="readonly",
             values=[label for _, label in piano_sound_options],
         )
+        self._qt_style_settings_combo(piano_sound_combo)
         piano_sound_combo.grid(row=0, column=0, sticky="ew")
         ttk.Button(
             piano_sound_row,
@@ -489,12 +536,13 @@ class OverlaysMixin:
         guitar_sound_row.grid(row=4, column=1, sticky="ew", pady=0)
         guitar_sound_row.columnconfigure(0, weight=1)
         guitar_sound_var = tk.StringVar(value=guitar_sound_id_to_label[current_guitar_sound])
-        guitar_sound_combo = ttk.HandednessComboBox(
+        guitar_sound_combo = ttk.Combobox(
             guitar_sound_row,
             textvariable=guitar_sound_var,
             state="readonly",
             values=[label for _, label in guitar_sound_options],
         )
+        self._qt_style_settings_combo(guitar_sound_combo)
         guitar_sound_combo.grid(row=0, column=0, sticky="ew")
         ttk.Button(
             guitar_sound_row,
@@ -540,12 +588,21 @@ class OverlaysMixin:
 
                 def apply() -> None:
                     try:
-                        in_combo["values"] = [""] + new_inputs
-                        out_combo["values"] = [""] + new_outputs
-                        if prev_in in in_combo["values"]:
-                            in_var.set(prev_in)
-                        if prev_out in out_combo["values"]:
-                            out_var.set(prev_out)
+                        updated_in_values = [not_selected_label] + new_inputs
+                        updated_out_values = [not_selected_label] + new_outputs
+                        in_combo["values"] = updated_in_values
+                        out_combo["values"] = updated_out_values
+                        set_combo_text(
+                            in_combo,
+                            in_var,
+                            prev_in if prev_in in updated_in_values else not_selected_label,
+                        )
+                        set_combo_text(
+                            out_combo,
+                            out_var,
+                            prev_out if prev_out in updated_out_values else not_selected_label,
+                        )
+                        fit_settings_dialog_to_content()
                     finally:
                         setattr(self, "_settings_device_refreshing", False)
 
@@ -595,22 +652,12 @@ class OverlaysMixin:
         )
         show_labels_chk.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
-        build_muted = getattr(self, "color_muted", "#a8b6c8")
-        ff = getattr(self, "ui_font_family", "Helvetica")
-        build_line = ttk.Label(
-            frame,
-            text=self.tr("settings_build_line").format(name=desktop_build_display_name()),
-            font=(ff, 11),
-            foreground=build_muted,
-        )
-        build_line.grid(row=7, column=0, columnspan=2, sticky="w", pady=(10, 8))
-
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_var.get()
             midi_val = in_var.get().strip()
-            self.config_data["midi_input"] = "" if midi_val == "Sin seleccionar" else midi_val
+            self.config_data["midi_input"] = "" if midi_val == not_selected_label else midi_val
             audio_val = out_var.get().strip()
-            self.config_data["audio_output"] = "" if audio_val == "Sin seleccionar" else audio_val
+            self.config_data["audio_output"] = "" if audio_val == not_selected_label else audio_val
             self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
             self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
@@ -632,16 +679,57 @@ class OverlaysMixin:
 
         frame.columnconfigure(1, weight=1)
 
-        buttons_bg = tk.Frame(dialog, bg="#1f2329", highlightthickness=0)
+        action_bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        button_bg = getattr(self, "color_card", "#3a4452")
+        action_border = getattr(self, "color_border", "#56627a")
+        action_btn_bg = getattr(self, "color_card_hover", "#465465")
+        action_btn_hover = getattr(self, "color_border_hover", "#6a7a98")
+        action_fg = getattr(self, "color_text", "#e9edf2")
+        accent = getattr(self, "color_accent", "#f3bf2f")
+        buttons_bg = tk.Frame(dialog, bg=action_bg, highlightthickness=0)
+        buttons_bg.setObjectName("settingsActionsPanel")
+        buttons_bg.setStyleSheet(
+            f"#settingsActionsPanel {{ background-color: {action_bg}; border: none; }}"
+        )
         buttons_bg.grid(row=1, column=0, sticky="ew")
 
-        buttons = ttk.Frame(buttons_bg)
-        buttons.pack(fill=tk.X, padx=14, pady=14)
+        cancel_btn = ttk.Button(buttons_bg, text=self.tr("button_cancel"), command=self._close_settings_overlay)
+        cancel_btn.setObjectName("settingsCancelButton")
+        save_btn = ttk.Button(buttons_bg, text=self.tr("button_save"), command=do_save)
+        save_btn.setObjectName("settingsSaveButton")
 
-        cancel_btn = ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay)
-        cancel_btn.pack(side=tk.LEFT, padx=(0, 6))
-        save_btn = ttk.Button(buttons, text=self.tr("button_save"), command=do_save)
-        save_btn.pack(side=tk.LEFT)
+        _btn_row = QHBoxLayout(buttons_bg)
+        _btn_row.setContentsMargins(14, 6, 14, 14)
+        _btn_row.setSpacing(10)
+        _btn_row.addWidget(cancel_btn)
+        _btn_row.addWidget(save_btn)
+        _btn_row.addStretch(1)
+        build_muted = getattr(self, "color_muted", "#a8b6c8")
+        ff = getattr(self, "ui_font_family", "Helvetica")
+        build_line = ttk.Label(
+            buttons_bg,
+            text=self.tr("settings_build_line").format(name=desktop_build_display_name()),
+            font=(ff, 11),
+            foreground=build_muted,
+        )
+        _btn_row.addWidget(build_line)
+
+        _btn_base = (
+            f"background-color: {button_bg}; color: {action_fg}; border-radius: 10px; "
+            f"padding: 6px 14px; min-width: 80px; min-height: 28px; font-weight: 600;"
+        )
+        _btn_hover = f"background-color: {action_btn_hover};"
+        _btn_pressed = f"background-color: {action_bg};"
+        cancel_btn.setStyleSheet(
+            f"QPushButton {{ {_btn_base} border: 1px solid {action_border}; }}"
+            f" QPushButton:hover {{ {_btn_hover} border: 1px solid {action_btn_hover}; }}"
+            f" QPushButton:pressed {{ {_btn_pressed} }}"
+        )
+        save_btn.setStyleSheet(
+            f"QPushButton {{ {_btn_base} border: 1px solid {accent}; }}"
+            f" QPushButton:hover {{ {_btn_hover} border: 1px solid {accent}; }}"
+            f" QPushButton:pressed {{ {_btn_pressed} }}"
+        )
 
         dialog.bind("<Escape>", close_dialog)
         dialog.bind("<Return>", do_save)
@@ -652,6 +740,7 @@ class OverlaysMixin:
         dialog.focus_set()
         dialog.transient(self)
         dialog.grab_set()
+        fit_settings_dialog_to_content()
         dialog.show()
     def _close_settings_overlay(self) -> None:
         if self.settings_overlay is not None:

@@ -95,9 +95,10 @@ class OverlaysMixin:
                 background-color: {card};
                 color: {fg};
                 border: 1px solid {border};
-                border-radius: 4px;
-                padding: 4px 8px;
-                min-height: 1.2em;
+                border-radius: 8px;
+                padding: 2px 8px;
+                height: 28px;
+                font-size: 13px;
             }}
             QComboBox:hover {{
                 border: 1px solid {hover_border};
@@ -116,6 +117,7 @@ class OverlaysMixin:
                 selection-color: {fg};
                 border: 1px solid {border};
                 outline: 0;
+                padding: 2px;
             }}
             QCheckBox {{
                 color: {fg};
@@ -382,21 +384,20 @@ class OverlaysMixin:
         self._close_scale_type_overlay()
         self._close_generation_selection_overlay()
 
-        overlay = tk.Frame(
-            self.chord_panel,
-            bg="#2b2d38",
-            highlightthickness=1,
-            highlightbackground="#4a4f5f",
-            bd=0,
-        )
-        overlay.place(relx=0.03, rely=0.05, relwidth=0.94, relheight=0.90)
-        self.settings_overlay = overlay
+        dialog = tk.Toplevel(self)
+        dialog.title(self.tr("settings_title"))
+        dialog.geometry("500x600")
+        dialog.resizable(False, False)
+
+        dialog.columnconfigure(0, weight=1)
+
+        self.settings_overlay = dialog
         self._settings_overlay_opened_ts = time.monotonic()
 
-        frame = ttk.Frame(overlay, padding=14)
-        frame.pack(fill=tk.BOTH, expand=True)
+        frame = ttk.Frame(dialog, padding=14)
+        frame.grid(row=0, column=0, sticky="w", padx=0, pady=0)
 
-        ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_language")).grid(row=0, column=0, sticky="w", pady=0)
 
         language_options = [("es", "Español"), ("en", "English")]
         lang_id_to_label = {lang_id: label for lang_id, label in language_options}
@@ -404,27 +405,39 @@ class OverlaysMixin:
         current_lang = str(self.config_data.get("language", "es"))
         if current_lang not in lang_id_to_label:
             current_lang = "es"
-        lang_var = tk.StringVar(value=lang_id_to_label[current_lang])
-        lang_combo = ttk.Combobox(
-            frame,
-            textvariable=lang_var,
-            state="readonly",
-            values=[label for _, label in language_options],
-            width=18,
-        )
-        lang_combo.grid(row=0, column=1, sticky="ew", pady=4)
+        lang_var = tk.StringVar(value=current_lang)
 
-        ttk.Label(frame, text=self.tr("settings_midi_input")).grid(row=1, column=0, sticky="w", pady=4)
-        in_values = [""] + self.input_names
-        in_var = tk.StringVar(value=self.config_data.get("midi_input", ""))
-        in_combo = ttk.Combobox(frame, textvariable=in_var, state="readonly", values=in_values, width=48)
-        in_combo.grid(row=1, column=1, sticky="ew", pady=4)
+        lang_frame = ttk.Frame(frame)
+        lang_frame.grid(row=0, column=1, sticky="w", pady=4)
+        for lang_id, label in language_options:
+            ttk.Radiobutton(
+                lang_frame,
+                text=label,
+                variable=lang_var,
+                value=lang_id,
+            ).pack(side=tk.LEFT, padx=(0, 16))
 
-        ttk.Label(frame, text=self.tr("settings_audio_output")).grid(row=2, column=0, sticky="w", pady=4)
-        out_values = [""] + self.audio_output_names
-        out_var = tk.StringVar(value=self.config_data.get("audio_output", ""))
-        out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values, width=48)
-        out_combo.grid(row=2, column=1, sticky="ew", pady=4)
+        ttk.Label(frame, text=self.tr("settings_midi_input")).grid(row=1, column=0, sticky="w", pady=0)
+        in_values = ["Sin seleccionar"] + self.input_names
+        in_var = tk.StringVar()
+        in_combo = ttk.Combobox(frame, textvariable=in_var, state="readonly", values=in_values)
+        in_combo.grid(row=1, column=1, sticky="ew", pady=0)
+        midi_current = self.config_data.get("midi_input", "")
+        if midi_current in in_values:
+            in_combo.setCurrentText(midi_current) if hasattr(in_combo, 'setCurrentText') else in_var.set(midi_current)
+        else:
+            in_combo.setCurrentText("Sin seleccionar") if hasattr(in_combo, 'setCurrentText') else in_var.set("Sin seleccionar")
+
+        ttk.Label(frame, text=self.tr("settings_audio_output")).grid(row=2, column=0, sticky="w", pady=0)
+        out_values = ["Sin seleccionar"] + self.audio_output_names
+        out_var = tk.StringVar()
+        out_combo = ttk.Combobox(frame, textvariable=out_var, state="readonly", values=out_values)
+        out_combo.grid(row=2, column=1, sticky="ew", pady=0)
+        audio_current = self.config_data.get("audio_output", "")
+        if audio_current in out_values:
+            out_combo.setCurrentText(audio_current) if hasattr(out_combo, 'setCurrentText') else out_var.set(audio_current)
+        else:
+            out_combo.setCurrentText("Sin seleccionar") if hasattr(out_combo, 'setCurrentText') else out_var.set("Sin seleccionar")
 
         piano_sound_options = [
             ("acoustic", self.tr("sound_acoustic")),
@@ -452,17 +465,16 @@ class OverlaysMixin:
         if current_guitar_sound not in guitar_sound_id_to_label:
             current_guitar_sound = "steel_clean"
 
-        ttk.Label(frame, text=self.tr("settings_piano_sound")).grid(row=3, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_piano_sound")).grid(row=3, column=0, sticky="w", pady=0)
         piano_sound_row = ttk.Frame(frame)
-        piano_sound_row.grid(row=3, column=1, sticky="ew", pady=4)
+        piano_sound_row.grid(row=3, column=1, sticky="ew", pady=0)
         piano_sound_row.columnconfigure(0, weight=1)
         piano_sound_var = tk.StringVar(value=piano_sound_id_to_label[current_piano_sound])
-        piano_sound_combo = ttk.Combobox(
+        piano_sound_combo = ttk.HandednessComboBox(
             piano_sound_row,
             textvariable=piano_sound_var,
             state="readonly",
             values=[label for _, label in piano_sound_options],
-            width=44,
         )
         piano_sound_combo.grid(row=0, column=0, sticky="ew")
         ttk.Button(
@@ -472,17 +484,16 @@ class OverlaysMixin:
             command=lambda: self._preview_piano_sound(piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")),
         ).grid(row=0, column=1, padx=(6, 0))
 
-        ttk.Label(frame, text=self.tr("settings_guitar_sound")).grid(row=4, column=0, sticky="w", pady=4)
+        ttk.Label(frame, text=self.tr("settings_guitar_sound")).grid(row=4, column=0, sticky="w", pady=0)
         guitar_sound_row = ttk.Frame(frame)
-        guitar_sound_row.grid(row=4, column=1, sticky="ew", pady=4)
+        guitar_sound_row.grid(row=4, column=1, sticky="ew", pady=0)
         guitar_sound_row.columnconfigure(0, weight=1)
         guitar_sound_var = tk.StringVar(value=guitar_sound_id_to_label[current_guitar_sound])
-        guitar_sound_combo = ttk.Combobox(
+        guitar_sound_combo = ttk.HandednessComboBox(
             guitar_sound_row,
             textvariable=guitar_sound_var,
             state="readonly",
             values=[label for _, label in guitar_sound_options],
-            width=44,
         )
         guitar_sound_combo.grid(row=0, column=0, sticky="ew")
         ttk.Button(
@@ -595,9 +606,11 @@ class OverlaysMixin:
         build_line.grid(row=7, column=0, columnspan=2, sticky="w", pady=(10, 8))
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
-            self.config_data["language"] = lang_label_to_id.get(lang_var.get(), "es")
-            self.config_data["midi_input"] = in_var.get().strip()
-            self.config_data["audio_output"] = out_var.get().strip()
+            self.config_data["language"] = lang_var.get()
+            midi_val = in_var.get().strip()
+            self.config_data["midi_input"] = "" if midi_val == "Sin seleccionar" else midi_val
+            audio_val = out_var.get().strip()
+            self.config_data["audio_output"] = "" if audio_val == "Sin seleccionar" else audio_val
             self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
             self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())
@@ -617,20 +630,29 @@ class OverlaysMixin:
             self._close_settings_overlay()
             return "break"
 
-        buttons = ttk.Frame(frame)
-        buttons.grid(row=8, column=0, columnspan=2, sticky="e")
-
-        ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(buttons, text=self.tr("button_save"), command=do_save).pack(side=tk.LEFT)
-
         frame.columnconfigure(1, weight=1)
-        overlay.bind("<Escape>", close_dialog)
-        overlay.bind("<Return>", do_save)
+
+        buttons_bg = tk.Frame(dialog, bg="#1f2329", highlightthickness=0)
+        buttons_bg.grid(row=1, column=0, sticky="ew")
+
+        buttons = ttk.Frame(buttons_bg)
+        buttons.pack(fill=tk.X, padx=14, pady=14)
+
+        cancel_btn = ttk.Button(buttons, text=self.tr("button_cancel"), command=self._close_settings_overlay)
+        cancel_btn.pack(side=tk.LEFT, padx=(0, 6))
+        save_btn = ttk.Button(buttons, text=self.tr("button_save"), command=do_save)
+        save_btn.pack(side=tk.LEFT)
+
+        dialog.bind("<Escape>", close_dialog)
+        dialog.bind("<Return>", do_save)
         frame.bind("<Escape>", close_dialog)
         frame.bind("<Return>", do_save)
         self._settings_save_callback = do_save
         self._qt_style_settings_form(frame)
-        overlay.focus_set()
+        dialog.focus_set()
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.show()
     def _close_settings_overlay(self) -> None:
         if self.settings_overlay is not None:
             self.settings_overlay.destroy()

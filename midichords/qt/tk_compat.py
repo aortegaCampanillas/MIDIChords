@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QFont, QFontMetrics, QPixmap
 from PySide6.QtWidgets import (
+    QDialog,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -638,6 +639,64 @@ class Widget(_BindMixin, QWidget):
 
 class Frame(Widget):
     pass
+
+
+class Toplevel(_BindMixin, QDialog):
+    def __init__(self, master: QWidget | None = None, **kwargs: Any) -> None:
+        QDialog.__init__(self, master)
+        _BindMixin.__init__(self)
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._tk_col_weights: dict[int, int] = {}
+        self._tk_row_weights: dict[int, int] = {}
+
+    def title(self, text: str | None = None) -> str:
+        if text is not None:
+            self.setWindowTitle(text)
+        return self.windowTitle()
+
+    def focus_set(self) -> None:
+        self.setFocus()
+
+    def geometry(self, geom: str | None = None) -> str:
+        if geom is None:
+            rect = self.frameGeometry()
+            return f"{rect.width()}x{rect.height()}+{rect.x()}+{rect.y()}"
+        # Parse geometry string "WxH+X+Y"
+        try:
+            parts = geom.replace("+", "x").split("x")
+            if len(parts) >= 2:
+                w, h = int(parts[0]), int(parts[1])
+                x = int(parts[2]) if len(parts) > 2 else 0
+                y = int(parts[3]) if len(parts) > 3 else 0
+                self.resize(w, h)
+                if x > 0 or y > 0:
+                    self.move(x, y)
+        except Exception:
+            pass
+        return self.geometry()
+
+    def resizable(self, width: bool, height: bool) -> None:
+        self.setSizeGripEnabled(width and height)
+
+    def transient(self, parent: QWidget | None = None) -> None:
+        if parent is not None:
+            self.setParent(parent)
+
+    def grab_set(self) -> None:
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
+
+    def columnconfigure(self, index: int, **kwargs: Any) -> None:
+        self._tk_col_weights[index] = int(kwargs.get("weight", 0) or 0)
+
+    def rowconfigure(self, index: int, **kwargs: Any) -> None:
+        self._tk_row_weights[index] = int(kwargs.get("weight", 0) or 0)
+
+    def pack(self, **kwargs: Any) -> None:
+        pass  # No soportado para Toplevel
+
+    def grid(self, **kwargs: Any) -> None:
+        pass  # No soportado para Toplevel
 
 
 class Label(Widget):

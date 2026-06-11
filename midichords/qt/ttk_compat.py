@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QLabel,
     QPushButton,
+    QRadioButton,
     QSpinBox,
     QScrollBar,
 )
@@ -104,6 +105,32 @@ class Checkbutton(QCheckBox, _LayoutCompat):
             self.setEnabled(str(kwargs["state"]) != "disabled")
         if "text" in kwargs:
             # Compat: en Tk/ttk se usa configure(text=...) para actualizar la etiqueta.
+            self.setText(str(kwargs["text"]))
+
+
+class Radiobutton(QRadioButton, _LayoutCompat):
+    def __init__(self, master=None, text: str = "", variable: StringVar | None = None, value: str | None = None, command: Callable[[], None] | None = None, **_kwargs: Any) -> None:
+        font_spec = _kwargs.pop("font", None)
+        super().__init__(text, master)
+        if font_spec is not None:
+            self.setFont(_font_from_tk_tuple(font_spec))
+        self._variable = variable
+        self._value = str(value) if value is not None else ""
+        if command is not None:
+            self.toggled.connect(command)
+        if variable is not None:
+            is_selected = str(variable.get()) == self._value
+            self.setChecked(is_selected)
+            self.toggled.connect(lambda checked: self._on_toggled(checked, variable))
+
+    def _on_toggled(self, checked: bool, variable: StringVar) -> None:
+        if checked:
+            variable.set(self._value)
+
+    def configure(self, **kwargs: Any) -> None:
+        if "state" in kwargs:
+            self.setEnabled(str(kwargs["state"]) != "disabled")
+        if "text" in kwargs:
             self.setText(str(kwargs["text"]))
 
 

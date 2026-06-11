@@ -32,6 +32,16 @@ X = "x"
 Y = "y"
 BOTH = "both"
 
+CENTER = "center"
+N = "n"
+S = "s"
+E = "e"
+W = "w"
+NW = "nw"
+NE = "ne"
+SW = "sw"
+SE = "se"
+
 SUNKEN = "sunken"
 FLAT = "flat"
 ROUND = 1  # usado como valor booleano para capstyle/joinstyle en el código

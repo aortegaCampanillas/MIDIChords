@@ -951,6 +951,58 @@ class KeyboardStripScroll(QScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setFrameShape(QScrollArea.Shape.NoFrame)
 
+    def _apply_wheel_scroll(self, event: Any) -> bool:
+        """Aplica el scroll horizontal a partir de un wheelEvent. Retorna True si lo consumió."""
+        try:
+            from PySide6.QtCore import QEvent
+            # pixelDelta: trackpad de alta resolución en macOS
+            pixel = event.pixelDelta()
+            angle = event.angleDelta()
+            px, py = pixel.x(), pixel.y()
+            ax, ay = angle.x(), angle.y()
+
+            if px != 0 or py != 0:
+                delta = px if abs(px) >= abs(py) else -py
+            elif ax != 0 or ay != 0:
+                delta = ax if abs(ax) >= abs(ay) else -ay
+            else:
+                return False
+
+            bar = self.horizontalScrollBar()
+            if bar is not None and delta != 0:
+                bar.setValue(bar.value() - delta)
+            event.accept()
+            return True
+        except Exception:
+            return False
+
+    def wheelEvent(self, event: Any) -> None:
+        if not self._apply_wheel_scroll(event):
+            super().wheelEvent(event)
+
+    def eventFilter(self, obj: Any, event: Any) -> bool:
+        try:
+            from PySide6.QtCore import QEvent
+            if event.type() == QEvent.Type.Wheel:
+                if self._apply_wheel_scroll(event):
+                    return True
+        except Exception:
+            pass
+        return super().eventFilter(obj, event)
+
+    def setWidget(self, widget: Any) -> None:
+        super().setWidget(widget)
+        # Instalar el filtro en el widget hijo y en el viewport para capturar
+        # wheel events antes de que el hijo los consuma.
+        try:
+            if widget is not None:
+                widget.installEventFilter(self)
+            vp = self.viewport()
+            if vp is not None:
+                vp.installEventFilter(self)
+        except Exception:
+            pass
+
     def pack(self, **_kwargs: Any) -> None:
         parent = self.parentWidget()
         if parent is None:

@@ -272,8 +272,7 @@ class UiMixin:
         self._setup_typography()
         self.configure(bg=self.color_bg)
         container = tk.Frame(self, bg=self.color_bg, bd=0, highlightthickness=0)
-        container.pack(fill=tk.BOTH, expand=True)
-        container.configure(padx=12, pady=12)
+        container.pack(fill=tk.BOTH, expand=True, padx=12, pady=(6, 12))
         unified_green_width = 200
         unified_green_height = 46
         unified_green_radius = 22
@@ -285,17 +284,19 @@ class UiMixin:
         mode_bar.columnconfigure(1, weight=1)
         mode_bar.columnconfigure(2, weight=1)
 
+        title_col = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
+        title_col.grid(row=0, column=0, sticky="w")
         self.top_title_label = tk.Label(
-            mode_bar,
+            title_col,
             text="",
             bg=topbar_bg,
             fg=self.color_text,
             font=(self.ui_font_family, 20, "bold"),
         )
-        self.top_title_label.grid(row=0, column=0, sticky="w")
+        self.top_title_label.pack(side=tk.LEFT, padx=(16, 0))
 
         mode_center = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        mode_center.grid(row=0, column=1)
+        mode_center.grid(row=0, column=1, sticky="ns")
 
         self.mode_trigger_var = tk.StringVar(value="")
         self._mode_picker_hover = False
@@ -303,19 +304,42 @@ class UiMixin:
             mode_center,
             width=240,
             height=40,
-            bg=topbar_bg,
+            bg="transparent",
             highlightthickness=0,
             bd=0,
             cursor="hand2",
         )
         self.mode_picker_trigger.pack(side=tk.LEFT)
+        try:
+            self.mode_picker_trigger.setMaximumWidth(280)
+        except Exception:
+            pass
+
+        # Aplicar el mismo estilo redondeado que los combos de configuración
+        try:
+            card = getattr(self, "color_card", "#3a4452")
+            border = getattr(self, "color_border", "#56627a")
+            hover_border = getattr(self, "color_border_hover", "#6a7a98")
+            fg = getattr(self, "color_text", "#e9edf2")
+            self.mode_picker_trigger.setStyleSheet(f"""
+                background-color: {card};
+                border: 1px solid {border};
+                border-radius: 8px;
+                color: {fg};
+            """)
+            self._mode_picker_border = border
+            self._mode_picker_hover_border = hover_border
+            self._mode_picker_card = card
+        except Exception:
+            pass
+
         self._mode_picker_text_id = self.mode_picker_trigger.create_text(
-            18,
+            120,
             20,
-            anchor="w",
+            anchor="center",
             text="",
             fill=self.color_text,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 15, "bold"),
         )
         self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
             0,
@@ -323,41 +347,25 @@ class UiMixin:
             anchor="e",
             text="▼",
             fill=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
+            font=(self.ui_font_family, 11),
         )
-
-        def _mode_picker_points(x1: float, y1: float, x2: float, y2: float, r: float) -> list[float]:
-            return [
-                x1 + r, y1,
-                x2 - r, y1,
-                x2, y1,
-                x2, y1 + r,
-                x2, y2 - r,
-                x2, y2,
-                x2 - r, y2,
-                x1 + r, y2,
-                x1, y2,
-                x1, y2 - r,
-                x1, y1 + r,
-                x1, y1,
-            ]
 
         def _redraw_mode_picker(_event: Optional[tk.Event] = None) -> None:
             w = max(120, int(self.mode_picker_trigger.winfo_width()))
             h = max(34, int(self.mode_picker_trigger.winfo_height()))
             self.mode_picker_trigger.delete("mode_picker_bg")
-            self.mode_picker_trigger.create_polygon(
-                _mode_picker_points(1, 1, w - 1, h - 1, 11),
-                smooth=True,
-                splinesteps=18,
-                fill=self.color_surface,
-                outline=(self.color_border_hover if self._mode_picker_hover else self.color_border),
-                width=1.4,
-                tags="mode_picker_bg",
-            )
-            self.mode_picker_trigger.coords(self._mode_picker_text_id, 18, h / 2)
-            self.mode_picker_trigger.coords(self._mode_picker_arrow_id, w - 16, h / 2)
-            self.mode_picker_trigger.tag_lower("mode_picker_bg")
+            self.mode_picker_trigger.coords(self._mode_picker_text_id, w / 2, h / 2)
+            self.mode_picker_trigger.coords(self._mode_picker_arrow_id, w - 14, h / 2)
+            # Actualizar borde en hover via stylesheet
+            try:
+                b = self._mode_picker_hover_border if self._mode_picker_hover else self._mode_picker_border
+                self.mode_picker_trigger.setStyleSheet(f"""
+                    background-color: {self._mode_picker_card};
+                    border: 1px solid {b};
+                    border-radius: 8px;
+                """)
+            except Exception:
+                pass
 
         def _refresh_mode_picker_text(*_args: object) -> None:
             self.mode_picker_trigger.itemconfigure(self._mode_picker_text_id, text=self.mode_trigger_var.get())
@@ -381,10 +389,10 @@ class UiMixin:
             text="⚙",
             fg=self.color_accent,
             bg=topbar_bg,
-            font=(self.ui_font_family, 18, "bold"),
+            font=(self.ui_font_family, 22, "bold"),
             cursor="hand2",
         )
-        self.config_icon_btn.pack(side=tk.LEFT)
+        self.config_icon_btn.pack(side=tk.LEFT, padx=(0, 16))
         self.config_icon_btn.bind("<Button-1>", lambda _e: self.open_settings_dialog())
         self.config_icon_btn.bind("<Enter>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent_soft))
         self.config_icon_btn.bind("<Leave>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent))
@@ -2057,7 +2065,7 @@ class UiMixin:
             text="#",
             command=lambda: self._set_note_accidental("sharp"),
             font_family=self.ui_font_family,
-            font_size=12,
+            font_size=16,
             width=48,
             height=40,
             radius=12,
@@ -2068,7 +2076,7 @@ class UiMixin:
             text="♭",
             command=lambda: self._set_note_accidental("flat"),
             font_family=self.ui_font_family,
-            font_size=12,
+            font_size=16,
             width=48,
             height=40,
             radius=12,
@@ -2180,6 +2188,7 @@ class UiMixin:
             text="#",
             command=lambda: self._set_note_accidental("sharp"),
             font_family=self.ui_font_family,
+            font_size=16,
             width=48,
             height=34,
             radius=12,
@@ -2190,6 +2199,7 @@ class UiMixin:
             text="♭",
             command=lambda: self._set_note_accidental("flat"),
             font_family=self.ui_font_family,
+            font_size=16,
             width=48,
             height=34,
             radius=12,
@@ -3023,8 +3033,9 @@ class UiMixin:
             layout.addWidget(label)
 
         popup.setLayout(layout)
+        combo_w = self.mode_picker_trigger.width()
         popup.adjustSize()
-        popup.setMinimumWidth(240)
+        popup.setFixedWidth(max(combo_w, popup.sizeHint().width()))
 
         # Show popup at button position, aligned to left edge of selector
         trigger_rect = self.mode_picker_trigger.rect()
@@ -3245,9 +3256,20 @@ class UiMixin:
             highlightbackground=self.color_border,
             bd=0,
         )
-        # Más alto para que el icono/texto grandes no se desborden y
-        # no se solape con bordes de tarjetas vecinas.
-        overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.68)
+        # Posicionar el overlay alineado con el combo: mismo ancho y centrado bajo él.
+        try:
+            combo_geo = self.mode_picker_trigger.mapToGlobal(
+                self.mode_picker_trigger.rect().topLeft()
+            )
+            win_geo = self.mapToGlobal(self.rect().topLeft())
+            combo_x = combo_geo.x() - win_geo.x()
+            combo_w = self.mode_picker_trigger.width()
+            win_h = self.height()
+            combo_y_bottom = combo_geo.y() - win_geo.y() + self.mode_picker_trigger.height()
+            overlay_h = int(win_h * 0.68)
+            overlay.place(x=combo_x, y=combo_y_bottom + 4, width=combo_w, height=overlay_h)
+        except Exception:
+            overlay.place(relx=0.5, rely=0.12, anchor="n", relwidth=0.52, relheight=0.68)
         self.mode_selector_overlay = overlay
         self._mode_selector_opened_ts = time.monotonic()
 

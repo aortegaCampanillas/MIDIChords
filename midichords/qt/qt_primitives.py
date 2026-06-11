@@ -217,6 +217,7 @@ class QtCanvas(QWidget):
             self._apply_cursor(cursor)
 
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setMouseTracking(True)
 
     def _apply_cursor(self, cursor: str) -> None:
@@ -593,7 +594,8 @@ class QtCanvas(QWidget):
     def paintEvent(self, _event: Any) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.fillRect(self.rect(), _color(self._bg, QColor(0, 0, 0)))
+        if self._bg and self._bg.lower() not in ("transparent", "none", ""):
+            painter.fillRect(self.rect(), _color(self._bg, QColor(0, 0, 0)))
 
         # Draw items in z order.
         for it in sorted(self._items.values(), key=lambda x: x.z):

@@ -594,23 +594,6 @@ class UiMixin:
             font_size=15,
         )
         self.detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self.detection_midi_sound_toggle_btn = GrayRoundedButton(
-            self.detection_controls_row,
-            text="",
-            command=self._toggle_midi_input_sound,
-            font_family=self.ui_font_family,
-            width=120,
-            height=34,
-            radius=14,
-            font_size=14,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
-            selected_fill_color="#f3bf2f",
-            selected_outline_color="#c9961f",
-            selected_border_width=2.0,
-            shrink_to_text=True,
-        )
-        self.detection_midi_sound_toggle_btn.pack(side=tk.LEFT)
 
         self.chord_var = tk.StringVar(value="-")
         self.detection_result_canvas = tk.Canvas(

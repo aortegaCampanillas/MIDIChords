@@ -672,6 +672,22 @@ class Toplevel(_BindMixin, QDialog):
                 self.resize(w, h)
                 if x > 0 or y > 0:
                     self.move(x, y)
+                else:
+                    # Centrar respecto al padre o a la pantalla
+                    try:
+                        from PySide6.QtWidgets import QApplication
+                        screen = QApplication.primaryScreen().availableGeometry()
+                        parent = self.parent()
+                        if parent is not None:
+                            pg = parent.frameGeometry()
+                            cx = pg.x() + (pg.width() - w) // 2
+                            cy = pg.y() + (pg.height() - h) // 2
+                        else:
+                            cx = (screen.width() - w) // 2
+                            cy = (screen.height() - h) // 2
+                        self.move(cx, cy)
+                    except Exception:
+                        pass
         except Exception:
             pass
         return self.geometry()
@@ -685,6 +701,14 @@ class Toplevel(_BindMixin, QDialog):
 
     def grab_set(self) -> None:
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
+
+    def grab_release(self) -> None:
+        self.setWindowModality(Qt.WindowModality.NonModal)
+
+    def configure(self, **kwargs: Any) -> None:
+        bg = kwargs.get("bg") or kwargs.get("background")
+        if bg:
+            self.setStyleSheet(f"background-color: {bg};")
 
     def columnconfigure(self, index: int, **kwargs: Any) -> None:
         self._tk_col_weights[index] = int(kwargs.get("weight", 0) or 0)

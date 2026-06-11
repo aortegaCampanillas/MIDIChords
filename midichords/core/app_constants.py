@@ -142,6 +142,8 @@ DEFAULT_CONFIG = {
     "tuner_input_gain": 100,
     "tuner_spectrum_min_hz": 0,
     "tuner_spectrum_max_hz": 500,
+    "last_seen_changelog_version": "",
+    "changelog_dont_show": False,
 }
 
 # Versión mostrada en Configuración si no hay MIDICHORDS_BUILD_NAME ni archivo VERSION en PROJECT_ROOT.

@@ -385,6 +385,7 @@ class MidiChordAnalyzerApp(
         except Exception:
             pass
         self.after(20, self._process_midi_queue)
+        self.after(300, self.maybe_show_startup_changelog)
 
     def scale_name(self, canonical_name: str) -> str:
         language = self.config_data.get("language", "es")

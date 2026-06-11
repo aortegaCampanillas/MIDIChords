@@ -652,6 +652,16 @@ class OverlaysMixin:
         )
         show_labels_chk.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
+        def _open_whats_new() -> None:
+            self._close_settings_overlay()
+            self.after(50, self.show_startup_changelog_window)
+
+        ttk.Button(
+            frame,
+            text=self.tr("settings_whats_new") if hasattr(self, "tr") else "Mostrar Novedades",
+            command=_open_whats_new,
+        ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(2, 6))
+
         def do_save(_event: Optional[tk.Event] = None) -> str:
             self.config_data["language"] = lang_var.get()
             midi_val = in_var.get().strip()

@@ -523,6 +523,14 @@ class UiMixin:
             padx=6,
             pady=6,
         )
+        self.tab_interval_frame = tk.Frame(
+            self.chord_panel,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
+        )
         self.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
         # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
         for _hidden_tab in (
@@ -531,6 +539,7 @@ class UiMixin:
             self.tab_scale_frame,
             self.tab_metronome_frame,
             self.tab_tuner_frame,
+            self.tab_interval_frame,
         ):
             _hidden_tab.setVisible(False)
 
@@ -3326,6 +3335,8 @@ class UiMixin:
             self.current_mode = "metronome"
         elif bool(getattr(self, "tuner_enabled", True)) and selected == self._mode_label("tuner"):
             self.current_mode = "tuner"
+        elif selected == self._mode_label("interval_detection"):
+            self.current_mode = "interval_detection"
         else:
             self.current_mode = "detection"
         if self.current_mode != "detection":
@@ -3350,6 +3361,7 @@ class UiMixin:
         self.scale_tab_active = self.current_mode == "scales"
         self.metronome_tab_active = self.current_mode == "metronome"
         self.tuner_tab_active = self.current_mode == "tuner"
+        self.interval_tab_active = self.current_mode == "interval_detection"
         self._set_tuner_spectrum_visible(self.tuner_tab_active)
         if self.generation_space_release_after_id is not None:
             try:
@@ -3394,6 +3406,7 @@ class UiMixin:
             self.tab_metronome_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_circle_frame.pack(fill=tk.BOTH, expand=True)
             self._circle_run_generate()
@@ -3410,6 +3423,7 @@ class UiMixin:
             self.tab_metronome_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_circle_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
@@ -3428,6 +3442,7 @@ class UiMixin:
             self.tab_generation_frame.pack_forget()
             self.tab_circle_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_scale_preview()
         elif self.metronome_tab_active:
@@ -3444,6 +3459,7 @@ class UiMixin:
             self.tab_circle_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_metronome_ui()
         elif self.tuner_tab_active:
@@ -3459,9 +3475,26 @@ class UiMixin:
             self.tab_circle_frame.pack_forget()
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_tuner_frame.pack(fill=tk.BOTH, expand=True)
             self._start_tuner_stream()
             self._refresh_tuner_ui()
+        elif self.interval_tab_active:
+            self.instrument_panel.pack(fill=tk.X, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_handedness_combo.pack_forget()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
+            self._setup_interval_ui()
+            self.tab_interval_frame.pack(fill=tk.BOTH, expand=True)
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
@@ -3474,6 +3507,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
         self._refresh_top_panel_titles()
         self._refresh_detection_help_visibility()

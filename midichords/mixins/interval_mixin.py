@@ -159,7 +159,7 @@ class IntervalMixin:
             return
 
         # Create panel frame
-        self.interval_panel = tk.Frame(self.master, bg=self.color_surface)
+        self.interval_panel = tk.Frame(self.tab_interval_frame, bg=self.color_surface)
 
         # Title
         title = tk.Label(
@@ -239,6 +239,7 @@ class IntervalMixin:
         )
         clear_btn.pack(side=tk.LEFT)
 
+        self.interval_panel.pack(fill=tk.BOTH, expand=True)
         self._interval_panel_created = True
 
     def _update_interval_display(self):

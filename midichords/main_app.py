@@ -181,6 +181,7 @@ class MidiChordAnalyzerApp(
         self.scale_tab_active = False
         self.metronome_tab_active = False
         self.tuner_tab_active = False
+        self.interval_tab_active = False
         self.mode_var = QtStringVar()
         loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"

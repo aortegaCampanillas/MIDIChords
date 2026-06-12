@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -918,6 +919,50 @@ class Button(Widget):
         if "text" in kwargs:
             self._btn.setText(str(kwargs["text"]))
         super().configure(**kwargs)
+
+
+class Radiobutton(Widget):
+    def __init__(
+        self,
+        master: QWidget | None = None,
+        text: str = "",
+        variable: QtStringVar | None = None,
+        value: str = "",
+        command: Callable[[], None] | None = None,
+        **_kwargs: Any,
+    ) -> None:
+        super().__init__(master)
+        self._rb = QRadioButton(text, self)
+        self._variable = variable
+        self._value = value
+        self._command = command
+        if variable is not None:
+            self._rb.setChecked(str(variable.get()) == str(value))
+            variable.trace_add("write", lambda *_: self._rb.setChecked(str(self._variable.get()) == str(self._value)))  # type: ignore[union-attr]
+        self._rb.toggled.connect(self._on_toggled)
+        self._rb.adjustSize()
+        self.setFixedSize(self._rb.size())
+
+    def _on_toggled(self, checked: bool) -> None:
+        if checked:
+            if self._variable is not None:
+                self._variable.set(self._value)
+            if self._command is not None:
+                self._command()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._rb.setGeometry(0, 0, self.width(), self.height())
+
+    def configure(self, **kwargs: Any) -> None:
+        if "text" in kwargs:
+            self._rb.setText(str(kwargs["text"]))
+        if "state" in kwargs:
+            self._rb.setEnabled(str(kwargs["state"]) != DISABLED)
+        super().configure(**kwargs)
+
+    def pack(self, **kwargs: Any) -> None:
+        super().pack(**kwargs)
 
 
 class Entry(Widget):

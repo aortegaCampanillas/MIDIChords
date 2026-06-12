@@ -40,6 +40,7 @@ const state = {
   guitarVariations: [],
   guitarSelectedVariationIdx: null,
   guitarHitRegions: [],
+  guitarForbiddenFlash: new Set(),
   scaleLoop: {
     active: false,
     timer: null,
@@ -4249,6 +4250,23 @@ function renderGuitar() {
     }
   });
 
+  if (state.guitarForbiddenFlash.size > 0) {
+    state.guitarForbiddenFlash.forEach((midiNote) => {
+      tuning.forEach((openNote, si) => {
+        const fret = midiNote - openNote;
+        if (fret < 0 || fret >= frets) return;
+        const cx = fretCenterX(fret);
+        const sy = top + si * yGap;
+        ctx.font = "18px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🚫", cx, sy);
+      });
+    });
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+  }
+
   const releaseCanvasPress = () => endInputDrag();
   const armSuppressNextGuitarClick = () => {
     state.guitarSuppressNextClick = true;
@@ -4434,7 +4452,10 @@ function handleInstrumentNote(note, options = {}) {
 }
 
 function showForbiddenOnPianoKey(note) {
-  if (state.instrument !== "piano") return;
+  if (state.instrument === "guitar") {
+    showForbiddenOnGuitar(note);
+    return;
+  }
   const key = document.querySelector(`#sharedPiano .key[data-midi="${Number(note)}"]`);
   if (!key) return;
   key.classList.remove("forbidden-flash");
@@ -4442,6 +4463,16 @@ function showForbiddenOnPianoKey(note) {
   void key.offsetWidth;
   key.classList.add("forbidden-flash");
   setTimeout(() => key.classList.remove("forbidden-flash"), 420);
+}
+
+function showForbiddenOnGuitar(note) {
+  const midiNote = Number(note);
+  state.guitarForbiddenFlash.add(midiNote);
+  renderInstrument();
+  setTimeout(() => {
+    state.guitarForbiddenFlash.delete(midiNote);
+    if (state.instrument === "guitar") renderInstrument();
+  }, 420);
 }
 
 function refreshDetectionActiveNotes() {

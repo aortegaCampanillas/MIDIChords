@@ -210,6 +210,8 @@ class RenderMixin:
             return notes
         if self.metronome_tab_active:
             return set(self.active_notes)
+        if getattr(self, "interval_tab_active", False):
+            return set(getattr(self, "interval_notes", []))
         return self._current_detection_notes()
 
     @staticmethod

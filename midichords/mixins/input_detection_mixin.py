@@ -211,7 +211,11 @@ class InputDetectionMixin:
             self._detection_drag_sound_after_id = None
 
     def _compute_next_sounding_state(self) -> tuple[set[int], set[int]]:
-        if self.current_mode == "detection":
+        if self.current_mode == "interval_detection":
+            next_active = set(self.interval_notes)
+            next_sounding = set(next_active)
+            return next_active, next_sounding
+        elif self.current_mode == "detection":
             next_active = set(self._current_detection_notes())
             if self.midi_input_sound_enabled:
                 next_sounding = set(next_active)
@@ -271,6 +275,9 @@ class InputDetectionMixin:
         # Handle interval detection mode
         if self.current_mode == "interval_detection":
             self._add_interval_note(note)
+            self._refresh_sounding_notes()
+            if hasattr(self, '_update_interval_display'):
+                self._update_interval_display()
             return
 
         if source == "midi":

@@ -540,11 +540,13 @@ class PlayTransportButton(_QtWidgetBase):
         width: int = 58,
         height: int = 34,
         radius: int = 14,
+        reversed_: bool = False,
     ) -> None:
         super().__init__(master)
         self.setFixedSize(int(width), int(height))
         self._command = command
         self._radius = int(radius)
+        self._reversed = bool(reversed_)
         self._hover = False
         self._pressed = False
         self._playing = False
@@ -643,7 +645,10 @@ class PlayTransportButton(_QtWidgetBase):
             x_right = cx + tri_w * 0.45
             y_top = cy - tri_h / 2.0
             y_bot = cy + tri_h / 2.0
-            triangle = QPolygonF([QPointF(x_left, y_top), QPointF(x_right, cy), QPointF(x_left, y_bot)])
+            if self._reversed:
+                triangle = QPolygonF([QPointF(x_right, y_top), QPointF(x_left, cy), QPointF(x_right, y_bot)])
+            else:
+                triangle = QPolygonF([QPointF(x_left, y_top), QPointF(x_right, cy), QPointF(x_left, y_bot)])
             painter.setBrush(_qcolor(icon_color))
             painter.setPen(_qcolor(icon_color))
             painter.drawPolygon(triangle)

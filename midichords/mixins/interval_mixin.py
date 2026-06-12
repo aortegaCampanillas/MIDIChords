@@ -1,5 +1,6 @@
 """Interval detection mixin for chord analyzer app."""
 
+from typing import Optional
 import midichords.qt.tk_compat as tk
 from midichords.core.interval_data import INTERVAL_NAMES, INTERVAL_MELODIES
 
@@ -27,8 +28,12 @@ class IntervalMixin:
         self.interval_playing_note = None
         self.interval_playing_idx = None
         if self.interval_melody_playback_timer:
-            self.master.after_cancel(self.interval_melody_playback_timer)
+            self.after_cancel(self.interval_melody_playback_timer)
             self.interval_melody_playback_timer = None
+        self._update_interval_display()
+        if self.current_mode == "interval_detection":
+            self.active_notes = set()
+            self.update_music_views()
 
     def get_interval_semitones(self) -> int | None:
         """Calculate semitones between the two interval notes."""
@@ -43,7 +48,8 @@ class IntervalMixin:
         semitones = self.get_interval_semitones()
         if semitones is None:
             return "-"
-        lang = self.language if self.language in INTERVAL_NAMES else "es"
+        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang = lang if lang in INTERVAL_NAMES else "es"
         return INTERVAL_NAMES[lang].get(semitones, "-")
 
     def get_interval_melody(self) -> dict | None:
@@ -58,7 +64,8 @@ class IntervalMixin:
         melody = self.get_interval_melody()
         if not melody:
             return "-"
-        lang_key = "name_en" if self.language == "en" else "name_es"
+        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang_key = "name_en" if lang == "en" else "name_es"
         return melody.get(lang_key, "-")
 
     def get_interval_melody_notes(self) -> list[int | None]:
@@ -104,14 +111,14 @@ class IntervalMixin:
             self.interval_playing_note = note
             self.interval_playing_idx = index
             self.audio_engine.note_on(note, velocity=80)
-            self.render()
+            self.update_music_views()
 
         # Calculate duration for this note
         durations = melody_info.get("durations", [])
         duration_code = durations[index] if index < len(durations) else "q"
         duration_ms = self._duration_to_ms(duration_code)
 
-        self.interval_melody_playback_timer = self.master.after(
+        self.interval_melody_playback_timer = self.after(
             duration_ms,
             lambda: self._play_melody_sequence_continue(notes, melody_info, index, note)
         )
@@ -149,7 +156,7 @@ class IntervalMixin:
     def _get_ui_text(self, key: str) -> str:
         """Helper to get translated UI text."""
         from midichords.core.i18n import UI_TEXTS
-        lang = self.language if hasattr(self, 'language') else 'es'
+        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
         texts = UI_TEXTS.get(lang, UI_TEXTS['es'])
         return texts.get(key, key)
 
@@ -158,86 +165,146 @@ class IntervalMixin:
         if hasattr(self, '_interval_panel_created'):
             return
 
-        # Create panel frame
-        self.interval_panel = tk.Frame(self.tab_interval_frame, bg=self.color_surface)
+        from midichords.ui.widgets_qt import GrayRoundedButton, PlayTransportButton
 
-        # Title
-        title = tk.Label(
+        bg = self.color_surface_alt
+        self.interval_panel = tk.Frame(self.tab_interval_frame, bg=bg, bd=0, highlightthickness=0)
+
+        # Title — same as chord detection (22 bold)
+        tk.Label(
             self.interval_panel,
             text=self._get_ui_text('heading_interval_detection'),
-            bg=self.color_surface,
+            bg=bg,
             fg=self.color_text,
-            font=("Arial", 14, "bold"),
-        )
-        title.pack(pady=(10, 15))
+            font=(self.ui_font_family, 22, "bold"),
+        ).pack(anchor="w", pady=(0, 6))
 
-        # Info frame
-        info_frame = tk.Frame(self.interval_panel, bg=self.color_surface)
-        info_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Hint subtitle — same as detection_help_label (14)
+        tk.Label(
+            self.interval_panel,
+            text=self._get_ui_text('hint_interval_detection'),
+            bg=bg,
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+            justify="left",
+            anchor="nw",
+            wraplength=800,
+        ).pack(anchor="w", pady=(0, 8))
 
-        # Notes
-        notes_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_notes'), bg=self.color_surface, fg=self.color_muted)
-        notes_label.pack(anchor=tk.W)
-        self.interval_notes_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Courier", 11))
-        self.interval_notes_display.pack(anchor=tk.W)
+        # Buttons row: ◄ ► Limpiar — same widget types as detection panel
+        controls_row = tk.Frame(self.interval_panel, bg=bg, bd=0, highlightthickness=0)
+        controls_row.pack(fill=tk.X, anchor="w", pady=(0, 8))
 
-        # Interval name
-        name_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_name'), bg=self.color_surface, fg=self.color_muted)
-        name_label.pack(anchor=tk.W, pady=(10, 0))
-        self.interval_name_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 12))
-        self.interval_name_display.pack(anchor=tk.W)
-
-        # Semitones
-        semi_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_semitones'), bg=self.color_surface, fg=self.color_muted)
-        semi_label.pack(anchor=tk.W, pady=(10, 0))
-        self.interval_semitones_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 11))
-        self.interval_semitones_display.pack(anchor=tk.W)
-
-        # Melody name
-        melody_label = tk.Label(info_frame, text=self._get_ui_text('label_interval_example'), bg=self.color_surface, fg=self.color_muted)
-        melody_label.pack(anchor=tk.W, pady=(10, 0))
-        self.interval_melody_display = tk.Label(info_frame, text="-", bg=self.color_surface, fg=self.color_accent, font=("Arial", 11))
-        self.interval_melody_display.pack(anchor=tk.W)
-
-        # Buttons frame
-        button_frame = tk.Frame(self.interval_panel, bg=self.color_surface)
-        button_frame.pack(fill=tk.X, padx=10, pady=15)
-
-        play_btn = tk.Button(
-            button_frame,
-            text=self._get_ui_text('button_play_interval'),
-            command=self.play_interval_melody,
-            bg=self.color_accent,
-            fg="#000000",
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
-        )
-        play_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        play_reverse_btn = tk.Button(
-            button_frame,
-            text=self._get_ui_text('button_play_interval_reverse'),
+        self.interval_play_reverse_btn = PlayTransportButton(
+            controls_row,
             command=lambda: self.play_interval_melody(reversed_=True),
-            bg=self.color_accent_soft,
-            fg="#000000",
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
+            width=58,
+            height=34,
+            reversed_=True,
         )
-        play_reverse_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.interval_play_reverse_btn.pack(side=tk.LEFT, padx=(0, 8))
 
-        clear_btn = tk.Button(
-            button_frame,
+        self.interval_play_btn = PlayTransportButton(
+            controls_row,
+            command=lambda: self.play_interval_melody(),
+            width=58,
+            height=34,
+        )
+        self.interval_play_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        self.interval_clear_btn = GrayRoundedButton(
+            controls_row,
             text=self._get_ui_text('button_clear'),
             command=self._clear_interval_notes,
-            bg=self.color_card,
-            fg=self.color_text,
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
+            font_family=self.ui_font_family,
+            width=104,
+            height=34,
+            radius=14,
+            font_size=15,
         )
-        clear_btn.pack(side=tk.LEFT)
+        self.interval_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        # Result box — same rounded dark box with dashed border as detection panel
+        result_box_bg = "#17273a"
+        self.interval_result_canvas = tk.Canvas(
+            self.interval_panel,
+            bg=bg,
+            height=130,
+            highlightthickness=0,
+            bd=0,
+            relief=tk.FLAT,
+        )
+        self.interval_result_canvas.pack(fill=tk.X, expand=False, pady=(2, 0))
+
+        self.interval_result_inner = tk.Frame(
+            self.interval_result_canvas,
+            bg=result_box_bg,
+            bd=0,
+            highlightthickness=0,
+        )
+        self._interval_result_window_id = self.interval_result_canvas.create_window(
+            0, 0, anchor="nw", window=self.interval_result_inner,
+        )
+
+        def _redraw_interval_result_block(_event: Optional[tk.Event] = None) -> None:
+            w = max(40, int(self.interval_result_canvas.winfo_width()))
+            h = max(130, int(self.interval_result_canvas.winfo_height()))
+            self.interval_result_canvas.delete("interval_block_bg")
+            radius = 15
+            self.interval_result_canvas.create_rectangle(
+                radius, 1, w - radius, h - 1, fill=result_box_bg, outline="", tags="interval_block_bg",
+            )
+            self.interval_result_canvas.create_rectangle(
+                1, radius, w - 1, h - radius, fill=result_box_bg, outline="", tags="interval_block_bg",
+            )
+            for sx, sy, start in [(1, 1, 90), (w - radius*2 - 1, 1, 0), (1, h - radius*2 - 1, 180), (w - radius*2 - 1, h - radius*2 - 1, 270)]:
+                self.interval_result_canvas.create_arc(
+                    sx, sy, sx + radius*2 + 1, sy + radius*2 + 1,
+                    fill=result_box_bg, outline="", start=start, extent=90, style=tk.PIESLICE, tags="interval_block_bg",
+                )
+            dash_color = "#73829a"
+            self.interval_result_canvas.create_line(radius+1, 1, w-radius-1, 1, fill=dash_color, width=1, dash=(3,3), tags="interval_block_bg")
+            self.interval_result_canvas.create_line(1, radius+1, 1, h-radius-1, fill=dash_color, width=1, dash=(3,3), tags="interval_block_bg")
+            self.interval_result_canvas.create_line(radius+1, h-1, w-radius-1, h-1, fill=dash_color, width=1, dash=(3,3), tags="interval_block_bg")
+            self.interval_result_canvas.create_line(w-1, radius+1, w-1, h-radius-1, fill=dash_color, width=1, dash=(3,3), tags="interval_block_bg")
+            for sx, sy, start in [(1, 1, 90), (w-radius*2-1, 1, 0), (1, h-radius*2-1, 180), (w-radius*2-1, h-radius*2-1, 270)]:
+                self.interval_result_canvas.create_arc(
+                    sx, sy, sx+radius*2+1, sy+radius*2+1,
+                    outline=dash_color, width=1, dash=(3,3), start=start, extent=90, style=tk.ARC, tags="interval_block_bg",
+                )
+            pad = 8
+            self.interval_result_canvas.coords(self._interval_result_window_id, pad, pad)
+            self.interval_result_canvas.itemconfigure(
+                self._interval_result_window_id,
+                width=max(1, w - pad*2),
+                height=max(1, h - pad*2),
+            )
+            self.interval_result_canvas.tag_lower("interval_block_bg")
+
+        self.interval_result_canvas.bind("<Configure>", _redraw_interval_result_block)
+        _redraw_interval_result_block()
+
+        # Rows inside result box — same font sizes as detection panel (14)
+        def _result_row(label_key, value_fg=None):
+            row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
+            row.pack(anchor="w", pady=(0, 4), fill=tk.X)
+            tk.Label(
+                row, text=self._get_ui_text(label_key),
+                bg=result_box_bg, fg=self.color_muted,
+                font=(self.ui_font_family, 14),
+            ).pack(side=tk.LEFT)
+            val = tk.Label(
+                row, text=" -",
+                bg=result_box_bg, fg=value_fg or self.color_text,
+                font=(self.ui_mono_font_family, 14),
+            )
+            val.pack(side=tk.LEFT, padx=(4, 0))
+            return val
+
+        self.interval_notes_display = _result_row('label_interval_notes')
+        self.interval_name_display = _result_row('label_interval_name', self.color_accent)
+        self.interval_semitones_display = _result_row('label_interval_semitones')
+        self.interval_melody_display = _result_row('label_interval_example')
 
         self.interval_panel.pack(fill=tk.BOTH, expand=True)
         self._interval_panel_created = True
@@ -247,20 +314,17 @@ class IntervalMixin:
         if not hasattr(self, 'interval_panel'):
             return
 
-        # Notes display
         notes_str = " - ".join([self.note_name(n) for n in self.interval_notes]) if self.interval_notes else "-"
-        self.interval_notes_display.config(text=notes_str)
+        self.interval_notes_display.configure(text=notes_str)
 
-        # Interval info
         if len(self.interval_notes) >= 2:
             name = self.get_interval_name()
             semitones = self.get_interval_semitones()
             melody_name = self.get_interval_melody_name()
-
-            self.interval_name_display.config(text=name)
-            self.interval_semitones_display.config(text=str(semitones) if semitones else "-")
-            self.interval_melody_display.config(text=melody_name)
+            self.interval_name_display.configure(text=name)
+            self.interval_semitones_display.configure(text=str(semitones) if semitones else "-")
+            self.interval_melody_display.configure(text=melody_name)
         else:
-            self.interval_name_display.config(text="-")
-            self.interval_semitones_display.config(text="-")
-            self.interval_melody_display.config(text="-")
+            self.interval_name_display.configure(text="-")
+            self.interval_semitones_display.configure(text="-")
+            self.interval_melody_display.configure(text="-")

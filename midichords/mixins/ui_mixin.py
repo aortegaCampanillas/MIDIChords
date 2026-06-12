@@ -2437,6 +2437,8 @@ class UiMixin:
         self.chord_title_label.configure(text=self.tr("detection_title"))
         self.detection_help_label.configure(text=self.tr("detection_help"))
         self.detection_clear_btn.set_text(self.tr("button_clear"))
+        if hasattr(self, "interval_clear_btn"):
+            self.interval_clear_btn.set_text(self.tr("button_clear"))
         self._refresh_midi_input_sound_toggle_button()
         self._refresh_detection_controls_state()
         self.chord_caption_label.configure(text=self.tr("label_chord"))
@@ -3500,6 +3502,17 @@ class UiMixin:
             self.tab_tuner_frame.pack_forget()
             self._setup_interval_ui()
             self.tab_interval_frame.pack(fill=tk.BOTH, expand=True)
+            # Clear previous selection when entering interval detection mode
+            self.mouse_held_notes.clear()
+            self.midi_held_notes.clear()
+            self.sustain_latched_notes.clear()
+            for _n in list(self.sounding_notes):
+                self.stop_note(_n)
+            self.sounding_notes = set()
+            if hasattr(self, '_clear_interval_notes'):
+                self._clear_interval_notes()
+            self.active_notes = set()
+            self.update_music_views()
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()

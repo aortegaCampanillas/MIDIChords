@@ -172,7 +172,7 @@ class MidiChordAnalyzerApp(
             "on",
         }
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        allowed_modes = {"detection", "generation", "circle_fifths", "scales", "metronome"}
+        allowed_modes = {"detection", "generation", "circle_fifths", "scales", "metronome", "interval_detection"}
         if self.tuner_enabled:
             allowed_modes.add("tuner")
         if self.current_mode not in allowed_modes:

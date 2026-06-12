@@ -15,9 +15,11 @@ class IntervalMixin:
         self.interval_playing_idx: int | None = None
         self.interval_melody_playing = False
         self.interval_melody_playback_timer: object | None = None
+        self.interval_melody_mode: bool = False  # False = play notes, True = play reference song
 
     def _add_interval_note(self, midi_note: int):
         """Add a note to the interval pair. Keeps only last 2 notes."""
+        self.interval_melody_mode = False
         self.interval_notes.append(midi_note)
         if len(self.interval_notes) > 2:
             self.interval_notes.pop(0)
@@ -27,6 +29,7 @@ class IntervalMixin:
         self.interval_notes = []
         self.interval_playing_note = None
         self.interval_playing_idx = None
+        self.interval_melody_mode = False
         if self.interval_melody_playback_timer:
             self.after_cancel(self.interval_melody_playback_timer)
             self.interval_melody_playback_timer = None
@@ -87,18 +90,38 @@ class IntervalMixin:
                 notes.append(note if 0 <= note <= 127 else None)
         return notes
 
-    def play_interval_melody(self, reversed_: bool = False):
-        """Play the reference melody for the detected interval."""
-        melody = self.get_interval_melody()
-        if not melody:
+    def _toggle_interval_melody_mode(self):
+        """Toggle between playing interval notes and reference song."""
+        has_melody = self.get_interval_melody() is not None
+        if not has_melody or len(self.interval_notes) < 2:
             return
+        self.interval_melody_mode = not self.interval_melody_mode
+        if not self.interval_melody_mode:
+            self.interval_playing_note = None
+            self.interval_playing_idx = None
+        self._update_interval_display()
+        self.update_music_views()
 
-        notes = self.get_interval_melody_notes()
-        if reversed_:
-            notes = list(reversed(notes))
-
-        self.interval_melody_playing = True
-        self._play_melody_sequence(notes, melody)
+    def play_interval_melody(self, reversed_: bool = False):
+        """Play interval notes or the reference melody depending on current mode."""
+        if len(self.interval_notes) < 2:
+            return
+        if self.interval_melody_mode:
+            # Song mode: always play full melody forward
+            melody = self.get_interval_melody()
+            if not melody:
+                return
+            notes = self.get_interval_melody_notes()
+            self.interval_melody_playing = True
+            self._play_melody_sequence(notes, melody)
+        else:
+            # Normal mode: play the two interval notes
+            notes_to_play = sorted(self.interval_notes)
+            if reversed_:
+                notes_to_play = list(reversed(notes_to_play))
+            dummy_melody = {"durations": ["q", "q"]}
+            self.interval_melody_playing = True
+            self._play_melody_sequence(notes_to_play, dummy_melody)
 
     def _play_melody_sequence(self, notes: list[int | None], melody_info: dict, index: int = 0):
         """Play a sequence of notes with timing from melody info."""
@@ -304,10 +327,46 @@ class IntervalMixin:
         self.interval_notes_display = _result_row('label_interval_notes')
         self.interval_name_display = _result_row('label_interval_name', self.color_accent)
         self.interval_semitones_display = _result_row('label_interval_semitones')
-        self.interval_melody_display = _result_row('label_interval_example')
+
+        # Ejemplo row: label + clickable button value
+        ejemplo_row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
+        ejemplo_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
+        tk.Label(
+            ejemplo_row, text=self._get_ui_text('label_interval_example'),
+            bg=result_box_bg, fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+        ).pack(side=tk.LEFT)
+        self.interval_melody_btn = GrayRoundedButton(
+            ejemplo_row,
+            text="-",
+            command=self._toggle_interval_melody_mode,
+            font_family=self.ui_font_family,
+            width=120,
+            height=28,
+            radius=8,
+            font_size=13,
+            shrink_to_text=True,
+            selected_text_color="#dde2e8",
+            selected_fill_color="#2b3a50",
+            selected_outline_color=self.color_accent,
+        )
+        self.interval_melody_btn.pack(side=tk.LEFT, padx=(6, 0))
 
         self.interval_panel.pack(fill=tk.BOTH, expand=True)
         self._interval_panel_created = True
+        self._refresh_interval_buttons_state()
+
+    def _refresh_interval_buttons_state(self):
+        """Enable/disable play buttons and update melody button state."""
+        if not hasattr(self, '_interval_panel_created'):
+            return
+        has_two = len(self.interval_notes) >= 2
+        has_melody = has_two and self.get_interval_melody() is not None
+        self.interval_play_btn.set_enabled(has_two)
+        self.interval_play_reverse_btn.set_enabled(has_two and not self.interval_melody_mode)
+        self.interval_clear_btn.set_enabled(len(self.interval_notes) > 0)
+        self.interval_melody_btn.set_enabled(has_melody)
+        self.interval_melody_btn.set_selected(self.interval_melody_mode and has_melody)
 
     def _update_interval_display(self):
         """Update interval detection UI with current data."""
@@ -323,8 +382,10 @@ class IntervalMixin:
             melody_name = self.get_interval_melody_name()
             self.interval_name_display.configure(text=name)
             self.interval_semitones_display.configure(text=str(semitones) if semitones else "-")
-            self.interval_melody_display.configure(text=melody_name)
+            self.interval_melody_btn.set_text(melody_name)
         else:
             self.interval_name_display.configure(text="-")
             self.interval_semitones_display.configure(text="-")
-            self.interval_melody_display.configure(text="-")
+            self.interval_melody_btn.set_text("-")
+
+        self._refresh_interval_buttons_state()

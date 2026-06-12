@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from PySide6.QtCore import QObject, QPointF, QRect, QRectF, Qt, QTimer, QEvent, QThread, Signal, Slot
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QMouseEvent, QPainter, QPen, QBrush, QPolygonF
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QMouseEvent, QPainter, QPainterPath, QPen, QBrush, QPolygonF
 from PySide6.QtWidgets import QWidget, QApplication
 
 # Invocador lazy: ejecuta callbacks en el hilo de la GUI (QTimer/widgets no son seguros en otros hilos).
@@ -351,7 +351,7 @@ class QtCanvas(QWidget):
             return {str(tags)}
 
     # ---- Create primitives ----
-    def create_line(self, x1: float, y1: float, x2: float, y2: float, **kwargs: Any) -> int:
+    def create_line(self, *args: float, **kwargs: Any) -> int:
         item_id = self._new_id()
         self._items[item_id] = _CanvasItem(
             item_id=item_id,
@@ -359,13 +359,12 @@ class QtCanvas(QWidget):
             tags=self._parse_tags(kwargs.get("tags")),
             z=self._z_counter,
             payload={
-                "x1": float(x1),
-                "y1": float(y1),
-                "x2": float(x2),
-                "y2": float(y2),
+                "points": [float(a) for a in args],
                 "width": float(kwargs.get("width", 1.0)),
                 "fill": kwargs.get("fill", "#000000"),
                 "capstyle": kwargs.get("capstyle"),
+                "dash": kwargs.get("dash"),
+                "smooth": bool(kwargs.get("smooth", False)),
             },
         )
         self._z_counter += 1
@@ -557,8 +556,7 @@ class QtCanvas(QWidget):
             pl["x"] = float(coord_args[0])
             pl["y"] = float(coord_args[1])
         elif it.kind == "line" and n >= 4:
-            pl["x1"], pl["y1"] = float(coord_args[0]), float(coord_args[1])
-            pl["x2"], pl["y2"] = float(coord_args[2]), float(coord_args[3])
+            pl["points"] = [float(a) for a in coord_args]
         elif it.kind in {"rect", "oval"} and n >= 4:
             pl["x1"], pl["y1"] = float(coord_args[0]), float(coord_args[1])
             pl["x2"], pl["y2"] = float(coord_args[2]), float(coord_args[3])
@@ -603,10 +601,36 @@ class QtCanvas(QWidget):
                 continue
             payload = it.payload
             if it.kind == "line":
+                pts = payload.get("points", [])
+                if len(pts) < 4:
+                    continue
                 pen = QPen(_color(payload.get("fill", "#000")), payload.get("width", 1.0))
                 pen.setCapStyle(Qt.PenCapStyle.RoundCap if payload.get("capstyle") else Qt.PenCapStyle.FlatCap)
+                if payload.get("dash"):
+                    pen.setStyle(Qt.PenStyle.DashLine)
                 painter.setPen(pen)
-                painter.drawLine(QPointF(payload["x1"], payload["y1"]), QPointF(payload["x2"], payload["y2"]))
+                if payload.get("smooth") and len(pts) >= 6:
+                    pp = [QPointF(pts[i * 2], pts[i * 2 + 1]) for i in range(len(pts) // 2)]
+                    n = len(pp)
+                    path = QPainterPath()
+                    path.moveTo(pp[0])
+                    if n == 3:
+                        path.quadTo(pp[1], pp[2])
+                    else:
+                        mid0 = QPointF((pp[0].x() + pp[1].x()) / 2, (pp[0].y() + pp[1].y()) / 2)
+                        path.lineTo(mid0)
+                        for _si in range(1, n - 2):
+                            mid_n = QPointF((pp[_si].x() + pp[_si + 1].x()) / 2,
+                                            (pp[_si].y() + pp[_si + 1].y()) / 2)
+                            path.quadTo(pp[_si], mid_n)
+                        path.quadTo(pp[n - 2], pp[n - 1])
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawPath(path)
+                elif len(pts) == 4:
+                    painter.drawLine(QPointF(pts[0], pts[1]), QPointF(pts[2], pts[3]))
+                else:
+                    poly = QPolygonF([QPointF(pts[i], pts[i + 1]) for i in range(0, len(pts) - 1, 2)])
+                    painter.drawPolyline(poly)
             elif it.kind in {"rect", "oval"}:
                 x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
                 rx1, ry1 = min(x1, x2), min(y1, y2)
@@ -684,8 +708,12 @@ class QtCanvas(QWidget):
     def _item_rect(self, it: _CanvasItem) -> QRectF:
         payload = it.payload or {}
         if it.kind == "line":
-            x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
-            return QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+            pts = payload.get("points", [])
+            if len(pts) < 4:
+                return QRectF()
+            xs = [float(pts[i]) for i in range(0, len(pts), 2)]
+            ys = [float(pts[i]) for i in range(1, len(pts), 2)]
+            return QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
         if it.kind in {"rect", "oval"}:
             x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
             return QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))

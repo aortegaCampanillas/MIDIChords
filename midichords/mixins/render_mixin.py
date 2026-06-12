@@ -41,6 +41,66 @@ class RenderMixin:
         """Separación horizontal entre alteraciones de armadura (evita solape al crecer la fuente)."""
         return max(14, min(22, int(round(line_space * 0.82)), int(accidental_pt * 0.72) + 6))
 
+    @staticmethod
+    def _draw_rest_symbol(canvas: object, x: float, center_y: float, dur_code: str,
+                          line_space: float, fill: str, treble_top: float) -> None:
+        """Draw a rest symbol using canvas primitives (Unicode glyphs are not reliable across fonts)."""
+        col = fill
+        if dur_code == "w":
+            rw, rh = line_space * 1.3, line_space * 0.48
+            ry = treble_top + line_space
+            canvas.create_rectangle(x - rw / 2, ry, x + rw / 2, ry + rh, fill=col, outline="")
+        elif dur_code == "h":
+            rw, rh = line_space * 1.3, line_space * 0.48
+            ry = treble_top + 2 * line_space
+            canvas.create_rectangle(x - rw / 2, ry - rh, x + rw / 2, ry, fill=col, outline="")
+        elif dur_code == "q":
+            r = line_space * 0.35
+            y0 = center_y - line_space * 0.75
+            canvas.create_line(x + r, y0,
+                                x - r * 0.4, y0 + line_space * 0.5,
+                                fill=col, width=1.5)
+            canvas.create_line(x - r * 0.4, y0 + line_space * 0.5,
+                                x + r * 0.8, y0 + line_space * 0.9,
+                                fill=col, width=1.5)
+            canvas.create_line(x + r * 0.8, y0 + line_space * 0.9,
+                                x, y0 + line_space * 1.25,
+                                x - r * 0.5, y0 + line_space * 1.55,
+                                fill=col, width=1.5)
+        elif dur_code in ("e", "et"):
+            # Eighth rest: tall diagonal line (upper-right → lower-left) + large filled circle
+            dr = max(4.5, line_space * 0.46)
+            span = line_space * 2.6
+            x_top = x + line_space * 0.32
+            y_top = center_y - span * 0.52
+            x_bot = x - line_space * 0.22
+            y_bot = center_y + span * 0.48
+            canvas.create_line(x_top, y_top, x_bot, y_bot, fill=col, width=2.5)
+            # Circle at ~25% from top of line, shifted left so line passes right side
+            t = 0.24
+            xc = x_top + (x_bot - x_top) * t - dr * 0.65
+            yc = y_top + (y_bot - y_top) * t
+            canvas.create_oval(xc - dr, yc - dr, xc + dr, yc + dr, fill=col, outline="")
+        elif dur_code == "s":
+            # Sixteenth rest: taller diagonal + two blobs
+            dr = max(3.5, line_space * 0.38)
+            span = line_space * 3.2
+            x_top = x + line_space * 0.32
+            y_top = center_y - span * 0.52
+            x_bot = x - line_space * 0.22
+            y_bot = center_y + span * 0.48
+            canvas.create_line(x_top, y_top, x_bot, y_bot, fill=col, width=2.5)
+            # Top blob (~20% from top)
+            t0 = 0.18
+            xc0 = x_top + (x_bot - x_top) * t0 - dr * 0.65
+            yc0 = y_top + (y_bot - y_top) * t0
+            canvas.create_oval(xc0 - dr, yc0 - dr, xc0 + dr, yc0 + dr, fill=col, outline="")
+            # Second blob (~45% from top)
+            t1 = 0.44
+            xc1 = x_top + (x_bot - x_top) * t1 - dr * 0.65
+            yc1 = y_top + (y_bot - y_top) * t1
+            canvas.create_oval(xc1 - dr, yc1 - dr, xc1 + dr, yc1 + dr, fill=col, outline="")
+
     def _scaled_clef_pixmap(self, pm: object | None, target_h: int, cache_slot: str) -> object | None:
         """Escala PNG de clave al alto del pentagrama; cache por slot para no recalcular cada frame."""
         if pm is None:
@@ -179,7 +239,7 @@ class RenderMixin:
             return self._key_signature_count_for_tonic(
                 self.generation_root_pc, is_minor, tie_prefer_flats=tie_from_ui
             )
-        if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
+        if self.metronome_tab_active or self.tuner_tab_active or getattr(self, "interval_tab_active", False) or not display_notes:
             return 0, False
         root, pattern, _bass = self._analyze_chord_notes(display_notes)
         if root is None or pattern is None:
@@ -1122,7 +1182,15 @@ class RenderMixin:
             display_notes = set(display_notes_list)
         else:
             display_notes_list = []
-            display_notes = self.generated_preview_notes if self.generation_tab_active else self._current_detection_notes()
+            if self.generation_tab_active:
+                display_notes = self.generated_preview_notes
+            elif getattr(self, "interval_tab_active", False):
+                if getattr(self, "interval_melody_mode", False):
+                    display_notes = set(n for n in self.get_interval_melody_notes() if n is not None)
+                else:
+                    display_notes = set(getattr(self, "interval_notes", []))
+            else:
+                display_notes = self._current_detection_notes()
             if self.generation_tab_active:
                 # Show LH voicing in bass clef (same pitch classes, one octave lower) for piano and guitar views.
                 lh_notes = {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
@@ -1326,8 +1394,96 @@ class RenderMixin:
                         if int(scale_note) == current_note:
                             current_scale_degrees.add(int(idx))
             else:
-                ordered = sorted(display_notes)
-                chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
+                _imel = getattr(self, "interval_melody_mode", False) and getattr(self, "interval_tab_active", False)
+                if _imel:
+                    _mel_obj = self.get_interval_melody()
+                    _mel_raw = self.get_interval_melody_notes()  # may contain None
+                    _mel_durs = _mel_obj.get("durations", []) if _mel_obj else []
+                    # Draw time signature (compás) after clef/key signature
+                    _beats = _mel_obj.get("beats_per_bar", 4) if _mel_obj else 4
+                    _ts_pt = max(18, int(line_space * 1.9))
+                    _ts_half_w = max(12, int(_ts_pt * 0.42))
+                    _ts_x = max(margin_x + 60.0, signature_end_x + 10 + _ts_half_w)
+                    _ts_font = ("Helvetica", _ts_pt, "bold")
+                    canvas.create_text(_ts_x, treble_top + line_space, text=str(_beats), fill="#ffffff", font=_ts_font)
+                    canvas.create_text(_ts_x, treble_top + 3 * line_space, text="4", fill="#ffffff", font=_ts_font)
+                    canvas.create_text(_ts_x, bass_top + line_space, text=str(_beats), fill="#ffffff", font=_ts_font)
+                    canvas.create_text(_ts_x, bass_top + 3 * line_space, text="4", fill="#ffffff", font=_ts_font)
+                    _mel_left = max(margin_x + 88, _ts_x + _ts_half_w + 18)
+                    _mel_right = max(_mel_left + 1, right_x - 40)
+                    _mel_total = len(_mel_raw)
+                    _mel_step = max(22.0, (_mel_right - _mel_left) / max(1, _mel_total - 1)) if _mel_total > 1 else 40.0
+                    _mel_x_map: list[float] = [_mel_left + i * _mel_step for i in range(_mel_total)]
+                    _mel_dur_map: list[str] = [_mel_durs[i] if i < len(_mel_durs) else "q" for i in range(_mel_total)]
+                    # Beam groups: consecutive sub-quarter notes within the same beat
+                    _Q_t = 1000
+                    _dur_t_map = {"w": 4*_Q_t, "h": 2*_Q_t, "q": _Q_t, "e": _Q_t//2, "et": _Q_t//3, "s": _Q_t//4}
+                    _note_ticks: list[int] = []
+                    for _d in _mel_dur_map:
+                        _db2 = _d.rstrip(".")
+                        _tv = _dur_t_map.get(_db2, _Q_t)
+                        if _d.endswith("."):
+                            _tv = _tv * 3 // 2
+                        _note_ticks.append(_tv)
+                    _beam_group_of: dict[int, int] = {}
+                    _beam_groups_mel: list[list[int]] = []
+                    _tp = 0
+                    _bg_cur: list[int] = []
+                    _bg_beat0 = 0
+                    for _bni in range(_mel_total):
+                        _bdb = _mel_dur_map[_bni].rstrip(".")
+                        _is_sq = _bdb in ("e", "et", "s") and _mel_raw[_bni] is not None
+                        _beat = _tp // _Q_t
+                        if _is_sq:
+                            if _bg_cur and _beat != _bg_beat0:
+                                if len(_bg_cur) > 1:
+                                    _gid = len(_beam_groups_mel)
+                                    for _g in _bg_cur:
+                                        _beam_group_of[_g] = _gid
+                                    _beam_groups_mel.append(list(_bg_cur))
+                                _bg_cur = []
+                            if not _bg_cur:
+                                _bg_beat0 = _beat
+                            _bg_cur.append(_bni)
+                        else:
+                            if len(_bg_cur) > 1:
+                                _gid = len(_beam_groups_mel)
+                                for _g in _bg_cur:
+                                    _beam_group_of[_g] = _gid
+                                _beam_groups_mel.append(list(_bg_cur))
+                            _bg_cur = []
+                        _tp += _note_ticks[_bni]
+                    if len(_bg_cur) > 1:
+                        _gid = len(_beam_groups_mel)
+                        for _g in _bg_cur:
+                            _beam_group_of[_g] = _gid
+                        _beam_groups_mel.append(list(_bg_cur))
+                    _beam_stem_data: dict[int, tuple] = {}
+                    # Bar lines: vertical lines at measure boundaries
+                    _beats_per_bar_v = _mel_obj.get("beats_per_bar", 4) if _mel_obj else 4
+                    _anacrusis_v = float(_mel_obj.get("anacrusis", 0) if _mel_obj else 0)
+                    _bar_ticks_v = _beats_per_bar_v * _Q_t
+                    _bar_run = int(-_anacrusis_v * _Q_t)
+                    _bar_lines_x: list[float] = []
+                    for _bni in range(_mel_total):
+                        _prev_run = _bar_run
+                        _bar_run += _note_ticks[_bni]
+                        if _bni > 0 and (_prev_run // _bar_ticks_v) < (_bar_run // _bar_ticks_v):
+                            _bar_lines_x.append((_mel_x_map[_bni - 1] + _mel_x_map[_bni]) / 2)
+                    _bl_col = "#5a6a7a"
+                    for _bx in _bar_lines_x:
+                        canvas.create_line(_bx, treble_top, _bx, bass_top + 4 * line_space,
+                                           fill=_bl_col, width=1)
+                    # Build ordered (no Nones) and map ordered_idx → melody_idx
+                    ordered = []
+                    _ord_to_mel: dict[int, int] = {}
+                    for _mi, _mn in enumerate(_mel_raw):
+                        if _mn is not None:
+                            _ord_to_mel[len(ordered)] = _mi
+                            ordered.append(int(_mn))
+                else:
+                    ordered = sorted(display_notes)
+                    chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
             generation_single_note: Optional[int] = None
             if self.generation_tab_active and len(self.generated_playing_notes) == 1:
                 generation_single_note = next(iter(self.generated_playing_notes))
@@ -1422,6 +1578,9 @@ class RenderMixin:
                 col = 0
                 if self.scale_tab_active:
                     x = left_x + (degree_idx * step_x)
+                elif _imel:
+                    _mi = _ord_to_mel.get(note_idx, note_idx)
+                    x = _mel_x_map[_mi]
                 else:
                     while any(abs(y - prev_y) < overlap_threshold for prev_y in placed_cols.get(col, [])):
                         col += 1
@@ -1515,21 +1674,91 @@ class RenderMixin:
                 elif self.generation_tab_active and note in generation_staff_playing_notes:
                     note_fill = "#39c5ff"
                     note_outline = "#ffffff"
+                elif _imel:
+                    _mi = _ord_to_mel.get(note_idx, note_idx)
+                    _dur_base = _mel_dur_map[_mi].rstrip(".")
+                    _is_hollow = _dur_base in ("w", "h")
+                    _playing_idx = getattr(self, "interval_playing_idx", None)
+                    if _playing_idx is not None and _mi == _playing_idx:
+                        note_fill = self.color_accent
+                        note_outline = self.color_accent
+                    else:
+                        note_fill = "" if _is_hollow else "#d7dde7"
+                        note_outline = "#d7dde7"
                 elif note in self.detection_extra_notes:
                     note_fill = "#bf2f2f"
                     note_outline = "#ff9a9a"
                 else:
                     note_fill = ""
                     note_outline = "#d7dde7"
+                # Whole notes are wider; use thicker outline for hollow long notes in melody mode
+                _oval_rx = note_rx * 1.2 if (_imel and _dur_base == "w") else note_rx
+                _oval_w = 2.5 if (_imel and _is_hollow) else 2
                 canvas.create_oval(
-                    x - note_rx,
+                    x - _oval_rx,
                     y - note_ry,
-                    x + note_rx,
+                    x + _oval_rx,
                     y + note_ry,
                     fill=note_fill,
                     outline=note_outline,
-                    width=2,
+                    width=_oval_w,
                 )
+                if _imel:
+                    _dur_full = _mel_dur_map[_mi]
+                    _dur_base = _dur_full.rstrip(".")
+                    _is_dotted = _dur_full.endswith(".")
+                    _flag_count = 1 if _dur_base in ("e", "et") else (2 if _dur_base == "s" else 0)
+                    _has_stem = _dur_base != "w"
+                    _stem_mid = treble_top + 2 * line_space if note >= 60 else bass_top + 2 * line_space
+                    _stem_up = y > _stem_mid
+                    _stem_len = 3.5 * line_space
+                    _stem_col = note_outline if note_outline else "#d7dde7"
+                    if _has_stem:
+                        if _stem_up:
+                            _sx = x + note_rx - 1
+                            _sy_end = y - _stem_len
+                            canvas.create_line(_sx, y, _sx, _sy_end, fill=_stem_col, width=2.0)
+                            if _flag_count > 0 and _mi in _beam_group_of:
+                                _beam_stem_data[_mi] = (_sx, _sy_end, True, _flag_count, _stem_col)
+                            else:
+                                for _fi in range(_flag_count):
+                                    _fy0 = _sy_end + _fi * line_space * 0.55
+                                    _fw = line_space * 0.52
+                                    _fh = line_space * 1.75
+                                    canvas.create_line(
+                                        _sx, _fy0,
+                                        _sx + _fw * 0.9, _fy0 + _fh * 0.07,
+                                        _sx + _fw, _fy0 + _fh * 0.22,
+                                        _sx + _fw * 0.65, _fy0 + _fh * 0.62,
+                                        _sx + _fw * 0.1, _fy0 + _fh * 1.0,
+                                        fill=_stem_col, width=2.0, smooth=True,
+                                    )
+                        else:
+                            _sx = x - note_rx + 1
+                            _sy_end = y + _stem_len
+                            canvas.create_line(_sx, y, _sx, _sy_end, fill=_stem_col, width=2.0)
+                            if _flag_count > 0 and _mi in _beam_group_of:
+                                _beam_stem_data[_mi] = (_sx, _sy_end, False, _flag_count, _stem_col)
+                            else:
+                                for _fi in range(_flag_count):
+                                    _fy0 = _sy_end - _fi * line_space * 0.55
+                                    _fw = line_space * 0.52
+                                    _fh = line_space * 1.75
+                                    canvas.create_line(
+                                        _sx, _fy0,
+                                        _sx + _fw * 0.9, _fy0 - _fh * 0.07,
+                                        _sx + _fw, _fy0 - _fh * 0.22,
+                                        _sx + _fw * 0.65, _fy0 - _fh * 0.62,
+                                        _sx + _fw * 0.1, _fy0 - _fh * 1.0,
+                                        fill=_stem_col, width=2.0, smooth=True,
+                                    )
+                    # Augmentation dot
+                    if _is_dotted:
+                        _dr = max(2.0, line_space * 0.18)
+                        _dx = x + note_rx + _dr * 2.5
+                        _dy = y - note_ry * 0.4 if (diatonic_idx % 2 == 0) else y
+                        canvas.create_oval(_dx - _dr, _dy - _dr, _dx + _dr, _dy + _dr,
+                                           fill=_stem_col, outline=_stem_col)
                 if self.generation_tab_active:
                     self.staff_generation_note_regions.append((note, x, y, note_rx, note_ry))
                     if generation_single_note is not None and note == generation_single_note:
@@ -1568,6 +1797,58 @@ class RenderMixin:
                         )
                         label_half_w = max(12.0, 4.0 * len(label_text) + 7.0)
                     self.staff_scale_note_regions.append((note, x, y, note_rx, note_ry, label_y, label_half_w, degree_idx))
+
+        # Interval melody: draw beams for grouped sub-quarter notes
+        if getattr(self, "interval_tab_active", False) and getattr(self, "interval_melody_mode", False) and "_beam_groups_mel" in locals() and _beam_groups_mel:
+            for _bgrp in _beam_groups_mel:
+                _bdata = [_beam_stem_data[_bmi] for _bmi in _bgrp if _bmi in _beam_stem_data]
+                if len(_bdata) < 2:
+                    continue
+                _n_prim = min(bd[3] for bd in _bdata)
+                _bw_beam = 3.0
+                for _bbar in range(_n_prim):
+                    _boff = _bbar * line_space * 0.32
+                    _bx0, _bsy0 = _bdata[0][0], _bdata[0][1]
+                    _bx1, _bsy1 = _bdata[-1][0], _bdata[-1][1]
+                    _stem_up_b = _bdata[0][2]
+                    if _stem_up_b:
+                        _bsy0 += _boff
+                        _bsy1 += _boff
+                    else:
+                        _bsy0 -= _boff
+                        _bsy1 -= _boff
+                    canvas.create_line(_bx0, _bsy0, _bx1, _bsy1, fill=_bdata[0][4], width=_bw_beam)
+                # Draw secondary beam stubs for notes with more flags than the primary count
+                _bgrp_last = len(_bgrp) - 1
+                for _bsd_idx, _bmi in enumerate(_bgrp):
+                    if _bmi not in _beam_stem_data:
+                        continue
+                    _bsd = _beam_stem_data[_bmi]
+                    _extra = _bsd[3] - _n_prim
+                    if _extra <= 0:
+                        continue
+                    _bx_n = _bsd[0]
+                    _by_n = _bsd[1]
+                    _sup = _bsd[2]
+                    _stub_w = max(line_space * 1.2, abs(_bdata[-1][0] - _bdata[0][0]) * 0.45, 14.0)
+                    _stub_dir = -1 if _bsd_idx == _bgrp_last else 1
+                    for _be in range(_extra):
+                        _stub_off = (_n_prim + _be) * line_space * 0.32
+                        if _sup:
+                            _bsy_s = _by_n + _stub_off
+                        else:
+                            _bsy_s = _by_n - _stub_off
+                        canvas.create_line(_bx_n, _bsy_s, _bx_n + _stub_dir * _stub_w, _bsy_s,
+                                           fill=_bsd[4], width=_bw_beam)
+
+        # Interval melody: draw rests for None positions
+        if getattr(self, "interval_tab_active", False) and getattr(self, "interval_melody_mode", False) and "_mel_raw" in locals():
+            for _mi, _mn in enumerate(_mel_raw):
+                if _mn is None and _mi < len(_mel_x_map):
+                    _rx = _mel_x_map[_mi]
+                    _rdur = _mel_dur_map[_mi].rstrip(".")
+                    self._draw_rest_symbol(canvas, _rx, treble_top + 2 * line_space,
+                                           _rdur, line_space, "#768496", treble_top)
 
         # Círculo de quintas: ayuda de interacción (como el pie bajo el pentagrama en web), no armadura.
         if getattr(self, "circle_fifths_tab_active", False):

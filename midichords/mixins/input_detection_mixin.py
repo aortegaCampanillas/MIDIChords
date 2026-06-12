@@ -275,6 +275,9 @@ class InputDetectionMixin:
         # Handle interval detection mode
         if self.current_mode == "interval_detection":
             self._add_interval_note(note)
+            # Force re-trigger: remove from sounding_notes so _apply_sounding_note_diff
+            # always sends note_on even if the note was already playing.
+            self.sounding_notes.discard(note)
             self._refresh_sounding_notes()
             if hasattr(self, '_update_interval_display'):
                 self._update_interval_display()

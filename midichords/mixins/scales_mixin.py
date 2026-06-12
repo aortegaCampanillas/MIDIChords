@@ -108,6 +108,8 @@ class ScalesMixin:
         self._refresh_scale_preview()
         self._refresh_scale_transport_styles()
         self._refresh_scale_instrument_view()
+        self._refresh_scale_octave_buttons()
+        self._refresh_scale_fingering_buttons()
         if (
             self.scale_loop_active
             and (not previous_metronome_only)
@@ -138,8 +140,13 @@ class ScalesMixin:
         """Actualiza el estado visual de los botones de octavas."""
         if not hasattr(self, "scale_octave_buttons"):
             return
+        is_piano = self.scale_play_mode == "piano"
+        muted = "#666e7a"
         for idx, btn in enumerate(self.scale_octave_buttons):
             btn.set_selected(idx + 1 == self.scale_octaves)
+            btn.set_enabled(is_piano)
+        if hasattr(self, "scale_octave_selector_label"):
+            self.scale_octave_selector_label.configure(fg=self.color_text if is_piano else muted)
 
     def _set_scale_fingering(self, hand: str) -> None:
         """Cambia la mano de digitación (none, right, left)."""
@@ -151,10 +158,15 @@ class ScalesMixin:
         """Actualiza el estado visual de los botones de digitación."""
         if not hasattr(self, "scale_fingering_buttons"):
             return
+        is_piano = self.scale_play_mode == "piano"
+        muted = "#666e7a"
         hand_values = ["none", "right", "left"]
         current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
         for idx, btn in enumerate(self.scale_fingering_buttons):
             btn.set_selected(hand_values[idx] == current)
+            btn.set_enabled(is_piano)
+        if hasattr(self, "scale_fingering_label"):
+            self.scale_fingering_label.configure(fg=self.color_text if is_piano else muted)
 
     def _get_scale_fingerings(self) -> dict[int, int]:
         """Obtiene digitaciones para las notas actuales de escala.
@@ -220,7 +232,7 @@ class ScalesMixin:
         if not hasattr(self, "scale_metronome_volume_frame"):
             return
         if self.scale_metronome_only:
-            self.scale_metronome_volume_frame.grid(row=0, column=2, sticky="ew", padx=(8, 0))
+            self.scale_metronome_volume_frame.grid(row=0, column=4, sticky="ew", padx=(8, 0))
         else:
             self.scale_metronome_volume_frame.grid_remove()
     def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
@@ -321,8 +333,10 @@ class ScalesMixin:
         pattern = self._resolve_scale_pattern()
         tonic_name = self.note_name(self.scale_tonic_pc, with_octave=False)
         localized_scale_name = self.scale_name(pattern.name)
-        self.scale_tonic_btn.set_text(tonic_name)
-        self.scale_type_btn.set_text(localized_scale_name)
+        if hasattr(self, "scale_tonic_combo"):
+            self._update_scale_tonic_combo()
+        if hasattr(self, "scale_type_combo"):
+            self._update_scale_type_combo()
         if hasattr(self, "scale_name_var"):
             self.scale_name_var.set(f"{tonic_name} {localized_scale_name}")
 
@@ -351,6 +365,65 @@ class ScalesMixin:
         else:
             self.scale_notes_var.set("-")
             self.scale_intervals_var.set("-")
+
+    def _update_scale_tonic_combo(self) -> None:
+        if not hasattr(self, "scale_tonic_combo"):
+            return
+        options = [self.note_name(pc, with_octave=False) for pc in range(12)]
+        self._scale_tonic_label_to_pc = {self.note_name(pc, with_octave=False): pc for pc in range(12)}
+        self.scale_tonic_combo.configure(values=options)
+        self.scale_tonic_var.set(self.note_name(self.scale_tonic_pc, with_octave=False))
+
+    def _update_scale_type_combo(self) -> None:
+        if not hasattr(self, "scale_type_combo"):
+            return
+        if not hasattr(self, "scale_filter_mode"):
+            self.scale_filter_mode = "basic"
+        patterns = SCALE_PATTERNS
+        if self.scale_filter_mode == "basic":
+            patterns = [p for p in patterns if p.name in SCALE_BASIC_NAMES]
+        options = [self.scale_name(p.name) for p in patterns]
+        self._scale_type_label_to_name = {self.scale_name(p.name): p.name for p in patterns}
+        self.scale_type_combo.configure(values=options)
+        current_label = self.scale_name(self.scale_pattern_name)
+        if current_label in options:
+            self.scale_type_var.set(current_label)
+        elif options:
+            self.scale_type_var.set(options[0])
+            self.scale_pattern_name = self._scale_type_label_to_name[options[0]]
+
+    def _on_scale_tonic_combo_changed(self, _event: object) -> None:
+        label = str(self.scale_tonic_var.get()).strip()
+        pc = getattr(self, "_scale_tonic_label_to_pc", {}).get(label, None)
+        if pc is None:
+            for i in range(12):
+                if self.note_name(i, with_octave=False) == label:
+                    pc = i
+                    break
+        if pc is not None:
+            self.scale_tonic_pc = int(pc)
+            self._refresh_scale_preview()
+            if self.scale_loop_active:
+                self._play_scale()
+            if self.scale_tab_active:
+                self.update_music_views()
+
+    def _on_scale_type_combo_changed(self, _event: object) -> None:
+        label = str(self.scale_type_var.get()).strip()
+        name = getattr(self, "_scale_type_label_to_name", {}).get(label, None)
+        if name is None:
+            for p in SCALE_PATTERNS:
+                if self.scale_name(p.name) == label:
+                    name = p.name
+                    break
+        if name is not None:
+            self.scale_pattern_name = name
+            self._refresh_scale_preview()
+            if self.scale_loop_active:
+                self._play_scale()
+            if self.scale_tab_active:
+                self.update_music_views()
+
     def open_scale_tonic_dialog(self) -> None:
         if self.scale_tonic_overlay is not None:
             self._close_scale_tonic_overlay()
@@ -498,15 +571,16 @@ class ScalesMixin:
         entry.focus_set()
     def _toggle_scale_filter_mode(self) -> None:
         self.scale_filter_mode = "all" if self.scale_filter_mode == "basic" else "basic"
-        # Actualizar el texto del botón y re-renderizar la lista
-        # Nota: Como estamos dentro del diálogo, necesitamos que se llame a render_buttons
-        # Para ello, simulamos un cambio en el campo de búsqueda
+        btn_text = self.tr("basic") if self.scale_filter_mode == "basic" else self.tr("all")
         if hasattr(self, "scale_filter_btn"):
-            btn_text = self.tr("basic") if self.scale_filter_mode == "basic" else self.tr("all")
             self.scale_filter_btn.set_text(btn_text)
-        # El cambio en search_var se captura automáticamente vía trace_add
+        if hasattr(self, "scale_inline_filter_btn"):
+            self.scale_inline_filter_btn.set_text(btn_text)
+            self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
         if hasattr(self, "_scale_search_var"):
             self._scale_search_var.set(self._scale_search_var.get())
+        if hasattr(self, "scale_type_combo"):
+            self._update_scale_type_combo()
     def _close_scale_type_overlay(self) -> None:
         if self.scale_type_overlay is not None:
             self.scale_type_overlay.destroy()

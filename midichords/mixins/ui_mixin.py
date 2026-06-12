@@ -1145,7 +1145,7 @@ class UiMixin:
             highlightthickness=0,
         )
         self.scale_controls_row.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(2, 8))
-        self.scale_controls_row.columnconfigure(2, weight=1)
+        self.scale_controls_row.columnconfigure(4, weight=1)
         self.scale_play_btn = PlayTransportButton(
             self.scale_controls_row,
             command=self._toggle_scale_play,
@@ -1283,19 +1283,17 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.scale_tonic_btn = GrayRoundedButton(
+        self.scale_tonic_var = tk.StringVar(value="C")
+        self.scale_tonic_combo = ttk.Combobox(
             self.tab_scale_frame,
-            text="C",
-            command=self.open_scale_tonic_dialog,
-            font_family=self.ui_font_family,
-            width=320,
-            height=40,
-            radius=16,
-            font_size=15,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
+            textvariable=self.scale_tonic_var,
+            state="readonly",
+            values=["-"],
+            font=(self.ui_font_family, 15),
         )
-        self.scale_tonic_btn.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.scale_tonic_combo.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
+        self._qt_apply_dark_combobox_style(self.scale_tonic_combo)
 
         self.scale_type_selector_label = tk.Label(
             self.tab_scale_frame,
@@ -1305,40 +1303,56 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.scale_type_btn = GrayRoundedButton(
-            self.tab_scale_frame,
-            text=self.scale_pattern_name,
-            command=self.open_scale_type_dialog,
+        scale_type_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
+        scale_type_row.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        scale_type_row.columnconfigure(0, weight=1)
+        self.scale_type_var = tk.StringVar(value=self.scale_pattern_name)
+        self.scale_type_combo = ttk.Combobox(
+            scale_type_row,
+            textvariable=self.scale_type_var,
+            state="readonly",
+            values=["-"],
+            font=(self.ui_font_family, 15),
+        )
+        self.scale_type_combo.grid(row=0, column=0, sticky="ew")
+        self.scale_type_combo.bind("<<ComboboxSelected>>", self._on_scale_type_combo_changed)
+        self._qt_apply_dark_combobox_style(self.scale_type_combo)
+        if not hasattr(self, "scale_filter_mode"):
+            self.scale_filter_mode = "basic"
+        self.scale_inline_filter_btn = GrayRoundedButton(
+            scale_type_row,
+            text="",
+            command=self._toggle_scale_filter_mode,
             font_family=self.ui_font_family,
-            width=320,
-            height=40,
-            radius=16,
-            font_size=15,
+            width=76,
+            height=34,
+            radius=12,
+            font_size=12,
             text_color="#e6edf7",
             selected_text_color="#1a222d",
+            selected_fill_color="#f3bf2f",
+            selected_outline_color="#c9961f",
         )
-        self.scale_type_btn.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        self.scale_inline_filter_btn.grid(row=0, column=1, sticky="e", padx=(6, 0))
+        self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
 
-        # Selector de octavas (piano only)
+        # Selector de octavas (piano only) — inline en scale_controls_row (cols 2+3)
         self.scale_octave_selector_label = tk.Label(
-            self.tab_scale_frame,
+            self.scale_controls_row,
             text="",
             bg=self.color_surface_alt,
             fg=self.color_text,
-            font=(self.ui_font_family, 14),
+            font=(self.ui_font_family, 12),
         )
-        self.scale_octave_selector_label.grid(row=3, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
+        self.scale_octave_selector_label.grid(row=0, column=2, sticky="w", padx=(10, 4))
 
         octave_buttons_frame = tk.Frame(
-            self.tab_scale_frame,
+            self.scale_controls_row,
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
         )
-        octave_buttons_frame.grid(row=3, column=1, sticky="ew", pady=(0, 5))
-        octave_buttons_frame.columnconfigure(0, weight=1)
-        octave_buttons_frame.columnconfigure(1, weight=1)
-        octave_buttons_frame.columnconfigure(2, weight=1)
+        octave_buttons_frame.grid(row=0, column=3, sticky="w", padx=(0, 4))
 
         self.scale_octave_buttons = []
         for oct in [1, 2, 3]:
@@ -1347,18 +1361,18 @@ class UiMixin:
                 text=f"{oct}",
                 command=lambda o=oct: self._set_scale_octaves(o),
                 font_family=self.ui_font_family,
-                width=100,
-                height=40,
-                radius=16,
-                font_size=15,
+                width=40,
+                height=34,
+                radius=12,
+                font_size=13,
                 text_color="#e6edf7",
                 selected_text_color="#1a222d",
             )
-            btn.grid(row=0, column=oct - 1, sticky="ew", padx=2)
-            btn.set_selected(oct == 1)  # Default: 1 octava
+            btn.grid(row=0, column=oct - 1, sticky="w", padx=2)
+            btn.set_selected(oct == 1)
             self.scale_octave_buttons.append(btn)
 
-        # Fingering hand selector (None, Right, Left)
+        # Fingering hand selector (row=6, debajo del area de resultado)
         self.scale_fingering_label = tk.Label(
             self.tab_scale_frame,
             text=self.tr("label_fingering_hand") if hasattr(self, "tr") else "Digitación:",
@@ -1366,7 +1380,7 @@ class UiMixin:
             fg="#a8b6c8",
             font=(self.ui_font_family, 12),
         )
-        self.scale_fingering_label.grid(row=4, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
+        self.scale_fingering_label.grid(row=6, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
 
         fingering_buttons_frame = tk.Frame(
             self.tab_scale_frame,
@@ -1374,7 +1388,7 @@ class UiMixin:
             bd=0,
             highlightthickness=0,
         )
-        fingering_buttons_frame.grid(row=4, column=1, sticky="ew", pady=(8, 5))
+        fingering_buttons_frame.grid(row=6, column=1, sticky="ew", pady=(8, 5))
         fingering_buttons_frame.columnconfigure(0, weight=1)
         fingering_buttons_frame.columnconfigure(1, weight=1)
         fingering_buttons_frame.columnconfigure(2, weight=1)
@@ -1396,7 +1410,7 @@ class UiMixin:
             )
             idx = ["none", "right", "left"].index(hand)
             btn.grid(row=0, column=idx, sticky="ew", padx=2)
-            btn.set_selected(hand == "none")  # Default: no fingerings
+            btn.set_selected(hand == "none")
             self.scale_fingering_buttons.append(btn)
 
         self.scale_result_row = tk.Frame(
@@ -2463,6 +2477,9 @@ class UiMixin:
         self.scale_type_selector_label.configure(text=self.tr("label_scale_type"))
         if hasattr(self, "scale_octave_selector_label"):
             self.scale_octave_selector_label.configure(text=self.tr("label_scale_octaves"))
+        if hasattr(self, "scale_inline_filter_btn"):
+            btn_text = self.tr("basic") if getattr(self, "scale_filter_mode", "basic") == "basic" else self.tr("all")
+            self.scale_inline_filter_btn.set_text(btn_text)
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
         self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
         self.scale_metronome_volume_label.configure(text=self.tr("label_metronome_volume"))
@@ -3454,7 +3471,7 @@ class UiMixin:
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
-            self._refresh_scale_preview()
+            self.update_music_views()
         elif self.metronome_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()

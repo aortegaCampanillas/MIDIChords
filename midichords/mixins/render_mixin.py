@@ -687,7 +687,7 @@ class RenderMixin:
         key_top = 10
         key_bottom = h - 8
         black_h = int((key_bottom - key_top) * 0.58)
-        show_key_names = self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active
+        show_key_names = self.config_data.get("show_keyboard_note_labels", True)
 
         white_index: dict[int, int] = {}
         idx = 0

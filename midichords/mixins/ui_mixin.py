@@ -159,6 +159,11 @@ class UiMixin:
             QComboBox:hover {{
                 border: 1px solid {hover_border};
             }}
+            QComboBox:disabled {{
+                background-color: {card};
+                color: #5a6370;
+                border: 1px solid #3a4250;
+            }}
             QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: center right;
@@ -806,19 +811,19 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_root_btn = GrayRoundedButton(
+        self.generation_root_var = tk.StringVar(value="-")
+        self.generation_root_combo = ttk.Combobox(
             self.tab_generation_frame,
-            text="-",
-            command=self.open_generation_root_dialog,
-            font_family=self.ui_font_family,
-            width=320,
-            height=40,
-            radius=16,
-            font_size=15,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
+            textvariable=self.generation_root_var,
+            state="readonly",
+            values=["-"],
+            font=(self.ui_font_family, 15),
         )
-        self.generation_root_btn.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.generation_root_combo.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.generation_root_combo.bind("<<ComboboxSelected>>", self._on_generation_root_combo_changed)
+        self._qt_apply_dark_combobox_style(self.generation_root_combo)
+        if hasattr(self.generation_root_combo, "setMaxVisibleItems"):
+            self.generation_root_combo.setMaxVisibleItems(12)
 
         self.generation_variant_label = tk.Label(
             self.tab_generation_frame,
@@ -828,19 +833,19 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_variant_btn = GrayRoundedButton(
+        self.generation_variant_var = tk.StringVar(value="-")
+        self.generation_variant_combo = ttk.Combobox(
             self.tab_generation_frame,
-            text="-",
-            command=self.open_generation_variant_dialog,
-            font_family=self.ui_font_family,
-            width=320,
-            height=40,
-            radius=16,
-            font_size=15,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
+            textvariable=self.generation_variant_var,
+            state="readonly",
+            values=["-"],
+            font=(self.ui_font_family, 15),
         )
-        self.generation_variant_btn.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        self.generation_variant_combo.grid(row=2, column=1, sticky="ew", pady=(0, 5))
+        self.generation_variant_combo.bind("<<ComboboxSelected>>", self._on_generation_variant_combo_changed)
+        self._qt_apply_dark_combobox_style(self.generation_variant_combo)
+        if hasattr(self.generation_variant_combo, "setMaxVisibleItems"):
+            self.generation_variant_combo.setMaxVisibleItems(16)
 
         self.generation_inversion_label = tk.Label(
             self.tab_generation_frame,
@@ -850,19 +855,17 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 4), padx=(0, 8))
-        self.generation_inversion_btn = GrayRoundedButton(
+        self.generation_inversion_var = tk.StringVar(value="-")
+        self.generation_inversion_combo = ttk.Combobox(
             self.tab_generation_frame,
-            text="-",
-            command=self.open_generation_inversion_dialog,
-            font_family=self.ui_font_family,
-            width=320,
-            height=40,
-            radius=16,
-            font_size=15,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
+            textvariable=self.generation_inversion_var,
+            state="readonly",
+            values=["-"],
+            font=(self.ui_font_family, 15),
         )
-        self.generation_inversion_btn.grid(row=3, column=1, sticky="ew", pady=(0, 4))
+        self.generation_inversion_combo.grid(row=3, column=1, sticky="ew", pady=(0, 4))
+        self.generation_inversion_combo.bind("<<ComboboxSelected>>", self._on_generation_inversion_combo_changed)
+        self._qt_apply_dark_combobox_style(self.generation_inversion_combo)
 
         self.generated_chord_var = tk.StringVar(value="-")
         # Un solo recuadro (como web): etiqueta + nombre. Borde vía QSS con padding en `Widget._apply_tk_frame_surface`.

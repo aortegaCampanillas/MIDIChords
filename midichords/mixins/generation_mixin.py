@@ -161,6 +161,10 @@ class GenerationMixin:
             self.generation_inversion_btn.set_enabled(inversion_enabled)
         if hasattr(self, "generation_inversion_combo"):
             self.generation_inversion_combo.configure(state=("readonly" if inversion_enabled else "disabled"))
+        if hasattr(self, "generation_inversion_label"):
+            muted = getattr(self, "color_muted", "#5a6370")
+            text_color = getattr(self, "color_text", "#e9edf2")
+            self.generation_inversion_label.configure(fg=(text_color if inversion_enabled else muted))
 
     def _on_generation_root_combo_changed(self, _event: tk.Event) -> None:
         label = str(self.generation_root_var.get()).strip()

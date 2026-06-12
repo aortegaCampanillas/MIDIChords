@@ -244,7 +244,10 @@ class Combobox(QComboBox, _LayoutCompat):
 
     def bind(self, sequence: str, func: Callable[..., None]) -> None:  # type: ignore[override]
         if sequence == "<<ComboboxSelected>>":
-            self.currentIndexChanged.connect(lambda _idx=None: func(None))
+            # `activated` se emite después de que Qt actualiza currentIndex/currentText,
+            # garantizando que StringVar ya tiene el nuevo valor cuando el handler lo lee.
+            # `currentIndexChanged` se emitía antes y el var llegaba stale al handler.
+            self.activated.connect(lambda _idx=None: func(None))
 
     def __setitem__(self, key: str, value: Any) -> None:
         k = str(key)

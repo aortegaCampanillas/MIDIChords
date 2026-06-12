@@ -1326,6 +1326,7 @@ class RenderMixin:
                 font=("Helvetica", 13, "italic"),
             )
         else:
+            _imel = False
             scale_staff_entries: list[tuple[int, int, bool]] = []  # (midi_note, degree_index, is_bass_clef)
             if self.scale_tab_active:
                 treble_ordered = [int(n) for n in display_notes_list]
@@ -1639,6 +1640,8 @@ class RenderMixin:
                         fill="#ffffff",
                         font=accidental_font,
                     )
+                _dur_base = ""
+                _is_hollow = False
                 if self.scale_tab_active:
                     is_hovered = self.staff_hover_note == note
                     is_pressed = (

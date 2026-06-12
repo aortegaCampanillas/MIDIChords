@@ -195,6 +195,8 @@ class InputDetectionMixin:
         return set(self.detection_mouse_chord_notes)
     def _show_forbidden_note_feedback(self, note: int) -> None:
         self.blocked_note_until[note] = time.monotonic() + 0.35
+        if self.generation_tab_active:
+            self._stop_generated_playback()
         self.redraw_keyboard()
         self.after(380, self.redraw_keyboard)
     def _draw_forbidden_icon(self, canvas: tk.Canvas, cx: float, cy: float, radius: float) -> None:

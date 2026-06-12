@@ -4267,7 +4267,11 @@ class _HomeScreenState extends State<HomeScreen>
               ...chordNotes,
               ...chordNotes.map((n) => n - 12),
             }.contains(midi);
-      if (!allowed) return;
+      if (!allowed) {
+        _showForbiddenOnPiano(midi);
+        _stopHeldChord();
+        return;
+      }
       final staffNote = _generationStaffNoteForPitch(
         midi,
         includeBass: _instrumentView != 'guitar',

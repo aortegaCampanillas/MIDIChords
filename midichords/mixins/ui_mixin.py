@@ -1382,16 +1382,32 @@ class UiMixin:
         self.scale_fingering_label.grid(row=6, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
 
         self.scale_fingering_var = tk.StringVar(value="none")
-        self.scale_fingering_combo = ttk.Combobox(
+        scale_fingering_frame = tk.Frame(
             self.tab_scale_frame,
-            textvariable=self.scale_fingering_var,
-            state="readonly",
-            values=["-", "-", "-"],
-            font=(self.ui_font_family, 14),
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
         )
-        self.scale_fingering_combo.grid(row=6, column=1, sticky="w", pady=(8, 5))
-        self.scale_fingering_combo.bind("<<ComboboxSelected>>", self._on_scale_fingering_combo_changed)
-        self._qt_apply_dark_combobox_style(self.scale_fingering_combo)
+        scale_fingering_frame.grid(row=6, column=1, sticky="w", pady=(8, 5))
+        self.scale_fingering_radios: list[tk.Radiobutton] = []
+        for hand, label_key in [("none", "label_fingering_none"), ("right", "label_fingering_right"), ("left", "label_fingering_left")]:
+            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano D.", "Mano I."][["none", "right", "left"].index(hand)]
+            rb = tk.Radiobutton(
+                scale_fingering_frame,
+                text=label,
+                variable=self.scale_fingering_var,
+                value=hand,
+                command=lambda h=hand: self._set_scale_fingering(h),
+                bg=self.color_surface_alt,
+                fg=self.color_text,
+                selectcolor="#3a4452",
+                activebackground=self.color_surface_alt,
+                activeforeground=self.color_text,
+                font=(self.ui_font_family, 13),
+                cursor="hand2",
+            )
+            rb.pack(side=tk.LEFT, padx=(0, 14))
+            self.scale_fingering_radios.append(rb)
 
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,

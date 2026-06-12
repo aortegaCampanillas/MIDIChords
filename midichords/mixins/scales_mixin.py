@@ -155,30 +155,18 @@ class ScalesMixin:
         self.redraw_keyboard()
 
     def _refresh_scale_fingering_buttons(self) -> None:
-        """Actualiza el combo de digitación."""
-        if not hasattr(self, "scale_fingering_combo"):
+        """Actualiza el estado de los radio buttons de digitación."""
+        if not hasattr(self, "scale_fingering_radios"):
             return
         is_piano = self.scale_play_mode == "piano"
         muted = "#666e7a"
-        none_lbl = self.tr("label_fingering_none") if hasattr(self, "tr") else "Sin"
-        right_lbl = self.tr("label_fingering_right") if hasattr(self, "tr") else "Mano D."
-        left_lbl = self.tr("label_fingering_left") if hasattr(self, "tr") else "Mano I."
-        options = [none_lbl, right_lbl, left_lbl]
-        self.scale_fingering_combo.configure(values=options, state="readonly" if is_piano else "disabled")
+        state = "normal" if is_piano else "disabled"
         current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
-        label_map = {"none": none_lbl, "right": right_lbl, "left": left_lbl}
-        self.scale_fingering_var.set(label_map.get(current, none_lbl))
+        self.scale_fingering_var.set(current)
+        for rb in self.scale_fingering_radios:
+            rb.configure(state=state)
         if hasattr(self, "scale_fingering_label"):
             self.scale_fingering_label.configure(fg=self.color_text if is_piano else muted)
-
-    def _on_scale_fingering_combo_changed(self, _event: object) -> None:
-        label = str(self.scale_fingering_var.get()).strip()
-        none_lbl = self.tr("label_fingering_none") if hasattr(self, "tr") else "Sin"
-        right_lbl = self.tr("label_fingering_right") if hasattr(self, "tr") else "Mano D."
-        left_lbl = self.tr("label_fingering_left") if hasattr(self, "tr") else "Mano I."
-        label_to_hand = {none_lbl: "none", right_lbl: "right", left_lbl: "left"}
-        hand = label_to_hand.get(label, "none")
-        self._set_scale_fingering(hand)
 
     def _get_scale_fingerings(self) -> dict[int, int]:
         """Obtiene digitaciones para las notas actuales de escala.

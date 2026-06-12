@@ -197,6 +197,7 @@ class MidiChordAnalyzerApp(
         self.scale_tonic_pc = 0
         self.scale_pattern_name = SCALE_PATTERNS[0].name
         self.scale_preview_notes: list[int] = []
+        self.scale_base_notes: list[int] = []
         self.scale_guitar_start_note: Optional[int] = None
         self.scale_playing_notes: set[int] = set()
         self.scale_loop_active = False

@@ -155,18 +155,30 @@ class ScalesMixin:
         self.redraw_keyboard()
 
     def _refresh_scale_fingering_buttons(self) -> None:
-        """Actualiza el estado visual de los botones de digitación."""
-        if not hasattr(self, "scale_fingering_buttons"):
+        """Actualiza el combo de digitación."""
+        if not hasattr(self, "scale_fingering_combo"):
             return
         is_piano = self.scale_play_mode == "piano"
         muted = "#666e7a"
-        hand_values = ["none", "right", "left"]
+        none_lbl = self.tr("label_fingering_none") if hasattr(self, "tr") else "Sin"
+        right_lbl = self.tr("label_fingering_right") if hasattr(self, "tr") else "Mano D."
+        left_lbl = self.tr("label_fingering_left") if hasattr(self, "tr") else "Mano I."
+        options = [none_lbl, right_lbl, left_lbl]
+        self.scale_fingering_combo.configure(values=options, state="readonly" if is_piano else "disabled")
         current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
-        for idx, btn in enumerate(self.scale_fingering_buttons):
-            btn.set_selected(hand_values[idx] == current)
-            btn.set_enabled(is_piano)
+        label_map = {"none": none_lbl, "right": right_lbl, "left": left_lbl}
+        self.scale_fingering_var.set(label_map.get(current, none_lbl))
         if hasattr(self, "scale_fingering_label"):
             self.scale_fingering_label.configure(fg=self.color_text if is_piano else muted)
+
+    def _on_scale_fingering_combo_changed(self, _event: object) -> None:
+        label = str(self.scale_fingering_var.get()).strip()
+        none_lbl = self.tr("label_fingering_none") if hasattr(self, "tr") else "Sin"
+        right_lbl = self.tr("label_fingering_right") if hasattr(self, "tr") else "Mano D."
+        left_lbl = self.tr("label_fingering_left") if hasattr(self, "tr") else "Mano I."
+        label_to_hand = {none_lbl: "none", right_lbl: "right", left_lbl: "left"}
+        hand = label_to_hand.get(label, "none")
+        self._set_scale_fingering(hand)
 
     def _get_scale_fingerings(self) -> dict[int, int]:
         """Obtiene digitaciones para las notas actuales de escala.
@@ -310,21 +322,18 @@ class ScalesMixin:
         if not notes_midi or octaves <= 1:
             return notes_midi
 
-        result = list(notes_midi)
-        first_note = min(notes_midi)
-        last_note = max(notes_midi)
+        result = set(notes_midi)
 
         if octaves >= 2:
-            # Añadir octava baja (por debajo del mínimo)
-            lower_octave = [note - 12 for note in notes_midi if note - 12 >= 0]
-            result = lower_octave + result
+            for note in notes_midi:
+                if note - 12 >= 0:
+                    result.add(note - 12)
 
         if octaves >= 3:
-            # Añadir octava alta (por encima del máximo)
-            upper_octave = [note + 12 for note in notes_midi]
-            result = result + upper_octave
+            for note in notes_midi:
+                result.add(note + 12)
 
-        return result
+        return sorted(result)
     def _refresh_scale_preview(self) -> None:
         # Inicializar scale_octaves si no existe
         if not hasattr(self, "scale_octaves"):
@@ -346,6 +355,8 @@ class ScalesMixin:
         root_midi = self.scale_guitar_start_note if self.scale_play_mode == "guitar" else default_root_midi
         base_notes = [root_midi + interval for interval in pattern.intervals]
 
+        # scale_base_notes: always single-octave (used for staff display)
+        self.scale_base_notes: list[int] = base_notes
         # Expandir notas según el selector de octavas (solo en modo piano)
         if self.scale_play_mode == "piano":
             self.scale_preview_notes = self._get_scale_notes_for_octaves(base_notes, self.scale_octaves)
@@ -374,6 +385,17 @@ class ScalesMixin:
         self.scale_tonic_combo.configure(values=options)
         self.scale_tonic_var.set(self.note_name(self.scale_tonic_pc, with_octave=False))
 
+    def _scale_type_aliases(self) -> dict[str, str]:
+        language = str(self.config_data.get("language", "es"))
+        if language == "es":
+            return {"Ionian": "Mayor", "Aeolian": "Menor Natural", "Super Locrian": "Alterada"}
+        return {"Ionian": "Major", "Aeolian": "Natural Minor", "Super Locrian": "Altered"}
+
+    def _scale_type_display_label(self, pattern_name: str) -> str:
+        alias = self._scale_type_aliases().get(pattern_name)
+        localized = self.scale_name(pattern_name)
+        return f"{alias} ({localized})" if alias else localized
+
     def _update_scale_type_combo(self) -> None:
         if not hasattr(self, "scale_type_combo"):
             return
@@ -382,10 +404,10 @@ class ScalesMixin:
         patterns = SCALE_PATTERNS
         if self.scale_filter_mode == "basic":
             patterns = [p for p in patterns if p.name in SCALE_BASIC_NAMES]
-        options = [self.scale_name(p.name) for p in patterns]
-        self._scale_type_label_to_name = {self.scale_name(p.name): p.name for p in patterns}
+        options = [self._scale_type_display_label(p.name) for p in patterns]
+        self._scale_type_label_to_name = {self._scale_type_display_label(p.name): p.name for p in patterns}
         self.scale_type_combo.configure(values=options)
-        current_label = self.scale_name(self.scale_pattern_name)
+        current_label = self._scale_type_display_label(self.scale_pattern_name)
         if current_label in options:
             self.scale_type_var.set(current_label)
         elif options:
@@ -413,7 +435,7 @@ class ScalesMixin:
         name = getattr(self, "_scale_type_label_to_name", {}).get(label, None)
         if name is None:
             for p in SCALE_PATTERNS:
-                if self.scale_name(p.name) == label:
+                if self._scale_type_display_label(p.name) == label or self.scale_name(p.name) == label:
                     name = p.name
                     break
         if name is not None:

@@ -832,8 +832,8 @@ class RenderMixin:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 cx = (x1 + x2) / 2
-                cy = key_bottom - 28
                 r = max(11, min(17, white_w * 0.28))
+                cy = key_bottom - (42 if show_key_names else 28)
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
 
@@ -1183,7 +1183,7 @@ class RenderMixin:
             display_notes_list = []
             display_notes = set(self.guitar_selected_variation_notes)
         elif self.scale_tab_active:
-            display_notes_list = list(self.scale_preview_notes)
+            display_notes_list = list(getattr(self, "scale_base_notes", self.scale_preview_notes))
             first_treble = int(display_notes_list[0]) if display_notes_list else None
             scale_bass_display_notes = {
                 int(n - 12)
@@ -1551,13 +1551,10 @@ class RenderMixin:
                 if self.scale_tab_active and note_idx < len(scale_staff_entries):
                     degree_idx = int(scale_staff_entries[note_idx][1])
                     scale_is_bass = bool(scale_staff_entries[note_idx][2])
-                if (not self.scale_tab_active and note >= 60) or (self.scale_tab_active and not scale_is_bass):
+                if note >= 60:
                     placed_cols = placed_treble_cols
-                    if self.scale_tab_active:
-                        if degree_idx < len(scale_diatonic_indices):
-                            diatonic_idx = scale_diatonic_indices[degree_idx]
-                        else:
-                            diatonic_idx = self._diatonic_index(note)
+                    if self.scale_tab_active and not scale_is_bass and degree_idx < len(scale_diatonic_indices):
+                        diatonic_idx = scale_diatonic_indices[degree_idx]
                     else:
                         diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
@@ -1568,13 +1565,7 @@ class RenderMixin:
                     staff_base_y = treble_top + 4 * line_space
                 else:
                     placed_cols = placed_bass_cols
-                    if self.scale_tab_active:
-                        if degree_idx < len(scale_diatonic_indices):
-                            diatonic_idx = scale_diatonic_indices[degree_idx] - 7
-                        else:
-                            diatonic_idx = self._diatonic_index(note)
-                    else:
-                        diatonic_idx = self._diatonic_index(note)
+                    diatonic_idx = self._diatonic_index(note)
                     diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28

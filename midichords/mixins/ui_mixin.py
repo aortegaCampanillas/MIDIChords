@@ -1291,7 +1291,7 @@ class UiMixin:
             values=["-"],
             font=(self.ui_font_family, 15),
         )
-        self.scale_tonic_combo.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.scale_tonic_combo.grid(row=1, column=1, sticky="w", pady=(0, 5))
         self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
         self._qt_apply_dark_combobox_style(self.scale_tonic_combo)
 
@@ -1304,8 +1304,7 @@ class UiMixin:
         )
         self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
         scale_type_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        scale_type_row.grid(row=2, column=1, sticky="ew", pady=(0, 5))
-        scale_type_row.columnconfigure(0, weight=1)
+        scale_type_row.grid(row=2, column=1, sticky="w", pady=(0, 5))
         self.scale_type_var = tk.StringVar(value=self.scale_pattern_name)
         self.scale_type_combo = ttk.Combobox(
             scale_type_row,
@@ -1382,36 +1381,17 @@ class UiMixin:
         )
         self.scale_fingering_label.grid(row=6, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
 
-        fingering_buttons_frame = tk.Frame(
+        self.scale_fingering_var = tk.StringVar(value="none")
+        self.scale_fingering_combo = ttk.Combobox(
             self.tab_scale_frame,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
+            textvariable=self.scale_fingering_var,
+            state="readonly",
+            values=["-", "-", "-"],
+            font=(self.ui_font_family, 14),
         )
-        fingering_buttons_frame.grid(row=6, column=1, sticky="ew", pady=(8, 5))
-        fingering_buttons_frame.columnconfigure(0, weight=1)
-        fingering_buttons_frame.columnconfigure(1, weight=1)
-        fingering_buttons_frame.columnconfigure(2, weight=1)
-
-        self.scale_fingering_buttons = []
-        for hand, label_key in [("none", "label_fingering_none"), ("right", "label_fingering_right"), ("left", "label_fingering_left")]:
-            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano D.", "Mano I."][["none", "right", "left"].index(hand)]
-            btn = GrayRoundedButton(
-                fingering_buttons_frame,
-                text=label,
-                command=lambda h=hand: self._set_scale_fingering(h),
-                font_family=self.ui_font_family,
-                width=100,
-                height=40,
-                radius=16,
-                font_size=13,
-                text_color="#e6edf7",
-                selected_text_color="#1a222d",
-            )
-            idx = ["none", "right", "left"].index(hand)
-            btn.grid(row=0, column=idx, sticky="ew", padx=2)
-            btn.set_selected(hand == "none")
-            self.scale_fingering_buttons.append(btn)
+        self.scale_fingering_combo.grid(row=6, column=1, sticky="w", pady=(8, 5))
+        self.scale_fingering_combo.bind("<<ComboboxSelected>>", self._on_scale_fingering_combo_changed)
+        self._qt_apply_dark_combobox_style(self.scale_fingering_combo)
 
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,

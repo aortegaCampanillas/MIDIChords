@@ -876,6 +876,7 @@ class _HomeScreenState extends State<HomeScreen>
   int? _intervalPlayingNote;
   int? _intervalPlayingIdx;
   bool _intervalMelodyPlaying = false;
+  bool _intervalMelodyMode = false;   // false = play 2 notes, true = play reference melody
   Timer? _intervalMelodyPlaybackTimer;
   Timer? _scaleLoopTimer;
   int? _scaleCurrentNote;
@@ -2381,6 +2382,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Equivalente a `getStaffContext()` en `app.js` (armadura del pentagrama).
   ({int count, bool preferFlats}) _staffKeySignatureForCurrentTab() {
+    if (_tabIndex == 5) return (count: 0, preferFlats: false);
     final tieFromSelect = _preferFlat;
     if (_tabIndex == 3 && _generatedScaleJson != null) {
       final name =
@@ -3122,6 +3124,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _staffNotesForCurrentTab() {
+    if (_tabIndex == 5) {
+      if (_intervalMelodyMode) {
+        return _getIntervalMelodyNotes().whereType<int>().toSet();
+      }
+      return _intervalNotes.toSet();
+    }
     if (_tabIndex == 0) {
       if (_detectionResultJson != null) {
         final midi = _extractMidiList(_detectionResultJson!, <String>[
@@ -3185,6 +3193,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _activeMidiForInstrument() {
+    if (_tabIndex == 5) {
+      if (_intervalMelodyMode) {
+        return _getIntervalMelodyNotes().whereType<int>().toSet();
+      }
+      return _intervalNotes.toSet();
+    }
     if (_tabIndex == 0) return _activeDetectionNotes;
     if ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null) {
       final rh = _extractMidiList(_generatedChordJson!, <String>[
@@ -4209,6 +4223,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _handleInstrumentNote(int midi, {required bool pressed}) async {
+    if (_tabIndex == 5) {
+      if (!pressed) return;
+      _addIntervalNote(midi);
+      if (_midiInputSoundEnabled) {
+        unawaited(playNote(midi, instrument: 'piano'));
+      }
+      return;
+    }
     if (_tabIndex == 0) {
       if (!pressed) {
         return;
@@ -6138,6 +6160,13 @@ class _HomeScreenState extends State<HomeScreen>
         ? staffMidi(_scaleCurrentNote!)
         : null;
     final staffKeySig = _staffKeySignatureForCurrentTab();
+    final imelMode = _tabIndex == 5 && _intervalMelodyMode;
+    final imelSemitones = _tabIndex == 5 ? _getIntervalSemitones() : null;
+    final imelMelody = imelSemitones != null ? getIntervalMelody(imelSemitones) : null;
+    final imelNotes = imelMode ? _getIntervalMelodyNotes() : const <int?>[];
+    final imelDurations = imelMelody?.durations ?? const <String>[];
+    final imelBeatsPerBar = imelMelody?.beatsPerBar ?? 4;
+    final imelAnacrusis = imelMelody?.anacrusis ?? 0.0;
     return _panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6311,6 +6340,12 @@ class _HomeScreenState extends State<HomeScreen>
                         _tabIndex == 3 && _instrumentView == 'guitar',
                     keySignatureCount: staffKeySig.count,
                     keySignaturePreferFlats: staffKeySig.preferFlats,
+                    intervalMelodyMode: imelMode,
+                    intervalMelodyNotes: imelNotes,
+                    intervalMelodyDurations: imelDurations,
+                    intervalPlayingIdx: _tabIndex == 5 ? _intervalPlayingIdx : null,
+                    intervalBeatsPerBar: imelBeatsPerBar,
+                    intervalAnacrusis: imelAnacrusis,
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -8576,7 +8611,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // Melody name
+                        // Melody name — tappable toggle
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
@@ -8584,11 +8619,34 @@ class _HomeScreenState extends State<HomeScreen>
                               _ui('Ejemplo', 'Example'),
                               style: const TextStyle(color: _muted, fontSize: 12),
                             ),
-                            Text(
-                              _intervalNotes.length >= 2 ? _getIntervalMelodyName() : '-',
-                              style: const TextStyle(
-                                color: _accent,
-                                fontSize: 13,
+                            GestureDetector(
+                              onTap: _intervalNotes.length >= 2
+                                  ? _toggleIntervalMelodyMode
+                                  : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _intervalMelodyMode
+                                      ? const Color(0x26F3BF2F)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _intervalMelodyMode ? _accent : _border,
+                                  ),
+                                ),
+                                child: Text(
+                                  _intervalNotes.length >= 2
+                                      ? _getIntervalMelodyName()
+                                      : '-',
+                                  style: TextStyle(
+                                    color: _intervalMelodyMode
+                                        ? _accent
+                                        : const Color(0xFFE9EDF2),
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -8615,7 +8673,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: _intervalNotes.length >= 2
+                        onPressed: _intervalNotes.length >= 2 && !_intervalMelodyMode
                             ? () => _playIntervalMelody(reversed: true)
                             : null,
                         icon: const Icon(Icons.play_arrow),
@@ -9495,6 +9553,7 @@ class _HomeScreenState extends State<HomeScreen>
   // Interval detection methods
   void _addIntervalNote(int midiNote) {
     setState(() {
+      _intervalMelodyMode = false;
       _intervalNotes.add(midiNote);
       if (_intervalNotes.length > 2) {
         _intervalNotes.removeAt(0);
@@ -9505,10 +9564,24 @@ class _HomeScreenState extends State<HomeScreen>
   void _clearIntervalNotes() {
     setState(() {
       _intervalNotes.clear();
+      _intervalMelodyMode = false;
       _intervalPlayingNote = null;
       _intervalPlayingIdx = null;
       _intervalMelodyPlaybackTimer?.cancel();
       _intervalMelodyPlaybackTimer = null;
+    });
+  }
+
+  void _toggleIntervalMelodyMode() {
+    final semitones = _getIntervalSemitones();
+    if (semitones == null || _intervalNotes.length < 2) return;
+    if (getIntervalMelody(semitones) == null) return;
+    setState(() {
+      _intervalMelodyMode = !_intervalMelodyMode;
+      if (!_intervalMelodyMode) {
+        _intervalPlayingNote = null;
+        _intervalPlayingIdx = null;
+      }
     });
   }
 
@@ -9536,15 +9609,29 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _playIntervalMelody({bool reversed = false}) {
-    final notes = _getIntervalMelodyNotes();
-    final semitones = _getIntervalSemitones();
-    if (semitones == null) return;
-
-    final melody = getIntervalMelody(semitones);
-    if (melody == null) return;
-
-    final playNotes = reversed ? List<int?>.from(notes.reversed) : notes;
-    _playMelodySequence(playNotes, melody, 0);
+    if (_intervalNotes.length < 2) return;
+    _intervalMelodyPlaybackTimer?.cancel();
+    if (_intervalMelodyMode) {
+      // Melody mode: always play the reference song forward
+      final notes = _getIntervalMelodyNotes();
+      final semitones = _getIntervalSemitones();
+      if (semitones == null) return;
+      final melody = getIntervalMelody(semitones);
+      if (melody == null) return;
+      setState(() => _intervalMelodyPlaying = true);
+      _playMelodySequence(notes, melody, 0);
+    } else {
+      // Normal mode: play the two interval notes (reversible)
+      final ordered = reversed
+          ? List<int>.from(_intervalNotes.reversed).cast<int?>()
+          : List<int>.from(_intervalNotes).cast<int?>();
+      const dummyMelody = IntervalMelody(
+        nameEs: '', nameEn: '', beatsPerBar: 4,
+        offsets: [0, 0], durations: ['q', 'q'],
+      );
+      setState(() => _intervalMelodyPlaying = true);
+      _playMelodySequence(ordered, dummyMelody, 0);
+    }
   }
 
   void _playMelodySequence(List<int?> notes, IntervalMelody melody, int index) {
@@ -9593,6 +9680,12 @@ class _MiniStaffPainter extends CustomPainter {
     this.scaleGuitarMode = false,
     this.keySignatureCount = 0,
     this.keySignaturePreferFlats = false,
+    this.intervalMelodyMode = false,
+    this.intervalMelodyNotes = const <int?>[],
+    this.intervalMelodyDurations = const <String>[],
+    this.intervalPlayingIdx,
+    this.intervalBeatsPerBar = 4,
+    this.intervalAnacrusis = 0.0,
   });
 
   /// Orden F# C# G# D# A# E# B# — mismos MIDI que `app.js`.
@@ -9647,6 +9740,12 @@ class _MiniStaffPainter extends CustomPainter {
   final bool scaleGuitarMode;
   final int keySignatureCount;
   final bool keySignaturePreferFlats;
+  final bool intervalMelodyMode;
+  final List<int?> intervalMelodyNotes;
+  final List<String> intervalMelodyDurations;
+  final int? intervalPlayingIdx;
+  final int intervalBeatsPerBar;
+  final double intervalAnacrusis;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -9740,7 +9839,9 @@ class _MiniStaffPainter extends CustomPainter {
       noteStartX = xKey + (compactWidth ? 8.0 : 12.0);
     }
 
-    if (scaleRhNotes.isNotEmpty) {
+    if (intervalMelodyMode && intervalMelodyNotes.isNotEmpty) {
+      _drawIntervalMelody(canvas, trebleTop, bassTop, gap, noteStartX, right, noteW, noteH);
+    } else if (scaleRhNotes.isNotEmpty) {
       final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
       for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
         final x = noteStartX + (degree * scaleStepX);
@@ -9948,8 +10049,306 @@ class _MiniStaffPainter extends CustomPainter {
     return baseY - ((diatonic - bottomLineDiatonic) * (gap / 2));
   }
 
+  void _drawIntervalMelody(
+    Canvas canvas,
+    double trebleTop,
+    double bassTop,
+    double gap,
+    double noteStartX,
+    double right,
+    double noteW,
+    double noteH,
+  ) {
+    final n = intervalMelodyNotes.length;
+    if (n == 0) return;
+
+    const noteColor = Color(0xFFD7DDE7);
+    const playColor = Color(0xFF4DA3EA);
+    final stemLen = gap * 3.5;
+    final dotR = math.max(1.5, gap * 0.18);
+
+    // Time signature
+    final tsFontSize = math.max(14.0, gap * 1.7);
+    TextPainter makeTp(String text) => TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: const Color(0xFFFFFFFF),
+          fontSize: tsFontSize,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final tpNum = makeTp(intervalBeatsPerBar.toString());
+    final tpDen = makeTp('4');
+    final tsHW = math.max(tpNum.width, tpDen.width) / 2;
+    final tsX = noteStartX + tsHW;
+    tpNum.paint(canvas, Offset(tsX - tpNum.width / 2, trebleTop + gap * 0.3));
+    tpDen.paint(canvas, Offset(tsX - tpDen.width / 2, trebleTop + gap * 2.3));
+    tpNum.paint(canvas, Offset(tsX - tpNum.width / 2, bassTop + gap * 0.3));
+    tpDen.paint(canvas, Offset(tsX - tpDen.width / 2, bassTop + gap * 2.3));
+    final melLeft = tsX + tsHW + 10.0;
+
+    // Tick durations
+    const qt = 1000;
+    int tickFor(String d) {
+      final dotted = d.endsWith('.');
+      final code = dotted ? d.substring(0, d.length - 1) : d;
+      const tmap = <String, int>{
+        'w': 4 * qt, 'h': 2 * qt, 'q': qt,
+        'e': qt ~/ 2, 'et': qt ~/ 3, 's': qt ~/ 4,
+      };
+      var t = tmap[code] ?? qt;
+      if (dotted) t = t * 3 ~/ 2;
+      return t;
+    }
+
+    final ticks = List<int>.generate(n, (i) {
+      final d = i < intervalMelodyDurations.length ? intervalMelodyDurations[i] : 'q';
+      return tickFor(d);
+    });
+    final totalTicks = ticks.fold(0, (a, b) => a + b);
+    if (totalTicks == 0) return;
+    final availW = (right - 16.0) - melLeft;
+    final xPos = List<double>.generate(n, (i) {
+      final cum = ticks.sublist(0, i).fold(0, (a, b) => a + b);
+      return melLeft + cum / totalTicks * availW;
+    });
+
+    // Bar lines
+    final barTicks = intervalBeatsPerBar * qt;
+    var barRun = -(intervalAnacrusis * qt).round();
+    final blPaint = Paint()..color = const Color(0xFF5A6A7A)..strokeWidth = 1.0;
+    for (int i = 0; i < n; i++) {
+      final prev = barRun;
+      barRun += ticks[i];
+      if (i > 0 && (prev ~/ barTicks) < (barRun ~/ barTicks)) {
+        final bx = (xPos[i - 1] + xPos[i]) / 2;
+        canvas.drawLine(Offset(bx, trebleTop), Offset(bx, bassTop + 4 * gap), blPaint);
+      }
+    }
+
+    // Beam groups
+    final beamGroupOf = <int, int>{};
+    final beamGroups = <List<int>>[];
+    var tickPos = 0;
+    var bgCurrent = <int>[];
+    var bgBeat = 0;
+    for (int i = 0; i < n; i++) {
+      final dur = i < intervalMelodyDurations.length ? intervalMelodyDurations[i] : 'q';
+      final durBase = dur.endsWith('.') ? dur.substring(0, dur.length - 1) : dur;
+      final isSubQ = (durBase == 'e' || durBase == 'et' || durBase == 's') &&
+          intervalMelodyNotes[i] != null;
+      final beat = tickPos ~/ qt;
+      if (isSubQ) {
+        if (bgCurrent.isNotEmpty && beat != bgBeat) {
+          if (bgCurrent.length > 1) {
+            final gid = beamGroups.length;
+            for (final g in bgCurrent) { beamGroupOf[g] = gid; }
+            beamGroups.add(List<int>.from(bgCurrent));
+          }
+          bgCurrent = [];
+        }
+        if (bgCurrent.isEmpty) bgBeat = beat;
+        bgCurrent.add(i);
+      } else {
+        if (bgCurrent.length > 1) {
+          final gid = beamGroups.length;
+          for (final g in bgCurrent) { beamGroupOf[g] = gid; }
+          beamGroups.add(List<int>.from(bgCurrent));
+        }
+        bgCurrent = [];
+      }
+      tickPos += ticks[i];
+    }
+    if (bgCurrent.length > 1) {
+      final gid = beamGroups.length;
+      for (final g in bgCurrent) { beamGroupOf[g] = gid; }
+      beamGroups.add(List<int>.from(bgCurrent));
+    }
+
+    // Draw notes and rests
+    final stemData = <int, ({double x, double yEnd, bool stemUp, int flagCount})>{};
+    for (int i = 0; i < n; i++) {
+      final midiNull = intervalMelodyNotes[i];
+      final dur = i < intervalMelodyDurations.length ? intervalMelodyDurations[i] : 'q';
+      final durBase = dur.endsWith('.') ? dur.substring(0, dur.length - 1) : dur;
+      final isDotted = dur.endsWith('.');
+      final x = xPos[i];
+      final flagCount = (durBase == 'e' || durBase == 'et') ? 1 : (durBase == 's' ? 2 : 0);
+      final hasStem = durBase != 'w';
+      final isHollow = durBase == 'w' || durBase == 'h';
+      final col = intervalPlayingIdx == i ? playColor : noteColor;
+
+      if (midiNull == null) {
+        _drawRestSymbolMelody(canvas, x, trebleTop + 2 * gap, durBase, gap, noteColor, trebleTop);
+      } else {
+        final midi = midiNull;
+        final isT = midi >= 60;
+        final y = isT
+            ? _midiToTrebleY(midi.toDouble(), trebleTop, gap)
+            : _midiToBassY(midi.toDouble(), bassTop, gap);
+        final staffTop = isT ? trebleTop : bassTop;
+        _drawLedgerLines(canvas, x: x, midi: midi.toDouble(), top: staffTop, gap: gap, treble: isT, color: col);
+        final nw = durBase == 'w' ? noteW * 1.25 : noteW;
+        canvas.drawOval(
+          Rect.fromCenter(center: Offset(x, y), width: nw, height: noteH),
+          Paint()
+            ..style = isHollow ? PaintingStyle.stroke : PaintingStyle.fill
+            ..color = col
+            ..strokeWidth = 2.0,
+        );
+        if (isDotted) {
+          canvas.drawCircle(Offset(x + nw / 2 + dotR * 2.5, y), dotR, Paint()..color = col);
+        }
+        if (hasStem) {
+          final stemMid = staffTop + 2 * gap;
+          final stemUp = y > stemMid;
+          final sx = stemUp ? x + nw / 2 - 1 : x - nw / 2 + 1;
+          final syEnd = stemUp ? y - stemLen : y + stemLen;
+          canvas.drawLine(Offset(sx, y), Offset(sx, syEnd),
+              Paint()..color = col..strokeWidth = 1.8);
+          if (flagCount > 0) {
+            if (beamGroupOf.containsKey(i)) {
+              stemData[i] = (x: sx, yEnd: syEnd, stemUp: stemUp, flagCount: flagCount);
+            } else {
+              _drawMelodyFlag(canvas, sx, syEnd, flagCount, stemUp, gap, col);
+            }
+          }
+        }
+      }
+    }
+
+    // Beams
+    final beamW = math.max(2.5, gap * 0.25);
+    for (final group in beamGroups) {
+      final data = <({double x, double yEnd, bool stemUp, int flagCount})>[];
+      for (final gi in group) {
+        if (stemData.containsKey(gi)) data.add(stemData[gi]!);
+      }
+      if (data.length < 2) continue;
+      final nPrim = data.map((d) => d.flagCount).reduce(math.min);
+      for (int bar = 0; bar < nPrim; bar++) {
+        final bOff = bar * gap * 0.3;
+        final su = data.first.stemUp;
+        final y0 = su ? data.first.yEnd + bOff : data.first.yEnd - bOff;
+        final y1 = su ? data.last.yEnd + bOff : data.last.yEnd - bOff;
+        canvas.drawLine(Offset(data.first.x, y0), Offset(data.last.x, y1),
+            Paint()..color = noteColor..strokeWidth = beamW);
+      }
+      final grpLast = group.length - 1;
+      for (int gi = 0; gi < group.length; gi++) {
+        final idx = group[gi];
+        if (!stemData.containsKey(idx)) continue;
+        final d = stemData[idx]!;
+        final extra = d.flagCount - nPrim;
+        if (extra <= 0) continue;
+        final stubDir = gi == grpLast ? -1.0 : 1.0;
+        final stubW = math.max(gap * 1.2, 14.0);
+        for (int be = 0; be < extra; be++) {
+          final stubOff = (nPrim + be) * gap * 0.3;
+          final sy = d.stemUp ? d.yEnd + stubOff : d.yEnd - stubOff;
+          canvas.drawLine(Offset(d.x, sy), Offset(d.x + stubDir * stubW, sy),
+              Paint()..color = noteColor..strokeWidth = beamW);
+        }
+      }
+    }
+  }
+
+  void _drawMelodyFlag(
+    Canvas canvas, double sx, double syEnd,
+    int flagCount, bool stemUp, double gap, Color col,
+  ) {
+    final fw = gap * 0.52;
+    final fh = gap * 1.75;
+    final sign = stemUp ? 1.0 : -1.0;
+    final paint = Paint()
+      ..color = col
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    for (int fi = 0; fi < flagCount; fi++) {
+      final fy0 = syEnd + sign * fi * gap * 0.55;
+      final p0 = Offset(sx, fy0);
+      final p1 = Offset(sx + fw * 0.9, fy0 + sign * fh * 0.07);
+      final p2 = Offset(sx + fw, fy0 + sign * fh * 0.22);
+      final p3 = Offset(sx + fw * 0.65, fy0 + sign * fh * 0.62);
+      final p4 = Offset(sx + fw * 0.1, fy0 + sign * fh * 1.0);
+      final m01 = Offset((p0.dx + p1.dx) / 2, (p0.dy + p1.dy) / 2);
+      final m12 = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+      final m23 = Offset((p2.dx + p3.dx) / 2, (p2.dy + p3.dy) / 2);
+      final m34 = Offset((p3.dx + p4.dx) / 2, (p3.dy + p4.dy) / 2);
+      final path = Path()..moveTo(p0.dx, p0.dy);
+      path.lineTo(m01.dx, m01.dy);
+      path.quadraticBezierTo(p1.dx, p1.dy, m12.dx, m12.dy);
+      path.quadraticBezierTo(p2.dx, p2.dy, m23.dx, m23.dy);
+      path.quadraticBezierTo(p3.dx, p3.dy, m34.dx, m34.dy);
+      path.quadraticBezierTo(p4.dx, p4.dy, p4.dx, p4.dy);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  void _drawRestSymbolMelody(
+    Canvas canvas, double x, double cy,
+    String dur, double gap, Color col, double trebleTop,
+  ) {
+    final paint = Paint()..color = col;
+    if (dur == 'w') {
+      final rw = gap * 1.3;
+      canvas.drawRect(
+        Rect.fromLTWH(x - rw / 2, trebleTop + gap, rw, gap * 0.48), paint,
+      );
+    } else if (dur == 'h') {
+      final rw = gap * 1.3;
+      final rh = gap * 0.48;
+      canvas.drawRect(Rect.fromLTWH(x - rw / 2, cy - rh, rw, rh), paint);
+    } else if (dur == 'q') {
+      final lp = Paint()..color = col..strokeWidth = 1.8..style = PaintingStyle.stroke;
+      final r = gap * 0.35;
+      final y0 = cy - gap * 0.75;
+      final pts = [
+        Offset(x + r, y0), Offset(x - r * 0.4, y0 + gap * 0.5),
+        Offset(x + r * 0.8, y0 + gap * 0.9), Offset(x, y0 + gap * 1.25),
+        Offset(x - r * 0.5, y0 + gap * 1.55),
+      ];
+      for (int k = 0; k < pts.length - 1; k++) { canvas.drawLine(pts[k], pts[k + 1], lp); }
+    } else if (dur == 'e' || dur == 'et') {
+      final dr = math.max(3.5, gap * 0.43);
+      final span = gap * 2.4;
+      final xt = x + gap * 0.3;
+      final yt = cy - span * 0.5;
+      final xb = x - gap * 0.2;
+      final yb = cy + span * 0.5;
+      canvas.drawLine(Offset(xt, yt), Offset(xb, yb),
+          Paint()..color = col..strokeWidth = 2.2);
+      const t = 0.24;
+      canvas.drawCircle(
+        Offset(xt + (xb - xt) * t - dr * 0.65, yt + (yb - yt) * t), dr, paint,
+      );
+    } else if (dur == 's') {
+      final dr = math.max(2.8, gap * 0.35);
+      final span = gap * 3.0;
+      final xt = x + gap * 0.3;
+      final yt = cy - span * 0.5;
+      final xb = x - gap * 0.2;
+      final yb = cy + span * 0.5;
+      canvas.drawLine(Offset(xt, yt), Offset(xb, yb),
+          Paint()..color = col..strokeWidth = 2.2);
+      for (final t in [0.18, 0.44]) {
+        canvas.drawCircle(
+          Offset(xt + (xb - xt) * t - dr * 0.65, yt + (yb - yt) * t), dr, paint,
+        );
+      }
+    }
+  }
+
   @override
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
+    if (oldDelegate.intervalMelodyMode != intervalMelodyMode) return true;
+    if (oldDelegate.intervalPlayingIdx != intervalPlayingIdx) return true;
+    if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length) return true;
     if (oldDelegate.keySignatureCount != keySignatureCount) return true;
     if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
       return true;

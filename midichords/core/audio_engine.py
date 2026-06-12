@@ -59,6 +59,9 @@ class SampleVoice:
     release: float = 1.0
     rendered_samples: int = 0
     max_samples: int = 0
+    attack_samples: int = 0   # linear ramp 0→1 on note start to avoid click
+    fade_out_total: int = 0   # when > 0, note_off linear fade is active
+    fade_out_remaining: int = 0
 
 
 class PianoAudioEngine:
@@ -256,10 +259,11 @@ class PianoAudioEngine:
                 voice.released = True
                 voice.release_samples = 0
                 voice.release_peak_set = False
-            for sample_voice in self.sample_voices:
-                if sample_voice.note == note:
-                    # Cola más suave que 0.9993 para reducir “clic” al soltar tecla MIDI.
-                    sample_voice.decay = min(sample_voice.decay, 0.99955)
+            fade_samples = int(0.050 * self.sample_rate)  # 50 ms linear fade-out
+        for sample_voice in self.sample_voices:
+                if sample_voice.note == note and sample_voice.fade_out_total == 0:
+                    sample_voice.fade_out_total = fade_samples
+                    sample_voice.fade_out_remaining = fade_samples
 
     def metronome_click(self, accent: bool = False, bar: bool = False, volume_scale: float = 1.0) -> None:
         try:
@@ -430,6 +434,7 @@ class PianoAudioEngine:
         rate = float(2.0 ** ((note - root_note) / 12.0))
         gain = max(0.05, min(1.0, velocity / 127.0)) * gain_mul
         max_samples = max(1, int(max_seconds * self.sample_rate))
+        attack_samples = int(0.010 * self.sample_rate)  # 10 ms ramp
         with self.lock:
             for sample_voice in self.sample_voices:
                 if sample_voice.note == note:
@@ -443,6 +448,7 @@ class PianoAudioEngine:
                     gain=gain,
                     decay=decay,
                     max_samples=max_samples,
+                    attack_samples=attack_samples,
                 )
             )
 
@@ -644,23 +650,39 @@ class PianoAudioEngine:
                 pos = sample_voice.pos
                 release = sample_voice.release
                 rendered = sample_voice.rendered_samples
+                attack_n = sample_voice.attack_samples
+                fade_total = sample_voice.fade_out_total
+                fade_rem = sample_voice.fade_out_remaining
                 for i in range(frames):
                     if pos >= (buf_len - 1):
                         break
                     if sample_voice.max_samples > 0 and rendered >= sample_voice.max_samples:
                         break
+                    if fade_total > 0 and fade_rem <= 0:
+                        break
                     idx = int(pos)
                     frac = float(pos - idx)
                     raw = (float(buf[idx]) * (1.0 - frac)) + (float(buf[idx + 1]) * frac)
-                    local[i] = np.float32(raw * release)
+                    ramp = (float(rendered) / attack_n) if attack_n > 0 and rendered < attack_n else 1.0
+                    fade = (float(fade_rem) / fade_total) if fade_total > 0 else 1.0
+                    local[i] = np.float32(raw * release * ramp * fade)
                     release *= sample_voice.decay
+                    if fade_total > 0:
+                        fade_rem -= 1
                     pos += sample_voice.step
                     rendered += 1
                 sample_voice.pos = pos
                 sample_voice.release = release
                 sample_voice.rendered_samples = rendered
+                sample_voice.fade_out_remaining = fade_rem
                 signal += local * sample_voice.gain
-                if pos < (buf_len - 1) and (sample_voice.max_samples <= 0 or rendered < sample_voice.max_samples) and release > 0.00015:
+                still_active = (
+                    pos < (buf_len - 1)
+                    and (sample_voice.max_samples <= 0 or rendered < sample_voice.max_samples)
+                    and release > 0.00015
+                    and not (fade_total > 0 and fade_rem <= 0)
+                )
+                if still_active:
                     remaining_samples.append(sample_voice)
             self.sample_voices = remaining_samples
 

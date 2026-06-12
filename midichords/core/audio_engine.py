@@ -59,9 +59,10 @@ class SampleVoice:
     release: float = 1.0
     rendered_samples: int = 0
     max_samples: int = 0
-    attack_samples: int = 0   # linear ramp 0→1 on note start to avoid click
-    fade_out_total: int = 0   # when > 0, note_off linear fade is active
+    attack_samples: int = 0   # smoothstep ramp 0→1 on note start to avoid click
+    fade_out_total: int = 0   # when > 0, note_off smoothstep fade is active
     fade_out_remaining: int = 0
+    amplitude_cap: float = 1.0  # caps ramp if note_off fires during attack phase
 
 
 class PianoAudioEngine:
@@ -253,15 +254,18 @@ class PianoAudioEngine:
 
     def note_off(self, note: int) -> None:
         vlog("audio", "note_off: note=%s", note)
+        fade_samples = int(0.080 * self.sample_rate)  # 80 ms smoothstep fade-out
         with self.lock:
             voice = self.voices.get(note)
             if voice is not None:
                 voice.released = True
                 voice.release_samples = 0
                 voice.release_peak_set = False
-            fade_samples = int(0.050 * self.sample_rate)  # 50 ms linear fade-out
-        for sample_voice in self.sample_voices:
+            for sample_voice in self.sample_voices:
                 if sample_voice.note == note and sample_voice.fade_out_total == 0:
+                    if sample_voice.attack_samples > 0 and sample_voice.rendered_samples < sample_voice.attack_samples:
+                        t = float(sample_voice.rendered_samples) / sample_voice.attack_samples
+                        sample_voice.amplitude_cap = t * t * (3.0 - 2.0 * t)
                     sample_voice.fade_out_total = fade_samples
                     sample_voice.fade_out_remaining = fade_samples
 
@@ -435,10 +439,12 @@ class PianoAudioEngine:
         gain = max(0.05, min(1.0, velocity / 127.0)) * gain_mul
         max_samples = max(1, int(max_seconds * self.sample_rate))
         attack_samples = int(0.010 * self.sample_rate)  # 10 ms ramp
+        fade_retrigger = int(0.020 * self.sample_rate)  # 20 ms fade for same-note retrigger
         with self.lock:
             for sample_voice in self.sample_voices:
-                if sample_voice.note == note:
-                    sample_voice.decay = min(sample_voice.decay, 0.99955)
+                if sample_voice.note == note and sample_voice.fade_out_total == 0:
+                    sample_voice.fade_out_total = fade_retrigger
+                    sample_voice.fade_out_remaining = fade_retrigger
             self.sample_voices.append(
                 SampleVoice(
                     note=note,
@@ -663,8 +669,16 @@ class PianoAudioEngine:
                     idx = int(pos)
                     frac = float(pos - idx)
                     raw = (float(buf[idx]) * (1.0 - frac)) + (float(buf[idx + 1]) * frac)
-                    ramp = (float(rendered) / attack_n) if attack_n > 0 and rendered < attack_n else 1.0
-                    fade = (float(fade_rem) / fade_total) if fade_total > 0 else 1.0
+                    if attack_n > 0 and rendered < attack_n:
+                        t = float(rendered) / attack_n
+                        ramp = min(t * t * (3.0 - 2.0 * t), sample_voice.amplitude_cap)
+                    else:
+                        ramp = 1.0
+                    if fade_total > 0:
+                        x = float(fade_rem) / fade_total
+                        fade = x * x * (3.0 - 2.0 * x)
+                    else:
+                        fade = 1.0
                     local[i] = np.float32(raw * release * ramp * fade)
                     release *= sample_voice.decay
                     if fade_total > 0:

@@ -466,6 +466,17 @@ class RenderMixin:
                         self.scale_guitar_tonic_regions.append(
                             (note, cx - note_radius, y - note_radius, cx + note_radius, y + note_radius)
                         )
+            now = time.monotonic()
+            icon_r = max(7, int(note_radius * 0.65))
+            for blocked_note, until in list(self.blocked_note_until.items()):
+                if until <= now:
+                    continue
+                for si, open_note in enumerate(tuning):
+                    fret = blocked_note - open_note
+                    if 0 <= fret < frets:
+                        cx = fret_center_x(fret)
+                        sy = board_y1 + si * string_gap
+                        self._draw_forbidden_icon(canvas, cx, sy, icon_r)
             return
 
         if frets_selected is None:

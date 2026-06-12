@@ -521,6 +521,13 @@ class InputDetectionMixin:
                     changed = True
                     bump_after_midi_detection_activity()
             elif message.type == "note_on" and message.velocity > 0:
+                note_int = int(message.note)
+                if self.scale_tab_active and self.scale_play_mode == "guitar":
+                    scale_pcs = {n % 12 for n in self.scale_preview_notes}
+                    if (note_int % 12) not in scale_pcs:
+                        self._show_forbidden_note_feedback(note_int)
+                        changed = True
+                        continue
                 self._note_on_from_source(message.note, velocity=int(message.velocity), source="midi")
                 changed = True
             elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):

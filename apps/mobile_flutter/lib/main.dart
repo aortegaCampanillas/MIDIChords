@@ -3028,6 +3028,16 @@ class _HomeScreenState extends State<HomeScreen>
         continue;
       }
 
+      // Scale mode handling (tabIndex 3): show forbidden on non-scale MIDI notes
+      if (_tabIndex == 3 && isNoteOn && _generatedScaleJson != null) {
+        final scaleNotes = _scaleRhNotes();
+        final scalePcs = scaleNotes.map((n) => n % 12).toSet();
+        if (scalePcs.isNotEmpty && !scalePcs.contains(note % 12)) {
+          _showForbiddenOnPiano(note);
+        }
+        continue;
+      }
+
       // Detection mode handling (tabIndex 0)
       if (_tabIndex == 0) {
         if (isNoteOn) {

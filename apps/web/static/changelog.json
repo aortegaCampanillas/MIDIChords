@@ -1,5 +1,18 @@
 [
   {
+    "version": "v1.0.4",
+    "date": "2026-06-12",
+    "items": [
+      {
+        "date": "2026-06-12",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "Detección de dispositivos MIDI: si tienes un teclado conectado pero ningún dispositivo configurado, la app te avisará y te ofrecerá abrir la configuración.",
+        "en": "MIDI device detection: if you have a keyboard connected but no device configured, the app will notify you and offer to open settings."
+      }
+    ]
+  },
+  {
     "version": "v1.0.3",
     "date": "2026-05-30",
     "items": [

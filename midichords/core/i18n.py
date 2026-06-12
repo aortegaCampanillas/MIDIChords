@@ -119,6 +119,9 @@ UI_TEXTS = {
         "button_cancel": "Cancelar",
         "button_save": "Guardar",
         "settings_build_line": "Compilación: {name}",
+        "midi_hotplug_title": "Dispositivo MIDI detectado",
+        "midi_hotplug_message": "Se ha detectado un nuevo dispositivo MIDI. ¿Deseas abrirlo en la configuración?",
+        "midi_hotplug_open": "Abrir configuración",
     },
     "en": {
         "app_title": "MIDI Piano & Guitar Chords",
@@ -235,6 +238,9 @@ UI_TEXTS = {
         "button_cancel": "Cancel",
         "button_save": "Save",
         "settings_build_line": "Build: {name}",
+        "midi_hotplug_title": "MIDI Device Detected",
+        "midi_hotplug_message": "A new MIDI device was detected. Would you like to open settings to connect it?",
+        "midi_hotplug_open": "Open Settings",
     },
 }
 

@@ -387,6 +387,97 @@ class MidiChordAnalyzerApp(
             pass
         self.after(20, self._process_midi_queue)
         self.after(300, self.maybe_show_startup_changelog)
+        self._start_midi_hotplug_poll()
+
+    # ------------------------------------------------------------------
+    # MIDI hotplug detection
+    # ------------------------------------------------------------------
+
+    def _start_midi_hotplug_poll(self) -> None:
+        self._midi_hotplug_last_devices: set[str] = set()
+        self._midi_hotplug_dialog_open: bool = False
+        self.after(1_500, self._midi_hotplug_tick)
+
+    def _midi_hotplug_tick(self) -> None:
+        devices, _ = self._scan_midi_inputs_isolated()
+        current = set(devices)
+        new_devices = current - self._midi_hotplug_last_devices
+        self._midi_hotplug_last_devices = current
+        bridge_active = bool(getattr(self, "midi_bridge_connected", False))
+        settings_open = getattr(self, "settings_overlay", None) is not None
+        if new_devices and not bridge_active and not settings_open and not self._midi_hotplug_dialog_open:
+            self._show_midi_hotplug_dialog()
+        self.after(10_000, self._midi_hotplug_tick)
+
+    def _show_midi_hotplug_dialog(self) -> None:
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+        from PySide6.QtCore import Qt as _Qt
+
+        lang = str(self.config_data.get("language", "es"))
+        from midichords.core.i18n import UI_TEXTS
+        texts = UI_TEXTS.get(lang, UI_TEXTS["es"])
+
+        title = texts.get("midi_hotplug_title", "MIDI Device Detected")
+        message = texts.get("midi_hotplug_message", "A new MIDI device was detected.")
+        open_label = texts.get("midi_hotplug_open", "Open Settings")
+        cancel_label = texts.get("button_cancel", "Cancelar")
+
+        win = QDialog(self)
+        win.setWindowTitle(title)
+        win.setFixedSize(400, 160)
+        win.setWindowModality(_Qt.WindowModality.ApplicationModal)
+        win.setStyleSheet("QDialog { background-color: #1e2228; }")
+
+        try:
+            pg = self.frameGeometry()
+            win.move(pg.x() + (pg.width() - 400) // 2, pg.y() + (pg.height() - 160) // 2)
+        except Exception:
+            pass
+
+        layout = QVBoxLayout(win)
+        layout.setContentsMargins(24, 24, 24, 20)
+        layout.setSpacing(20)
+
+        lbl = QLabel(message)
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet("color: #e9edf2; font-size: 14px;")
+        layout.addWidget(lbl)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+        layout.addLayout(btn_row)
+
+        btn_cancel = QPushButton(cancel_label)
+        btn_cancel.setFixedHeight(36)
+        btn_cancel.setStyleSheet(
+            "QPushButton { background: #2a313c; color: #e9edf2; border: 1px solid #3a4250;"
+            " border-radius: 6px; font-size: 13px; padding: 0 16px; }"
+            " QPushButton:hover { background: #353d4a; }"
+        )
+        btn_cancel.clicked.connect(win.reject)
+
+        btn_open = QPushButton(open_label)
+        btn_open.setFixedHeight(36)
+        btn_open.setStyleSheet(
+            "QPushButton { background: #3a7bd5; color: #ffffff; border: none;"
+            " border-radius: 6px; font-size: 13px; font-weight: bold; padding: 0 16px; }"
+            " QPushButton:hover { background: #4a8be5; }"
+        )
+        btn_open.clicked.connect(win.accept)
+
+        btn_row.addStretch()
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_open)
+
+        self._midi_hotplug_dialog_open = True
+
+        def _on_done(result: int) -> None:
+            self._midi_hotplug_dialog_open = False
+            if result == QDialog.DialogCode.Accepted:
+                self.open_settings_dialog()
+
+        win.finished.connect(_on_done)
+        win.open()
 
     def scale_name(self, canonical_name: str) -> str:
         language = self.config_data.get("language", "es")

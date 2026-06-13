@@ -392,6 +392,18 @@ class MidiChordAnalyzerApp(
         self.after(20, self._process_midi_queue)
         self.after(300, self.maybe_show_startup_changelog)
         self._start_midi_hotplug_poll()
+        # Qt completes its initial layout pass asynchronously; re-run the panel
+        # height calculation once the event loop has processed the first paint so
+        # the fingering strips are never clipped on startup.
+        self.after(80, self._post_startup_layout_fix)
+
+    def _post_startup_layout_fix(self) -> None:
+        # Qt finalizes widget sizes on the first paint; re-run layout so the
+        # piano panel height is correct when opening with an active fingering.
+        if getattr(self, "scale_tab_active", False):
+            self._refresh_scale_instrument_view()
+        else:
+            self._fit_instrument_panel_height()
 
     # ------------------------------------------------------------------
     # MIDI hotplug detection

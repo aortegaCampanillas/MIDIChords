@@ -353,11 +353,12 @@ class RenderMixin:
         board_x2 = max(nut_x, board_far_x)
         strings_x1 = min(open_edge_x, board_far_x)
         strings_x2 = max(open_edge_x, board_far_x)
-        board_y1 = 24
-        # Dejar más margen inferior para que las cuerdas bajas queden
-        # siempre dentro del área oscura (en Qt a veces el último píxel se
-        # queda fuera del fill).
-        board_y2 = max(board_y1 + 10, h - 10)
+        # board_y1=28 keeps fret-number labels (drawn at y=8, ~14px tall) from
+        # overlapping the top string's note circles.
+        # board_y2 leaves 18px at the bottom so the lowest string's note circle
+        # (radius up to 16px) stays fully inside the canvas.
+        board_y1 = 28
+        board_y2 = max(board_y1 + 10, h - 18)
         canvas.create_rectangle(board_x1, board_y1, board_x2, board_y2, fill="#34363c", outline="#4a4f58", width=1)
         canvas.create_rectangle(min(open_edge_x, nut_x), board_y1, max(open_edge_x, nut_x), board_y2, fill="#ffffff", outline="")
         canvas.create_line(nut_x, board_y1, nut_x, board_y2, fill="#c8b79f", width=3)
@@ -1076,14 +1077,6 @@ class RenderMixin:
 
         # Narrow dark separator between piano bottom and descending strip (or canvas bottom).
         canvas.create_rectangle(0, key_bottom, w, key_bottom + 4, fill="#101010", outline="")
-        if not self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active:
-            for note in white_notes:
-                if note % 12 != 0:  # marcar C de cada octava
-                    continue
-                i = white_index[note]
-                x = i * white_w + white_w * 0.5
-                octave = note // 12 - 1
-                canvas.create_text(x, h - 5, text=f"C{octave}", anchor="s", fill="#8f8f8f", font=("Helvetica", 9))
 
         try:
             canvas.setFixedWidth(int(round(content_w)))

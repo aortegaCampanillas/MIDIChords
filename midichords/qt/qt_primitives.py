@@ -641,18 +641,19 @@ class QtCanvas(QWidget):
                 width = float(payload.get("width", 1.0))
                 if it.kind == "rect":
                     painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
-                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else QPen(Qt.transparent))
+                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
                     painter.drawRect(rect)
                 else:
                     painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
-                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else QPen(Qt.transparent))
+                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
                     painter.drawEllipse(rect)
             elif it.kind == "arc":
                 ax1, ay1, ax2, ay2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
                 rx, ry = min(ax1, ax2), min(ay1, ay2)
-                rw = max(1, int(round(abs(ax2 - ax1))))
-                rh = max(1, int(round(abs(ay2 - ay1))))
-                rect = QRect(int(rx), int(ry), rw, rh)
+                # Use QRectF (sub-pixel precision) so fill arcs align exactly with
+                # the QRectF rectangles drawn for the same shape; QRect truncation
+                # caused a ≤1px gap that produced the visible bottom-key artifact.
+                rect = QRectF(float(rx), float(ry), float(abs(ax2 - ax1)), float(abs(ay2 - ay1)))
                 start_q = int(round(float(payload["start"]) * 16))
                 span_q = int(round(float(payload["extent"]) * 16))
                 style = str(payload.get("style", "pieslice"))
@@ -661,11 +662,11 @@ class QtCanvas(QWidget):
                 width = float(payload.get("width", 1.0))
                 if style == "pieslice":
                     painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
-                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else QPen(Qt.transparent))
+                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
                     painter.drawPie(rect, start_q, span_q)
                 elif style == "chord":
                     painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
-                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else QPen(Qt.transparent))
+                    painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
                     painter.drawChord(rect, start_q, span_q)
                 else:
                     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -678,7 +679,7 @@ class QtCanvas(QWidget):
                 width = float(payload.get("width", 1.0))
                 poly = QPolygonF([QPointF(pts[i], pts[i + 1]) for i in range(0, len(pts) - 1, 2)])
                 painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else QPen(Qt.transparent))
+                painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
                 painter.drawPolygon(poly)
             elif it.kind == "text":
                 painter.setPen(_color(payload.get("fill", "#000"), QColor(0, 0, 0)))

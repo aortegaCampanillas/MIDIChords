@@ -293,6 +293,11 @@ class ScalesMixin:
         self.guitar_handedness_combo.pack_forget()
         if self.scale_play_mode == "guitar":
             self.keyboard_qscroll.pack_forget()
+            try:
+                self.guitar_canvas.setFixedHeight(196)
+                self.guitar_canvas.setMinimumHeight(196)
+            except Exception:
+                pass
             self.guitar_canvas.pack(fill=tk.X, expand=False)
             self._fit_instrument_panel_height()
             self.redraw_guitar_fretboard()

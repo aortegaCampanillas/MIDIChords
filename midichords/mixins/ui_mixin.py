@@ -2661,20 +2661,26 @@ class UiMixin:
                         guitar_h = int(self.guitar_canvas.sizeHint().height())
                     except Exception:
                         guitar_h = 196
-                if variations_h <= 0 and hasattr(self, "guitar_variations_frame"):
-                    try:
-                        variations_h = int(self.guitar_variations_frame.sizeHint().height())
-                    except Exception:
-                        variations_h = 28
-
-                # Aunque Qt informe una altura parcial/recortada en este punto,
-                # el canvas de guitarra tiene un alto "base" de 196px y el subpanel
-                # de variaciones (botones) ~28px. Forzamos mínimos para no recortar.
                 guitar_h = max(guitar_h, 196)
-                variations_h = max(variations_h, 28)
+
+                # In scale mode the variations frame is hidden; don't add its
+                # height to min_required or the panel will be too tall.
+                variations_visible = (
+                    not getattr(self, "scale_tab_active", False)
+                    and hasattr(self, "guitar_variations_frame")
+                )
+                if variations_visible:
+                    if variations_h <= 0:
+                        try:
+                            variations_h = int(self.guitar_variations_frame.sizeHint().height())
+                        except Exception:
+                            variations_h = 28
+                    variations_h = max(variations_h, 28)
+                else:
+                    variations_h = 0
 
                 # Margen extra para separación visual entre canvas y botones.
-                min_required = max(0, guitar_h) + max(0, variations_h) + 12
+                min_required = guitar_h + variations_h + 12
 
                 # Forzamos reserva de altura para evitar recortes del `guitar_canvas`.
                 for target_name in ("instrument_canvas_holder", "instrument_body_row"):

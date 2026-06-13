@@ -113,15 +113,55 @@
     /* ── FEATURES STRIP ── */
     .features-strip {
       display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
-      padding: 0 24px 72px;
+      padding: 0 24px 20px;
     }
     .feat-pill {
       display: flex; align-items: center; gap: 7px;
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: 999px; padding: 7px 16px;
       font-size: .8rem; color: var(--muted);
+      cursor: pointer; font-family: inherit;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .feat-pill:hover { border-color: var(--accent); color: var(--text); }
+    .feat-pill.active {
+      border-color: var(--accent); color: var(--text);
+      background: rgba(91,141,238,.1);
     }
     .feat-pill span { font-size: 1rem; }
+
+    /* ── FEATURE DETAIL PANEL ── */
+    .feat-detail-wrap {
+      max-width: 780px; margin: 0 auto; padding: 0 24px 52px;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height .35s ease, opacity .25s ease;
+      opacity: 0;
+    }
+    .feat-detail-wrap.open { max-height: 400px; opacity: 1; }
+    .feat-detail {
+      background: var(--surface); border: 1px solid var(--accent);
+      border-radius: var(--radius); padding: 28px 32px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .feat-detail-head {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .feat-detail-icon {
+      width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      background: rgba(91,141,238,.12); border: 1px solid rgba(91,141,238,.25);
+    }
+    .feat-detail-title { font-size: 1.1rem; font-weight: 700; }
+    .feat-detail-body { font-size: .9rem; color: var(--muted); line-height: 1.75; }
+    .feat-detail-cta {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+      background: var(--accent); color: #fff; border-radius: 8px;
+      padding: 9px 20px; font-size: .875rem; font-weight: 600;
+      text-decoration: none; transition: background .2s; align-self: flex-start;
+    }
+    .feat-detail-cta:hover { background: var(--accent2); }
 
     /* ── SECTION ── */
     .section { padding: 80px 24px; max-width: 1140px; margin: 0 auto; }
@@ -314,16 +354,28 @@
 </section>
 
 <!-- FEATURES STRIP -->
-<div class="features-strip">
-  <div class="feat-pill"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></div>
-  <div class="feat-pill"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></div>
-  <div class="feat-pill"><span>🎸</span> <span data-i18n="pill_guitar">Guitar chords</span></div>
-  <div class="feat-pill"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></div>
-  <div class="feat-pill"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></div>
-  <div class="feat-pill"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></div>
-  <div class="feat-pill"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></div>
+<div class="features-strip" id="featStrip">
+  <button class="feat-pill" data-feat="chords"    onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
+  <button class="feat-pill" data-feat="intervals" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
+  <button class="feat-pill" data-feat="generation" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
+  <button class="feat-pill" data-feat="circle"    onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
+  <button class="feat-pill" data-feat="scales"    onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
+  <button class="feat-pill" data-feat="metro"     onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
+  <button class="feat-pill" data-feat="midi"      onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
   <div class="feat-pill"><span>🆓</span> <span data-i18n="pill_free">Always free</span></div>
+</div>
+
+<!-- FEATURE DETAIL PANEL -->
+<div class="feat-detail-wrap" id="featDetail">
+  <div class="feat-detail">
+    <div class="feat-detail-head">
+      <div class="feat-detail-icon" id="featDetailIcon"></div>
+      <div class="feat-detail-title" id="featDetailTitle"></div>
+    </div>
+    <div class="feat-detail-body" id="featDetailBody"></div>
+    <a class="feat-detail-cta" href="/app" target="_blank" rel="noopener noreferrer" id="featDetailCta" data-i18n="feat_cta">Try it now →</a>
+  </div>
 </div>
 
 <!-- PRODUCTS -->
@@ -499,12 +551,27 @@ const TRANSLATIONS = {
     hero_explore:       "Explore all apps",
     pill_chords:        "Chord detection",
     pill_intervals:     "Interval detection",
-    pill_guitar:        "Guitar chords",
+    pill_generation:    "Chord generation",
     pill_circle:        "Circle of fifths",
     pill_scales:        "Scales",
     pill_metro:         "Metronome",
     pill_midi:          "MIDI input",
     pill_free:          "Always free",
+    feat_cta:           "Try it now →",
+    feat_chords_title:  "Chord Detection",
+    feat_chords_body:   "Play notes on the interactive piano or guitar — or connect a MIDI keyboard — and FreeMIDIChords identifies the chord in real time. Supports complex voicings, inversions, and extended chords (7th, 9th, suspended, diminished…). Hold notes with Shift to build chords step by step.",
+    feat_intervals_title: "Interval Detection",
+    feat_intervals_body:  "Play two notes and instantly see the interval name, its quality (major, minor, perfect…), and how many semitones apart they are. Great for ear-training and understanding harmonic relationships.",
+    feat_generation_title: "Chord Generation",
+    feat_generation_body:  "Choose any root, quality, and voicing and FreeMIDIChords generates the full chord on piano and guitar. See fingering suggestions, switch between left and right hand, browse guitar position variations, and hear it played back with real instrument samples.",
+    feat_circle_title:  "Circle of Fifths",
+    feat_circle_body:   "An interactive circle of fifths that highlights the key, its relative minor, and the diatonic chords. Click any segment to generate or detect chords in that key. A fast way to explore harmonic context and key relationships.",
+    feat_scales_title:  "Scales",
+    feat_scales_body:   "Explore major, minor, pentatonic, whole-tone, chromatic, and more. See the scale on the staff and the instrument, hear it played, and visualize fingering patterns on piano and guitar.",
+    feat_metro_title:   "Metronome",
+    feat_metro_body:    "A precise metronome with adjustable BPM and tap-tempo. Keep time while you practise chords or scales — the click sound uses a real percussion sample.",
+    feat_midi_title:    "MIDI Input",
+    feat_midi_body:     "Connect any USB or Bluetooth MIDI keyboard and use it directly in the app. Notes you play are detected in real time and reflected on the piano, guitar, and staff — no drivers needed in modern browsers.",
     products_title:     "One tool suite, every platform",
     card_web_title:     "Web App",
     card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.",
@@ -551,12 +618,27 @@ const TRANSLATIONS = {
     hero_explore:       "Ver todas las apps",
     pill_chords:        "Detecci\u00f3n de acordes",
     pill_intervals:     "Detecci\u00f3n de intervalos",
-    pill_guitar:        "Acordes guitarra",
+    pill_generation:    "Generaci\u00f3n de acordes",
     pill_circle:        "C\u00edrculo de quintas",
     pill_scales:        "Escalas",
     pill_metro:         "Metr\u00f3nomo",
     pill_midi:          "Entrada MIDI",
     pill_free:          "Siempre gratis",
+    feat_cta:           "Probarlo ahora \u2192",
+    feat_chords_title:  "Detecci\u00f3n de acordes",
+    feat_chords_body:   "Toca notas en el piano o la guitarra interactivos \u2014 o conecta un teclado MIDI \u2014 y FreeMIDIChords identifica el acorde en tiempo real. Soporta voicings complejos, inversiones y acordes extendidos (7\u00aa, 9\u00aa, suspendidos, disminuidos\u2026). Mant\u00e9n notas con Shift para construir el acorde paso a paso.",
+    feat_intervals_title: "Detecci\u00f3n de intervalos",
+    feat_intervals_body:  "Toca dos notas y ve al instante el nombre del intervalo, su calidad (mayor, menor, justo\u2026) y cu\u00e1ntos semitonos los separan. Perfecto para el entrenamiento auditivo y para entender relaciones arm\u00f3nicas.",
+    feat_generation_title: "Generaci\u00f3n de acordes",
+    feat_generation_body:  "Elige ra\u00edz, calidad y voicing y FreeMIDIChords genera el acorde completo en piano y guitarra. Consulta sugerencias de digitaci\u00f3n, cambia entre mano izquierda y derecha, explora variaciones de posici\u00f3n en guitarra y esc\u00facha el acorde con muestras reales de instrumentos.",
+    feat_circle_title:  "C\u00edrculo de quintas",
+    feat_circle_body:   "Un c\u00edrculo de quintas interactivo que resalta la tonalidad, su relativo menor y los acordes diat\u00f3nicos. Haz clic en cualquier segmento para generar o detectar acordes en esa tonalidad. Una forma r\u00e1pida de explorar el contexto arm\u00f3nico.",
+    feat_scales_title:  "Escalas",
+    feat_scales_body:   "Explora escalas mayor, menor, pent\u00e1tona, de tonos enteros, crom\u00e1tica y m\u00e1s. Visualiza la escala en el pentagrama y el instrumento, esc\u00fachala y estudia la digitaci\u00f3n en piano y guitarra.",
+    feat_metro_title:   "Metr\u00f3nomo",
+    feat_metro_body:    "Un metr\u00f3nomo preciso con BPM ajustable y tempo por golpe. Mantener el tiempo mientras practicas acordes o escalas \u2014 el sonido usa una muestra real de percusi\u00f3n.",
+    feat_midi_title:    "Entrada MIDI",
+    feat_midi_body:     "Conecta cualquier teclado MIDI por USB o Bluetooth y \u00fasalo directamente en la app. Las notas que toques se detectan en tiempo real y se reflejan en el piano, la guitarra y el pentagrama \u2014 sin instalar controladores en navegadores modernos.",
     products_title:     "Una suite de herramientas, todas las plataformas",
     card_web_title:     "App Web",
     card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas y metr\u00f3nomo. Teclado MIDI opcional.",
@@ -623,9 +705,57 @@ function toggleLang() {
   const next = current === "en" ? "es" : "en";
   localStorage.setItem(LS_KEY, next);
   applyLang(next);
+  if (activeFeat) toggleFeatContent(next, activeFeat);
+}
+
+function toggleFeatContent(lang, id) {
+  const t = TRANSLATIONS[lang];
+  document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
+  document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
+  document.getElementById("featDetailCta").textContent   = t["feat_cta"] || "Try it now →";
 }
 
 applyLang(detectLang());
+
+// ── FEATURE DETAIL TOGGLE ──
+const FEAT_ICONS = {
+  chords:     "🎹",
+  intervals:  "🎵",
+  generation: "🎹🎸",
+  circle:     "⭕",
+  scales:     "🎼",
+  metro:      "🥁",
+  midi:       "🎛️",
+};
+
+let activeFeat = null;
+
+function toggleFeat(id) {
+  const panel  = document.getElementById("featDetail");
+  const btns   = document.querySelectorAll(".feat-pill[data-feat]");
+
+  if (activeFeat === id) {
+    activeFeat = null;
+    panel.classList.remove("open");
+    btns.forEach(b => b.classList.remove("active"));
+    return;
+  }
+
+  activeFeat = id;
+  const lang = detectLang();
+  const t = TRANSLATIONS[lang];
+
+  document.getElementById("featDetailIcon").textContent  = FEAT_ICONS[id] || "";
+  document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
+  document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
+  document.getElementById("featDetailCta").textContent   = t["feat_cta"] || "Try it now →";
+
+  btns.forEach(b => b.classList.toggle("active", b.dataset.feat === id));
+  panel.classList.add("open");
+
+  // scroll panel into view smoothly
+  setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+}
 
 // ── LIGHTBOX ──
 function openLightbox(src) {

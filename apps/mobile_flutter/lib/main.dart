@@ -603,7 +603,7 @@ _PianoKeyMetrics _computePianoKeyMetrics({
   final n = whiteKeyCount.toDouble();
 
   // 1) Caben todas las teclas: rellenar ancho del panel (poco habitual con 88 teclas).
-  var whiteW = (viewportW / n).clamp(_kPianoMinWhiteKeyWidth, double.infinity);
+  var whiteW = (viewportW / n).clamp(_kPianoMinWhiteKeyWidth, _kPianoMaxWhiteKeyWidth);
   var whiteH = whiteW * _kPianoKeyAspect;
   if (whiteH <= availH && whiteW * n <= viewportW) {
     return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
@@ -620,7 +620,7 @@ _PianoKeyMetrics _computePianoKeyMetrics({
   }
 
   // 3) Scroll: priorizar altura y dejar ~media tecla cortada al borde.
-  final targetW = viewportW / _kPianoTargetVisibleWhiteKeys;
+  final targetW = (viewportW / _kPianoTargetVisibleWhiteKeys).clamp(0.0, _kPianoMaxWhiteKeyWidth);
   if (targetW > whiteW) {
     whiteW = targetW;
     whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
@@ -858,8 +858,6 @@ class _HomeScreenState extends State<HomeScreen>
       MediaQuery.of(context).size.shortestSide < _kTabletMinShortestSide;
 
   /// Ancho aproximado de `actions` en AppBar; el `leading` usa el mismo valor para centrar el modo.
-  double _appBarActionsReserveWidth(bool compactPhone) =>
-      compactPhone ? 196.0 : 276.0;
 
   double _compactResultHeight(BoxConstraints constraints, {double minHeight = 170}) {
     final available = constraints.maxHeight.isFinite ? constraints.maxHeight : 640.0;
@@ -2120,6 +2118,9 @@ class _HomeScreenState extends State<HomeScreen>
       _showKeyNames = prefs.getBool('showKeyNames') ?? true;
       _lastSeenChangelogVersion = prefs.getString('lastSeenChangelogVersion') ?? '';
       _changelogDontShow = prefs.getBool('changelogDontShow') ?? false;
+      _scaleOctaves = prefs.getInt('scaleOctaves') ?? 1;
+      final finger = prefs.getString('scaleFingeringHand');
+      _scaleFingeringHand = (finger == 'left' || finger == 'right') ? finger : null;
     });
     await _loadMeta();
     await _loadChangelog();
@@ -2132,6 +2133,12 @@ class _HomeScreenState extends State<HomeScreen>
     await prefs.setBool('showKeyNames', _showKeyNames);
     await prefs.setString('lastSeenChangelogVersion', _lastSeenChangelogVersion);
     await prefs.setBool('changelogDontShow', _changelogDontShow);
+    await prefs.setInt('scaleOctaves', _scaleOctaves);
+    if (_scaleFingeringHand != null) {
+      await prefs.setString('scaleFingeringHand', _scaleFingeringHand!);
+    } else {
+      await prefs.remove('scaleFingeringHand');
+    }
   }
 
   Future<void> _loadChangelog() async {
@@ -2160,17 +2167,20 @@ class _HomeScreenState extends State<HomeScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSt) {
-          final items = _changelogEntries
-              .expand((v) => (v['items'] as List<dynamic>? ?? [])
-                  .cast<Map<String, dynamic>>()
-                  .where((it) => it['publish'] == true)
-                  .map((it) => (
-                        version: v['version'] as String? ?? '',
-                        text: (_language == 'en' ? it['en'] : it['es']) as String? ?? '',
-                      )))
-              .where((e) => e.text.isNotEmpty)
-              .take(20)
-              .toList();
+          // Build version sections: [{version, date, items:[text,...]}]
+          final sections = _changelogEntries.map((v) {
+            final publishedItems = (v['items'] as List<dynamic>? ?? [])
+                .cast<Map<String, dynamic>>()
+                .where((it) => it['publish'] == true)
+                .map((it) => (_language == 'en' ? it['en'] : it['es']) as String? ?? '')
+                .where((t) => t.isNotEmpty)
+                .toList();
+            return (
+              version: v['version'] as String? ?? '',
+              date: v['date'] as String? ?? '',
+              items: publishedItems,
+            );
+          }).where((s) => s.items.isNotEmpty).take(6).toList();
 
           return AlertDialog(
             backgroundColor: _panelA,
@@ -2189,26 +2199,54 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 340),
+                    constraints: const BoxConstraints(maxHeight: 380),
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: items.map((e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
+                        children: sections.map((s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              const Text('• ', style: TextStyle(color: _accent, fontWeight: FontWeight.bold)),
-                              Expanded(
-                                child: Text(e.text, style: const TextStyle(color: _text, height: 1.45)),
+                              Row(
+                                children: <Widget>[
+                                  Text(
+                                    s.version,
+                                    style: const TextStyle(
+                                      color: _accent,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (s.date.isNotEmpty) ...<Widget>[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      s.date,
+                                      style: const TextStyle(color: _muted, fontSize: 11),
+                                    ),
+                                  ],
+                                ],
                               ),
+                              const SizedBox(height: 6),
+                              ...s.items.map((text) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    const Text('• ', style: TextStyle(color: _muted, fontWeight: FontWeight.bold)),
+                                    Expanded(
+                                      child: Text(text, style: const TextStyle(color: _text, height: 1.4, fontSize: 13)),
+                                    ),
+                                  ],
+                                ),
+                              )),
                             ],
                           ),
                         )).toList(),
                       ),
                     ),
                   ),
-                  if (!fromSettings) ...<Widget>[
+                  ...<Widget>[
                     const SizedBox(height: 12),
                     Row(
                       children: <Widget>[
@@ -5586,28 +5624,17 @@ class _HomeScreenState extends State<HomeScreen>
       _metroCurrentBeat = nextBeat;
       isBarAccent = _metroBarAccent && nextBeat == 0;
     }
-    if (mounted) {
-      setState(() {});
-    }
-    final metroAudioLeadMs = Platform.isIOS ? 26 : 0;
-    if (metroAudioLeadMs > 0) {
-      Future<void>.delayed(Duration(milliseconds: metroAudioLeadMs), () async {
-        if (!_metroRunning) return;
-        await _playMetronomeClick(
-          accent: isPrimary,
-          bar: isBarAccent,
-          volumeScale: _metronomeVolumeGain(),
-        );
-      });
-    } else {
-      unawaited(
-        _playMetronomeClick(
-          accent: isPrimary,
-          bar: isBarAccent,
-          volumeScale: _metronomeVolumeGain(),
-        ),
-      );
-    }
+
+    // Fire audio first, then delay the visual update to align with actual sound output.
+    // iOS audioplayers has ~26ms latency; Android has ~35ms. Visual trails audio otherwise.
+    unawaited(
+      _playMetronomeClick(
+        accent: isPrimary,
+        bar: isBarAccent,
+        volumeScale: _metronomeVolumeGain(),
+      ),
+    );
+
     if (isPrimary) {
       if (isBarAccent) {
         HapticFeedback.mediumImpact();
@@ -5617,6 +5644,13 @@ class _HomeScreenState extends State<HomeScreen>
     } else {
       HapticFeedback.selectionClick();
     }
+
+    final visualDelayMs = Platform.isIOS ? 26 : 35;
+    Future<void>.delayed(Duration(milliseconds: visualDelayMs), () {
+      if (!mounted || !_metroRunning) return;
+      setState(() {});
+    });
+
     if (isPrimary) {
       _metroTickCount += 1;
     }
@@ -6054,41 +6088,38 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         toolbarHeight: compactPhone ? (portrait ? 60 : 64) : (portrait ? 64 : 74),
         automaticallyImplyLeading: false,
-        leadingWidth: _appBarActionsReserveWidth(compactPhone),
-        leading: const SizedBox.shrink(),
-        centerTitle: false,
-        titleSpacing: compactPhone ? 8 : 12,
+        leadingWidth: compactPhone ? 196.0 : 270.0,
+        leading: Padding(
+          padding: EdgeInsets.only(left: compactPhone ? 8.0 : 16.0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'MIDI Piano & Guitar Chords',
+              style: TextStyle(
+                fontSize: compactPhone
+                    ? (portrait ? 15 : 18)
+                    : (portrait ? 19 : 24),
+                color: _text,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        centerTitle: true,
+        titleSpacing: 0,
         title: LayoutBuilder(
           builder: (context, titleConstraints) {
             final dropdownW = math.min(
               compactPhone
                   ? (portrait ? 260.0 : 300.0)
                   : (portrait ? 380.0 : 340.0),
-              titleConstraints.maxWidth * 0.55,
+              titleConstraints.maxWidth,
             );
-            // Use a Row so the title and dropdown never overlap:
-            // title takes remaining space on the left, dropdown is fixed-width on the right.
-            return Row(
-              children: <Widget>[
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'MIDI Piano & Guitar Chords',
-                      style: TextStyle(
-                        fontSize: compactPhone
-                            ? (portrait ? 15 : 18)
-                            : (portrait ? 19 : 24),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                    width: dropdownW,
-                    child: _helpAnchor(
-                      'mode_select',
+            return SizedBox(
+                width: dropdownW,
+                child: _helpAnchor(
+                  'mode_select',
                       DropdownButtonFormField<int>(
                         key: ValueKey<String>(
                           'mode_${currentTab}_${_kEnableMobileTuner ? 1 : 0}',
@@ -6161,8 +6192,6 @@ class _HomeScreenState extends State<HomeScreen>
                         },
                       ),
                     ),
-                  ),
-                ],
             );
           },
         ),
@@ -6188,6 +6217,36 @@ class _HomeScreenState extends State<HomeScreen>
               child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
             ),
           )),
+          if (_midiInputEnabled)
+            _helpAnchor('sound_output', Padding(
+              padding: EdgeInsets.only(right: compactPhone ? 6 : 8),
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() {
+                  _soundOutput = _soundOutput == 'audio' ? 'midi' : 'audio';
+                }),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: _soundOutput == 'midi' ? _accent : _border,
+                    width: _soundOutput == 'midi' ? 2 : 1,
+                  ),
+                  foregroundColor: _soundOutput == 'midi'
+                      ? const Color(0xFF1A222D)
+                      : _text,
+                  backgroundColor: _soundOutput == 'midi' ? _accent : _surfaceDark,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compactPhone ? 8 : 12,
+                    vertical: compactPhone ? 6 : 8,
+                  ),
+                ),
+                icon: Icon(
+                  _soundOutput == 'midi' ? Icons.piano : Icons.volume_up,
+                  size: 16,
+                ),
+                label: Text(_soundOutput == 'midi'
+                    ? _ui('Salida MIDI', 'MIDI out')
+                    : _ui('Audio', 'Audio')),
+              ),
+            )),
           _helpAnchor('accidental', Container(
             constraints: BoxConstraints(minWidth: compactPhone ? 64 : 76),
             margin: EdgeInsets.only(right: compactPhone ? 6 : 8),
@@ -7316,13 +7375,10 @@ class _HomeScreenState extends State<HomeScreen>
               color: const Color(0xFFE8ECF2),
               border: Border.all(color: const Color(0xFF3A4558)),
             ),
-            child: Padding(
-              padding: EdgeInsets.only(bottom: scrollable ? 6 : 2),
-              child: Scrollbar(
-                controller: _pianoScrollController,
-                thumbVisibility: scrollable,
-                scrollbarOrientation: ScrollbarOrientation.bottom,
-                child: SingleChildScrollView(
+            child: Column(
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
                   controller: _pianoScrollController,
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(
@@ -7629,9 +7685,22 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ),
-            ),
+              if (scrollable)
+                SizedBox(
+                  height: 8,
+                  child: RawScrollbar(
+                    controller: _pianoScrollController,
+                    thumbVisibility: true,
+                    thickness: 5,
+                    radius: const Radius.circular(3),
+                    thumbColor: const Color(0xFF6B7A99),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+            ],
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -7909,14 +7978,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildDetectionPage() {
     final hasNotes = _hasDetectionNotes;
-    final midiSoundStyle = OutlinedButton.styleFrom(
-      side: BorderSide(
-        color: _midiInputSoundEnabled ? _accent : _border,
-        width: _midiInputSoundEnabled ? 2 : 1,
-      ),
-      foregroundColor: _midiInputSoundEnabled ? const Color(0xFF1A222D) : _text,
-      backgroundColor: _midiInputSoundEnabled ? _accent : null,
-    );
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
@@ -7982,25 +8043,6 @@ class _HomeScreenState extends State<HomeScreen>
                         },
                   icon: const Icon(Icons.clear_all),
                   label: Text(_ui('Limpiar', 'Clear')),
-                ),
-              ),
-              _helpAnchor(
-                'detection_midi_sound_button',
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _midiInputSoundEnabled = !_midiInputSoundEnabled;
-                      if (!_midiInputSoundEnabled) {
-                        _stopHeldInputs();
-                        _stopHeldMidiInputs();
-                      }
-                    });
-                  },
-                  icon: Icon(
-                    _midiInputSoundEnabled ? Icons.volume_up : Icons.volume_off,
-                  ),
-                  label: const Text('MIDI'),
-                  style: midiSoundStyle,
                 ),
               ),
             ],
@@ -8519,148 +8561,66 @@ class _HomeScreenState extends State<HomeScreen>
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
-          final stackedSelectors = constraints.maxWidth < 420;
           final metroLabelWidth = compact ? 96.0 : 110.0;
           final resultHeight = _scaleMetronomeOnly
-              ? math.max(132.0, constraints.maxHeight - 220.0)
-              : math.max(180.0, constraints.maxHeight - 170.0);
+              ? math.max(132.0, constraints.maxHeight - 260.0)
+              : math.max(160.0, constraints.maxHeight - 210.0);
+          final filteredPatterns = _getFilteredScalePatterns();
+          // Ensure current pattern is valid for current filter
+          final currentPatternValid = filteredPatterns.any(
+            (p) => (p['name'] as String?) == _scalePatternName,
+          );
+
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _ui('Escalas', 'Scales'),
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                // Row 1: Tonic selector
+                _helpAnchor(
+                  'scales_tonic',
+                  DropdownButtonFormField<int>(
+                    key: ValueKey<int>(100 + _scaleTonicPc),
+                    initialValue: _scaleTonicPc,
+                    dropdownColor: _surfaceDark,
+                    style: const TextStyle(color: _text),
+                    decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+                    items: List<DropdownMenuItem<int>>.generate(
+                      12,
+                      (index) => DropdownMenuItem<int>(
+                        value: index,
+                        child: Text(_pcLabel(index)),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _scaleTonicPc = value);
+                      if (!_requestInFlight) unawaited(_callGenerateScale());
+                    },
                   ),
                 ),
                 const SizedBox(height: 6),
-                if (stackedSelectors)
-                  Column(
-                    children: <Widget>[
-                      _helpAnchor(
-                        'scales_tonic',
-                        DropdownButtonFormField<int>(
-                        key: ValueKey<int>(100 + _scaleTonicPc),
-                        initialValue: _scaleTonicPc,
-                        dropdownColor: _surfaceDark,
-                        style: const TextStyle(color: _text),
-                        decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
-                        items: List<DropdownMenuItem<int>>.generate(
-                          12,
-                          (index) => DropdownMenuItem<int>(
-                            value: index,
-                            child: Text(_pcLabel(index)),
-                          ),
-                        ),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() => _scaleTonicPc = value);
-                          if (!_requestInFlight) {
-                            unawaited(_callGenerateScale());
-                          }
-                        },
-                      ),
-                      ),
-                      const SizedBox(height: 8),
-                      _helpAnchor(
+                // Row 2: Scale type + Básicas/Todas toggle
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _helpAnchor(
                         'scales_pattern',
                         DropdownButtonFormField<String>(
-                        key: ValueKey<String>('scale_$_scalePatternName'),
-                        initialValue: _scalePatternName,
-                        isExpanded: true,
-                        dropdownColor: _surfaceDark,
-                        style: const TextStyle(color: _text),
-                        decoration: InputDecoration(labelText: _ui('Escala', 'Scale')),
-                        items: _scalePatterns
-                            .map(
-                              (p) => DropdownMenuItem<String>(
-                                value: (p['name'] as String? ?? 'Ionian'),
-                                child: Text(
-                                  (p['localized_name'] as String? ??
-                                      p['name'] as String? ??
-                                      'Ionian'),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        selectedItemBuilder: (context) => _scalePatterns
-                            .map(
-                              (p) => Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  (p['localized_name'] as String? ??
-                                      p['name'] as String? ??
-                                      'Ionian'),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() => _scalePatternName = value);
-                          if (!_requestInFlight) {
-                            unawaited(_callGenerateScale());
-                          }
-                        },
-                      ),
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _helpAnchor(
-                          'scales_tonic',
-                          DropdownButtonFormField<int>(
-                          key: ValueKey<int>(100 + _scaleTonicPc),
-                          initialValue: _scaleTonicPc,
-                          dropdownColor: _surfaceDark,
-                          style: const TextStyle(color: _text),
-                          decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
-                          items: List<DropdownMenuItem<int>>.generate(
-                            12,
-                            (index) => DropdownMenuItem<int>(
-                              value: index,
-                              child: Text(_pcLabel(index)),
-                            ),
+                          key: ValueKey<String>(
+                            'scale_${_scalePatternName}_${_scaleFilterMode}',
                           ),
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setState(() => _scaleTonicPc = value);
-                            if (!_requestInFlight) {
-                              unawaited(_callGenerateScale());
-                            }
-                          },
-                        ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: _helpAnchor(
-                          'scales_pattern',
-                          DropdownButtonFormField<String>(
-                          key: ValueKey<String>('scale_$_scalePatternName'),
-                          initialValue: _scalePatternName,
+                          initialValue: currentPatternValid
+                              ? _scalePatternName
+                              : (filteredPatterns.isNotEmpty
+                                  ? (filteredPatterns.first['name'] as String? ?? 'Ionian')
+                                  : 'Ionian'),
                           isExpanded: true,
                           dropdownColor: _surfaceDark,
                           style: const TextStyle(color: _text),
-                          decoration: InputDecoration(labelText: _ui('Escala', 'Scale')),
-                          items: _scalePatterns
+                          decoration: InputDecoration(labelText: _ui('Tipo', 'Type')),
+                          items: filteredPatterns
                               .map(
                                 (p) => DropdownMenuItem<String>(
                                   value: (p['name'] as String? ?? 'Ionian'),
@@ -8674,7 +8634,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 ),
                               )
                               .toList(),
-                          selectedItemBuilder: (context) => _scalePatterns
+                          selectedItemBuilder: (context) => filteredPatterns
                               .map(
                                 (p) => Align(
                                   alignment: Alignment.centerLeft,
@@ -8689,65 +8649,139 @@ class _HomeScreenState extends State<HomeScreen>
                               )
                               .toList(),
                           onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
+                            if (value == null) return;
                             setState(() => _scalePatternName = value);
-                            if (!_requestInFlight) {
-                              unawaited(_callGenerateScale());
-                            }
+                            if (!_requestInFlight) unawaited(_callGenerateScale());
                           },
                         ),
-                        ),
                       ),
-                    ],
-                  ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: <Widget>[
-                    _helpAnchor(
-                      'scales_play_button',
-                      FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _scaleLoopRunning
-                            ? _accent
-                            : _surfaceDark,
-                        foregroundColor: _scaleLoopRunning
-                            ? const Color(0xFF1A222D)
-                            : _text,
-                      ),
-                      onPressed: _toggleScaleLoop,
-                      icon: Icon(
-                        _scaleLoopRunning ? Icons.stop : Icons.play_arrow,
-                      ),
-                      label: Text(_scaleLoopRunning ? _ui('Detener', 'Stop') : _ui('Reproducir', 'Play')),
-                    ),
                     ),
                     const SizedBox(width: 8),
                     _helpAnchor(
-                      'scales_metronome_only',
+                      'scales_filter',
                       OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: _scaleMetronomeOnly
-                            ? _accent
-                            : _surfaceDark,
-                        foregroundColor: _scaleMetronomeOnly
-                            ? const Color(0xFF1A222D)
-                            : _text,
-                        side: BorderSide(
-                          color: _scaleMetronomeOnly ? _accent : _border,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: _scaleFilterMode == 'basic'
+                              ? _accent
+                              : _surfaceDark,
+                          foregroundColor: _scaleFilterMode == 'basic'
+                              ? const Color(0xFF1A222D)
+                              : _text,
+                          side: BorderSide(
+                            color: _scaleFilterMode == 'basic' ? _accent : _border,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _scaleFilterMode =
+                                _scaleFilterMode == 'basic' ? 'all' : 'basic';
+                          });
+                        },
+                        child: Text(
+                          _scaleFilterMode == 'basic'
+                              ? _ui('Básicas', 'Basic')
+                              : _ui('Todas', 'All'),
                         ),
                       ),
-                      onPressed: () {
-                        setState(
-                          () => _scaleMetronomeOnly = !_scaleMetronomeOnly,
-                        );
-                      },
-                      child: const Text('⏱'),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Row 3: Play + Metro buttons (left) + Octaves selector (right)
+                Row(
+                  children: <Widget>[
+                    _helpAnchor(
+                      'scales_play_button',
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: _scaleLoopRunning ? _accent : _surfaceDark,
+                          foregroundColor: _scaleLoopRunning
+                              ? const Color(0xFF1A222D)
+                              : _text,
+                          side: BorderSide(
+                            color: _scaleLoopRunning ? _accent : _border,
+                          ),
+                          padding: const EdgeInsets.all(10),
+                          minimumSize: const Size(40, 40),
+                        ),
+                        onPressed: _toggleScaleLoop,
+                        child: Icon(
+                          _scaleLoopRunning ? Icons.stop : Icons.play_arrow,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _helpAnchor(
+                      'scales_metronome_only',
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: _scaleMetronomeOnly ? _accent : _surfaceDark,
+                          foregroundColor: _scaleMetronomeOnly
+                              ? const Color(0xFF1A222D)
+                              : _text,
+                          side: BorderSide(
+                            color: _scaleMetronomeOnly ? _accent : _border,
+                          ),
+                          padding: const EdgeInsets.all(10),
+                          minimumSize: const Size(40, 40),
+                        ),
+                        onPressed: () =>
+                            setState(() => _scaleMetronomeOnly = !_scaleMetronomeOnly),
+                        child: const Text('⏱', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const Spacer(),
+                    // Octaves: 1 / 2 / 3
+                    _helpAnchor(
+                      'scales_octaves',
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            _ui('Octavas:', 'Octaves:'),
+                            style: const TextStyle(color: _muted, fontSize: 12),
+                          ),
+                          const SizedBox(width: 4),
+                          ...List<Widget>.generate(3, (i) {
+                            final oct = i + 1;
+                            final active = _scaleOctaves == oct;
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: active ? _accent : _surfaceDark,
+                                    foregroundColor: active
+                                        ? const Color(0xFF1A222D)
+                                        : _text,
+                                    side: BorderSide(
+                                      color: active ? _accent : _border,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  onPressed: () {
+                                    if (_scaleOctaves == oct) return;
+                                    setState(() => _scaleOctaves = oct);
+                                    _savePrefs();
+                                    if (_scaleLoopRunning) {
+                                      _stopScaleLoop();
+                                      unawaited(Future<void>.delayed(
+                                        const Duration(milliseconds: 50),
+                                        _toggleScaleLoop,
+                                      ));
+                                    }
+                                  },
+                                  child: Text('$oct', style: const TextStyle(fontSize: 13)),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -8756,31 +8790,62 @@ class _HomeScreenState extends State<HomeScreen>
                   _helpAnchor(
                     'scales_volume',
                     Row(
+                      children: <Widget>[
+                        SizedBox(
+                          width: metroLabelWidth,
+                          child: Text(
+                            _ui('Volumen', 'Volume'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _muted),
+                          ),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            value: _metroVolume.toDouble(),
+                            onChanged: (value) =>
+                                setState(() => _metroVolume = value.round()),
+                          ),
+                        ),
+                        SizedBox(
+                          width: compact ? 72 : 80,
+                          child: Text(
+                            '$_metroVolume%',
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                _helpAnchor(
+                  'scales_bpm',
+                  Row(
                     children: <Widget>[
                       SizedBox(
                         width: metroLabelWidth,
-                        child: Text(
-                          _ui('Volumen', 'Volume'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: _muted),
-                        ),
+                        child: const Text('BPM', maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                       Expanded(
                         child: Slider(
-                          min: 0,
-                          max: 100,
-                          divisions: 100,
-                          value: _metroVolume.toDouble(),
-                          onChanged: (value) {
-                            setState(() => _metroVolume = value.round());
-                          },
+                          min: 1,
+                          max: 300,
+                          divisions: 299,
+                          value: _scaleBpm.toDouble(),
+                          onChanged: (value) =>
+                              setState(() => _scaleBpm = value.round()),
                         ),
                       ),
                       SizedBox(
-                        width: compact ? 72 : 80,
+                        width: compact ? 92 : 100,
                         child: Text(
-                          '$_metroVolume%',
+                          '$_scaleBpm BPM',
                           textAlign: TextAlign.right,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -8788,54 +8853,99 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ],
                   ),
-                  ),
-                ],
-                const SizedBox(height: 6),
-                _helpAnchor(
-                  'scales_bpm',
-                  Row(
-                  children: <Widget>[
-                    SizedBox(
-                      width: metroLabelWidth,
-                      child: const Text(
-                        'BPM',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        min: 1,
-                        max: 300,
-                        divisions: 299,
-                        value: _scaleBpm.toDouble(),
-                        onChanged: (value) {
-                          setState(() => _scaleBpm = value.round());
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: compact ? 92 : 100,
-                      child: Text(
-                        '$_scaleBpm BPM',
-                        textAlign: TextAlign.right,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
                 ),
                 const SizedBox(height: 6),
                 SizedBox(
                   height: resultHeight,
                   child: _buildScaleResultBlock(),
                 ),
+                const SizedBox(height: 10),
+                // Fingering row
+                _buildScaleFingeringRow(),
               ],
             ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildScaleFingeringRow() {
+    const options = <(String, String, String)>[
+      ('none',  'Sin digitación', 'No fingering'),
+      ('left',  'Mano izquierda', 'Left hand'),
+      ('right', 'Mano derecha',   'Right hand'),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surfaceDark,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: <Widget>[
+          Text(
+            _ui('Digitación:', 'Fingering:'),
+            style: const TextStyle(color: _muted, fontSize: 12),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: options.map(((String, String, String) opt) {
+                final value = opt.$1;
+                final label = _language == 'en' ? opt.$3 : opt.$2;
+                final active = (_scaleFingeringHand ?? 'none') == value;
+                return GestureDetector(
+                  onTap: () {
+                    final hand = value == 'none' ? null : value;
+                    setState(() => _scaleFingeringHand = hand);
+                    _savePrefs();
+                    _updateScaleFingeringsMap();
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: active ? _accent : Colors.transparent,
+                            border: Border.all(
+                              color: active ? _accent : _muted,
+                              width: active ? 2 : 1.5,
+                            ),
+                          ),
+                          child: active
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 8,
+                                    height: 8,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFF1A222D),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(label, style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -8876,7 +8986,7 @@ class _HomeScreenState extends State<HomeScreen>
                             Text(
                               _intervalNotes.isEmpty
                                   ? '-'
-                                  : _intervalNotes.map((n) => _midiNoteToName(n)).join(' - '),
+                                  : (List<int>.from(_intervalNotes)..sort()).map(_midiNoteWithOctave).join(' – '),
                               style: const TextStyle(
                                 color: _accent,
                                 fontSize: 14,
@@ -9019,13 +9129,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  String _midiNoteToName(int midiNote) {
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    if (_accidental == 'flat') {
-      const flatNames = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-      return flatNames[midiNote % 12];
-    }
-    return noteNames[midiNote % 12];
+  String _midiNoteWithOctave(int midiNote) {
+    final octave = (midiNote ~/ 12) - 1;
+    return '${_pcLabel(midiNote % 12)}$octave';
   }
 
   Widget _buildMetronomePage() {

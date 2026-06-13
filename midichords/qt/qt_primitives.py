@@ -155,6 +155,26 @@ def _qt_canvas_text_rect_and_flags(
     return rect, int(flags) | int(Qt.TextFlag.TextDontClip)
 
 
+def _bottom_rounded_rect_path(x1: float, y1: float, x2: float, y2: float, radius: float) -> QPainterPath:
+    """Rectángulo con esquinas inferiores redondeadas (una sola forma cerrada)."""
+    rx1, ry1 = min(x1, x2), min(y1, y2)
+    rx2, ry2 = max(x1, x2), max(y1, y2)
+    r = max(0.0, min(radius, (rx2 - rx1) / 2.0, (ry2 - ry1) / 2.0))
+    path = QPainterPath()
+    if r < 1.0:
+        path.addRect(QRectF(rx1, ry1, rx2 - rx1, ry2 - ry1))
+        return path
+    path.moveTo(rx1, ry1)
+    path.lineTo(rx2, ry1)
+    path.lineTo(rx2, ry2 - r)
+    path.arcTo(QRectF(rx2 - (2 * r), ry2 - (2 * r), 2 * r, 2 * r), 0.0, -90.0)
+    path.lineTo(rx1 + r, ry2)
+    path.arcTo(QRectF(rx1, ry2 - (2 * r), 2 * r, 2 * r), 270.0, -90.0)
+    path.lineTo(rx1, ry1)
+    path.closeSubpath()
+    return path
+
+
 @dataclass
 class _CanvasItem:
     item_id: int
@@ -464,6 +484,41 @@ class QtCanvas(QWidget):
         self.update()
         return item_id
 
+    def create_bottom_rounded_rect(
+        self,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        *,
+        radius: float,
+        fill: str = "",
+        outline: str = "",
+        width: float = 1.0,
+        **kwargs: Any,
+    ) -> int:
+        """Tecla de piano: rectángulo con solo las esquinas inferiores redondeadas."""
+        item_id = self._new_id()
+        self._items[item_id] = _CanvasItem(
+            item_id=item_id,
+            kind="round_rect_bottom",
+            tags=self._parse_tags(kwargs.get("tags")),
+            z=self._z_counter,
+            payload={
+                "x1": float(x1),
+                "y1": float(y1),
+                "x2": float(x2),
+                "y2": float(y2),
+                "radius": float(radius),
+                "fill": fill,
+                "outline": outline,
+                "width": float(width),
+            },
+        )
+        self._z_counter += 1
+        self.update()
+        return item_id
+
     def create_text(self, x: float, y: float, **kwargs: Any) -> int:
         item_id = self._new_id()
         self._items[item_id] = _CanvasItem(
@@ -672,6 +727,16 @@ class QtCanvas(QWidget):
                     painter.setBrush(Qt.BrushStyle.NoBrush)
                     painter.setPen(QPen(_color(outline or "#000000", QColor(0, 0, 0)), width))
                     painter.drawArc(rect, start_q, span_q)
+            elif it.kind == "round_rect_bottom":
+                bx1, by1, bx2, by2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
+                br = float(payload.get("radius", 0.0))
+                fill = str(payload.get("fill", "") or "").strip()
+                outline = str(payload.get("outline", "") or "").strip()
+                width = float(payload.get("width", 1.0))
+                path = _bottom_rounded_rect_path(float(bx1), float(by1), float(bx2), float(by2), br)
+                painter.setBrush(_color(fill, QColor(0, 0, 0, 0)) if fill else Qt.BrushStyle.NoBrush)
+                painter.setPen(QPen(_color(outline, QColor(0, 0, 0)), width) if outline else Qt.PenStyle.NoPen)
+                painter.drawPath(path)
             elif it.kind == "poly":
                 pts = payload.get("points", [])
                 fill = str(payload.get("fill", "")).strip()
@@ -719,6 +784,9 @@ class QtCanvas(QWidget):
             x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
             return QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
         if it.kind == "arc":
+            x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
+            return QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+        if it.kind == "round_rect_bottom":
             x1, y1, x2, y2 = payload["x1"], payload["y1"], payload["x2"], payload["y2"]
             return QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
         if it.kind == "poly":

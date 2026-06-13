@@ -723,16 +723,27 @@ class RenderMixin:
             width: float,
         ) -> None:
             r = max(0.0, min(radius, (x2 - x1) / 2.0, (y2 - y1) / 2.0))
+            draw_unified = getattr(canvas, "create_bottom_rounded_rect", None)
+            if callable(draw_unified):
+                draw_unified(
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    radius=r,
+                    fill=fill,
+                    outline=outline,
+                    width=width,
+                )
+                return
             if r < 1.0:
                 canvas.create_rectangle(x1, y1, x2, y2, fill=fill, outline=outline, width=width)
                 return
-            # Fill with bottom-only rounding.
+            # Fallback Tk: varias primitivas (puede dejar artefactos en Qt antiguo).
             canvas.create_rectangle(x1, y1, x2, y2 - r, fill=fill, outline="")
             canvas.create_rectangle(x1 + r, y2 - r, x2 - r, y2, fill=fill, outline="")
             canvas.create_arc(x1, y2 - (2 * r), x1 + (2 * r), y2, start=180, extent=90, style=tk.PIESLICE, fill=fill, outline="")
             canvas.create_arc(x2 - (2 * r), y2 - (2 * r), x2, y2, start=270, extent=90, style=tk.PIESLICE, fill=fill, outline="")
-
-            # Outline preserving square top corners.
             canvas.create_line(x1, y1, x2, y1, fill=outline, width=width)
             canvas.create_line(x1, y1, x1, y2 - r, fill=outline, width=width)
             canvas.create_line(x2, y1, x2, y2 - r, fill=outline, width=width)

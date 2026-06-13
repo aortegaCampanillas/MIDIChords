@@ -294,12 +294,13 @@ class ScalesMixin:
         if self.scale_play_mode == "guitar":
             self.keyboard_qscroll.pack_forget()
             self.guitar_canvas.pack(fill=tk.X, expand=False)
+            self._fit_instrument_panel_height()
             self.redraw_guitar_fretboard()
         else:
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            self._fit_instrument_panel_height()
             self.redraw_keyboard()
-        self._fit_instrument_panel_height()
     def _on_scale_transport_icon_press(self, _event: tk.Event, mode: str) -> None:
         self.scale_transport_pressed_mode = mode
         self._set_scale_transport_icon_pressed(mode, True)

@@ -2556,7 +2556,16 @@ class UiMixin:
         if not hasattr(self, "instrument_panel") or not hasattr(self, "instrument_body_row"):
             return
         try:
-            is_guitar = getattr(self, "instrument_view", None) == "guitar"
+            if getattr(self, "scale_tab_active", False):
+                panel_view = "guitar" if getattr(self, "scale_play_mode", None) == "guitar" else "piano"
+            elif getattr(self, "metronome_tab_active", False) or getattr(self, "interval_tab_active", False):
+                panel_view = "piano"
+            elif getattr(self, "tuner_tab_active", False):
+                panel_view = "tuner"
+            else:
+                panel_view = "guitar" if getattr(self, "instrument_view", None) == "guitar" else "piano"
+
+            is_guitar = panel_view == "guitar"
             if not is_guitar:
                 for target_name in ("instrument_canvas_holder", "instrument_body_row"):
                     target = getattr(self, target_name, None)
@@ -2568,30 +2577,38 @@ class UiMixin:
 
             metro_compact = bool(
                 getattr(self, "metronome_tab_active", False)
-                and getattr(self, "instrument_view", None) == "piano"
+                and panel_view == "piano"
                 and hasattr(self, "keyboard_canvas")
             )
             piano_kh: Optional[int] = None
+            piano_scroll_h: Optional[int] = None
             if hasattr(self, "keyboard_canvas"):
                 try:
                     kb_vis = bool(self.keyboard_canvas.isVisible())
                 except Exception:
                     kb_vis = True
-                if kb_vis and getattr(self, "instrument_view", None) == "piano":
+                if kb_vis and panel_view == "piano":
                     kh_base = 124 if metro_compact else 156
                     scale_fingering_on = (
                         getattr(self, "scale_tab_active", False)
                         and getattr(self, "scale_fingering_hand", None) is not None
                     )
-                    kh = kh_base + (70 if scale_fingering_on else 0)
+                    # The keyboard draws the descending fingering strip just below
+                    # the 148px key area; it needs a small extension, not a tall spacer.
+                    kh = kh_base + (28 if scale_fingering_on else 0)
                     piano_kh = kh
                     try:
                         self.keyboard_canvas.setFixedHeight(kh)
                         self.keyboard_canvas.setMinimumHeight(kh)
                         qs = getattr(self, "keyboard_qscroll", None)
                         if qs is not None:
-                            qs.setMinimumHeight(kh + 2)
-                            qs.setMaximumHeight(kh + 2)
+                            try:
+                                scroll_h = int(qs.horizontalScrollBar().sizeHint().height())
+                            except Exception:
+                                scroll_h = 16
+                            piano_scroll_h = max(14, scroll_h) + 2
+                            qs.setMinimumHeight(kh + piano_scroll_h)
+                            qs.setMaximumHeight(kh + piano_scroll_h)
                     except Exception:
                         pass
 
@@ -2610,7 +2627,7 @@ class UiMixin:
             # En piano la altura necesaria es conocida; el sizeHint puede estar
             # desfasado (Qt aún no ha propagado el nuevo alto del scroll).
             if piano_kh is not None:
-                body_height = piano_kh + 2
+                body_height = piano_kh + (piano_scroll_h or 2)
             slack = 10 if getattr(self, "metronome_tab_active", False) else 14
             panel_height = max(80, body_height + slack)
             # En Qt no existe `winfo_height()` (es un método Tk).

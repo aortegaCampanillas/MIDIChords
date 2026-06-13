@@ -457,6 +457,118 @@ FINGERING_OVERRIDES = {
 }
 
 
+KEYED_FINGERINGS = {
+    "major_pentatonic": {
+        "right": {
+            0: [1, 2, 3, 1, 2, 3],
+            1: [2, 3, 1, 2, 3, 4],
+            2: [1, 2, 3, 1, 2, 4],
+            3: [2, 1, 2, 3, 1, 2],
+            4: [1, 2, 3, 1, 2, 3],
+            5: [1, 2, 3, 1, 2, 4],
+            6: [1, 2, 3, 1, 2, 3],
+            7: [1, 2, 3, 1, 2, 4],
+            8: [2, 3, 1, 2, 1, 2],
+            9: [1, 2, 3, 1, 2, 1],
+            10: [3, 1, 2, 1, 2, 3],
+            11: [1, 2, 3, 4, 5, 1],
+        },
+        "left": {
+            0: [3, 2, 1, 2, 1, 3],
+            1: [3, 2, 1, 4, 3, 2],
+            2: [2, 1, 3, 2, 1, 2],
+            3: [3, 2, 1, 2, 1, 3],
+            4: [4, 3, 2, 1, 2, 1],
+            5: [3, 2, 1, 2, 1, 3],
+            6: [3, 2, 1, 3, 2, 1],
+            7: [3, 2, 1, 2, 1, 3],
+            8: [3, 2, 1, 2, 1, 3],
+            9: [2, 1, 2, 1, 3, 2],
+            10: [3, 2, 1, 2, 1, 3],
+            11: [1, 5, 4, 3, 2, 1],
+        },
+    },
+    "minor_pentatonic": {
+        "right": {
+            0: [1, 2, 3, 1, 2, 3],
+            1: [2, 1, 2, 3, 1, 2],
+            2: [1, 2, 3, 1, 2, 3],
+            3: [1, 2, 3, 1, 2, 3],
+            4: [1, 2, 3, 1, 2, 3],
+            5: [1, 2, 3, 1, 2, 3],
+            6: [2, 1, 2, 3, 1, 2],
+            7: [1, 2, 1, 2, 3, 1],
+            8: [2, 1, 2, 3, 4, 5],
+            9: [1, 2, 3, 1, 2, 3],
+            10: [2, 3, 4, 1, 2, 3],
+            11: [2, 1, 2, 3, 1, 2],
+        },
+        "left": {
+            0: [1, 3, 2, 1, 2, 1],
+            1: [2, 1, 3, 2, 1, 2],
+            2: [3, 2, 1, 3, 2, 1],
+            3: [3, 2, 1, 3, 2, 1],
+            4: [3, 2, 1, 3, 2, 1],
+            5: [4, 3, 2, 1, 2, 1],
+            6: [3, 2, 1, 2, 1, 3],
+            7: [1, 3, 2, 1, 2, 1],
+            8: [2, 1, 5, 4, 3, 2],
+            9: [3, 2, 1, 3, 2, 1],
+            10: [4, 3, 2, 1, 4, 3],
+            11: [3, 2, 1, 3, 2, 1],
+        },
+    },
+    "whole_tone": {
+        "right": {
+            0: [1, 2, 1, 2, 3, 4, 5],
+            1: [2, 3, 1, 2, 3, 1, 2],
+            2: [2, 1, 2, 3, 4, 1, 2],
+            3: [4, 1, 2, 1, 2, 3, 4],
+            4: [1, 2, 3, 4, 1, 2, 3],
+            5: [1, 2, 3, 1, 2, 3, 4],
+            6: [2, 3, 4, 1, 2, 3, 4],
+            7: [1, 2, 1, 2, 3, 4, 5],
+            8: [2, 3, 1, 2, 1, 2, 3],
+            9: [1, 2, 3, 4, 1, 2, 3],
+            10: [4, 1, 2, 1, 2, 3, 4],
+            11: [1, 2, 3, 1, 2, 3, 4],
+        },
+        "left": {
+            0: [3, 2, 1, 4, 3, 2, 1],
+            1: [3, 2, 1, 3, 2, 1, 3],
+            2: [2, 1, 4, 3, 2, 1, 2],
+            3: [4, 3, 2, 1, 4, 3, 2],
+            4: [5, 4, 3, 2, 1, 3, 2],
+            5: [4, 3, 2, 1, 3, 2, 1],
+            6: [4, 3, 2, 1, 3, 1, 2],
+            7: [3, 2, 1, 4, 3, 2, 1],
+            8: [3, 2, 1, 2, 1, 3, 2],
+            9: [2, 1, 3, 2, 1, 2, 3],
+            10: [4, 3, 2, 1, 4, 3, 2],
+            11: [4, 3, 2, 1, 3, 2, 1],
+        },
+    },
+    "minor_blues": {
+        "right": {
+            0: [1, 2, 3, 4, 1, 2, 3],
+        },
+        "left": {
+            0: [3, 2, 1, 4, 3, 2, 1],
+        },
+    },
+}
+
+SCALE_TYPE_ALIASES = {
+    "blues_pentatonic": "minor_pentatonic",
+    "whole_tone_(wt)": "whole_tone",
+}
+
+CHROMATIC_FINGERINGS = {
+    "right": [1, 3, 1, 3, 1, 2, 3, 1, 3, 1, 3, 1, 2],
+    "left": [1, 3, 1, 3, 2, 1, 3, 1, 3, 1, 3, 2, 1],
+}
+
+
 def get_fingering_for_scale(
     scale_type: str, key: str | int, hand: str, count: int | None = None
 ) -> list[int]:
@@ -473,16 +585,27 @@ def get_fingering_for_scale(
         List of finger numbers (1-5).
     """
     if isinstance(key, int):
-        key = _pc_to_key_str(int(key) % 12)
+        pc = int(key) % 12
+        key = _pc_to_key_str(pc)
+    else:
+        key = str(key).lower()
+        pc = _key_str_to_pc(key)
 
     key = str(key).lower()
-    scale_type = str(scale_type).lower()
+    scale_type = str(scale_type).strip().lower().replace(" ", "_")
+    scale_type = SCALE_TYPE_ALIASES.get(scale_type, scale_type)
 
     overrides = FINGERING_OVERRIDES.get(scale_type, {})
     if key in overrides and hand in overrides[key]:
         fingering = overrides[key][hand]
     elif scale_type in BASE_FINGERINGS and hand in BASE_FINGERINGS[scale_type]:
         fingering = BASE_FINGERINGS[scale_type][hand]
+    elif scale_type == "chromatic" and hand in CHROMATIC_FINGERINGS:
+        fingering = CHROMATIC_FINGERINGS[hand]
+    elif pc is not None and scale_type in KEYED_FINGERINGS:
+        fingering = KEYED_FINGERINGS[scale_type].get(hand, {}).get(pc)
+        if fingering is None:
+            return []
     else:
         return []
 
@@ -494,14 +617,40 @@ def get_fingering_for_scale(
         return []
 
     if count >= len(fingering):
-        result = list(fingering)
-        if count > len(fingering):
-            pattern_base = fingering[:7]
-            for i in range(len(fingering), count):
-                result.append(pattern_base[i % 7])
-        return result
+        return _extend_fingering_pattern(fingering, count)
 
     return list(fingering[:count])
+
+
+def _extend_fingering_pattern(fingering: list[int], count: int) -> list[int]:
+    if count <= len(fingering):
+        return list(fingering[:count])
+
+    if len(fingering) >= 15:
+        result = list(fingering)
+        pattern_base = fingering[:7]
+        for i in range(len(fingering), count):
+            result.append(pattern_base[i % len(pattern_base)])
+        return result
+
+    if len(fingering) == 8:
+        octave_boundary = 1 if fingering[0] == 1 else fingering[7]
+        period = fingering[:7]
+        result = []
+        for i in range(count - 1):
+            result.append(octave_boundary if (i > 0 and i % 7 == 0) else period[i % 7])
+        result.append(fingering[7])
+        return result
+
+    if fingering and fingering[0] == fingering[-1]:
+        period = fingering[:-1]
+        result = []
+        for i in range(count - 1):
+            result.append(period[i % len(period)])
+        result.append(fingering[-1])
+        return result
+
+    return [fingering[i % len(fingering)] for i in range(count)]
 
 
 def _pc_to_key_str(pc: int) -> str:
@@ -521,3 +670,32 @@ def _pc_to_key_str(pc: int) -> str:
         11: "b",
     }
     return mapping.get(int(pc) % 12, "c")
+
+
+def _key_str_to_pc(key: str) -> int | None:
+    normalized = str(key).strip().lower().replace("♯", "#").replace("♭", "b")
+    normalized = normalized.replace("#", "s")
+    mapping = {
+        "c": 0,
+        "bs": 0,
+        "cs": 1,
+        "db": 1,
+        "d": 2,
+        "ds": 3,
+        "eb": 3,
+        "e": 4,
+        "fb": 4,
+        "f": 5,
+        "es": 5,
+        "fs": 6,
+        "gb": 6,
+        "g": 7,
+        "gs": 8,
+        "ab": 8,
+        "a": 9,
+        "as": 10,
+        "bb": 10,
+        "b": 11,
+        "cb": 11,
+    }
+    return mapping.get(normalized)

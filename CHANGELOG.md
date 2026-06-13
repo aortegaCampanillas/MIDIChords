@@ -12,6 +12,10 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Escritorio (escalas)**: al arrancar, el selector de **Digitación** vuelve a marcar la última mano elegida en la configuración (`Sin`, `Mano I.` o `Mano D.`) en lugar de quedarse visualmente en `Sin`.
 
+- **Escritorio (escalas)**: al arrancar con digitación activa o al cambiar la mano de digitación, el panel inferior del piano reserva solo la altura necesaria para las bandas de dedos y para la barra horizontal; muestra también la franja descendente sin dejar un hueco grande ni quedar recortada por el scroll.
+
+- **Escritorio (escalas)**: las digitaciones de piano vuelven a mostrarse en escalas básicas que no tenían tabla en el core de escritorio, como **Pentatónica mayor**, **Pentatónica menor / blues**, **Tono entero** y **Cromática**.
+
 - **Escritorio (configuración)**: los combos de **Entrada MIDI** y **Salida de audio** muestran ahora `<no seleccionado>` como primera opción visible, también tras refrescar dispositivos, en lugar de una entrada en blanco.
 
 - **Escritorio (configuración)**: la ventana de ajustes ya no usa una geometría fija; se ajusta al tamaño real de sus controles, queda bloqueada contra redimensionado manual y muestra **Guardar** y **Cancelar** como botones separados con recuadro redondeado.

@@ -13,6 +13,7 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'circle_of_fifths.dart';
 import 'fingerings.dart';
@@ -883,6 +884,12 @@ class _HomeScreenState extends State<HomeScreen>
   String _language = 'es';
   String _accidental = 'sharp';
   String _guitarHandedness = 'right';
+  bool _showKeyNames = true;
+
+  // Changelog state
+  List<Map<String, dynamic>> _changelogEntries = <Map<String, dynamic>>[];
+  String _lastSeenChangelogVersion = '';
+  bool _changelogDontShow = false;
 
   List<Map<String, dynamic>> _chordPatterns = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _scalePatterns = <Map<String, dynamic>>[];
@@ -1970,6 +1977,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _openSettingsPanel() async {
     String selectedLanguage = _language;
+    bool selectedShowKeyNames = _showKeyNames;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1999,62 +2007,67 @@ class _HomeScreenState extends State<HomeScreen>
                       labelText: _ui('Idioma', 'Language'),
                     ),
                     items: const <DropdownMenuItem<String>>[
-                      DropdownMenuItem<String>(
-                        value: 'es',
-                        child: Text('Español'),
-                      ),
-                      DropdownMenuItem<String>(
-                        value: 'en',
-                        child: Text('English'),
-                      ),
+                      DropdownMenuItem<String>(value: 'es', child: Text('Español')),
+                      DropdownMenuItem<String>(value: 'en', child: Text('English')),
                     ],
                     onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setDialogState(() => selectedLanguage = value);
+                      if (value != null) setDialogState(() => selectedLanguage = value);
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _ui('Mostrar nombres en teclas', 'Show key names'),
+                      style: const TextStyle(color: _text),
+                    ),
+                    value: selectedShowKeyNames,
+                    activeColor: _accent,
+                    onChanged: (v) => setDialogState(() => selectedShowKeyNames = v),
+                  ),
+                  const SizedBox(height: 8),
                   FutureBuilder<PackageInfo>(
                     future: PackageInfo.fromPlatform(),
                     builder: (context, snapshot) {
                       final versionText = snapshot.hasData
                           ? 'v${snapshot.data!.version} (${snapshot.data!.buildNumber})'
                           : '...';
-
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
                             _ui('Versión de la app', 'App version'),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: _muted,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w600, color: _muted),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            versionText,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: _text,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextButton.icon(
-                            onPressed: () async {
-                              const webUrl = 'https://freemidichords.com/';
-                              final uri = Uri.parse(webUrl);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
-                            },
-                            icon: const Icon(Icons.language, size: 18),
-                            label: Text(_ui('Visitar la web', 'Visit website')),
-                            style: TextButton.styleFrom(
-                              foregroundColor: _accent,
-                            ),
+                          Text(versionText,
+                              style: const TextStyle(fontWeight: FontWeight.w800, color: _text)),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: <Widget>[
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final uri = Uri.parse('https://freemidichords.com/');
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  }
+                                },
+                                icon: const Icon(Icons.language, size: 18),
+                                label: Text(_ui('Visitar la web', 'Visit website')),
+                                style: TextButton.styleFrom(foregroundColor: _accent),
+                              ),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  await _showChangelogDialog(fromSettings: true);
+                                },
+                                icon: const Icon(Icons.new_releases_outlined, size: 18),
+                                label: Text(_ui('Novedades', "What's new")),
+                                style: TextButton.styleFrom(foregroundColor: _accent),
+                              ),
+                            ],
                           ),
                         ],
                       );
@@ -2070,13 +2083,14 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               FilledButton(
                 onPressed: () async {
-                  if (_language != selectedLanguage) {
-                    setState(() => _language = selectedLanguage);
-                    await _loadMeta();
-                  }
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
+                  final langChanged = _language != selectedLanguage;
+                  setState(() {
+                    _language = selectedLanguage;
+                    _showKeyNames = selectedShowKeyNames;
+                  });
+                  await _savePrefs();
+                  if (langChanged) await _loadMeta();
+                  if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                 },
                 child: Text(_ui('Aplicar', 'Apply')),
               ),
@@ -2096,7 +2110,145 @@ class _HomeScreenState extends State<HomeScreen>
     );
     _initMidiInput();
     unawaited(_initPlatformAudioWorkarounds());
-    _loadMeta();
+    unawaited(_loadPrefsAndStart());
+  }
+
+  Future<void> _loadPrefsAndStart() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _language = prefs.getString('language') ?? 'es';
+      _showKeyNames = prefs.getBool('showKeyNames') ?? true;
+      _lastSeenChangelogVersion = prefs.getString('lastSeenChangelogVersion') ?? '';
+      _changelogDontShow = prefs.getBool('changelogDontShow') ?? false;
+    });
+    await _loadMeta();
+    await _loadChangelog();
+    if (mounted) _maybeShowChangelogPopup();
+  }
+
+  Future<void> _savePrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', _language);
+    await prefs.setBool('showKeyNames', _showKeyNames);
+    await prefs.setString('lastSeenChangelogVersion', _lastSeenChangelogVersion);
+    await prefs.setBool('changelogDontShow', _changelogDontShow);
+  }
+
+  Future<void> _loadChangelog() async {
+    try {
+      final raw = await rootBundle.loadString('assets/changelog.json');
+      final list = (jsonDecode(raw) as List<dynamic>).cast<Map<String, dynamic>>();
+      if (mounted) setState(() => _changelogEntries = list);
+    } catch (_) {}
+  }
+
+  String get _latestChangelogVersion =>
+      _changelogEntries.isNotEmpty ? (_changelogEntries.first['version'] as String? ?? '') : '';
+
+  void _maybeShowChangelogPopup() {
+    if (_changelogDontShow) return;
+    final latest = _latestChangelogVersion;
+    if (latest.isEmpty || latest == _lastSeenChangelogVersion) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_showChangelogDialog(fromSettings: false));
+    });
+  }
+
+  Future<void> _showChangelogDialog({bool fromSettings = false}) async {
+    bool dontShowAgain = _changelogDontShow;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSt) {
+          final items = _changelogEntries
+              .expand((v) => (v['items'] as List<dynamic>? ?? [])
+                  .cast<Map<String, dynamic>>()
+                  .where((it) => it['publish'] == true)
+                  .map((it) => (
+                        version: v['version'] as String? ?? '',
+                        text: (_language == 'en' ? it['en'] : it['es']) as String? ?? '',
+                      )))
+              .where((e) => e.text.isNotEmpty)
+              .take(20)
+              .toList();
+
+          return AlertDialog(
+            backgroundColor: _panelA,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: _border),
+            ),
+            title: Text(
+              _ui('Novedades', "What's new"),
+              style: const TextStyle(color: _text, fontWeight: FontWeight.w700),
+            ),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 340),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: items.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              const Text('• ', style: TextStyle(color: _accent, fontWeight: FontWeight.bold)),
+                              Expanded(
+                                child: Text(e.text, style: const TextStyle(color: _text, height: 1.45)),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+                  ),
+                  if (!fromSettings) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: <Widget>[
+                        Checkbox(
+                          value: dontShowAgain,
+                          activeColor: _accent,
+                          onChanged: (v) => setSt(() => dontShowAgain = v ?? false),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setSt(() => dontShowAgain = !dontShowAgain),
+                            child: Text(
+                              _ui('No volver a mostrar', "Don't show again"),
+                              style: const TextStyle(color: _muted),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              FilledButton(
+                onPressed: () async {
+                  setState(() {
+                    _lastSeenChangelogVersion = _latestChangelogVersion;
+                    if (!fromSettings) _changelogDontShow = dontShowAgain;
+                  });
+                  await _savePrefs();
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+                child: Text(_ui('Cerrar', 'Close')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -5912,38 +6064,28 @@ class _HomeScreenState extends State<HomeScreen>
               compactPhone
                   ? (portrait ? 260.0 : 300.0)
                   : (portrait ? 380.0 : 340.0),
-              titleConstraints.maxWidth * 0.52,
+              titleConstraints.maxWidth * 0.55,
             );
-            return SizedBox(
-              width: titleConstraints.maxWidth,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: <Widget>[
-                  Align(
+            // Use a Row so the title and dropdown never overlap:
+            // title takes remaining space on the left, dropdown is fixed-width on the right.
+            return Row(
+              children: <Widget>[
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: math.max(
-                          0.0,
-                          titleConstraints.maxWidth - dropdownW - 8,
-                        ),
-                      ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'MIDI Piano & Guitar Chords',
-                          style: TextStyle(
-                            fontSize: compactPhone
-                                ? (portrait ? 15 : 18)
-                                : (portrait ? 19 : 24),
-                          ),
-                        ),
+                    child: Text(
+                      'MIDI Piano & Guitar Chords',
+                      style: TextStyle(
+                        fontSize: compactPhone
+                            ? (portrait ? 15 : 18)
+                            : (portrait ? 19 : 24),
                       ),
                     ),
                   ),
-                  SizedBox(
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
                     width: dropdownW,
                     child: _helpAnchor(
                       'mode_select',
@@ -6021,7 +6163,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ],
-              ),
             );
           },
         ),
@@ -7142,9 +7283,10 @@ class _HomeScreenState extends State<HomeScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportW = constraints.maxWidth;
-        final viewportH = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : _kPianoWhiteKeyHeight + 12;
+        final viewportH = (constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : _kPianoWhiteKeyHeight + 12)
+            .clamp(0.0, _kPianoWhiteKeyHeight + 12);
         final metrics = _computePianoKeyMetrics(
           viewportW: viewportW,
           viewportH: viewportH,
@@ -7277,26 +7419,27 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           child: Stack(
                             children: <Widget>[
-                              Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text.rich(
-                                    TextSpan(
-                                      children: _splitPitchClassLabelSpans(
-                                        _pcLabel(midi % 12),
-                                        const TextStyle(
-                                          color: Color(0xFF1A222D),
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 11,
+                              if (_showKeyNames)
+                                Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text.rich(
+                                      TextSpan(
+                                        children: _splitPitchClassLabelSpans(
+                                          _pcLabel(midi % 12),
+                                          const TextStyle(
+                                            color: Color(0xFF1A222D),
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11,
+                                          ),
                                         ),
                                       ),
+                                      maxLines: 1,
+                                      softWrap: false,
                                     ),
-                                    maxLines: 1,
-                                    softWrap: false,
                                   ),
                                 ),
-                              ),
                               if (chordGenPiano && rh != null)
                                 marker(
                                   size: 22,
@@ -7418,30 +7561,31 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                               child: Stack(
                                 children: <Widget>[
-                                  Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: SizedBox(
-                                        width: blackW - 4,
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text.rich(
-                                            TextSpan(
-                                              children: _splitPitchClassLabelSpans(
-                                                _pcLabel(midi % 12),
-                                                const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 9,
+                                  if (_showKeyNames)
+                                    Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: SizedBox(
+                                          width: blackW - 4,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text.rich(
+                                              TextSpan(
+                                                children: _splitPitchClassLabelSpans(
+                                                  _pcLabel(midi % 12),
+                                                  const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 9,
+                                                  ),
                                                 ),
                                               ),
+                                              maxLines: 1,
+                                              softWrap: false,
                                             ),
-                                            maxLines: 1,
-                                            softWrap: false,
                                           ),
                                         ),
-                                      ),
                                     ),
                                   ),
                                   if (chordGenPiano && rh != null)

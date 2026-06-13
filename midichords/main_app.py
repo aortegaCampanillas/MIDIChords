@@ -368,6 +368,7 @@ class MidiChordAnalyzerApp(
         self.scale_fingering_hand = loaded_scale_fingering if loaded_scale_fingering in {"right", "left"} else None
         self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
         self._set_instrument_view(self.instrument_view)
+        self._refresh_scale_fingering_buttons()
         self.apply_ui_language()
         self._on_mode_combo_changed(None)
         self._startup_after_id: Optional[str] = self.after(0, self._complete_startup)

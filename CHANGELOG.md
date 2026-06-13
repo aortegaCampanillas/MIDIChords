@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (escalas)**: al arrancar, el selector de **Digitación** vuelve a marcar la última mano elegida en la configuración (`Sin`, `Mano I.` o `Mano D.`) en lugar de quedarse visualmente en `Sin`.
+
 - **Escritorio (configuración)**: los combos de **Entrada MIDI** y **Salida de audio** muestran ahora `<no seleccionado>` como primera opción visible, también tras refrescar dispositivos, en lugar de una entrada en blanco.
 
 - **Escritorio (configuración)**: la ventana de ajustes ya no usa una geometría fija; se ajusta al tamaño real de sus controles, queda bloqueada contra redimensionado manual y muestra **Guardar** y **Cancelar** como botones separados con recuadro redondeado.

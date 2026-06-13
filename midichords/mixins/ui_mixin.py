@@ -1389,8 +1389,8 @@ class UiMixin:
         )
         scale_fingering_frame.grid(row=6, column=1, sticky="w", pady=(8, 5))
         self.scale_fingering_radios: list[tk.Radiobutton] = []
-        for hand, label_key in [("none", "label_fingering_none"), ("right", "label_fingering_right"), ("left", "label_fingering_left")]:
-            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano D.", "Mano I."][["none", "right", "left"].index(hand)]
+        for hand, label_key in [("none", "label_fingering_none"), ("left", "label_fingering_left"), ("right", "label_fingering_right")]:
+            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano I.", "Mano D."][["none", "left", "right"].index(hand)]
             rb = tk.Radiobutton(
                 scale_fingering_frame,
                 text=label,

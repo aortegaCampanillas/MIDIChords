@@ -568,6 +568,69 @@ const String _kMetronomeSample = 'metronome.mp3';
 const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
 const bool _kEnableMobileTuner = false;
 const double _kTabletMinShortestSide = 600.0;
+/// Teclado móvil: proporción web (`style.css` 124px / 36px).
+const double _kPianoMinWhiteKeyWidth = 28.0;
+const double _kPianoMaxWhiteKeyWidth = 36.0;
+const double _kPianoWhiteKeyHeight = 124.0;
+const double _kPianoKeyAspect =
+    _kPianoWhiteKeyHeight / _kPianoMaxWhiteKeyWidth;
+/// Teclas visibles en viewport cuando hay scroll (recorte lateral).
+const double _kPianoTargetVisibleWhiteKeys = 9.5;
+/// Piano estándar 88 teclas: A0 (21) … C8 (108), como escritorio/web.
+const int _kPianoLowMidi = 21;
+const int _kPianoHighMidi = 108;
+const int _kPianoMiddleCMidi = 60;
+
+class _PianoKeyMetrics {
+  const _PianoKeyMetrics({
+    required this.whiteW,
+    required this.whiteH,
+    required this.scrollable,
+  });
+
+  final double whiteW;
+  final double whiteH;
+  final bool scrollable;
+}
+
+_PianoKeyMetrics _computePianoKeyMetrics({
+  required double viewportW,
+  required double viewportH,
+  required int whiteKeyCount,
+}) {
+  final availH = math.max(88.0, viewportH - 6.0);
+  final n = whiteKeyCount.toDouble();
+
+  // 1) Caben todas las teclas: rellenar ancho del panel (poco habitual con 88 teclas).
+  var whiteW = (viewportW / n).clamp(_kPianoMinWhiteKeyWidth, double.infinity);
+  var whiteH = whiteW * _kPianoKeyAspect;
+  if (whiteH <= availH && whiteW * n <= viewportW) {
+    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
+  }
+
+  // 2) Altura del panel manda; scroll horizontal si hace falta.
+  whiteH = availH;
+  whiteW = math.max(_kPianoMinWhiteKeyWidth, whiteH / _kPianoKeyAspect);
+  var keyboardW = whiteW * n;
+  if (keyboardW <= viewportW) {
+    whiteW = viewportW / n;
+    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
+    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
+  }
+
+  // 3) Scroll: priorizar altura y dejar ~media tecla cortada al borde.
+  final targetW = viewportW / _kPianoTargetVisibleWhiteKeys;
+  if (targetW > whiteW) {
+    whiteW = targetW;
+    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
+    keyboardW = whiteW * n;
+  }
+  return _PianoKeyMetrics(
+    whiteW: whiteW,
+    whiteH: whiteH,
+    scrollable: keyboardW > viewportW + 1,
+  );
+}
 
 class _ChordAnalysis {
   const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
@@ -793,6 +856,10 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isCompactPhone(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide < _kTabletMinShortestSide;
 
+  /// Ancho aproximado de `actions` en AppBar; el `leading` usa el mismo valor para centrar el modo.
+  double _appBarActionsReserveWidth(bool compactPhone) =>
+      compactPhone ? 196.0 : 276.0;
+
   double _compactResultHeight(BoxConstraints constraints, {double minHeight = 170}) {
     final available = constraints.maxHeight.isFinite ? constraints.maxHeight : 640.0;
     return math.max(minHeight, math.min(260.0, available * 0.38));
@@ -928,6 +995,8 @@ class _HomeScreenState extends State<HomeScreen>
   int? _dragCurrentNote;
   Offset? _dragLastGlobalPos;
   DateTime _dragLastSwitchAt = DateTime.fromMillisecondsSinceEpoch(0);
+  final ScrollController _pianoScrollController = ScrollController();
+  int? _pianoScrollSyncToken;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
@@ -2052,6 +2121,7 @@ class _HomeScreenState extends State<HomeScreen>
     _chordOutputController.dispose();
     _scaleOutputController.dispose();
     _helpOverlayController.dispose();
+    _pianoScrollController.dispose();
     _cancelMidiScreenActivityExtension();
     super.dispose();
   }
@@ -2938,11 +3008,15 @@ class _HomeScreenState extends State<HomeScreen>
     return <int>[];
   }
 
+  /// Igual que web `formatIntervalsFromMidi` y `music_theory.format_intervals`.
   String _intervalTextFromMidiList(List<int> notes) {
-    if (notes.isEmpty) return '-';
-    final sorted = notes.toList()..sort();
-    final root = sorted.first;
-    return sorted.map((n) => '+${n - root}').join(' - ');
+    final ordered = notes.map((n) => n).toSet().toList()..sort();
+    if (ordered.isEmpty) return '-';
+    final parts = <String>['0'];
+    for (var i = 1; i < ordered.length; i++) {
+      parts.add('+${ordered[i] - ordered[i - 1]}');
+    }
+    return parts.join(' ');
   }
 
   Set<int> get _activeDetectionNotes {
@@ -4428,6 +4502,39 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  void _syncPianoScrollToMiddleC(
+    double viewportW,
+    double whiteW,
+    List<int> whiteMidi,
+  ) {
+    final syncToken = Object.hash(
+      viewportW.round(),
+      whiteW.toStringAsFixed(1),
+      whiteMidi.length,
+    );
+    if (_pianoScrollSyncToken == syncToken) {
+      return;
+    }
+    _pianoScrollSyncToken = syncToken;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pianoScrollController.hasClients) {
+        return;
+      }
+      final maxExt = _pianoScrollController.position.maxScrollExtent;
+      if (maxExt <= 0) {
+        return;
+      }
+      final cIdx = whiteMidi.indexOf(_kPianoMiddleCMidi);
+      final anchorIdx = cIdx >= 0
+          ? cIdx
+          : whiteMidi.indexWhere((m) => m >= _kPianoMiddleCMidi);
+      final wIdx = anchorIdx < 0 ? whiteMidi.length ~/ 2 : anchorIdx;
+      final keyCenterX = (wIdx * whiteW) + (whiteW / 2);
+      final target = (keyCenterX - (viewportW / 2)).clamp(0.0, maxExt);
+      _pianoScrollController.jumpTo(target);
+    });
+  }
+
   void _stopHeldChord() {
     _heldChordPlaybackEndTimer?.cancel();
     _heldChordPlaybackEndTimer = null;
@@ -5794,103 +5901,129 @@ class _HomeScreenState extends State<HomeScreen>
         Scaffold(
       appBar: AppBar(
         toolbarHeight: compactPhone ? (portrait ? 60 : 64) : (portrait ? 64 : 74),
+        automaticallyImplyLeading: false,
+        leadingWidth: _appBarActionsReserveWidth(compactPhone),
+        leading: const SizedBox.shrink(),
         centerTitle: false,
         titleSpacing: compactPhone ? 8 : 12,
-        title: Row(
-          children: <Widget>[
-            Flexible(
-              flex: compactPhone ? 3 : (portrait ? 4 : 5),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'MIDI Piano & Guitar Chords',
-                  style: TextStyle(
-                    fontSize: compactPhone ? (portrait ? 15 : 18) : (portrait ? 19 : 24),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: compactPhone ? 6 : (portrait ? 8 : 12)),
-            Expanded(
-              flex: compactPhone ? 4 : (portrait ? 5 : 4),
-              child: _helpAnchor('mode_select', ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: compactPhone ? (portrait ? 260 : 320) : (portrait ? 420 : 360),
-                ),
-                child: DropdownButtonFormField<int>(
-                  key: ValueKey<String>(
-                    'mode_${currentTab}_${_kEnableMobileTuner ? 1 : 0}',
-                  ),
-                  initialValue: currentTab,
-                  dropdownColor: _surfaceDark,
-                  style: const TextStyle(color: _text),
-                  decoration: InputDecoration(
-                    hintText: _ui('Modo', 'Mode'),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: compactPhone ? 10 : 12,
-                      vertical: compactPhone ? 6 : (portrait ? 8 : 10),
-                    ),
-                    isDense: true,
-                  ),
-                  items: enabledModes
-                      .map(
-                        (i) => DropdownMenuItem<int>(
-                          value: i,
-                          child: Text(
-                            _modeLabel(i),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+        title: LayoutBuilder(
+          builder: (context, titleConstraints) {
+            final dropdownW = math.min(
+              compactPhone
+                  ? (portrait ? 260.0 : 300.0)
+                  : (portrait ? 380.0 : 340.0),
+              titleConstraints.maxWidth * 0.52,
+            );
+            return SizedBox(
+              width: titleConstraints.maxWidth,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: <Widget>[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: math.max(
+                          0.0,
+                          titleConstraints.maxWidth - dropdownW - 8,
+                        ),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'MIDI Piano & Guitar Chords',
+                          style: TextStyle(
+                            fontSize: compactPhone
+                                ? (portrait ? 15 : 18)
+                                : (portrait ? 19 : 24),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    if (!_kEnableMobileTuner && value == 6) return;
-                    setState(() {
-                      _tabIndex = value;
-                      _setHelpMode(false);
-                      if (value == 0) {
-                        _instrumentView = 'piano';
-                      }
-                    });
-                    if (value != 3) {
-                      _stopScaleLoop();
-                    }
-                    if (value != 4) {
-                      _stopMetronome();
-                    }
-                    if (value != 6 && _tunerRunning) {
-                      unawaited(_stopTuner());
-                    }
-                    _stopHeldChord();
-                    _stopHeldInputs();
-                    _stopHeldMidiInputs();
-                    _generationInputStaffNotes.clear();
-                    _clearGenerationPianoHighlight();
-                    _detectionPlayPressed = false;
-                    _generationPlayPressed = false;
-                    if (value != 0) {
-                      _detectionMidiHeldNotes.clear();
-                    }
-                    if (value == 0 && !_requestInFlight) {
-                      unawaited(_callDetect());
-                    } else if (value == 1 && !_requestInFlight) {
-                      unawaited(_callGenerateChord());
-                    } else if (value == 2 && !_requestInFlight) {
-                      unawaited(_callCircleGenerateChord());
-                    } else if (value == 3 && !_requestInFlight) {
-                      unawaited(_callGenerateScale());
-                    }
-                    if (value != 0) {
-                      _cancelMidiScreenActivityExtension();
-                    }
-                  },
-                ),
-              )),
-            ),
-          ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: dropdownW,
+                    child: _helpAnchor(
+                      'mode_select',
+                      DropdownButtonFormField<int>(
+                        key: ValueKey<String>(
+                          'mode_${currentTab}_${_kEnableMobileTuner ? 1 : 0}',
+                        ),
+                        initialValue: currentTab,
+                        isExpanded: true,
+                        dropdownColor: _surfaceDark,
+                        style: const TextStyle(color: _text),
+                        decoration: InputDecoration(
+                          hintText: _ui('Modo', 'Mode'),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: compactPhone ? 10 : 12,
+                            vertical: compactPhone ? 6 : (portrait ? 8 : 10),
+                          ),
+                          isDense: true,
+                        ),
+                        items: enabledModes
+                            .map(
+                              (i) => DropdownMenuItem<int>(
+                                value: i,
+                                child: Text(
+                                  _modeLabel(i),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          if (!_kEnableMobileTuner && value == 6) return;
+                          setState(() {
+                            _tabIndex = value;
+                            _setHelpMode(false);
+                            if (value == 0) {
+                              _instrumentView = 'piano';
+                            }
+                          });
+                          if (value != 3) {
+                            _stopScaleLoop();
+                          }
+                          if (value != 4) {
+                            _stopMetronome();
+                          }
+                          if (value != 6 && _tunerRunning) {
+                            unawaited(_stopTuner());
+                          }
+                          _stopHeldChord();
+                          _stopHeldInputs();
+                          _stopHeldMidiInputs();
+                          _generationInputStaffNotes.clear();
+                          _clearGenerationPianoHighlight();
+                          _detectionPlayPressed = false;
+                          _generationPlayPressed = false;
+                          if (value != 0) {
+                            _detectionMidiHeldNotes.clear();
+                          }
+                          if (value == 0 && !_requestInFlight) {
+                            unawaited(_callDetect());
+                          } else if (value == 1 && !_requestInFlight) {
+                            unawaited(_callGenerateChord());
+                          } else if (value == 2 && !_requestInFlight) {
+                            unawaited(_callCircleGenerateChord());
+                          } else if (value == 3 && !_requestInFlight) {
+                            unawaited(_callGenerateScale());
+                          }
+                          if (value != 0) {
+                            _cancelMidiScreenActivityExtension();
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         actions: <Widget>[
           _helpAnchor('midi_toggle', Padding(
@@ -6932,15 +7065,13 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildPianoStrip(Set<int> activeMidi) {
-    final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    final midiRange = List<int>.generate(37, (i) => 48 + i); // C3..C6
+    final midiRange = List<int>.generate(
+      _kPianoHighMidi - _kPianoLowMidi + 1,
+      (i) => _kPianoLowMidi + i,
+    );
     final whiteMidi = midiRange
         .where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12))
         .toList();
-    final whiteH = portrait &&
-            (_tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3)
-        ? 118.0
-        : 130.0;
     final active = activeMidi.toSet();
     final extras = _instrumentExtrasForCurrentTab();
     final scaleRh = _tabIndex == 3 ? _scaleRhNotes().toSet() : <int>{};
@@ -6953,7 +7084,10 @@ class _HomeScreenState extends State<HomeScreen>
         ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
         : const <int>[];
     final chordLh = chordGenPiano
-        ? chordRh.map((n) => n - 12).where((n) => n >= 0).toList()
+        ? chordRh
+              .map((n) => n - 12)
+              .where((n) => n >= _kPianoLowMidi)
+              .toList()
         : const <int>[];
     final chordRhSet = chordRh.toSet();
     final chordLhSet = chordLh.toSet();
@@ -7005,33 +7139,60 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    return SizedBox(
-      height: portrait &&
-              (_tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3)
-          ? 126
-          : 140,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final viewportW = constraints.maxWidth;
-          final whiteW = math.max(36.0, viewportW / whiteMidi.length);
-          final blackW = whiteW * 0.6;
-          final blackH = whiteH * 0.65;
-          final keyboardW = whiteMidi.length * whiteW;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportW = constraints.maxWidth;
+        final viewportH = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : _kPianoWhiteKeyHeight + 12;
+        final metrics = _computePianoKeyMetrics(
+          viewportW: viewportW,
+          viewportH: viewportH,
+          whiteKeyCount: whiteMidi.length,
+        );
+        final whiteW = metrics.whiteW;
+        final whiteH = metrics.whiteH;
+        final blackW = whiteW * 0.64;
+        final blackH = whiteH * 0.58;
+        final keyboardW = whiteMidi.length * whiteW;
+        final scrollable = metrics.scrollable;
+        final whiteMarkerTop = whiteH * 0.63;
+        final forbiddenTop = whiteH * 0.41;
+        _syncPianoScrollToMiddleC(viewportW, whiteW, whiteMidi);
 
-          double xForMidi(int midi) {
-            final idx = whiteMidi.indexWhere((m) => m >= midi);
-            final wIdx = idx < 0 ? whiteMidi.length - 1 : idx;
-            return wIdx * whiteW;
-          }
+        double xForMidi(int midi) {
+          final idx = whiteMidi.indexWhere((m) => m >= midi);
+          final wIdx = idx < 0 ? whiteMidi.length - 1 : idx;
+          return wIdx * whiteW;
+        }
 
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: math.max(viewportW, keyboardW),
-              child: Stack(
-                children: <Widget>[
-                  Row(
-                    children: whiteMidi.map((midi) {
+        return SizedBox(
+          height: viewportH,
+          width: viewportW,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8ECF2),
+              border: Border.all(color: const Color(0xFF3A4558)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: scrollable ? 6 : 2),
+              child: Scrollbar(
+                controller: _pianoScrollController,
+                thumbVisibility: scrollable,
+                scrollbarOrientation: ScrollbarOrientation.bottom,
+                child: SingleChildScrollView(
+                  controller: _pianoScrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  child: SizedBox(
+                    width: keyboardW,
+                    height: whiteH,
+                    child: Stack(
+                      children: <Widget>[
+                        Row(
+                          children: whiteMidi.map((midi) {
                       final isActive = active.contains(midi);
                       final isExtra = extras.contains(midi);
                       final isScaleCurrent =
@@ -7052,11 +7213,9 @@ class _HomeScreenState extends State<HomeScreen>
                       final inChordLhOnly =
                           chordLhSet.contains(midi) && !chordRhSet.contains(midi);
                       return Listener(
+                        behavior: HitTestBehavior.opaque,
                         onPointerDown: (event) => unawaited(
                           _beginInputDrag(midi, event.pointer, event.position),
-                        ),
-                        onPointerMove: (event) => unawaited(
-                          _updateInputDrag(midi, event.pointer, event.position),
                         ),
                         onPointerUp: (event) => _endInputDrag(event.pointer),
                         onPointerCancel: (event) =>
@@ -7143,7 +7302,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   size: 22,
                                   color: const Color(0xFF33C6FF),
                                   digit: rh,
-                                  top: 74,
+                                  top: whiteMarkerTop,
                                   left: (whiteW - 22) / 2,
                                 ),
                               if (chordGenPiano && rh == null && lh != null)
@@ -7151,7 +7310,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   size: 22,
                                   color: const Color(0xFFFF9E34),
                                   digit: lh,
-                                  top: 74,
+                                  top: whiteMarkerTop,
                                   left: (whiteW - 22) / 2,
                                 ),
                             ],
@@ -7188,15 +7347,9 @@ class _HomeScreenState extends State<HomeScreen>
                           left: xForMidi(midi) - (blackW / 2),
                           top: 0,
                           child: Listener(
+                            behavior: HitTestBehavior.opaque,
                             onPointerDown: (event) => unawaited(
                               _beginInputDrag(
-                                midi,
-                                event.pointer,
-                                event.position,
-                              ),
-                            ),
-                            onPointerMove: (event) => unawaited(
-                              _updateInputDrag(
                                 midi,
                                 event.pointer,
                                 event.position,
@@ -7316,7 +7469,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ..._forbiddenFlashNotes.map((midi) {
                     return Positioned(
                       left: xForMidi(midi),
-                      top: 48,
+                      top: forbiddenTop,
                       child: const Text(
                         '⊘',
                         style: TextStyle(
@@ -7327,12 +7480,15 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     );
                   }),
-                ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -364,6 +364,8 @@ class MidiChordAnalyzerApp(
         self.scale_metronome_only = bool(
             self.config_data.get("scale_metronome_only", loaded_scale_play_mode == "metronome")
         )
+        loaded_scale_fingering = str(self.config_data.get("scale_fingering_hand", "none"))
+        self.scale_fingering_hand = loaded_scale_fingering if loaded_scale_fingering in {"right", "left"} else None
         self.instrument_view = "guitar" if loaded_instrument_view == "guitar" else "piano"
         self._set_instrument_view(self.instrument_view)
         self.apply_ui_language()

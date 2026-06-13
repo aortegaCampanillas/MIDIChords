@@ -132,6 +132,7 @@ DEFAULT_CONFIG = {
     "metronome_timer_seconds": 0,
     "metronome_bar_accent_enabled": True,
     "scale_play_mode": "piano",
+    "scale_fingering_hand": "none",
     "mode": "detection",
     "note_accidental": "sharp",
     "instrument_view": "piano",

@@ -150,8 +150,22 @@ class ScalesMixin:
 
     def _set_scale_fingering(self, hand: str) -> None:
         """Cambia la mano de digitación (none, right, left)."""
+        was_active = self.scale_fingering_hand is not None
         self.scale_fingering_hand = hand if hand != "none" else None
+        now_active = self.scale_fingering_hand is not None
+        self.config_data["scale_fingering_hand"] = hand
+        self.save_config()
         self._refresh_scale_fingering_buttons()
+        # Only resize the canvas when toggling fingering on/off, not when switching hands.
+        if was_active != now_active:
+            # Same pack → redraw → fit sequence as the guitar→piano switch; the
+            # canvas must be visible when _fit_instrument_panel_height runs.
+            try:
+                self.keyboard_qscroll.pack_forget()
+            except Exception:
+                pass
+            self._refresh_scale_instrument_view()
+            return
         self.redraw_keyboard()
 
     def _refresh_scale_fingering_buttons(self) -> None:
@@ -177,15 +191,29 @@ class ScalesMixin:
             return {}
 
         pattern = self._resolve_scale_pattern()
+        sorted_notes = sorted(set(self.scale_preview_notes))
+        _name_map = {
+            "ionian": "ionian_mode",
+            "dorian": "dorian_mode",
+            "phrygian": "phrygian_mode",
+            "lydian": "lydian_mode",
+            "mixolydian": "mixolydian_mode",
+            "aeolian": "aeolian_mode",
+            "locrian": "locrian_mode",
+            "harmonic minor": "harmonic_minor",
+            "melodic minor": "melodic_minor",
+            "natural minor": "natural_minor",
+        }
+        scale_type = _name_map.get(pattern.name.lower(), pattern.name.lower().replace(" ", "_"))
         fingerings = get_fingering_for_scale(
-            pattern.name,
+            scale_type,
             self.scale_tonic_pc,
             self.scale_fingering_hand,
-            count=len(self.scale_preview_notes)
+            count=len(sorted_notes)
         )
 
         result = {}
-        for idx, midi_note in enumerate(self.scale_preview_notes):
+        for idx, midi_note in enumerate(sorted_notes):
             if idx < len(fingerings):
                 result[midi_note] = fingerings[idx]
 

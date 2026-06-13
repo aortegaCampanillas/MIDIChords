@@ -471,12 +471,8 @@ class UiMixin:
         )
         self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
         self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
-        self.right_side_panel.pack(fill=tk.X, expand=False)
+        self.right_side_panel.pack(fill=tk.BOTH, expand=True)
         self.right_side_panel.columnconfigure(0, weight=1)
-
-        # Spacer to absorb extra vertical space
-        _spacer = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        _spacer.pack(fill=tk.BOTH, expand=True)
 
         self.chord_panel = tk.Frame(
             self.right_side_panel,
@@ -486,7 +482,8 @@ class UiMixin:
             padx=0,
             pady=0,
         )
-        self.chord_panel.grid(row=0, column=0, sticky="new")
+        self.chord_panel.grid(row=0, column=0, sticky="nsew")
+        self.right_side_panel.rowconfigure(0, weight=1)
 
         self.tab_detection_frame = tk.Frame(
             self.chord_panel,
@@ -1290,6 +1287,7 @@ class UiMixin:
             state="readonly",
             values=["-"],
             font=(self.ui_font_family, 15),
+            height=15,
         )
         self.scale_tonic_combo.grid(row=1, column=1, sticky="w", pady=(0, 5))
         self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
@@ -1312,6 +1310,7 @@ class UiMixin:
             state="readonly",
             values=["-"],
             font=(self.ui_font_family, 15),
+            height=20,
         )
         self.scale_type_combo.grid(row=0, column=0, sticky="ew")
         self.scale_type_combo.bind("<<ComboboxSelected>>", self._on_scale_type_combo_changed)
@@ -2572,13 +2571,20 @@ class UiMixin:
                 and getattr(self, "instrument_view", None) == "piano"
                 and hasattr(self, "keyboard_canvas")
             )
+            piano_kh: Optional[int] = None
             if hasattr(self, "keyboard_canvas"):
                 try:
                     kb_vis = bool(self.keyboard_canvas.isVisible())
                 except Exception:
                     kb_vis = True
                 if kb_vis and getattr(self, "instrument_view", None) == "piano":
-                    kh = 124 if metro_compact else 156
+                    kh_base = 124 if metro_compact else 156
+                    scale_fingering_on = (
+                        getattr(self, "scale_tab_active", False)
+                        and getattr(self, "scale_fingering_hand", None) is not None
+                    )
+                    kh = kh_base + (70 if scale_fingering_on else 0)
+                    piano_kh = kh
                     try:
                         self.keyboard_canvas.setFixedHeight(kh)
                         self.keyboard_canvas.setMinimumHeight(kh)
@@ -2601,6 +2607,10 @@ class UiMixin:
             except Exception:
                 # `sizeHint()` suele ser el equivalente más cercano a reqheight.
                 body_height = int(self.instrument_body_row.sizeHint().height())
+            # En piano la altura necesaria es conocida; el sizeHint puede estar
+            # desfasado (Qt aún no ha propagado el nuevo alto del scroll).
+            if piano_kh is not None:
+                body_height = piano_kh + 2
             slack = 10 if getattr(self, "metronome_tab_active", False) else 14
             panel_height = max(80, body_height + slack)
             # En Qt no existe `winfo_height()` (es un método Tk).

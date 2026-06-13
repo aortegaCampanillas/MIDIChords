@@ -608,7 +608,7 @@ class RenderMixin:
                 name_overlay_notes.add(int(self.tuner_reference_note))
         else:
             name_overlay_notes = set(self._current_detection_notes())
-        scale_pc_set = {note % 12 for note in self.scale_preview_notes} if self.scale_tab_active else set()
+        scale_note_set = set(self.scale_preview_notes) if self.scale_tab_active else set()
         scale_name_map = self._scale_note_name_map() if self.scale_tab_active else {}
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
         detection_name_map = dict(getattr(self, "detection_overlay_note_names", {})) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else {}
@@ -684,8 +684,15 @@ class RenderMixin:
         white_w = content_w / len(white_notes)
         w = content_w
         # Ajuste de proporción del teclado: menos altura y más presencia.
-        key_top = 10
-        key_bottom = h - 8
+        scale_fingering_active = (
+            self.scale_tab_active
+            and getattr(self, "scale_fingering_hand", None) is not None
+        )
+        strip_h = 22 if scale_fingering_active else 0
+        key_top = (strip_h + 4) if scale_fingering_active else 4
+        # Fixed key_bottom so the piano is the same height regardless of fingering.
+        key_bottom = 148
+        # desc strip at key_bottom+4 .. key_bottom+22; canvas needs key_bottom+28 when active.
         black_h = int((key_bottom - key_top) * 0.58)
         show_key_names = self.config_data.get("show_keyboard_note_labels", True)
 
@@ -696,8 +703,11 @@ class RenderMixin:
                 white_index[note] = idx
                 idx += 1
 
+        scale_key_center_x: dict[int, float] = {}
+
         # Fondo y marco como `.piano` en web: background #e8ecf2, borde #3a4558.
-        canvas.create_rectangle(0, 0, content_w, h, fill="#e8ecf2", outline="")
+        panel_bg = getattr(self, "color_surface_alt", "#2f3a4b")
+        canvas.create_rectangle(0, 0, content_w, max(h, key_bottom + 74), fill=panel_bg, outline="")
         canvas.create_rectangle(0, key_top, content_w, key_bottom, fill="#e8ecf2", outline="#3a4558", width=1)
 
         def _draw_bottom_rounded_key(
@@ -828,33 +838,15 @@ class RenderMixin:
                     fill=label_color,
                     font=("Helvetica", label_pt, "bold"),
                 )
-            if self.scale_tab_active and (note % 12) in scale_pc_set:
+            if self.scale_tab_active and note in scale_note_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
-                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 cx = (x1 + x2) / 2
+                scale_key_center_x[note] = cx
                 r = max(11, min(17, white_w * 0.28))
                 cy = key_bottom - (42 if show_key_names else 28)
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
+                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
-
-            # Piano fingerings (hand numbers 1-5) for scale display
-            if self.scale_tab_active and self.scale_fingering_hand is not None:
-                try:
-                    scale_fingerings = self._get_scale_fingerings()
-                    if note in scale_fingerings:
-                        finger = scale_fingerings[note]
-                        fx = (x1 + x2) / 2
-                        fy = key_bottom - 44  # Above the circle or name
-                        finger_text = str(finger)
-                        canvas.create_text(
-                            fx, fy,
-                            text=finger_text,
-                            fill="#ffd700",  # Gold color
-                            font=("Helvetica", 14, "bold"),
-                            tags="fingering"
-                        )
-                except Exception:
-                    pass  # Fingering error, continue without displaying
             if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:
@@ -935,32 +927,15 @@ class RenderMixin:
                 outline="#0a0f16",
                 width=1,
             )
-            if self.scale_tab_active and (note % 12) in scale_pc_set:
+            if self.scale_tab_active and note in scale_note_set:
                 circle_fill = "#32d74b" if (note % 12) == scale_tonic_pc else "#f6b60b"
-                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 cx = (x1_i + x2_i) / 2
+                scale_key_center_x[note] = cx
                 cy = key_top + black_h - 22
                 r = max(9, min(13, black_w * 0.28))
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
+                circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
-
-                # Piano fingerings for black keys in scale display
-                if self.scale_fingering_hand is not None:
-                    try:
-                        scale_fingerings = self._get_scale_fingerings()
-                        if note in scale_fingerings:
-                            finger = scale_fingerings[note]
-                            fx = (x1_i + x2_i) / 2
-                            fy = key_top + black_h - 40
-                            canvas.create_text(
-                                fx, fy,
-                                text=str(finger),
-                                fill="#ffd700",
-                                font=("Helvetica", 10, "bold"),
-                                tags="fingering"
-                            )
-                    except Exception:
-                        pass
             elif show_key_names:
                 is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
                 blabel = "#f0f4fc" if (note in display_active_notes or is_generation_active) else "#9aacbf"
@@ -1058,7 +1033,49 @@ class RenderMixin:
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#ffd45a", outline="#8c6d00", width=1)
                 canvas.create_text(cx, cy, text=str(finger), fill="#101010", font=("Helvetica", 10, "bold"))
 
-        canvas.create_rectangle(0, key_bottom, w, h, fill="#101010", outline="")
+        # Franjas de digitaciones de escala (ascendente arriba, descendente abajo).
+        if scale_fingering_active and scale_key_center_x:
+            try:
+                scale_fingerings = self._get_scale_fingerings()
+                sorted_notes = sorted(scale_key_center_x.keys())
+                fingers = [scale_fingerings.get(n) for n in sorted_notes]
+                # Crossovers ascending: |f[i] - f[i-1]| > 1
+                asc_crossover = [False] * len(sorted_notes)
+                for i in range(1, len(sorted_notes) - 1):
+                    if fingers[i] is not None and fingers[i - 1] is not None:
+                        if abs(fingers[i] - fingers[i - 1]) > 1:
+                            asc_crossover[i] = True
+                # Crossovers descending: |f[i] - f[i+1]| > 1
+                desc_crossover = [False] * len(sorted_notes)
+                for i in range(1, len(sorted_notes) - 1):
+                    if fingers[i] is not None and fingers[i + 1] is not None:
+                        if abs(fingers[i] - fingers[i + 1]) > 1:
+                            desc_crossover[i] = True
+                bw = max(16, min(20, white_w * 0.52))
+                bh = 18
+                asc_y = 2
+                desc_y = key_bottom + 6
+                for idx, note in enumerate(sorted_notes):
+                    if fingers[idx] is None:
+                        continue
+                    cx = scale_key_center_x[note]
+                    bx1 = cx - bw / 2
+                    bx2 = cx + bw / 2
+                    # Ascending strip
+                    asc_fill = "#d42010" if asc_crossover[idx] else "#e07818"
+                    asc_outline = "#8a1208" if asc_crossover[idx] else "#9a4a08"
+                    canvas.create_rectangle(bx1, asc_y, bx2, asc_y + bh, fill=asc_fill, outline=asc_outline, width=1)
+                    canvas.create_text(cx, asc_y + bh / 2, text=str(fingers[idx]), fill="#ffffff", font=("Helvetica", 10, "bold"), tags="fingering")
+                    # Descending strip
+                    desc_fill = "#4a6a8a" if not desc_crossover[idx] else "#3a3a8a"
+                    desc_outline = "#2a4a6a" if not desc_crossover[idx] else "#1a1a5a"
+                    canvas.create_rectangle(bx1, desc_y, bx2, desc_y + bh, fill=desc_fill, outline=desc_outline, width=1)
+                    canvas.create_text(cx, desc_y + bh / 2, text=str(fingers[idx]), fill="#ffffff", font=("Helvetica", 10, "bold"), tags="fingering")
+            except Exception:
+                pass
+
+        # Narrow dark separator between piano bottom and descending strip (or canvas bottom).
+        canvas.create_rectangle(0, key_bottom, w, key_bottom + 4, fill="#101010", outline="")
         if not self.config_data.get("show_keyboard_note_labels", True) and not self.scale_tab_active:
             for note in white_notes:
                 if note % 12 != 0:  # marcar C de cada octava
@@ -1402,9 +1419,11 @@ class RenderMixin:
                     highlighted_scale_degrees |= note_degree_map.get(int(active_note), set())
                 if self.scale_loop_active and self.scale_current_note is not None:
                     current_note = int(self.scale_current_note)
+                    current_pc = current_note % 12
                     for idx, scale_note in enumerate(base_scale_ordered):
-                        if int(scale_note) == current_note:
+                        if int(scale_note) == current_note or int(scale_note) % 12 == current_pc:
                             current_scale_degrees.add(int(idx))
+                            break
             else:
                 _imel = getattr(self, "interval_melody_mode", False) and getattr(self, "interval_tab_active", False)
                 if _imel:

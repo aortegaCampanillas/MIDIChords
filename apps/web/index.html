@@ -362,8 +362,8 @@
   <button class="feat-pill" data-feat="scales"    onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
   <button class="feat-pill" data-feat="metro"     onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
   <button class="feat-pill" data-feat="midi"      onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
+  <button class="feat-pill" data-feat="free" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
-  <div class="feat-pill"><span>🆓</span> <span data-i18n="pill_free">Always free</span></div>
 </div>
 
 <!-- FEATURE DETAIL PANEL -->
@@ -557,6 +557,9 @@ const TRANSLATIONS = {
     pill_metro:         "Metronome",
     pill_midi:          "MIDI input",
     pill_free:          "Always free",
+    feat_free_title:    "Free, no ads, no profit",
+    feat_free_body:     "FreeMIDIChords is a non-profit project with no ads and no paid plans. It will always be free. We only ask for optional donations to cover what running it actually costs: web hosting and the annual fees to publish on the App Store and Google Play.",
+    feat_free_donate:   "Donate →",
     feat_cta:           "Try it now →",
     feat_chords_title:  "Chord Detection",
     feat_chords_body:   "Play notes on the interactive piano or guitar — or connect a MIDI keyboard — and FreeMIDIChords identifies the chord in real time. Supports complex voicings, inversions, and extended chords (7th, 9th, suspended, diminished…). Hold notes with Shift to build chords step by step.",
@@ -624,6 +627,9 @@ const TRANSLATIONS = {
     pill_metro:         "Metr\u00f3nomo",
     pill_midi:          "Entrada MIDI",
     pill_free:          "Siempre gratis",
+    feat_free_title:    "Gratis, sin publicidad y sin \u00e1nimo de lucro",
+    feat_free_body:     "FreeMIDIChords es un proyecto sin \u00e1nimo de lucro, sin publicidad y sin planes de pago. Siempre ser\u00e1 gratuito. Solo pedimos donaciones voluntarias para cubrir lo que realmente cuesta mantenerlo: el hospedaje web y las cuotas anuales de publicaci\u00f3n en el App Store y Google Play.",
+    feat_free_donate:   "Donar \u2192",
     feat_cta:           "Probarlo ahora \u2192",
     feat_chords_title:  "Detecci\u00f3n de acordes",
     feat_chords_body:   "Toca notas en el piano o la guitarra interactivos \u2014 o conecta un teclado MIDI \u2014 y FreeMIDIChords identifica el acorde en tiempo real. Soporta voicings complejos, inversiones y acordes extendidos (7\u00aa, 9\u00aa, suspendidos, disminuidos\u2026). Mant\u00e9n notas con Shift para construir el acorde paso a paso.",
@@ -712,7 +718,14 @@ function toggleFeatContent(lang, id) {
   const t = TRANSLATIONS[lang];
   document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
   document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
-  document.getElementById("featDetailCta").textContent   = t["feat_cta"] || "Try it now →";
+  const cta = document.getElementById("featDetailCta");
+  if (id === "free") {
+    cta.textContent = t["feat_free_donate"] || "Donate →";
+    cta.href = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
+  } else {
+    cta.textContent = t["feat_cta"] || "Try it now →";
+    cta.href = "/app";
+  }
 }
 
 applyLang(detectLang());
@@ -726,6 +739,7 @@ const FEAT_ICONS = {
   scales:     "🎼",
   metro:      "🥁",
   midi:       "🎛️",
+  free:       "🆓",
 };
 
 let activeFeat = null;
@@ -748,7 +762,16 @@ function toggleFeat(id) {
   document.getElementById("featDetailIcon").textContent  = FEAT_ICONS[id] || "";
   document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
   document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
-  document.getElementById("featDetailCta").textContent   = t["feat_cta"] || "Try it now →";
+  const cta = document.getElementById("featDetailCta");
+  if (id === "free") {
+    cta.textContent = t["feat_free_donate"] || "Donate →";
+    cta.href = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
+    cta.style.display = "";
+  } else {
+    cta.textContent = t["feat_cta"] || "Try it now →";
+    cta.href = "/app";
+    cta.style.display = "";
+  }
 
   btns.forEach(b => b.classList.toggle("active", b.dataset.feat === id));
   panel.classList.add("open");

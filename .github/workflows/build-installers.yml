@@ -223,7 +223,7 @@ jobs:
 
       - name: Build .app (PyInstaller)
         run: |
-          pyinstaller --noconfirm --clean --windowed --name MIDIChords --add-data "assets:assets" app.py
+          pyinstaller --noconfirm --clean MIDIChords.spec
 
       - name: Build installer (.dmg) (sin firma)
         if: ${{ vars.SIGN_MACOS != 'true' }}

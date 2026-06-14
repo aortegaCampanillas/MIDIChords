@@ -7,12 +7,14 @@ from typing import Any, Optional
 
 def get_changelog_path() -> Path:
     """Obtiene la ruta al archivo changelog.json."""
-    # Asumir que está en apps/web/static/changelog.json relative a PROJECT_ROOT
+    import sys
+    # En bundle PyInstaller el archivo se copia a la raíz (_MEIPASS).
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "changelog.json"  # type: ignore[attr-defined]
     try:
         from midichords.core.app_constants import PROJECT_ROOT
         return Path(PROJECT_ROOT) / "apps" / "web" / "static" / "changelog.json"
     except Exception:
-        # Fallback: buscar desde el directorio actual
         return Path("apps/web/static/changelog.json")
 
 

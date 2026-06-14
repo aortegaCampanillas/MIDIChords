@@ -659,8 +659,60 @@ class UiMixin:
             anchor="w",
         )
         self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
+
+        # Build staff_generated_chord_frame here so Qt layout order is: frame → canvas.
+        # (pack before= is not honored by Qt's VBoxLayout; order of first pack() wins.)
+        self.generated_chord_var = tk.StringVar(value="-")
+        self.staff_generated_chord_frame = tk.Frame(
+            self.left_panel.content,
+            bg="#1a2330",
+            bd=0,
+            highlightthickness=0,
+        )
+        self.staff_generated_chord_caption = tk.Label(
+            self.staff_generated_chord_frame,
+            text="",
+            bg="transparent",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+            highlightthickness=0,
+        )
+        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
+        self.staff_generated_chord_value = tk.Label(
+            self.staff_generated_chord_frame,
+            textvariable=self.generated_chord_var,
+            bg="transparent",
+            fg=self.color_accent,
+            font=(self.ui_font_family, 20, "bold"),
+            anchor="w",
+            highlightthickness=0,
+        )
+        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2))
+        try:
+            _sf = self.staff_generated_chord_frame
+            if hasattr(_sf, "setStyleSheet"):
+                _sf.setStyleSheet(
+                    "background-color: #1a2330; border: 1px solid #4a5668;"
+                )
+            from PySide6.QtWidgets import QHBoxLayout
+            _lay = _sf.layout()
+            if isinstance(_lay, QHBoxLayout):
+                _lay.setContentsMargins(8, 4, 8, 4)
+        except Exception:
+            pass
+        # Pack now (hidden) to register position in Qt layout before staff_canvas.
+        # Must use setVisible(False) — pack_forget() removes from layout and loses position.
+        # retainSizeWhenHidden=False prevents the hidden frame from consuming vertical space.
+        self.staff_generated_chord_frame.pack(fill=tk.X, anchor="w", pady=(0, 8))
+        try:
+            sp = self.staff_generated_chord_frame.sizePolicy()
+            sp.setRetainSizeWhenHidden(False)
+            self.staff_generated_chord_frame.setSizePolicy(sp)
+            self.staff_generated_chord_frame.setVisible(False)
+        except Exception:
+            self.staff_generated_chord_frame.pack_forget()
+
         self.staff_canvas.pack(fill=tk.BOTH, expand=True)
-        # Created later in tab_detection_frame (line ~550)
 
         self.right_panel_title_label = tk.Label(
             self.right_panel.content,
@@ -991,6 +1043,8 @@ class UiMixin:
             font=(self.ui_mono_font_family, 14, "bold"),
         )
         self.extra_notes_label.pack(side=tk.LEFT, padx=(4, 0))
+        # Spacer: absorbs extra vertical space so content stays anchored to the top
+        tk.Frame(self.tab_detection_frame, bg=self.color_surface_alt).pack(fill=tk.BOTH, expand=True)
 
         self.generated_title_label = tk.Label(
             self.tab_generation_frame,
@@ -1064,48 +1118,6 @@ class UiMixin:
         self.generation_inversion_combo.grid(row=3, column=1, sticky="ew", pady=(0, 4))
         self.generation_inversion_combo.bind("<<ComboboxSelected>>", self._on_generation_inversion_combo_changed)
         self._qt_apply_dark_combobox_style(self.generation_inversion_combo)
-
-        self.generated_chord_var = tk.StringVar(value="-")
-        # Un solo recuadro (como web): etiqueta + nombre. Borde vía QSS con padding en `Widget._apply_tk_frame_surface`.
-        self.staff_generated_chord_frame = tk.Frame(
-            self.left_panel.content,
-            bg="#1a2330",
-            bd=0,
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption = tk.Label(
-            self.staff_generated_chord_frame,
-            text="",
-            bg="transparent",
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14),
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
-        self.staff_generated_chord_value = tk.Label(
-            self.staff_generated_chord_frame,
-            textvariable=self.generated_chord_var,
-            bg="transparent",
-            fg=self.color_accent,
-            font=(self.ui_font_family, 20, "bold"),
-            anchor="w",
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2))
-        # Borde en el frame; el hueco interior lo marca el layout (Qt a veces no respeta padding QSS para hijos).
-        try:
-            _sf = self.staff_generated_chord_frame
-            if hasattr(_sf, "setStyleSheet"):
-                _sf.setStyleSheet(
-                    "background-color: #1a2330; border: 1px solid #4a5668;"
-                )
-            from PySide6.QtWidgets import QHBoxLayout
-
-            _lay = _sf.layout()
-            if isinstance(_lay, QHBoxLayout):
-                _lay.setContentsMargins(8, 4, 8, 4)
-        except Exception:
-            pass
 
         self.generated_chord_row = tk.Frame(
             self.tab_generation_frame,
@@ -1307,13 +1319,15 @@ class UiMixin:
 
         self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
-        # Row stretching: que solo el subpanel de resultados (row=5) crezca con la altura.
         self.tab_generation_frame.rowconfigure(0, weight=0)
         self.tab_generation_frame.rowconfigure(1, weight=0)
         self.tab_generation_frame.rowconfigure(2, weight=0)
         self.tab_generation_frame.rowconfigure(3, weight=0)
         self.tab_generation_frame.rowconfigure(4, weight=0)
-        self.tab_generation_frame.rowconfigure(5, weight=1)
+        self.tab_generation_frame.rowconfigure(5, weight=0)
+        # Row 6: empty spacer that absorbs extra vertical space
+        tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt).grid(row=6, column=0, columnspan=2, sticky="nsew")
+        self.tab_generation_frame.rowconfigure(6, weight=1)
 
         self.circle_title_label = tk.Label(
             self.tab_circle_frame,
@@ -1830,7 +1844,11 @@ class UiMixin:
 
         self.tab_scale_frame.columnconfigure(0, weight=0)
         self.tab_scale_frame.columnconfigure(1, weight=1)
-        self.tab_scale_frame.rowconfigure(5, weight=1)
+        self.tab_scale_frame.rowconfigure(5, weight=0)
+        self.tab_scale_frame.rowconfigure(6, weight=0)
+        # Row 7: empty spacer that absorbs extra vertical space
+        tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt).grid(row=7, column=0, columnspan=2, sticky="nsew")
+        self.tab_scale_frame.rowconfigure(7, weight=1)
 
         self._metronome_scroll_outer = tk.Frame(
             self.tab_metronome_frame,
@@ -2659,33 +2677,9 @@ class UiMixin:
             return
         show = bool(self.generation_tab_active or self.circle_fifths_tab_active)
         try:
-            if hasattr(self.staff_generated_chord_frame, "setVisible"):
-                self.staff_generated_chord_frame.setVisible(bool(show))  # type: ignore[attr-defined]
+            self.staff_generated_chord_frame.setVisible(bool(show))  # type: ignore[attr-defined]
         except Exception:
             pass
-        if show:
-            try:
-                self.staff_generated_chord_frame.pack(
-                    fill=tk.X,
-                    anchor="w",
-                    pady=(0, 8),
-                    before=self.staff_canvas,
-                )
-            except Exception:
-                try:
-                    self.staff_generated_chord_frame.pack(
-                        fill=tk.X,
-                        anchor="w",
-                        pady=(0, 8),
-                        before=self.staff_canvas,
-                    )
-                except Exception:
-                    pass
-        else:
-            try:
-                self.staff_generated_chord_frame.pack_forget()
-            except Exception:
-                pass
 
     def apply_ui_language(self) -> None:
         self.title(self.tr("app_title"))

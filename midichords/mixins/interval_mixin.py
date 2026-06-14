@@ -351,6 +351,7 @@ class IntervalMixin:
             selected_outline_color=self.color_accent,
         )
         self.interval_melody_btn.pack(side=tk.LEFT, padx=(6, 0))
+        tk.Frame(self.interval_panel, bg=bg).pack(fill=tk.BOTH, expand=True)
 
         self.interval_panel.pack(fill=tk.BOTH, expand=True)
         self._interval_panel_created = True

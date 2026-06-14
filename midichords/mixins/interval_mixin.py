@@ -322,22 +322,22 @@ class IntervalMixin:
                 font=(self.ui_mono_font_family, 14),
             )
             val.pack(side=tk.LEFT, padx=(4, 0))
-            return val
+            return row, val
 
-        self.interval_notes_display = _result_row('label_interval_notes')
-        self.interval_name_display = _result_row('label_interval_name', self.color_accent)
-        self.interval_semitones_display = _result_row('label_interval_semitones')
+        self.interval_notes_row, self.interval_notes_display = _result_row('label_interval_notes')
+        self.interval_name_row, self.interval_name_display = _result_row('label_interval_name', self.color_accent)
+        self.interval_semitones_row, self.interval_semitones_display = _result_row('label_interval_semitones')
 
         # Ejemplo row: label + clickable button value
-        ejemplo_row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
-        ejemplo_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
+        self.interval_ejemplo_row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
+        self.interval_ejemplo_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
         tk.Label(
-            ejemplo_row, text=self._get_ui_text('label_interval_example'),
+            self.interval_ejemplo_row, text=self._get_ui_text('label_interval_example'),
             bg=result_box_bg, fg=self.color_muted,
             font=(self.ui_font_family, 14),
         ).pack(side=tk.LEFT)
         self.interval_melody_btn = GrayRoundedButton(
-            ejemplo_row,
+            self.interval_ejemplo_row,
             text="-",
             command=self._toggle_interval_melody_mode,
             font_family=self.ui_font_family,

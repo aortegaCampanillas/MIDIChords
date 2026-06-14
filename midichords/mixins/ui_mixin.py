@@ -8,6 +8,192 @@ from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 
+from PySide6.QtWidgets import QWidget, QLabel, QApplication
+from PySide6.QtCore import Qt, QPoint, QObject, QEvent
+from PySide6.QtGui import QPainter, QPen, QColor
+
+
+class _HelpOverlayWidget(QWidget):
+    """Paint-only overlay: draws dashed/solid frames, never intercepts mouse."""
+
+    _COLOR_IDLE = QColor(229, 99, 99, 200)
+    _COLOR_ACTIVE = QColor(242, 191, 47, 240)
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        # Transparent for mouse so events pass through to real widgets
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self._mixin: Any = parent
+        self._callout: QLabel | None = None
+
+    def show_callout(self, widget: Any, text: str) -> None:
+        self._hide_callout()
+        try:
+            pos = widget.mapTo(self._mixin, QPoint(0, 0))
+            rw, rh = widget.width(), widget.height()
+        except Exception:
+            return
+
+        label = QLabel(text, self)
+        label.setWordWrap(True)
+        label.setMaximumWidth(280)
+        label.setStyleSheet(
+            "background: #fff6cc; color: #1e232b; border: 1px solid #ead17b;"
+            "border-radius: 8px; padding: 8px 10px; font-size: 13px;"
+        )
+        label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        label.adjustSize()
+        cw, ch = label.width(), label.height()
+
+        win_w, win_h = self.width(), self.height()
+        cy = pos.y() + rh + 8
+        if cy + ch > win_h - 8:
+            cy = pos.y() - ch - 8
+        cx = pos.x() + rw // 2 - cw // 2
+        cx = max(4, min(cx, win_w - cw - 4))
+
+        label.setGeometry(cx, cy, cw, ch)
+        label.show()
+        label.raise_()
+        self._callout = label
+
+    def _hide_callout(self) -> None:
+        if self._callout is not None:
+            self._callout.hide()
+            self._callout.deleteLater()
+            self._callout = None
+
+    def paintEvent(self, _event: Any) -> None:
+        bindings = getattr(self._mixin, "_help_bindings", [])
+        active = getattr(self._mixin, "_help_hover_widget", None)
+        if not bindings:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        pad = 3
+        for widget, _key in bindings:
+            try:
+                pos = widget.mapTo(self._mixin, QPoint(0, 0))
+                rw, rh = widget.width(), widget.height()
+            except Exception:
+                continue
+            if rw <= 0 or rh <= 0:
+                continue
+            x1 = pos.x() - pad
+            y1 = pos.y() - pad
+            x2 = pos.x() + rw + pad
+            y2 = pos.y() + rh + pad
+            if widget is active:
+                pen = QPen(self._COLOR_ACTIVE, 2, Qt.PenStyle.SolidLine)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRect(x1, y1, x2 - x1, y2 - y1)
+                glow = QColor(242, 191, 47, 60)
+                pen2 = QPen(glow, 4, Qt.PenStyle.SolidLine)
+                painter.setPen(pen2)
+                painter.drawRect(x1 - 2, y1 - 2, x2 - x1 + 4, y2 - y1 + 4)
+            else:
+                pen = QPen(self._COLOR_IDLE, 1, Qt.PenStyle.DashLine)
+                pen.setDashPattern([4, 3])
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRect(x1, y1, x2 - x1, y2 - y1)
+        painter.end()
+
+
+class _HelpMouseFilter(QObject):
+    """Application-level event filter that drives hover & click for help mode."""
+
+    def __init__(self, mixin: Any) -> None:
+        super().__init__()
+        self._mixin = mixin
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        et = event.type()
+        if et == QEvent.Type.MouseMove:
+            self._on_move(event)
+        elif et == QEvent.Type.MouseButtonPress:
+            self._on_press(event)
+        return False  # never consume
+
+    def _win_pos(self, event: Any) -> "tuple[int,int] | None":
+        try:
+            gp = event.globalPosition().toPoint()
+            lp = self._mixin.mapFromGlobal(gp)
+            return lp.x(), lp.y()
+        except Exception:
+            return None
+
+    def _hit_test(self, ox: int, oy: int) -> "tuple[Any, str] | None":
+        pad = 3
+        for widget, key in getattr(self._mixin, "_help_bindings", []):
+            try:
+                pos = widget.mapTo(self._mixin, QPoint(0, 0))
+                rw, rh = widget.width(), widget.height()
+            except Exception:
+                continue
+            if (pos.x() - pad) <= ox <= (pos.x() + rw + pad) and \
+               (pos.y() - pad) <= oy <= (pos.y() + rh + pad):
+                return (widget, key)
+        return None
+
+    def _on_move(self, event: Any) -> None:
+        lp = self._win_pos(event)
+        if lp is None:
+            return
+        ox, oy = lp
+        # Check cursor is inside the window
+        if ox < 0 or oy < 0 or ox > self._mixin.width() or oy > self._mixin.height():
+            new_widget = None
+        else:
+            hit = self._hit_test(ox, oy)
+            new_widget = hit[0] if hit else None
+        prev = getattr(self._mixin, "_help_hover_widget", None)
+        if new_widget is not prev:
+            self._mixin._help_hover_widget = new_widget
+            ov = getattr(self._mixin, "_help_overlay_widget", None)
+            if ov is not None:
+                ov.update()
+                if new_widget is not None:
+                    hit2 = self._hit_test(ox, oy)
+                    if hit2:
+                        ov.show_callout(hit2[0], self._mixin.tr(hit2[1]))
+                    else:
+                        ov._hide_callout()
+                else:
+                    ov._hide_callout()
+
+    def _on_press(self, event: Any) -> None:
+        try:
+            from PySide6.QtCore import Qt as _Qt
+            if event.button() != _Qt.MouseButton.LeftButton:
+                return
+        except Exception:
+            return
+        lp = self._win_pos(event)
+        if lp is None:
+            return
+        ox, oy = lp
+        # Ignore clicks on the ? button itself (it handles its own toggle)
+        help_btn = getattr(self._mixin, "help_icon_btn", None)
+        if help_btn is not None:
+            try:
+                bp = help_btn.mapTo(self._mixin, QPoint(0, 0))
+                bw, bh = help_btn.width(), help_btn.height()
+                if bp.x() <= ox <= bp.x() + bw and bp.y() <= oy <= bp.y() + bh:
+                    return
+            except Exception:
+                pass
+        hit = self._hit_test(ox, oy)
+        if not hit:
+            # click fuera de cualquier target → cerrar ayuda
+            if ox >= 0 and oy >= 0 and ox <= self._mixin.width() and oy <= self._mixin.height():
+                self._mixin._help_active = False
+                self._mixin._refresh_help_button_style()
+                self._mixin._disable_help_mode()
+
 
 class UiMixin:
     def _available_mode_keys(self) -> list[str]:
@@ -40,7 +226,7 @@ class UiMixin:
         self.generation_accidental_switch.pack_forget()
         self.generation_accidental_switch.pack(side=tk.LEFT, padx=(0, 10))
         if show_instrument_buttons:
-            self.instrument_view_switch_side.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+            self.instrument_view_switch_side.pack(side=tk.RIGHT, anchor="n", padx=(10, 0))
         else:
             self.instrument_view_switch_side.pack_forget()
 
@@ -388,6 +574,21 @@ class UiMixin:
 
         self.top_right_mode_controls = tk.Frame(self.top_right_controls, bg=topbar_bg, bd=0, highlightthickness=0)
         self.top_right_mode_controls.pack(side=tk.LEFT, padx=(0, 8))
+
+        self._help_active = False
+
+        self.help_icon_btn = tk.Label(
+            self.top_right_controls,
+            text="?",
+            fg=self.color_muted,
+            bg=topbar_bg,
+            font=(self.ui_font_family, 18, "bold"),
+            cursor="hand2",
+        )
+        self.help_icon_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.help_icon_btn.bind("<Button-1>", lambda _e: self._toggle_help_mode())
+        self.help_icon_btn.bind("<Enter>", lambda _e: self._on_help_btn_enter())
+        self.help_icon_btn.bind("<Leave>", lambda _e: self._on_help_btn_leave())
 
         self.config_icon_btn = tk.Label(
             self.top_right_controls,
@@ -1043,8 +1244,29 @@ class UiMixin:
         self.generation_result_canvas.bind("<Configure>", redraw_generation_result_block)
         redraw_generation_result_block()
 
+        self.gen_result_chord_row = tk.Frame(self.generation_result_inner, bg="#17273a")
+        self.gen_result_chord_row.pack(anchor="w", fill=tk.X, pady=(0, 4))
+        self.generated_chord_caption_label = tk.Label(
+            self.gen_result_chord_row,
+            text="",
+            bg="#17273a",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+        )
+        self.generated_chord_caption_label.pack(side=tk.LEFT)
+        self.generated_chord_result_label = tk.Label(
+            self.gen_result_chord_row,
+            textvariable=self.generated_chord_var,
+            bg="#17273a",
+            fg=self.color_accent,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.generated_chord_result_label.pack(side=tk.LEFT, padx=(4, 0))
+
+        self.gen_result_notes_row = tk.Frame(self.generation_result_inner, bg="#17273a")
+        self.gen_result_notes_row.pack(anchor="w", fill=tk.X, pady=(0, 4))
         self.generated_notes_caption_label = tk.Label(
-            self.generation_result_inner,
+            self.gen_result_notes_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
@@ -1053,16 +1275,19 @@ class UiMixin:
         self.generated_notes_caption_label.pack(anchor="w")
         self.generated_notes_var = tk.StringVar(value="-")
         self.generated_notes_label = tk.Label(
-            self.generation_result_inner,
+            self.gen_result_notes_row,
             textvariable=self.generated_notes_var,
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.generated_notes_label.pack(anchor="w", pady=(3, 4))
+        self.generated_notes_label.pack(anchor="w", pady=(3, 0))
+
+        self.gen_result_intervals_row = tk.Frame(self.generation_result_inner, bg="#17273a")
+        self.gen_result_intervals_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
         self.generated_intervals_caption_label = tk.Label(
-            self.generation_result_inner,
+            self.gen_result_intervals_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
@@ -1071,7 +1296,7 @@ class UiMixin:
         self.generated_intervals_caption_label.pack(anchor="w")
         self.generated_intervals_var = tk.StringVar(value="-")
         self.generated_intervals_label = tk.Label(
-            self.generation_result_inner,
+            self.gen_result_intervals_row,
             textvariable=self.generated_intervals_var,
             bg="#17273a",
             fg=self.color_text,
@@ -1335,27 +1560,34 @@ class UiMixin:
         self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
 
         # Selector de octavas (piano only) — inline en scale_controls_row (cols 2+3)
-        self.scale_octave_selector_label = tk.Label(
-            self.scale_controls_row,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 12),
-        )
-        self.scale_octave_selector_label.grid(row=0, column=2, sticky="w", padx=(10, 4))
-
-        octave_buttons_frame = tk.Frame(
+        self.scale_octaves_row = tk.Frame(
             self.scale_controls_row,
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
         )
-        octave_buttons_frame.grid(row=0, column=3, sticky="w", padx=(0, 4))
+        self.scale_octaves_row.grid(row=0, column=2, columnspan=2, sticky="w", padx=(10, 4))
+        self.scale_octave_selector_label = tk.Label(
+            self.scale_octaves_row,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 12),
+        )
+        self.scale_octave_selector_label.pack(side=tk.LEFT, padx=(0, 4))
+
+        self.scale_octave_buttons_frame = tk.Frame(
+            self.scale_octaves_row,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_octave_buttons_frame.pack(side=tk.LEFT)
 
         self.scale_octave_buttons = []
         for oct in [1, 2, 3]:
             btn = GrayRoundedButton(
-                octave_buttons_frame,
+                self.scale_octave_buttons_frame,
                 text=f"{oct}",
                 command=lambda o=oct: self._set_scale_octaves(o),
                 font_family=self.ui_font_family,
@@ -1371,23 +1603,31 @@ class UiMixin:
             self.scale_octave_buttons.append(btn)
 
         # Fingering hand selector (row=6, debajo del area de resultado)
-        self.scale_fingering_label = tk.Label(
-            self.tab_scale_frame,
-            text=self.tr("label_fingering_hand") if hasattr(self, "tr") else "Digitación:",
-            bg=self.color_surface_alt,
-            fg="#a8b6c8",
-            font=(self.ui_font_family, 12),
-        )
-        self.scale_fingering_label.grid(row=6, column=0, sticky="w", pady=(8, 5), padx=(0, 8))
-
-        self.scale_fingering_var = tk.StringVar(value="none")
-        scale_fingering_frame = tk.Frame(
+        self.scale_fingering_row = tk.Frame(
             self.tab_scale_frame,
             bg=self.color_surface_alt,
             bd=0,
             highlightthickness=0,
         )
-        scale_fingering_frame.grid(row=6, column=1, sticky="w", pady=(8, 5))
+        self.scale_fingering_row.grid(row=6, column=0, columnspan=2, sticky="w", pady=(8, 5))
+        self.scale_fingering_label = tk.Label(
+            self.scale_fingering_row,
+            text=self.tr("label_fingering_hand") if hasattr(self, "tr") else "Digitación:",
+            bg=self.color_surface_alt,
+            fg="#a8b6c8",
+            font=(self.ui_font_family, 12),
+        )
+        self.scale_fingering_label.pack(side=tk.LEFT, padx=(0, 8))
+
+        self.scale_fingering_var = tk.StringVar(value="none")
+        self.scale_fingering_frame = tk.Frame(
+            self.scale_fingering_row,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_fingering_frame.pack(side=tk.LEFT)
+        scale_fingering_frame = self.scale_fingering_frame
         self.scale_fingering_radios: list[tk.Radiobutton] = []
         for hand, label_key in [("none", "label_fingering_none"), ("left", "label_fingering_left"), ("right", "label_fingering_right")]:
             label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano I.", "Mano D."][["none", "left", "right"].index(hand)]
@@ -1546,8 +1786,10 @@ class UiMixin:
         )
         self.scale_name_label.pack(anchor="w", pady=(0, 5))
 
+        self.scale_result_notes_row = tk.Frame(self.scale_result_inner, bg="#17273a")
+        self.scale_result_notes_row.pack(anchor="w", fill=tk.X, pady=(0, 4))
         self.scale_notes_caption_label = tk.Label(
-            self.scale_result_inner,
+            self.scale_result_notes_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
@@ -1556,17 +1798,19 @@ class UiMixin:
         self.scale_notes_caption_label.pack(anchor="w")
         self.scale_notes_var = tk.StringVar(value="-")
         self.scale_notes_label = tk.Label(
-            self.scale_result_inner,
+            self.scale_result_notes_row,
             textvariable=self.scale_notes_var,
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.scale_notes_label.pack(anchor="w", pady=(3, 4))
+        self.scale_notes_label.pack(anchor="w", pady=(3, 0))
 
+        self.scale_result_intervals_row = tk.Frame(self.scale_result_inner, bg="#17273a")
+        self.scale_result_intervals_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
         self.scale_intervals_caption_label = tk.Label(
-            self.scale_result_inner,
+            self.scale_result_intervals_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
@@ -1575,7 +1819,7 @@ class UiMixin:
         self.scale_intervals_caption_label.pack(anchor="w")
         self.scale_intervals_var = tk.StringVar(value="-")
         self.scale_intervals_label = tk.Label(
-            self.scale_result_inner,
+            self.scale_result_intervals_row,
             textvariable=self.scale_intervals_var,
             bg="#17273a",
             fg=self.color_text,
@@ -2465,6 +2709,8 @@ class UiMixin:
         self.generation_root_label.configure(text=self.tr("label_root_note"))
         self.generation_variant_label.configure(text=self.tr("label_variant"))
         self.generation_inversion_label.configure(text=self.tr("label_inversion"))
+        if hasattr(self, "generated_chord_caption_label"):
+            self.generated_chord_caption_label.configure(text=self.tr("label_chord"))
         self.generated_notes_caption_label.configure(text=self.tr("label_active_notes"))
         self.generated_intervals_caption_label.configure(text=self.tr("label_intervals"))
         self.scale_panel_title_label.configure(text=self.tr("mode_scales"))
@@ -2493,6 +2739,8 @@ class UiMixin:
         self.tuner_gain_label.configure(text=self.tr("label_tuner_input_gain"))
         self.tuner_spectrum_range_label.configure(text=self.tr("label_tuner_spectrum_range"))
         self.config_icon_btn.configure(text="⚙")
+        if hasattr(self, "help_icon_btn"):
+            self.help_icon_btn.configure(text="?")
         if not self.instrument_buttons_are_images:
             self.piano_view_btn.set_text(self.tr("instrument_piano"))
             self.guitar_view_btn.set_text(self.tr("instrument_guitar"))
@@ -3486,7 +3734,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.instrument_view_switch_side.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+            self.instrument_view_switch_side.pack(side=tk.RIGHT, anchor="n", padx=(10, 0))
             self._show_scale_mode_buttons()
             self._refresh_scale_transport_styles()
             self.guitar_handedness_combo.pack_forget()
@@ -3581,3 +3829,261 @@ class UiMixin:
         self._refresh_staff_generated_chord_overlay()
         self._fit_instrument_panel_height()
         self.update_music_views()
+        if getattr(self, "_help_active", False):
+            self._refresh_help_bindings()
+
+    # ── Help mode ────────────────────────────────────────────────────────────
+
+    def _help_items_for_mode(self) -> list[tuple[object, str]]:
+        """Return [(widget, i18n_key), …] for the current mode."""
+        def _w(*names: str) -> "list[tuple[object,str]]":
+            result = []
+            for name in names:
+                parts = name.split(":")
+                attr, key = parts[0], parts[1] if len(parts) > 1 else parts[0]
+                widget = getattr(self, attr, None)
+                if widget is None:
+                    continue
+                try:
+                    widget.width()  # type: ignore[attr-defined]
+                except Exception:
+                    continue
+                result.append((widget, key))
+            return result
+
+        common: list[tuple[object, str]] = _w(
+            "mode_picker_trigger:help_mode_select",
+            "generation_accidental_switch:help_accidental",
+            "config_icon_btn:help_settings_btn",
+            "piano_view_btn:help_inst_piano_btn",
+            "guitar_view_btn:help_inst_guitar_btn",
+            "guitar_handedness_combo:help_guitar_handedness",
+        )
+        mode = getattr(self, "current_mode", "detection")
+        specific: list[tuple[object, str]] = []
+
+        if mode == "detection":
+            specific = _w(
+                "staff_canvas:help_staff",
+                "detection_play_btn:help_detect_play",
+                "detection_clear_btn:help_detect_clear",
+                "chord_row:help_detect_result_chord",
+                "notes_row:help_detect_result_notes",
+                "extra_notes_row:help_detect_result_extras",
+                "intervals_row:help_detect_result_intervals",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_instrument_piano")
+            else:
+                specific += _w("guitar_canvas:help_instrument_guitar")
+
+        elif mode == "interval_detection":
+            specific = _w(
+                "staff_canvas:help_interval_staff",
+                "interval_play_reverse_btn:help_interval_play_reverse",
+                "interval_play_btn:help_interval_play",
+                "interval_clear_btn:help_interval_clear",
+                # usar las filas (frame etiqueta+valor) en lugar del label de valor solo
+                "interval_notes_row:help_interval_notes",
+                "interval_name_row:help_interval_name",
+                "interval_semitones_row:help_interval_semitones",
+                "interval_ejemplo_row:help_interval_melody",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_interval_instrument")
+            else:
+                specific += _w("guitar_canvas:help_interval_instrument")
+
+        elif mode == "generation":
+            specific = _w(
+                "staff_canvas:help_staff",
+                "generation_play_btn:help_gen_play",
+                "generation_root_combo:help_gen_root",
+                "generation_variant_combo:help_gen_variant",
+                "generation_inversion_combo:help_gen_inversion",
+                # subpanel de resultado: fila por fila
+                "gen_result_chord_row:help_gen_result_name",
+                "gen_result_notes_row:help_gen_result_notes",
+                "gen_result_intervals_row:help_gen_result_intervals",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_gen_instrument")
+            else:
+                specific += _w("guitar_canvas:help_gen_instrument")
+
+        elif mode == "circle_fifths":
+            specific = _w(
+                "staff_canvas:help_staff_circle",
+                "circle_play_btn:help_circle_play",
+                "circle_canvas:help_circle_canvas",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_circle_instrument_piano")
+            else:
+                specific += _w("guitar_canvas:help_circle_instrument_guitar")
+
+        elif mode == "scales":
+            specific = _w(
+                "staff_canvas:help_staff",
+                "scale_play_btn:help_scale_play",
+                "scale_mode_metronome_btn:help_scale_metronome",
+                "scale_tonic_combo:help_scale_root",
+                "scale_type_combo:help_scale_type",
+                "scale_inline_filter_btn:help_scale_filter",
+                "scale_bpm_row:help_scale_bpm",
+                "scale_octaves_row:help_scale_octaves",
+                "scale_fingering_row:help_scale_fingering",
+                "scale_name_label:help_scale_result_name",
+                "scale_result_notes_row:help_scale_result_notes",
+                "scale_result_intervals_row:help_scale_result_intervals",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_scale_instrument")
+            else:
+                specific += _w("guitar_canvas:help_scale_instrument")
+
+        elif mode == "metronome":
+            specific = _w(
+                "staff_canvas:help_staff_metronome",
+                "metronome_play_btn:help_metro_start",
+                "metronome_slider_canvas:help_metro_bpm",
+                "metronome_volume_slider_canvas:help_metro_volume",
+                "metronome_meter_canvas:help_metro_meter",
+                "metronome_clicks_row:help_metro_subdivision",
+                "metronome_bar_accent_row:help_metro_bar_accent",
+                "metronome_timer_row:help_metro_timer",
+            )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w("keyboard_qscroll:help_metro_instrument")
+            else:
+                specific += _w("guitar_canvas:help_metro_instrument")
+
+        elif mode == "tuner":
+            specific = _w("tab_tuner_frame:help_tuner_panel")
+
+        return common + specific
+
+    def resizeEvent(self, event: object) -> None:  # Qt hook
+        try:
+            super().resizeEvent(event)  # type: ignore[arg-type]
+        except Exception:
+            pass
+        if getattr(self, "_help_active", False):
+            ov = getattr(self, "_help_overlay_widget", None)
+            if ov is not None:
+                try:
+                    ov.setGeometry(0, 0, self.width(), self.height())
+                    ov.update()
+                except Exception:
+                    pass
+
+    # ── overlay QWidget ──────────────────────────────────────────────────────
+
+    def _ensure_help_overlay(self) -> object:
+        ov = getattr(self, "_help_overlay_widget", None)
+        if ov is not None:
+            try:
+                if ov.parent() is not None:
+                    return ov
+            except Exception:
+                pass
+        ov = _HelpOverlayWidget(self)
+        self._help_overlay_widget = ov
+        return ov
+
+    def _widget_rect_in_window(self, widget: object) -> "tuple[int,int,int,int] | None":
+        """Return (x, y, w, h) of widget relative to self (the toplevel)."""
+        try:
+            pos = widget.mapTo(self, QPoint(0, 0))  # type: ignore[attr-defined]
+            rw = widget.width()  # type: ignore[attr-defined]
+            rh = widget.height()  # type: ignore[attr-defined]
+            if rw <= 0 or rh <= 0:
+                return None
+            return (pos.x(), pos.y(), rw, rh)
+        except Exception:
+            return None
+
+    # ── public toggle ────────────────────────────────────────────────────────
+
+    def _toggle_help_mode(self) -> None:
+        self._help_active = not getattr(self, "_help_active", False)
+        self._refresh_help_button_style()
+        if self._help_active:
+            self._refresh_help_bindings()
+        else:
+            self._disable_help_mode()
+
+    def _on_help_btn_enter(self) -> None:
+        if not getattr(self, "_help_active", False):
+            self.help_icon_btn.configure(fg=self.color_text)
+
+    def _on_help_btn_leave(self) -> None:
+        if not getattr(self, "_help_active", False):
+            self.help_icon_btn.configure(fg=self.color_muted)
+
+    def _refresh_help_button_style(self) -> None:
+        if not hasattr(self, "help_icon_btn"):
+            return
+        if getattr(self, "_help_active", False):
+            self.help_icon_btn.configure(fg="#f2bf2f")
+        else:
+            self.help_icon_btn.configure(fg=self.color_muted)
+
+    def _disable_help_mode(self) -> None:
+        self._destroy_help_callout()
+        ov = getattr(self, "_help_overlay_widget", None)
+        if ov is not None:
+            try:
+                ov._hide_callout()
+                ov.setVisible(False)
+            except Exception:
+                pass
+        # Remove app-level mouse filter
+        mf = getattr(self, "_help_mouse_filter", None)
+        if mf is not None:
+            try:
+                QApplication.instance().removeEventFilter(mf)  # type: ignore[union-attr]
+            except Exception:
+                pass
+            self._help_mouse_filter = None
+        self._help_bindings = []
+        self._help_hover_widget = None
+
+    def _refresh_help_bindings(self) -> None:
+        self._disable_help_mode()
+        bindings: list = []
+        for widget, key in self._help_items_for_mode():
+            try:
+                widget.width()  # type: ignore[attr-defined]
+            except Exception:
+                continue
+            bindings.append((widget, key))
+        self._help_bindings = bindings
+
+        if not bindings:
+            return
+
+        ov = self._ensure_help_overlay()
+        try:
+            ov.setGeometry(0, 0, self.width(), self.height())  # type: ignore[attr-defined]
+            ov.setVisible(True)
+            ov.raise_()  # type: ignore[attr-defined]
+            ov.update()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+        # Install application-level filter to track mouse globally
+        mf = _HelpMouseFilter(self)
+        self._help_mouse_filter = mf
+        try:
+            QApplication.instance().installEventFilter(mf)  # type: ignore[union-attr]
+        except Exception:
+            pass
+
+    def _destroy_help_callout(self) -> None:
+        ov = getattr(self, "_help_overlay_widget", None)
+        if ov is not None:
+            try:
+                ov._hide_callout()
+            except Exception:
+                pass

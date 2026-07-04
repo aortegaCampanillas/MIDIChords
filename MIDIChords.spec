@@ -2,11 +2,15 @@
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('apps/web/static/changelog.json', '.')]
+datas = [('assets', 'assets')]
 binaries = []
 hiddenimports = []
 hiddenimports += collect_submodules('PySide6')
 tmp_ret = collect_all('PySide6')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('mido')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('rtmidi')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
@@ -54,6 +58,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='MIDIChords.app',
-    icon='assets/app_logo.icns',
+    icon=None,
     bundle_identifier=None,
 )

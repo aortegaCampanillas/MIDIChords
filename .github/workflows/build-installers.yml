@@ -161,14 +161,19 @@ jobs:
           if (-not $sdkBin) { throw "Windows SDK bin not found" }
           & "$sdkBin\x64\MakeAppx.exe" pack /d msix_stage /p MIDIChords-windows-x64.msix /l
 
-      - name: Upload to GitHub Release
+      - name: Upload installer to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          files: |
-            MIDIChords-windows-installer-x64.exe
-            MIDIChords-windows-x64.msix
+          files: MIDIChords-windows-installer-x64.exe
+
+      - name: Upload MSIX as workflow artifact (for Partner Center only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIDIChords-windows-x64-msix
+          path: MIDIChords-windows-x64.msix
+          retention-days: 30
 
       - name: Notify maintainer on failure
         if: failure()
@@ -438,7 +443,6 @@ jobs:
             --dir out \
             --pattern 'MIDIChords-*.dmg' \
             --pattern 'MIDIChords-*.exe' \
-            --pattern 'MIDIChords-*.msix' \
             --pattern 'MIDIChords-*.deb'
           ls -la out
 

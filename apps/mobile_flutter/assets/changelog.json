@@ -4,6 +4,20 @@
     "date": "2026-05-30",
     "items": [
       {
+        "date": "2026-07-04",
+        "publish": true,
+        "platforms": ["desktop", "mobile"],
+        "es": "Detección de acordes: junto al nombre del acorde ahora se muestra el tipo (por ejemplo \"Mayor dominante (7ª menor)\") e inversión si la hay (por ejemplo \"segunda inversión\").",
+        "en": "Chord detection: the chord type (e.g. \"Dominant (minor 7th)\") and inversion if present (e.g. \"second inversion\") are now shown next to the detected chord name."
+      },
+      {
+        "date": "2026-07-04",
+        "publish": true,
+        "platforms": ["desktop", "mobile"],
+        "es": "Corrección: el acorde Lam7 ya no se detecta erróneamente como Do6.",
+        "en": "Fix: Am7 chord is no longer incorrectly detected as C6."
+      },
+      {
         "date": "2026-05-31",
         "publish": false,
         "es": "Pentagrama web: claves de sol y fa con el margen normal; las armaduras se separan hacia la derecha para no solaparse.",

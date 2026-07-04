@@ -14,11 +14,15 @@ class ChangelogMixin:
         return str(changelog[0].get("version", ""))
 
     def maybe_show_startup_changelog(self) -> None:
+        latest = self._get_latest_changelog_version()
+        last_seen = str(self.config_data.get("last_seen_changelog_version", ""))
+        if last_seen == latest:
+            return
         if self.config_data.get("changelog_dont_show", False):
-            latest = self._get_latest_changelog_version()
-            last_seen = str(self.config_data.get("last_seen_changelog_version", ""))
-            if last_seen == latest:
-                return
+            return
+        items = get_changelog_items_for_platform("desktop")
+        if not items:
+            return
         self.show_startup_changelog_window()
 
     def show_startup_changelog_window(self) -> None:

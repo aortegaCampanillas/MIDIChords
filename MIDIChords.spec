@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets')]
+datas = [('assets', 'assets'), ('apps/web/static/changelog.json', '.')]
 binaries = []
 hiddenimports = []
 hiddenimports += collect_submodules('PySide6')

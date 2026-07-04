@@ -54,7 +54,7 @@ jobs:
 
       - name: Build executable (PyInstaller)
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name MIDIChords --add-data "assets;assets" app.py
+          pyinstaller --noconfirm --clean MIDIChordsWindows.spec
 
       - name: Install Inno Setup
         shell: pwsh

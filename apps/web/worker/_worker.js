@@ -362,8 +362,10 @@ function voicedIntervalsForInversion(intervals, inversion) {
 function analyzeChordNotes(notesSet) {
   if (!notesSet.size) return { root: null, pattern: null, bassPc: null };
   const pcs = new Set(Array.from(notesSet, (n) => Number(n) % 12));
+  const suffixPriority = new Map(COMMON_CHORD_SUFFIX_ORDER.map((s, i) => [s, i]));
   let bestScore = -999;
   let bestComplexity = -999;
+  let bestPriority = 999;
   let bestRoot = null;
   let bestPattern = null;
   for (let root = 0; root < 12; root += 1) {
@@ -377,9 +379,14 @@ function analyzeChordNotes(notesSet) {
       else if (extra === 0) score = 40 - missing;
       else continue;
       const complexity = -pattern.intervals.length;
-      if (score > bestScore || (score === bestScore && complexity > bestComplexity)) {
+      const priority = suffixPriority.has(pattern.suffix) ? suffixPriority.get(pattern.suffix) : COMMON_CHORD_SUFFIX_ORDER.length;
+      const better = score > bestScore
+        || (score === bestScore && complexity > bestComplexity)
+        || (score === bestScore && complexity === bestComplexity && priority < bestPriority);
+      if (better) {
         bestScore = score;
         bestComplexity = complexity;
+        bestPriority = priority;
         bestRoot = root;
         bestPattern = pattern;
       }

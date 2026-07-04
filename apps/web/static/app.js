@@ -219,6 +219,7 @@ const UI_TEXTS = {
     midi_denied: "MIDI denegado",
     midi_requires_secure: "MIDI requiere HTTPS o localhost",
     midi_try_chrome: "MIDI: usa Chrome/Edge",
+    midi_ios_warning: "MIDI: descarga la app nativa",
     midi_help_ready: "MIDI Web listo. Pulsa para activar/desactivar entradas MIDI.",
     midi_help_denied: "Permiso MIDI denegado. Revisa permisos del navegador y vuelve a intentar.",
     sound_output_audio: "Audio",
@@ -231,6 +232,8 @@ const UI_TEXTS = {
     midi_startup_close: "Ahora no",
     close: "Cerrar",
     midi_startup_safari_warning: "En Safari no es posible usar MIDI en esta web. Usa Chrome o Edge.",
+    midi_startup_ios_warning: "MIDI no está disponible en iOS/iPadOS. Descarga la app nativa para usar MIDI en tu dispositivo.",
+    midi_startup_ios_link: "Descargar en el App Store",
     guitar_right: "Diestro",
     guitar_left: "Zurdo",
     inst_piano: "Piano",
@@ -425,6 +428,7 @@ const UI_TEXTS = {
     midi_denied: "MIDI denied",
     midi_requires_secure: "MIDI requires HTTPS or localhost",
     midi_try_chrome: "MIDI: use Chrome/Edge",
+    midi_ios_warning: "MIDI: download native app",
     midi_help_ready: "Web MIDI ready. Click to enable/disable MIDI inputs.",
     midi_help_denied: "MIDI permission denied. Check browser permissions and try again.",
     sound_output_audio: "Audio",
@@ -437,6 +441,8 @@ const UI_TEXTS = {
     midi_startup_close: "Not now",
     close: "Close",
     midi_startup_safari_warning: "MIDI is not available on this website in Safari. Use Chrome or Edge.",
+    midi_startup_ios_warning: "MIDI is not available on iOS/iPadOS. Download the native app to use MIDI on your device.",
+    midi_startup_ios_link: "Download on the App Store",
     guitar_right: "Right-handed",
     guitar_left: "Left-handed",
     inst_piano: "Piano",
@@ -1877,7 +1883,7 @@ function applySeoMeta() {
 function midiButtonTooltipForState(status = null) {
   const current = status || (state.midi.enabled ? "on" : "off");
   if (current === "secure_required") return tr("midi_requires_secure");
-  if (current === "unsupported") return tr("midi_try_chrome");
+  if (current === "unsupported") return isIOSDevice() ? tr("midi_ios_warning") : tr("midi_try_chrome");
   if (current === "denied") return tr("midi_help_denied");
   return tr("midi_help_ready");
 }
@@ -1956,6 +1962,13 @@ function refreshMidiToggleButtonState() {
   btn.classList.toggle("active", !!state.midi.enabled);
 }
 
+function isIOSDevice() {
+  const ua = String(navigator.userAgent || "");
+  // iPad on iOS 13+ reports as Mac, so check maxTouchPoints too
+  return /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 function isSafariBrowser() {
   const ua = String(navigator.userAgent || "");
   const hasSafari = /Safari\//.test(ua);
@@ -1985,28 +1998,42 @@ function refreshMidiStartupModalContent() {
   const enableBtn = el("midiStartupEnableBtn");
   const closeBtn = el("midiStartupCloseBtn");
   const choice = el("midiStartupSoundChoice");
+  const iosLink = el("midiStartupIosLink");
   if (!text || !enableBtn || !closeBtn) return;
   const unavailableStatus = midiUnavailableStatus();
-  if (isSafariBrowser()) {
+  if (isIOSDevice()) {
+    text.textContent = tr("midi_startup_ios_warning");
+    enableBtn.classList.add("hidden");
+    closeBtn.textContent = tr("close");
+    if (choice) choice.classList.add("hidden");
+    if (iosLink) {
+      iosLink.textContent = tr("midi_startup_ios_link");
+      iosLink.classList.remove("hidden");
+    }
+  } else if (isSafariBrowser()) {
     text.textContent = tr("midi_startup_safari_warning");
     enableBtn.classList.add("hidden");
     closeBtn.textContent = tr("close");
     if (choice) choice.classList.add("hidden");
+    if (iosLink) iosLink.classList.add("hidden");
   } else if (unavailableStatus === "unsupported") {
     text.textContent = tr("midi_try_chrome");
     enableBtn.classList.add("hidden");
     closeBtn.textContent = tr("close");
     if (choice) choice.classList.add("hidden");
+    if (iosLink) iosLink.classList.add("hidden");
   } else if (unavailableStatus === "secure_required") {
     text.textContent = tr("midi_requires_secure");
     enableBtn.classList.add("hidden");
     closeBtn.textContent = tr("close");
     if (choice) choice.classList.add("hidden");
+    if (iosLink) iosLink.classList.add("hidden");
   } else {
     text.textContent = tr("midi_startup_text");
     enableBtn.classList.remove("hidden");
     closeBtn.textContent = tr("midi_startup_close");
     if (choice) choice.classList.remove("hidden");
+    if (iosLink) iosLink.classList.add("hidden");
     refreshMidiStartupSoundChoice();
   }
 }
@@ -7585,7 +7612,7 @@ function setMidiButtonStatus(status) {
   } else if (status === "secure_required") {
     btn.textContent = tr("midi_requires_secure");
   } else if (status === "unsupported") {
-    btn.textContent = tr("midi_try_chrome");
+    btn.textContent = isIOSDevice() ? tr("midi_ios_warning") : tr("midi_try_chrome");
   } else if (status === "denied") {
     btn.textContent = tr("midi_denied");
   } else {

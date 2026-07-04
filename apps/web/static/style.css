@@ -489,6 +489,21 @@ button:disabled {
   border-color: #4a5360;
 }
 
+a.btn-link {
+  display: inline-block;
+  border-radius: 8px;
+  border: 1px solid #627189;
+  background: #182535;
+  color: var(--text);
+  padding: 6px 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.btn-link:hover {
+  border-color: var(--accent);
+}
+
 .icon-play-btn {
   min-width: 42px;
   height: 34px;

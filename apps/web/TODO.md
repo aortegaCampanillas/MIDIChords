@@ -1,5 +1,5 @@
 ## Alta prioridad
-
+- [ ] En detección de acordes a la derecha del acorde poner el nombre sin simplificar
 - [ ] Las digitaciones de escalas menores y minor blues están mal
 
 ## Media prioridad
@@ -12,6 +12,7 @@
 - [ ] En digitaciones de escala se podría añadir "a 2 manos"
 
 ## Finalizadas
+- [X] No se detecta bien Lam7
 - [X] En escalas y acordes los intervalos son absolutos, es más razonable relativos
 - [X] VII grado en círculo de quintas: Verificado que "Sidim" es CORRECTO (acorde disminuido diatónico en tonalidad mayor). "Si5dis" no es notación estándar en teoría musical.
 - [X] Investigar si se puede activar el midi sin preguntar al usuario (Implementado con navigator.permissions.query())

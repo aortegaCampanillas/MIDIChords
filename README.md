@@ -314,6 +314,95 @@ Notas:
 - Si una subida anterior con el mismo `build-number` fue rechazada, incrementa `--build-number` antes de volver a exportar el `.pkg`.
 - La app Transporter es la vía recomendada aquí. `xcrun iTMSTransporter` se deja solo como alternativa de diagnóstico o automatización, no como flujo principal.
 
+## Publicar en iOS App Store (Flutter)
+
+### Requisitos previos (una sola vez)
+
+- Xcode instalado con el SDK de iOS descargado: **Xcode → Settings → Platforms → iOS** (instalar el SDK que corresponda a la versión mínima de despliegue).
+- Cuenta Apple Developer activa en Xcode con acceso al Team ID `977G5A733H`.
+- Bundle ID: `com.FPAlanTuring.FreeMIDIChords`.
+
+### 1. Subir el número de versión
+
+Edita `apps/mobile_flutter/pubspec.yaml`, línea `version`:
+
+```yaml
+version: X.Y.Z+N    # X.Y.Z = versión visible, N = build number (incrementar siempre)
+```
+
+Ejemplo: `1.0.3+9` → `1.0.4+10`.
+
+### 2. Compilar y archivar
+
+```bash
+cd apps/mobile_flutter
+flutter build ios --release
+
+xcodebuild \
+  -workspace ios/Runner.xcworkspace \
+  -scheme Runner \
+  -configuration Release \
+  -destination "generic/platform=iOS" \
+  -archivePath /tmp/MIDIChords_X.Y.Z.xcarchive \
+  CODE_SIGN_STYLE=Automatic \
+  DEVELOPMENT_TEAM=977G5A733H \
+  -allowProvisioningUpdates \
+  archive
+```
+
+> **Importante:** usar `CODE_SIGN_STYLE=Automatic` con `-allowProvisioningUpdates`; NO usar `Manual` sin especificar un perfil concreto.
+
+### 3. Exportar el IPA
+
+Crea el archivo `/tmp/ExportOptions_AppStore.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>teamID</key>
+    <string>977G5A733H</string>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>signingStyle</key>
+    <string>automatic</string>
+</dict>
+</plist>
+```
+
+Luego exporta:
+
+```bash
+xcodebuild \
+  -exportArchive \
+  -archivePath /tmp/MIDIChords_X.Y.Z.xcarchive \
+  -exportOptionsPlist /tmp/ExportOptions_AppStore.plist \
+  -exportPath /tmp/MIDIChords_X.Y.Z_ipa \
+  -allowProvisioningUpdates
+```
+
+El IPA queda en `/tmp/MIDIChords_X.Y.Z_ipa/MIDI Piano & Guitar Chords.ipa`.
+
+### 4. Subir con Transporter
+
+1. Abre **Transporter** en macOS.
+2. Inicia sesión con tu Apple ID (el mismo que tiene acceso a App Store Connect).
+3. Arrastra el archivo `.ipa` a la ventana de Transporter.
+4. Pulsa **Deliver**.
+5. Espera confirmación de entrega exitosa.
+
+> **Nota:** `xcrun notarytool` es para notarización de macOS, **no** para iOS. El perfil `AC_NOTARY` del llavero no sirve para subir IPAs; usa siempre Transporter para iOS.
+
+### 5. Publicar en App Store Connect
+
+1. Ve a [App Store Connect](https://appstoreconnect.apple.com) → tu app → **iOS App**.
+2. Crea una nueva versión con el número `X.Y.Z`.
+3. En **Build**, selecciona la build que acaba de procesar.
+4. Rellena las notas de la versión y envía a revisión.
+
 ## VS Code launch
 
 Se añadieron dos configuraciones:

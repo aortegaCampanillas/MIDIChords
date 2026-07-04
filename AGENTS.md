@@ -151,6 +151,19 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
   - **Manual:** script `scripts/document_release_changes.py` (menú interactivo o flags CLI) si prefieres no usar el agente. En particular:
   - **iOS/App Store**: la etiqueta `v1.0.0` se usa para referenciar la build de iOS publicada **1.0.0 (2)**; no mover esa etiqueta sin actualizar `CHANGELOG.md` y sin una razón clara.
 
+## Publicar en iOS App Store
+
+Flujo resumido (detalles completos en `README.md` → *Publicar en iOS App Store*):
+
+1. Incrementar `version: X.Y.Z+N` en `apps/mobile_flutter/pubspec.yaml` (N siempre mayor que el anterior).
+2. `flutter build ios --release` en `apps/mobile_flutter/`.
+3. `xcodebuild archive` con `CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=977G5A733H -allowProvisioningUpdates`.
+4. `xcodebuild -exportArchive` con `/tmp/ExportOptions_AppStore.plist` (method: app-store-connect, teamID: 977G5A733H, signingStyle: automatic).
+5. Subir el IPA resultante con la app **Transporter** (no usar `notarytool` — ese perfil es solo para macOS).
+6. En App Store Connect: crear versión → seleccionar build → enviar a revisión.
+
+Bundle ID: `com.FPAlanTuring.FreeMIDIChords` · Team ID: `977G5A733H`
+
 ## Otros documentos
 
 - **CONTRIBUTING.md**: ramas, estilo, cómo hacer PRs.

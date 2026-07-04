@@ -201,6 +201,142 @@ def format_intervals(notes: set[int]) -> str:
     return " ".join(result)
 
 
+CHORD_SUFFIX_NAMES: dict[str, dict[str, str]] = {
+    "es": {
+        "": "Mayor",
+        "m": "Menor",
+        "5": "Quinta (power chord)",
+        "-5": "Mayor quinta disminuida",
+        "dim": "Disminuido",
+        "aug": "Aumentado",
+        "sus2": "Suspendido 2ª",
+        "sus4": "Suspendido 4ª",
+        "sus2sus4": "Suspendido 2ª y 4ª",
+        "add9": "Mayor con 9ª añadida",
+        "madd9": "Menor con 9ª añadida",
+        "6": "Mayor con 6ª",
+        "6add9": "Mayor con 6ª y 9ª",
+        "m6": "Menor con 6ª",
+        "m6add9": "Menor con 6ª y 9ª",
+        "7": "Mayor dominante (7ª menor)",
+        "7sus4": "Dominante suspendido 4ª",
+        "7#5": "Dominante aumentado",
+        "7b5": "Dominante quinta disminuida",
+        "7#9": "Dominante con 9ª aumentada",
+        "7b9": "Dominante con 9ª disminuida",
+        "7(#5,#9)": "Dominante aumentado con 9ª aumentada",
+        "7(#5,b9)": "Dominante aumentado con 9ª disminuida",
+        "7(b5,#9)": "Dominante quinta disminuida con 9ª aumentada",
+        "7(b5,b9)": "Dominante quinta disminuida con 9ª disminuida",
+        "9": "Dominante con 9ª",
+        "9#5": "Dominante aumentado con 9ª",
+        "9b5": "Dominante quinta disminuida con 9ª",
+        "11": "Dominante con 11ª",
+        "11b9": "Dominante con 11ª y 9ª disminuida",
+        "13": "Dominante con 13ª",
+        "13b9": "Dominante con 13ª y 9ª disminuida",
+        "13#11": "Dominante con 13ª y 11ª aumentada",
+        "maj7": "Mayor con 7ª mayor",
+        "maj7#5": "Mayor aumentado con 7ª mayor",
+        "maj7b5": "Mayor quinta disminuida con 7ª mayor",
+        "maj9": "Mayor con 9ª y 7ª mayor",
+        "maj11": "Mayor con 11ª y 7ª mayor",
+        "maj13": "Mayor con 13ª y 7ª mayor",
+        "maj9#11": "Mayor con 9ª, 11ª aumentada y 7ª mayor",
+        "maj13#11": "Mayor con 13ª, 11ª aumentada y 7ª mayor",
+        "m7": "Menor con 7ª menor",
+        "m7#5": "Menor aumentado con 7ª menor",
+        "m9": "Menor con 9ª y 7ª menor",
+        "m11": "Menor con 11ª y 7ª menor",
+        "m13": "Menor con 13ª y 7ª menor",
+        "mMaj7": "Menor con 7ª mayor",
+        "mMaj9": "Menor con 9ª y 7ª mayor",
+        "dim7": "Disminuido con 7ª disminuida",
+        "m7b5": "Semidisminuido (menor con quinta disminuida)",
+    },
+    "en": {
+        "": "Major",
+        "m": "Minor",
+        "5": "Power chord",
+        "-5": "Major flat five",
+        "dim": "Diminished",
+        "aug": "Augmented",
+        "sus2": "Suspended 2nd",
+        "sus4": "Suspended 4th",
+        "sus2sus4": "Suspended 2nd and 4th",
+        "add9": "Major add 9th",
+        "madd9": "Minor add 9th",
+        "6": "Major 6th",
+        "6add9": "Major 6th add 9th",
+        "m6": "Minor 6th",
+        "m6add9": "Minor 6th add 9th",
+        "7": "Dominant 7th (major with minor 7th)",
+        "7sus4": "Dominant suspended 4th",
+        "7#5": "Augmented dominant",
+        "7b5": "Dominant flat five",
+        "7#9": "Dominant sharp 9th",
+        "7b9": "Dominant flat 9th",
+        "7(#5,#9)": "Augmented dominant sharp 9th",
+        "7(#5,b9)": "Augmented dominant flat 9th",
+        "7(b5,#9)": "Dominant flat five sharp 9th",
+        "7(b5,b9)": "Dominant flat five flat 9th",
+        "9": "Dominant 9th",
+        "9#5": "Augmented dominant 9th",
+        "9b5": "Dominant flat five 9th",
+        "11": "Dominant 11th",
+        "11b9": "Dominant 11th flat 9th",
+        "13": "Dominant 13th",
+        "13b9": "Dominant 13th flat 9th",
+        "13#11": "Dominant 13th sharp 11th",
+        "maj7": "Major 7th",
+        "maj7#5": "Augmented major 7th",
+        "maj7b5": "Major flat five major 7th",
+        "maj9": "Major 9th",
+        "maj11": "Major 11th",
+        "maj13": "Major 13th",
+        "maj9#11": "Major 9th sharp 11th",
+        "maj13#11": "Major 13th sharp 11th",
+        "m7": "Minor 7th",
+        "m7#5": "Augmented minor 7th",
+        "m9": "Minor 9th",
+        "m11": "Minor 11th",
+        "m13": "Minor 13th",
+        "mMaj7": "Minor major 7th",
+        "mMaj9": "Minor major 9th",
+        "dim7": "Diminished 7th",
+        "m7b5": "Half-diminished (minor flat five)",
+    },
+}
+
+_INVERSION_NAMES: dict[str, tuple[str, ...]] = {
+    "es": ("", "primera inversión", "segunda inversión", "tercera inversión"),
+    "en": ("", "first inversion", "second inversion", "third inversion"),
+}
+
+
+def chord_description(
+    suffix: str,
+    language: str,
+    bass_pc: Optional[int],
+    root: Optional[int],
+    bass_name: Optional[str],
+    pattern_intervals: tuple[int, ...],
+) -> Optional[str]:
+    names = CHORD_SUFFIX_NAMES.get(language, CHORD_SUFFIX_NAMES["en"])
+    base = names.get(suffix)
+    if not base:
+        return None
+    if bass_pc is not None and root is not None and bass_name is not None and bass_pc != root:
+        bass_interval = (bass_pc - root + 12) % 12
+        inv_index = list(pattern_intervals).index(bass_interval) if bass_interval in pattern_intervals else -1
+        inv_names = _INVERSION_NAMES.get(language, _INVERSION_NAMES["en"])
+        if 0 < inv_index < len(inv_names):
+            return f"{base}, {inv_names[inv_index]}"
+        bass_word = "bajo en" if language == "es" else "bass on"
+        return f"{base}, {bass_word} {bass_name}"
+    return base
+
+
 def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordPattern], Optional[int]]:
     if not notes:
         return None, None, None

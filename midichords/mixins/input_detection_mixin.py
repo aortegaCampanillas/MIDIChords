@@ -8,7 +8,7 @@ from typing import Optional
 from midichords.core.i18n import NOTE_NAMES
 from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.midi_idle_inhibit import bump_after_midi_detection_activity
-from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, format_intervals
+from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, chord_description, format_intervals
 from midichords.core.verbose_log import vlog
 
 
@@ -83,10 +83,10 @@ class InputDetectionMixin:
     def _detect_harmonic_spelling(
         self,
         notes: set[int],
-    ) -> tuple[str, set[int], dict[int, str], dict[int, str]]:
+    ) -> tuple[str, set[int], dict[int, str], dict[int, str], Optional[str]]:
         chord_notes = set(notes)
         if not chord_notes:
-            return "-", set(), {}, {}
+            return "-", set(), {}, {}, None
 
         pcs = {note % 12 for note in chord_notes}
         if len(pcs) == 1:
@@ -98,7 +98,7 @@ class InputDetectionMixin:
             )
             map_oct = {int(n): self.note_name(int(n), with_octave=True) for n in chord_notes}
             map_no_oct = {int(n): self.note_name(int(n), with_octave=False) for n in chord_notes}
-            return chord, set(), map_oct, map_no_oct
+            return chord, set(), map_oct, map_no_oct, None
 
         root, pattern, bass_pc = self._analyze_chord_notes(chord_notes)
         if root is None or pattern is None:
@@ -106,7 +106,7 @@ class InputDetectionMixin:
             chord = " + ".join(self.note_name(n, with_octave=False) for n in ordered)
             map_oct = {int(n): self.note_name(int(n), with_octave=True) for n in chord_notes}
             map_no_oct = {int(n): self.note_name(int(n), with_octave=False) for n in chord_notes}
-            return chord, set(), map_oct, map_no_oct
+            return chord, set(), map_oct, map_no_oct, None
 
         prefer_flats = str(self.config_data.get("note_accidental", "sharp")) == "flat"
         is_minor = str(pattern.suffix).startswith("m") and not str(pattern.suffix).startswith("maj")
@@ -126,10 +126,11 @@ class InputDetectionMixin:
             with_octave=False,
         )
         chord = f"{root_name}{pattern.suffix}"
+        resolved_bass_name: Optional[str] = None
         if bass_pc is not None and bass_pc != root:
             bass_degree = degree_by_pc.get(int(bass_pc))
             if bass_degree is not None:
-                bass_name = self._spell_detection_note_name(
+                resolved_bass_name = self._spell_detection_note_name(
                     root_pc=int(root),
                     target_pc=int(bass_pc),
                     degree=int(bass_degree),
@@ -138,8 +139,18 @@ class InputDetectionMixin:
                     with_octave=False,
                 )
             else:
-                bass_name = self.note_name(int(bass_pc), with_octave=False, prefer_flat=name_pf)
-            chord = f"{chord}/{bass_name}"
+                resolved_bass_name = self.note_name(int(bass_pc), with_octave=False, prefer_flat=name_pf)
+            chord = f"{chord}/{resolved_bass_name}"
+
+        language = str(self.config_data.get("language", "es"))
+        desc = chord_description(
+            suffix=str(pattern.suffix),
+            language=language,
+            bass_pc=int(bass_pc) if bass_pc is not None else None,
+            root=int(root),
+            bass_name=resolved_bass_name,
+            pattern_intervals=pattern.intervals,
+        )
 
         expected_pcs = {(int(root) + int(interval)) % 12 for interval in pattern.intervals}
         # Treat as extra only notes outside the detected chord pitch classes.
@@ -168,7 +179,7 @@ class InputDetectionMixin:
             map_no_oct[note_int] = self.note_name(
                 note_int, with_octave=False, prefer_flat=prefer_flats
             )
-        return chord, extras, map_oct, map_no_oct
+        return chord, extras, map_oct, map_no_oct, desc
 
     def _clear_live_input_state(self) -> None:
         for note in list(self.sounding_notes):
@@ -590,7 +601,7 @@ class InputDetectionMixin:
     def _analyze_chord_notes(self, notes: set[int]) -> tuple[Optional[int], Optional[ChordPattern], Optional[int]]:
         return analyze_chord_notes(notes)
     def _detect_chord_with_extras(self, notes: set[int]) -> tuple[str, set[int]]:
-        chord, extras, _map_oct, _map_no_oct = self._detect_harmonic_spelling(set(notes))
+        chord, extras, _map_oct, _map_no_oct, _desc = self._detect_harmonic_spelling(set(notes))
         return chord, extras
     def detect_chord(self, notes: Optional[set[int]] = None) -> str:
         chord_notes = set(notes if notes is not None else self._current_detection_notes())
@@ -605,7 +616,7 @@ class InputDetectionMixin:
         if hasattr(self, "_refresh_detection_controls_state"):
             self._refresh_detection_controls_state()
         generated_set = set(self.generated_preview_notes)
-        detected_chord_name, detected_extras, detected_map_oct, detected_map_no_oct = self._detect_harmonic_spelling(active_set)
+        detected_chord_name, detected_extras, detected_map_oct, detected_map_no_oct, detected_chord_desc = self._detect_harmonic_spelling(active_set)
         self.detection_overlay_note_names = dict(detected_map_no_oct)
         self.detection_extra_notes = set(detected_extras)
 
@@ -631,18 +642,28 @@ class InputDetectionMixin:
 
         if self.generation_tab_active:
             self.chord_var.set(self.generated_chord_var.get())
+            if hasattr(self, "chord_desc_var"):
+                self.chord_desc_var.set("")
         elif self.scale_tab_active:
             scale_name = getattr(self, "scale_name_var", None)
             if scale_name is not None:
                 self.chord_var.set(scale_name.get())
             else:
                 self.chord_var.set("-")
+            if hasattr(self, "chord_desc_var"):
+                self.chord_desc_var.set("")
         elif self.metronome_tab_active:
             self.chord_var.set("-")
+            if hasattr(self, "chord_desc_var"):
+                self.chord_desc_var.set("")
         elif self.tuner_tab_active:
             self.chord_var.set(self.tuner_status_var.get())
+            if hasattr(self, "chord_desc_var"):
+                self.chord_desc_var.set("")
         else:
             self.chord_var.set(detected_chord_name or "-")
+            if hasattr(self, "chord_desc_var"):
+                self.chord_desc_var.set(f"({detected_chord_desc})" if detected_chord_desc else "")
         if self.tuner_tab_active:
             self._refresh_tuner_ui()
         self.redraw_keyboard()

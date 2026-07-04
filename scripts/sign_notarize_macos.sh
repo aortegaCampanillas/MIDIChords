@@ -212,18 +212,26 @@ find "$APP_PATH" -name 'QtWebView*' -exec rm -rf {} + 2>/dev/null || true
 find "$APP_PATH" -name 'QtWebChannel*' -exec rm -rf {} + 2>/dev/null || true
 
 echo "Signing app bundle (inside-out, no --deep)..."
-# --deep is unreliable with PyInstaller+PySide6 bundles (Qt frameworks, dist-info).
-# Sign all Mach-O binaries inside-out, then the top-level bundle.
+# --deep is unreliable with PyInstaller+PySide6 bundles.
+# Sign every Mach-O binary inside-out, then the top-level bundle.
 
-# 1. Sign all dylibs and .so files inside Frameworks (deepest first)
+# Remove Qt tools that are not needed and cannot be notarized easily
+find "$APP_PATH/Contents/Frameworks/PySide6" -maxdepth 1 -type f \
+  \( -name "balsam" -o -name "balsamui" -o -name "lrelease" -o -name "lupdate" \
+     -o -name "qmlformat" -o -name "qmllint" -o -name "qmlls" -o -name "qsb" \
+     -o -name "svgtoqml" \) -delete 2>/dev/null || true
+
+# Sign all Mach-O binaries inside Frameworks/ (deepest first)
 while IFS= read -r f; do
-  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$f" 2>/dev/null || true
-done < <(find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \))
+  if file "$f" | grep -qE "Mach-O|executable|dynamically linked|bundle"; then
+    codesign --force --options runtime --timestamp --sign "$IDENTITY" "$f" 2>/dev/null || true
+  fi
+done < <(find "$APP_PATH/Contents/Frameworks" -type f ! -name "*.py" ! -name "*.pyi" ! -name "*.txt" ! -name "*.plist" ! -name "CodeResources" ! -name "*.json" ! -name "*.qml" ! -name "*.qmlc" ! -name "*.png" ! -name "*.icns")
 
-# 2. Sign the main executable
+# Sign the main executable
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/MIDIChords"
 
-# 3. Sign the top-level bundle (no --deep)
+# Sign the top-level bundle (no --deep)
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
 
 echo "Verifying app signature..."

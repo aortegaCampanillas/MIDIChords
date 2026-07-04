@@ -11,7 +11,7 @@ from typing import Optional
 import mido
 import sounddevice as sd
 
-from midichords.core.app_constants import DISABLE_RTMIDI_SCAN_ENV, FORCE_MIDI_OPEN_ENV, FORCE_RTMIDI_SCAN_ENV
+from midichords.core.app_constants import DISABLE_RTMIDI_SCAN_ENV, FORCE_RTMIDI_SCAN_ENV
 from midichords.core.verbose_log import vlog
 
 
@@ -113,17 +113,15 @@ class MidiIOMixin:
         input_name = self.config_data.get("midi_input", "")
         audio_name = self.config_data.get("audio_output", "")
         audio_error: Optional[str] = None
-        allow_midi_open = os.environ.get(FORCE_MIDI_OPEN_ENV, "").strip() == "1"
         vlog(
             "midi",
-            "connect_ports: midi_input=%r audio_output=%r allow_midi_open=%s",
+            "connect_ports: midi_input=%r audio_output=%r",
             input_name,
             audio_name,
-            allow_midi_open,
         )
 
         if input_name:
-            if self.midi_backend_available and allow_midi_open:
+            if self.midi_backend_available:
                 if not self.input_names or input_name not in self.input_names:
                     self.midi_bridge_connected = False
                     self.midi_backend_warning = (
@@ -141,11 +139,6 @@ class MidiIOMixin:
             else:
                 self.input_port = None
                 self.midi_bridge_connected = False
-                if not allow_midi_open:
-                    self.midi_backend_warning = (
-                        "MIDI input open disabled by default for stability. "
-                        "Set MIDICHORDS_FORCE_MIDI_OPEN=1 to enable."
-                    )
 
         audio_device_index = self.audio_output_map.get(audio_name)
         vlog("midi", "audio device index=%s map_hit=%s", audio_device_index, audio_name in self.audio_output_map)

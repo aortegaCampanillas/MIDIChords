@@ -259,6 +259,8 @@ jobs:
           find "$APP" -name 'QtWebEngine*' -delete 2>/dev/null || true
           find "$APP" -name 'QtWebView*' -delete 2>/dev/null || true
           find "$APP" -name 'QtWebChannel*' -delete 2>/dev/null || true
+          # Remove pip dist-info directories — codesign --deep treats them as invalid bundles
+          find "$APP" -name '*.dist-info' -type d -exec rm -rf {} + 2>/dev/null || true
 
       - name: Import certificate and sign + notarize
         if: ${{ vars.SIGN_MACOS == 'true' }}

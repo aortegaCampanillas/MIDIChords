@@ -206,7 +206,7 @@ find "$APP_PATH/Contents/Frameworks/PySide6" -maxdepth 1 -type d \( -name "*.app
 # Remove Qt tools and drivers that break notarization
 rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/libexec"
 rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/plugins/sqldrivers"
-find "$APP_PATH" -name '*.dist-info' -type d -exec rm -rf {} + 2>/dev/null || true
+# Do NOT remove .dist-info dirs — some packages (mido, etc.) read their own version from them at runtime
 find "$APP_PATH" -name 'QtWebEngine*' -exec rm -rf {} + 2>/dev/null || true
 find "$APP_PATH" -name 'QtWebView*' -exec rm -rf {} + 2>/dev/null || true
 find "$APP_PATH" -name 'QtWebChannel*' -exec rm -rf {} + 2>/dev/null || true

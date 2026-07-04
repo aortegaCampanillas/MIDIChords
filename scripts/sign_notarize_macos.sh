@@ -221,18 +221,20 @@ find "$APP_PATH/Contents/Frameworks/PySide6" -maxdepth 1 -type f \
      -o -name "qmlformat" -o -name "qmllint" -o -name "qmlls" -o -name "qsb" \
      -o -name "svgtoqml" \) -delete 2>/dev/null || true
 
-# Sign all Mach-O binaries inside Frameworks/ (deepest first)
+ENTITLEMENTS_PLIST="$ROOT_DIR/scripts/entitlements.developerid.plist"
+
+# Sign all Mach-O binaries inside Frameworks/ (deepest first, no entitlements for libs)
 while IFS= read -r f; do
   if file "$f" | grep -qE "Mach-O|executable|dynamically linked|bundle"; then
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$f" 2>/dev/null || true
   fi
 done < <(find "$APP_PATH/Contents/Frameworks" -type f ! -name "*.py" ! -name "*.pyi" ! -name "*.txt" ! -name "*.plist" ! -name "CodeResources" ! -name "*.json" ! -name "*.qml" ! -name "*.qmlc" ! -name "*.png" ! -name "*.icns")
 
-# Sign the main executable
-codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/MIDIChords"
+# Sign the main executable with entitlements
+codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS_PLIST" --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/MIDIChords"
 
-# Sign the top-level bundle (no --deep)
-codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
+# Sign the top-level bundle with entitlements (no --deep)
+codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS_PLIST" --sign "$IDENTITY" "$APP_PATH"
 
 echo "Verifying app signature..."
 codesign --verify --verbose=2 "$APP_PATH"

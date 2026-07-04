@@ -622,9 +622,10 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   const namePf = chordSymbolPreferFlat(root, isMinorChordSuffix(pattern.suffix));
   const rootName = spellByDegree(root, root, 0, language, namePf, root, false);
   let chordName = `${rootName}${pattern.suffix}`;
+  let bassName = null;
   if (bassPc != null && bassPc !== root) {
     const bassDegree = degreeByPc[Number(bassPc)];
-    const bassName = bassDegree == null
+    bassName = bassDegree == null
       ? noteName(bassPc, language, namePf, false)
       : spellByDegree(root, bassPc, bassDegree, language, namePf, bassPc, false);
     chordName = `${chordName}/${bassName}`;
@@ -636,6 +637,11 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   // (spellByDegree puede mostrar sostenidos aunque preferFlat sea true).
   const noteLabels = midiNotes.map((n) => noteName(n, language, preferFlat, true));
 
+  const suffixDesc = (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[pattern.suffix] || null;
+  const description = suffixDesc && bassName
+    ? `${suffixDesc}, ${language === "es" ? "bajo en" : "bass on"} ${bassName}`
+    : suffixDesc;
+
   return {
     name: chordName,
     notes_midi: midiNotes,
@@ -644,7 +650,7 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
     extras: extrasMidi.map((n) => noteName(n, language, preferFlat, true)),
     root_pc: Number(root),
     suffix: pattern.suffix,
-    description: (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[pattern.suffix] || null,
+    description,
   };
 }
 

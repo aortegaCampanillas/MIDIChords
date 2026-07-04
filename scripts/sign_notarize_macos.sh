@@ -200,9 +200,10 @@ if [[ "$SKIP_ICON" -eq 0 ]]; then
 fi
 
 echo "Cleaning bundle before signing..."
-# Remove problematic PySide6 components
-rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Assistant.app"
-rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Assistant__dot__app"
+# Remove all nested .app bundles inside PySide6 (Assistant, Designer, etc.)
+# PyInstaller encodes them as *__dot__app or *.app directories
+find "$APP_PATH/Contents/Frameworks/PySide6" -maxdepth 1 -type d \( -name "*.app" -o -name "*__dot__app" \) -exec rm -rf {} + 2>/dev/null || true
+# Remove Qt tools and drivers that break notarization
 rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/libexec"
 rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/plugins/sqldrivers"
 find "$APP_PATH" -name '*.dist-info' -type d -exec rm -rf {} + 2>/dev/null || true

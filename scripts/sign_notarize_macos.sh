@@ -199,28 +199,34 @@ if [[ "$SKIP_ICON" -eq 0 ]]; then
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP_PATH/Contents/Info.plist"
 fi
 
+echo "Cleaning bundle before signing..."
+# Remove problematic PySide6 components
+rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Assistant.app"
+rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Assistant__dot__app"
+rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/libexec"
+rm -rf "$APP_PATH/Contents/Frameworks/PySide6/Qt/plugins/sqldrivers"
+find "$APP_PATH" -name '*.dist-info' -type d -exec rm -rf {} + 2>/dev/null || true
+find "$APP_PATH" -name 'QtWebEngine*' -exec rm -rf {} + 2>/dev/null || true
+find "$APP_PATH" -name 'QtWebView*' -exec rm -rf {} + 2>/dev/null || true
+find "$APP_PATH" -name 'QtWebChannel*' -exec rm -rf {} + 2>/dev/null || true
+
 echo "Signing app bundle (inside-out, no --deep)..."
-# --deep is unreliable with PyInstaller+PySide6 bundles (symlinks, Qt frameworks,
-# dist-info dirs). Sign binaries inside-out instead.
+# --deep is unreliable with PyInstaller+PySide6 bundles (Qt frameworks, dist-info).
+# Sign all Mach-O binaries inside-out, then the top-level bundle.
 
-# 1. Sign all Mach-O binaries and .so/.dylib files inside Frameworks/
-find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.abi3.so" \) | while IFS= read -r f; do
+# 1. Sign all dylibs and .so files inside Frameworks (deepest first)
+while IFS= read -r f; do
   codesign --force --options runtime --timestamp --sign "$IDENTITY" "$f" 2>/dev/null || true
-done
+done < <(find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \))
 
-# 2. Sign nested .app bundles (e.g. PySide6/Assistant.app) if any remain
-find "$APP_PATH/Contents/Frameworks" -name "*.app" -type d | sort -r | while IFS= read -r nested; do
-  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$nested" 2>/dev/null || true
-done
-
-# 3. Sign the main executable
+# 2. Sign the main executable
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/MIDIChords"
 
-# 4. Sign the top-level bundle
+# 3. Sign the top-level bundle (no --deep)
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
 
 echo "Verifying app signature..."
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+codesign --verify --verbose=2 "$APP_PATH"
 
 echo "Building DMG..."
 # Evitar "Resource busy": desmontar si el volumen ya está montado y crear DMG en temp

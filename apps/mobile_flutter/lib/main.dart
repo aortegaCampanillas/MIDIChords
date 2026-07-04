@@ -1001,7 +1001,7 @@ class _HomeScreenState extends State<HomeScreen>
   Offset? _dragLastGlobalPos;
   DateTime _dragLastSwitchAt = DateTime.fromMillisecondsSinceEpoch(0);
   final ScrollController _pianoScrollController = ScrollController();
-  int? _pianoScrollSyncToken;
+  bool _needsPianoScrollSync = false;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
@@ -1558,6 +1558,28 @@ class _HomeScreenState extends State<HomeScreen>
             bodyEn:
                 'Lets you play and visually follow the scale on piano or guitar.',
             side: _HelpCalloutSide.top,
+          ),
+          _HelpStep(
+            id: 'scales_octaves',
+            titleEs: 'Número de octavas',
+            titleEn: 'Number of octaves',
+            bodyEs:
+                'Muestra la escala en 1, 2 o 3 octavas sobre el teclado. Con 2 octavas se añade la octava inferior; con 3 también la superior.',
+            bodyEn:
+                'Displays the scale over 1, 2, or 3 octaves on the keyboard. With 2 octaves a lower octave is added; with 3 also an upper one.',
+            side: _HelpCalloutSide.top,
+            highlightPadding: 2,
+          ),
+          _HelpStep(
+            id: 'scales_fingering',
+            titleEs: 'Digitación',
+            titleEn: 'Fingering',
+            bodyEs:
+                'Selecciona la mano para ver la numeración de los dedos encima (subida) y debajo (bajada) del teclado. Los números en rojo/azul oscuro indican un cruce de dedos.',
+            bodyEn:
+                'Select a hand to see finger numbers above (ascending) and below (descending) the keyboard. Numbers in dark red/blue indicate a finger crossing.',
+            side: _HelpCalloutSide.top,
+            highlightPadding: 2,
           ),
         ],
       4 => <_HelpStep>[
@@ -2781,8 +2803,13 @@ class _HomeScreenState extends State<HomeScreen>
       return const _ChordAnalysis(null, null, null);
     }
     final pcs = notes.map(_positiveMod12).toSet();
+    final suffixPriority = <String, int>{
+      for (int i = 0; i < _kCommonChordSuffixOrder.length; i += 1)
+        _kCommonChordSuffixOrder[i]: i,
+    };
     var bestScore = -999;
     var bestComplexity = -999;
+    var bestPriority = _kCommonChordSuffixOrder.length;
     int? bestRoot;
     Map<String, dynamic>? bestPattern;
     for (int root = 0; root < 12; root += 1) {
@@ -2805,10 +2832,18 @@ class _HomeScreenState extends State<HomeScreen>
           continue;
         }
         final complexity = -intervals.length;
-        if (score > bestScore ||
-            (score == bestScore && complexity > bestComplexity)) {
+        final suffix = pattern['suffix'] as String? ?? '';
+        final priority =
+            suffixPriority[suffix] ?? _kCommonChordSuffixOrder.length;
+        final better = score > bestScore ||
+            (score == bestScore && complexity > bestComplexity) ||
+            (score == bestScore &&
+                complexity == bestComplexity &&
+                priority < bestPriority);
+        if (better) {
           bestScore = score;
           bestComplexity = complexity;
+          bestPriority = priority;
           bestRoot = root;
           bestPattern = pattern;
         }
@@ -4701,33 +4736,27 @@ class _HomeScreenState extends State<HomeScreen>
     double whiteW,
     List<int> whiteMidi,
   ) {
-    final syncToken = Object.hash(
-      viewportW.round(),
-      whiteW.toStringAsFixed(1),
-      whiteMidi.length,
-    );
-    if (_pianoScrollSyncToken == syncToken) {
-      return;
-    }
-    _pianoScrollSyncToken = syncToken;
+    if (!_needsPianoScrollSync) return;
+    _needsPianoScrollSync = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_pianoScrollController.hasClients) {
-        return;
-      }
+      if (!mounted || !_pianoScrollController.hasClients) return;
       final maxExt = _pianoScrollController.position.maxScrollExtent;
-      if (maxExt <= 0) {
-        return;
+      if (maxExt <= 0) return;
+      final int anchorMidi;
+      if (_tabIndex == 3 && _generatedScaleJson != null) {
+        final rh = _scaleRhNotes();
+        if (rh.isNotEmpty) {
+          anchorMidi = (rh.first + rh.last) ~/ 2;
+        } else {
+          anchorMidi = _kPianoMiddleCMidi;
+        }
+      } else {
+        anchorMidi = _kPianoMiddleCMidi;
       }
-      final anchorMidi = (_tabIndex == 3 && _generatedScaleJson != null)
-          ? (_scaleBaseNotes().isNotEmpty ? _scaleBaseNotes().first : _kPianoMiddleCMidi)
-          : _kPianoMiddleCMidi;
       final cIdx = whiteMidi.indexOf(anchorMidi);
-      final anchorIdx = cIdx >= 0
-          ? cIdx
-          : whiteMidi.indexWhere((m) => m >= anchorMidi);
-      final wIdx = anchorIdx < 0 ? whiteMidi.length ~/ 2 : anchorIdx;
-      final keyCenterX = (wIdx * whiteW) + (whiteW / 2);
-      final target = (keyCenterX - (viewportW / 2)).clamp(0.0, maxExt);
+      final wIdx = cIdx >= 0 ? cIdx : math.max(0, whiteMidi.indexWhere((m) => m >= anchorMidi));
+      final keyCenterX = wIdx * whiteW + whiteW / 2;
+      final target = (keyCenterX - viewportW / 2).clamp(0.0, maxExt);
       _pianoScrollController.jumpTo(target);
     });
   }
@@ -5363,6 +5392,7 @@ class _HomeScreenState extends State<HomeScreen>
         preferFlat: _preferFlat,
       );
       _generatedScaleJson = json;
+      _needsPianoScrollSync = true;
       _updateScaleFingeringsMap();
       final scaleMidi = _extractMidiList(json, <String>['notes_midi']);
       _scaleGuitarStartNote = scaleMidi.isNotEmpty ? scaleMidi.first : null;
@@ -5427,7 +5457,7 @@ class _HomeScreenState extends State<HomeScreen>
     final idx = _scaleLoopIndex.clamp(0, notes.length - 1);
     final note = notes[idx];
     _scaleCurrentNote = note;
-    _scaleCurrentIsLeft = false;
+    _scaleCurrentIsLeft = null;  // null lets both clefs match by note value
     _scaleInputRawNote = null;
     if (_scaleMetronomeOnly) {
       final accent = idx == 0 && _scaleLoopDirection > 0;
@@ -6165,6 +6195,7 @@ class _HomeScreenState extends State<HomeScreen>
                             if (value == 0) {
                               _instrumentView = 'piano';
                             }
+                            if (value == 3) _needsPianoScrollSync = true;
                           });
                           if (value != 3) {
                             _stopScaleLoop();
@@ -7295,6 +7326,7 @@ class _HomeScreenState extends State<HomeScreen>
     return LayoutBuilder(builder: (context, constraints) {
       const stripH = 22.0;
       const gap = 2.0;
+      final viewportW = constraints.maxWidth;
       final pianoViewH = (constraints.maxHeight - 2 * (stripH + gap))
           .clamp(60.0, (_kPianoWhiteKeyHeight + 12).toDouble());
 
@@ -7303,17 +7335,15 @@ class _HomeScreenState extends State<HomeScreen>
         (i) => _kPianoLowMidi + i,
       ).where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12)).toList();
 
-      final metrics = _computePianoKeyMetrics(
-        viewportW: constraints.maxWidth,
+      final effectiveW = _computePianoKeyMetrics(
+        viewportW: viewportW,
         viewportH: pianoViewH,
         whiteKeyCount: allWhite.length,
-      );
-      final whiteW = metrics.whiteW;
-      final keyboardW = allWhite.length * whiteW;
+      ).whiteW;
+      final double keyboardW = allWhite.length * effectiveW;
+      final double badgeW = (effectiveW * 0.85).clamp(16.0, 22.0);
 
       Widget buildStrip(bool ascending) {
-        final badgeW = (whiteW * 0.85).clamp(16.0, 22.0);
-        // Build the full-width badge row and translate it by the piano scroll offset
         final badgeStack = SizedBox(
           width: keyboardW,
           height: stripH,
@@ -7324,33 +7354,47 @@ class _HomeScreenState extends State<HomeScreen>
                   final midi = sortedNotes[i];
                   final finger = fingers[i];
                   final cross = ascending ? ascCross[i] : descCross[i];
-                  final isBlack = const <int>{1, 3, 6, 8, 10}.contains(midi % 12);
+                  final bool isBlack =
+                      const <int>{1, 3, 6, 8, 10}.contains(midi % 12);
                   final double x;
                   if (isBlack) {
                     final wIdx = allWhite.indexWhere((m) => m >= midi);
-                    x = (wIdx < 0 ? allWhite.length - 1 : wIdx) * whiteW;
+                    x = (wIdx < 0 ? allWhite.length - 1 : wIdx) * effectiveW;
                   } else {
                     final wIdx = allWhite.indexOf(midi);
-                    x = wIdx < 0 ? 0 : wIdx * whiteW;
+                    x = wIdx < 0 ? 0 : wIdx * effectiveW;
                   }
+                  final bool isActive = _scaleLoopRunning &&
+                      _scaleCurrentNote != null &&
+                      midi == _scaleCurrentNote &&
+                      (ascending
+                          ? _scaleLoopDirection > 0
+                          : _scaleLoopDirection < 0);
                   final Color bg = ascending
-                      ? (cross ? const Color(0xFFD42010) : const Color(0xFFE07818))
-                      : (cross ? const Color(0xFF3A3A8A) : const Color(0xFF4A6A8A));
+                      ? (cross
+                          ? const Color(0xFFD42010)
+                          : const Color(0xFFE07818))
+                      : (cross
+                          ? const Color(0xFF3A3A8A)
+                          : const Color(0xFF4A6A8A));
                   return Positioned(
-                    left: x + (whiteW - badgeW) / 2,
+                    left: x + (effectiveW - badgeW) / 2,
                     top: 1,
                     child: Container(
                       width: badgeW,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: bg,
+                        color: isActive ? Colors.white : bg,
                         borderRadius: BorderRadius.circular(4),
+                        border: isActive
+                            ? Border.all(color: bg, width: 2)
+                            : null,
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         '$finger',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isActive ? bg : Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 11,
                         ),
@@ -7384,13 +7428,16 @@ class _HomeScreenState extends State<HomeScreen>
         children: <Widget>[
           buildStrip(true),
           const SizedBox(height: gap),
-          Expanded(child: _buildPianoStrip(activeMidi)),
+          Expanded(
+            child: _buildPianoStrip(activeMidi),
+          ),
           const SizedBox(height: gap),
           buildStrip(false),
         ],
       );
     });
   }
+
 
   Widget _buildPianoStrip(Set<int> activeMidi) {
     final midiRange = List<int>.generate(
@@ -8750,6 +8797,7 @@ class _HomeScreenState extends State<HomeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                const SizedBox(height: 8),
                 // Row 1: Tonic selector
                 _helpAnchor(
                   'scales_tonic',
@@ -8942,6 +8990,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     setState(() {
                                       _scaleOctaves = oct;
                                       _updateScaleFingeringsMap();
+                                      _needsPianoScrollSync = true;
                                     });
                                     _savePrefs();
                                     if (_scaleLoopRunning) {
@@ -9000,7 +9049,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ],
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 _helpAnchor(
                   'scales_bpm',
                   Row(
@@ -9038,7 +9087,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 if (_instrumentView != 'guitar') ...<Widget>[
                   const SizedBox(height: 10),
-                  _buildScaleFingeringRow(),
+                  _helpAnchor('scales_fingering', _buildScaleFingeringRow()),
                 ],
               ],
             ),

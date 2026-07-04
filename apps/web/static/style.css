@@ -1270,6 +1270,12 @@ button:disabled {
   color: var(--muted);
 }
 
+.chord-desc {
+  color: var(--muted);
+  font-size: 0.82em;
+  margin-left: 0.45em;
+}
+
 .piano {
   --white-key-w: clamp(28px, 2.4vw, 34px);
   --black-key-w: calc(var(--white-key-w) * 0.64);

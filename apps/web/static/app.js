@@ -6270,6 +6270,8 @@ async function runDetection() {
   });
   state.detectionResult = out;
   el("detectChord").textContent = out.name || "-";
+  const descEl = el("detectChordDesc");
+  if (descEl) descEl.textContent = out.description ? `(${out.description})` : "";
   el("detectNotes").textContent = (out.notes || []).join(" - ") || "-";
   el("detectExtras").textContent = (out.extras || []).join(" - ") || "-";
   el("detectIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);

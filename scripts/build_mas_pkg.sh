@@ -357,6 +357,10 @@ if [[ -n "$BUILD_NUMBER" ]]; then
   /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUILD_NUMBER" "$INFO_PLIST"
 fi
 
+echo "Setting NSMicrophoneUsageDescription..."
+/usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription This app uses the microphone for the chord and note tuner." "$INFO_PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string This app uses the microphone for the chord and note tuner." "$INFO_PLIST"
+
 echo "Setting App Store category: $CATEGORY_UTI"
 /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType $CATEGORY_UTI" "$INFO_PLIST" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string $CATEGORY_UTI" "$INFO_PLIST"
@@ -476,7 +480,10 @@ if [[ "$ALLOW_FILE_ACCESS" -eq 1 ]]; then
 EOF
 fi
 
+# Audio input (required for sounddevice tuner and for App Sandbox compliance)
 cat >> "$ENTITLEMENTS_PATH" <<'EOF'
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
 </dict>
 </plist>
 EOF

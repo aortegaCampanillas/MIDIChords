@@ -199,8 +199,26 @@ if [[ "$SKIP_ICON" -eq 0 ]]; then
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP_PATH/Contents/Info.plist"
 fi
 
-echo "Signing app bundle..."
-codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
+echo "Signing app bundle (inside-out, no --deep)..."
+# --deep is unreliable with PyInstaller+PySide6 bundles (symlinks, Qt frameworks,
+# dist-info dirs). Sign binaries inside-out instead.
+SIGN_FLAGS="--force --options runtime --timestamp --sign $IDENTITY"
+
+# 1. Sign all Mach-O binaries and .so/.dylib files inside Frameworks/
+find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.abi3.so" \) | while IFS= read -r f; do
+  codesign $SIGN_FLAGS "$f" 2>/dev/null || true
+done
+
+# 2. Sign nested .app bundles (e.g. PySide6/Assistant.app) if any remain
+find "$APP_PATH/Contents/Frameworks" -name "*.app" -type d | sort -r | while IFS= read -r nested; do
+  codesign $SIGN_FLAGS "$nested" 2>/dev/null || true
+done
+
+# 3. Sign the main executable
+codesign $SIGN_FLAGS "$APP_PATH/Contents/MacOS/MIDIChords"
+
+# 4. Sign the top-level bundle
+codesign $SIGN_FLAGS "$APP_PATH"
 
 echo "Verifying app signature..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"

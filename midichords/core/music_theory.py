@@ -205,8 +205,10 @@ def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordP
     if not notes:
         return None, None, None
     pcs = {note % 12 for note in notes}
+    suffix_priority = {suffix: idx for idx, suffix in enumerate(COMMON_CHORD_SUFFIX_ORDER)}
     best_score = -999
     best_complexity = -999
+    best_priority = len(COMMON_CHORD_SUFFIX_ORDER)
     best_root: Optional[int] = None
     best_pattern: Optional[ChordPattern] = None
     for root in range(12):
@@ -225,9 +227,16 @@ def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordP
                 continue
 
             complexity = -len(pattern.intervals)
-            if score > best_score or (score == best_score and complexity > best_complexity):
+            priority = suffix_priority.get(pattern.suffix, len(COMMON_CHORD_SUFFIX_ORDER))
+            better = (
+                score > best_score
+                or (score == best_score and complexity > best_complexity)
+                or (score == best_score and complexity == best_complexity and priority < best_priority)
+            )
+            if better:
                 best_score = score
                 best_complexity = complexity
+                best_priority = priority
                 best_root = root
                 best_pattern = pattern
 

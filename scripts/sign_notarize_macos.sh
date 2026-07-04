@@ -230,10 +230,8 @@ while IFS= read -r f; do
   fi
 done < <(find "$APP_PATH/Contents/Frameworks" -type f ! -name "*.py" ! -name "*.pyi" ! -name "*.txt" ! -name "*.plist" ! -name "CodeResources" ! -name "*.json" ! -name "*.qml" ! -name "*.qmlc" ! -name "*.png" ! -name "*.icns")
 
-# Sign the main executable with entitlements
-codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS_PLIST" --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/MIDIChords"
-
-# Sign the top-level bundle with entitlements (no --deep)
+# Sign the top-level bundle with entitlements — this seals the main executable too
+# Do NOT sign the executable separately before this, or the bundle seal will override it
 codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS_PLIST" --sign "$IDENTITY" "$APP_PATH"
 
 echo "Verifying app signature..."

@@ -234,16 +234,28 @@ jobs:
           ln -s /Applications dmg-root/Applications
           hdiutil create -volname "MIDIChords" -srcfolder dmg-root -ov -format UDZO MIDIChords-macos.dmg
 
-      - name: Remove PySide6 components that break codesign
+      - name: Resolve symlinks in app bundle before signing
+        if: ${{ vars.SIGN_MACOS == 'true' }}
         run: |
           APP="dist/MIDIChords.app"
-          # Assistant.app has symlinks that codesign --deep rejects
+          # codesign --deep fails on symlinks; replace every symlink with the real file/dir
+          find "$APP" -type l | while IFS= read -r link; do
+            target="$(readlink "$link")"
+            # Resolve relative symlinks
+            dir="$(dirname "$link")"
+            abs_target="$dir/$target"
+            if [ -f "$abs_target" ]; then
+              cp -f "$abs_target" "$link.tmp" && mv -f "$link.tmp" "$link"
+            elif [ -d "$abs_target" ]; then
+              rm -f "$link"
+              cp -R "$abs_target" "$link"
+            fi
+          done
+          # Remove Qt tools and drivers that break notarization
           rm -rf "$APP/Contents/Frameworks/PySide6/Assistant.app"
           rm -rf "$APP/Contents/Frameworks/PySide6/Assistant__dot__app"
-          # Qt tools (lupdate, rcc, etc.) and SQL drivers cause App Store / notarization issues
           rm -rf "$APP/Contents/Frameworks/PySide6/Qt/libexec"
           rm -rf "$APP/Contents/Frameworks/PySide6/Qt/plugins/sqldrivers"
-          # WebEngine triggers 90885 in App Store review
           find "$APP" -name 'QtWebEngine*' -delete 2>/dev/null || true
           find "$APP" -name 'QtWebView*' -delete 2>/dev/null || true
           find "$APP" -name 'QtWebChannel*' -delete 2>/dev/null || true

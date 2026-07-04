@@ -148,7 +148,11 @@ class ChangelogMixin:
         close_btn.clicked.connect(on_close)
         win.rejected.connect(on_close)
 
-        win.exec()
+        self._startup_modal_open = True
+        try:
+            win.exec()
+        finally:
+            self._startup_modal_open = False
 
     def open_changelog_dialog(self) -> None:
         """Abre un diálogo flotante con el changelog de desktop (desde menú)."""

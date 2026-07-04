@@ -421,7 +421,8 @@ class MidiChordAnalyzerApp(
         self._midi_hotplug_last_devices = current
         bridge_active = bool(getattr(self, "midi_bridge_connected", False))
         settings_open = getattr(self, "settings_overlay", None) is not None
-        if new_devices and not bridge_active and not settings_open and not self._midi_hotplug_dialog_open:
+        modal_open = getattr(self, "_startup_modal_open", False)
+        if new_devices and not bridge_active and not settings_open and not self._midi_hotplug_dialog_open and not modal_open:
             self._show_midi_hotplug_dialog()
         self.after(10_000, self._midi_hotplug_tick)
 

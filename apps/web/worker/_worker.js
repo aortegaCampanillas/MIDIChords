@@ -638,9 +638,20 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   const noteLabels = midiNotes.map((n) => noteName(n, language, preferFlat, true));
 
   const suffixDesc = (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[pattern.suffix] || null;
-  const description = suffixDesc && bassName
-    ? `${suffixDesc}, ${language === "es" ? "bajo en" : "bass on"} ${bassName}`
-    : suffixDesc;
+  let description = suffixDesc;
+  if (suffixDesc && bassName) {
+    const bassInterval = (Number(bassPc) - Number(root) + 12) % 12;
+    const inversionIndex = pattern.intervals.indexOf(bassInterval);
+    const INVERSION_NAMES = {
+      es: ["", "primera inversión", "segunda inversión", "tercera inversión"],
+      en: ["", "first inversion", "second inversion", "third inversion"],
+    };
+    const lang = INVERSION_NAMES[language] ? language : "en";
+    const invName = inversionIndex > 0 ? INVERSION_NAMES[lang][inversionIndex] : null;
+    description = invName
+      ? `${suffixDesc}, ${invName}`
+      : `${suffixDesc}, ${language === "es" ? "bajo en" : "bass on"} ${bassName}`;
+  }
 
   return {
     name: chordName,

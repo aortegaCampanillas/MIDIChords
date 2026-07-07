@@ -223,14 +223,24 @@ class InputDetectionMixin:
                 pass
             self._detection_drag_sound_after_id = None
 
+    def _should_play_midi_input_locally(self) -> bool:
+        # Con salida MIDI activa, el propio dispositivo físico ya reproduce lo
+        # que toca el usuario en él; reenviarlo (a audio o de vuelta al MIDI
+        # out) duplicaría el sonido. Solo el teclado virtual debe sonar por
+        # esa salida.
+        if self.sound_output == "midi" and self.midi_output_port is not None:
+            return False
+        return self.midi_input_sound_enabled
+
     def _compute_next_sounding_state(self) -> tuple[set[int], set[int]]:
+        play_midi_input = self._should_play_midi_input_locally()
         if self.current_mode == "interval_detection":
             next_active = set(self.interval_notes)
             next_sounding = set(next_active)
             return next_active, next_sounding
         elif self.current_mode == "detection":
             next_active = set(self._current_detection_notes())
-            if self.midi_input_sound_enabled:
+            if play_midi_input:
                 next_sounding = set(next_active)
             else:
                 next_sounding = {
@@ -240,7 +250,7 @@ class InputDetectionMixin:
                 }
         else:
             next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
-            if self.midi_input_sound_enabled:
+            if play_midi_input:
                 next_sounding = set(next_active)
             else:
                 blocked_midi_notes = set(self.midi_held_notes) | set(self.midi_latched_notes)

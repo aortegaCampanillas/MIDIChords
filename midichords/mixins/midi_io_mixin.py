@@ -146,6 +146,13 @@ class MidiIOMixin:
         if audio_name and audio_device_index is None:
             audio_error = self.tr("status_unavailable")
 
+        midi_out_name = self.config_data.get("midi_output", "")
+        if self.sound_output == "midi" and midi_out_name:
+            self.midi_output_port = self.open_midi_output(midi_out_name)
+            if self.midi_output_port is None:
+                audio_error = self.tr("status_unavailable")
+        vlog("midi", "midi output name=%r opened=%s", midi_out_name, self.midi_output_port is not None)
+
         in_state = input_name if self.midi_bridge_connected else self.tr("status_no_input")
         if audio_error:
             out_state = self.tr("status_unavailable")
@@ -169,6 +176,13 @@ class MidiIOMixin:
             self.input_port = None
         self._stop_midi_bridge()
         self.midi_bridge_connected = False
+
+        if self.midi_output_port is not None:
+            try:
+                self.midi_output_port.close()
+            except Exception:
+                pass
+            self.midi_output_port = None
 
         self.audio_engine.stop()
     def _on_midi_message(self, message: mido.Message) -> None:

@@ -460,6 +460,11 @@ class OverlaysMixin:
         def set_combo_text(combo: Any, var: Any, value: str) -> None:
             if hasattr(combo, "setCurrentText"):
                 combo.setCurrentText(value)
+                # En Qt, `setCurrentText` no emite `currentTextChanged` si el
+                # combo ya mostraba ese texto (p. ej. el índice 0 tras
+                # `addItems`), así que el StringVar puede quedarse sin
+                # sincronizar. Forzamos el valor explícitamente.
+                var.set(value)
             else:
                 var.set(value)
 
@@ -571,6 +576,33 @@ class OverlaysMixin:
             value="midi",
         ).pack(side=tk.LEFT)
 
+        ttk.Label(frame, text=self.tr("settings_midi_output")).grid(row=6, column=0, sticky="w", pady=4)
+        midi_out_values = [not_selected_label] + self.get_midi_output_names()
+        midi_out_var = tk.StringVar()
+        midi_out_combo = ttk.Combobox(
+            frame, textvariable=midi_out_var, state="readonly", values=midi_out_values
+        )
+        self._qt_style_settings_combo(midi_out_combo)
+        midi_out_combo.grid(row=6, column=1, sticky="ew", pady=4)
+        midi_out_current = self.config_data.get("midi_output", "")
+        if midi_out_current in midi_out_values:
+            set_combo_text(midi_out_combo, midi_out_var, str(midi_out_current))
+        else:
+            set_combo_text(midi_out_combo, midi_out_var, not_selected_label)
+
+        midi_out_error_label = ttk.Label(
+            frame,
+            text="",
+            foreground="#d32f2f",
+        )
+        midi_out_error_label.grid(row=7, column=0, columnspan=2, sticky="w", pady=(0, 2))
+
+        def _clear_midi_output_error(*_args: Any) -> None:
+            midi_out_error_label.configure(text="")
+
+        sound_output_var.trace_add("write", _clear_midi_output_error)
+        midi_out_var.trace_add("write", _clear_midi_output_error)
+
         def refresh_device_lists() -> None:
             # En Qt no existe (o no se propaga) `postcommand` igual que en Tk.
             # Para que el usuario vea dispositivos conectados "después de arrancar",
@@ -582,18 +614,22 @@ class OverlaysMixin:
             # Respaldo con config por si el combo y la var visual se desincronizan.
             prev_in = in_var.get() or str(self.config_data.get("midi_input", ""))
             prev_out = out_var.get() or str(self.config_data.get("audio_output", ""))
+            prev_midi_out = midi_out_var.get() or str(self.config_data.get("midi_output", ""))
 
             def worker() -> None:
                 self.refresh_devices()
                 new_inputs = list(self.input_names)
                 new_outputs = list(self.audio_output_names)
+                new_midi_outputs = self.get_midi_output_names()
 
                 def apply() -> None:
                     try:
                         updated_in_values = [not_selected_label] + new_inputs
                         updated_out_values = [not_selected_label] + new_outputs
+                        updated_midi_out_values = [not_selected_label] + new_midi_outputs
                         in_combo["values"] = updated_in_values
                         out_combo["values"] = updated_out_values
+                        midi_out_combo["values"] = updated_midi_out_values
                         set_combo_text(
                             in_combo,
                             in_var,
@@ -603,6 +639,11 @@ class OverlaysMixin:
                             out_combo,
                             out_var,
                             prev_out if prev_out in updated_out_values else not_selected_label,
+                        )
+                        set_combo_text(
+                            midi_out_combo,
+                            midi_out_var,
+                            prev_midi_out if prev_midi_out in updated_midi_out_values else not_selected_label,
                         )
                         fit_settings_dialog_to_content()
                     finally:
@@ -622,6 +663,7 @@ class OverlaysMixin:
         # Refresca dispositivos justo antes de abrir cada lista desplegable.
         in_combo.configure(postcommand=refresh_device_lists)
         out_combo.configure(postcommand=refresh_device_lists)
+        midi_out_combo.configure(postcommand=refresh_device_lists)
         # Refresco inicial al abrir el diálogo (útil en Qt, donde `postcommand`
         # puede no dispararse).
         refresh_device_lists()
@@ -652,7 +694,7 @@ class OverlaysMixin:
             text=self.tr("settings_show_key_labels"),
             variable=show_labels_var,
         )
-        show_labels_chk.grid(row=6, column=0, columnspan=2, sticky="w", pady=(6, 4))
+        show_labels_chk.grid(row=8, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         def _open_whats_new() -> None:
             self._close_settings_overlay()
@@ -662,14 +704,21 @@ class OverlaysMixin:
             frame,
             text=self.tr("settings_whats_new") if hasattr(self, "tr") else "Mostrar Novedades",
             command=_open_whats_new,
-        ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(2, 6))
+        ).grid(row=9, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
         def do_save(_event: Optional[tk.Event] = None) -> str:
+            midi_out_val = midi_out_var.get().strip()
+            if sound_output_var.get() == "midi" and midi_out_val in ("", not_selected_label):
+                midi_out_error_label.configure(text=self.tr("settings_midi_output_required"))
+                return "break"
+            midi_out_error_label.configure(text="")
+
             self.config_data["language"] = lang_var.get()
             midi_val = in_var.get().strip()
             self.config_data["midi_input"] = "" if midi_val == not_selected_label else midi_val
             audio_val = out_var.get().strip()
             self.config_data["audio_output"] = "" if audio_val == not_selected_label else audio_val
+            self.config_data["midi_output"] = "" if midi_out_val == not_selected_label else midi_out_val
             self.config_data["sound_preset"] = piano_sound_label_to_id.get(piano_sound_var.get(), "acoustic")
             self.config_data["guitar_sound_preset"] = guitar_sound_label_to_id.get(guitar_sound_var.get(), "steel_clean")
             self.config_data["show_keyboard_note_labels"] = bool(show_labels_var.get())

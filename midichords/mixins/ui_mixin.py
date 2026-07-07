@@ -1416,47 +1416,27 @@ class UiMixin:
             selected_border_width=2.0,
         )
         self.scale_mode_metronome_btn.grid(row=0, column=1, sticky="w", padx=(8, 0))
-        self.scale_metronome_volume_frame = tk.Frame(
-            self.scale_controls_row,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-        )
-        self.scale_metronome_volume_frame.columnconfigure(1, weight=1)
-        self.scale_metronome_volume_label = tk.Label(
-            self.scale_metronome_volume_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14),
-            anchor="w",
-            width=8,
-        )
-        self.scale_metronome_volume_label.grid(row=0, column=0, sticky="w")
+        # El bloque de volumen se reparte en dos sitios distintos del panel:
+        # la etiqueta "Volumen" + porcentaje va arriba, alineada con la fila
+        # de "Escala" (junto al botón "Básicas"); el slider va abajo, en
+        # scale_controls_row, alineado con Play/Metrónomo/Octavas y con todo
+        # el ancho disponible para sí mismo (antes competía por espacio
+        # horizontal con la etiqueta y nunca llegaba al 100%). Va directo en
+        # scale_controls_row (sin frame contenedor) porque un grid dentro de
+        # un pack dentro de un grid no propagaba bien el ancho a estirar.
         self.scale_metronome_volume_slider = tk.Canvas(
-            self.scale_metronome_volume_frame,
-            width=220,
+            self.scale_controls_row,
+            width=120,
             height=34,
             bg=self.color_surface_alt,
             highlightthickness=0,
             bd=0,
             cursor="hand2",
         )
-        self.scale_metronome_volume_slider.grid(row=0, column=1, sticky="ew", padx=(8, 8))
         self.scale_metronome_volume_slider.bind("<Configure>", lambda _e: self._draw_scale_metronome_volume_slider())
         self.scale_metronome_volume_slider.bind("<Button-1>", self._on_scale_metronome_volume_slider_interact)
         self.scale_metronome_volume_slider.bind("<B1-Motion>", self._on_scale_metronome_volume_slider_interact)
         self.scale_metronome_volume_var = tk.StringVar(value="100%")
-        self.scale_metronome_volume_value_label = tk.Label(
-            self.scale_metronome_volume_frame,
-            textvariable=self.scale_metronome_volume_var,
-            bg=self.color_surface_alt,
-            fg="#f3bf2f",
-            font=(self.ui_font_family, 12, "bold"),
-            width=7,
-            anchor="e",
-        )
-        self.scale_metronome_volume_value_label.grid(row=0, column=2, sticky="e")
 
         self.scale_bpm_row = tk.Frame(
             self.tab_scale_frame,
@@ -1582,6 +1562,35 @@ class UiMixin:
         )
         self.scale_inline_filter_btn.grid(row=0, column=1, sticky="e", padx=(6, 0))
         self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
+
+        # Etiqueta "Volumen" + porcentaje: en la misma fila que "Escala" (a
+        # la derecha del botón "Básicas"), alineada verticalmente con el
+        # resto de etiquetas del panel. El slider en sí vive en
+        # scale_controls_row (ver arriba), alineado con Play/Octavas.
+        self.scale_metronome_volume_caption_frame = tk.Frame(
+            scale_type_row,
+            bg=self.color_surface_alt,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.scale_metronome_volume_label = tk.Label(
+            self.scale_metronome_volume_caption_frame,
+            text="",
+            bg=self.color_surface_alt,
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+            anchor="w",
+        )
+        self.scale_metronome_volume_label.pack(side=tk.LEFT)
+        self.scale_metronome_volume_value_label = tk.Label(
+            self.scale_metronome_volume_caption_frame,
+            textvariable=self.scale_metronome_volume_var,
+            bg=self.color_surface_alt,
+            fg="#f3bf2f",
+            font=(self.ui_font_family, 12, "bold"),
+            anchor="w",
+        )
+        self.scale_metronome_volume_value_label.pack(side=tk.LEFT, padx=(6, 0))
 
         # Selector de octavas (piano only) — inline en scale_controls_row (cols 2+3)
         self.scale_octaves_row = tk.Frame(

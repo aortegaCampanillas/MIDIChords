@@ -257,12 +257,16 @@ class ScalesMixin:
         self.scale_mode_guitar_btn.set_selected(self.scale_play_mode == "guitar")
         self.scale_mode_metronome_btn.set_selected(self.scale_metronome_only)
     def _refresh_scale_metronome_volume_visibility(self) -> None:
-        if not hasattr(self, "scale_metronome_volume_frame"):
+        if not hasattr(self, "scale_metronome_volume_slider"):
             return
         if self.scale_metronome_only:
-            self.scale_metronome_volume_frame.grid(row=0, column=4, sticky="ew", padx=(8, 0))
+            self.scale_metronome_volume_slider.grid(row=0, column=4, sticky="ew", padx=(8, 0))
+            if hasattr(self, "scale_metronome_volume_caption_frame"):
+                self.scale_metronome_volume_caption_frame.grid(row=0, column=2, sticky="e", padx=(12, 0))
         else:
-            self.scale_metronome_volume_frame.grid_remove()
+            self.scale_metronome_volume_slider.grid_remove()
+            if hasattr(self, "scale_metronome_volume_caption_frame"):
+                self.scale_metronome_volume_caption_frame.grid_remove()
     def _set_scale_transport_icon_pressed(self, mode: str, pressed: bool) -> None:
         if not self.scale_transport_buttons_are_images:
             return

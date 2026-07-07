@@ -536,10 +536,17 @@ class MidiChordAnalyzerApp(
 
 
     # Audio/MIDI output wrapper methods
+    # Las velocities de la app están calibradas para el motor de audio interno
+    # (valores altos, 100-108, para que suene bien ahí). Un piano MIDI real
+    # las reproduce mucho más fuerte a igualdad de valor, así que se escalan
+    # antes de enviarlas por MIDI out.
+    MIDI_OUT_VELOCITY_SCALE = 0.7
+
     def play_note(self, midi_note: int, velocity: int = 80) -> bool:
         """Play a note via audio engine or MIDI output based on sound_output setting."""
         if self.sound_output == "midi" and self.midi_output_port is not None:
-            self.send_midi_note_on(self.midi_output_port, midi_note, velocity)
+            scaled_velocity = max(1, min(127, round(velocity * self.MIDI_OUT_VELOCITY_SCALE)))
+            self.send_midi_note_on(self.midi_output_port, midi_note, scaled_velocity)
             return True
         else:
             return self.audio_engine.note_on(midi_note, velocity)

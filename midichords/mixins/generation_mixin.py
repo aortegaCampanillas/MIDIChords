@@ -585,6 +585,7 @@ class GenerationMixin:
         *,
         auto_clear_ms: Optional[int] = 520,
         additive: bool = False,
+        source: str = "mouse",
     ) -> None:
         """Dispara una nota suelta en modo generación.
 
@@ -594,6 +595,9 @@ class GenerationMixin:
 
         `additive`: si es True, no vacía las demás notas en resaltado/audio (varias teclas MIDI a la vez).
         Los clics de ratón/pentagrama usan False para sustituir la nota previa.
+
+        `source`: "mouse" o "midi". Con salida MIDI activa, las notas que llegan de un
+        teclado MIDI físico no deben sonar localmente (el propio teclado ya las reproduce).
         """
         if self.generation_tab_active and self.instrument_view == "guitar" and self.guitar_selected_variation_notes:
             allowed_notes = set(self.guitar_selected_variation_notes)
@@ -619,11 +623,14 @@ class GenerationMixin:
                     self.stop_note(n)
             self.generated_playing_notes.clear()
         self.generated_playing_notes.add(note)
+        play_locally = source != "midi" or self._should_play_midi_input_locally()
         if self.instrument_view == "guitar":
-            self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
+            if play_locally:
+                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
             stop_audio = False
         else:
-            self.play_note(note, 108)
+            if play_locally:
+                self.play_note(note, 108)
             stop_audio = True
         if auto_clear_ms is not None and int(auto_clear_ms) > 0:
             self.generated_note_highlight_after[note] = self.after(

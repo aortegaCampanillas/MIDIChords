@@ -517,7 +517,9 @@ class InputDetectionMixin:
                         # MIDI sostenido: sin timeout de 520 ms; se limpia en note_off.
                         # Varios note_on a la vez: acumular resaltado/audio hasta cada note_off.
                         self.generation_midi_held_notes.add(note_int)
-                        self._trigger_generated_single_note(note_int, auto_clear_ms=None, additive=True)
+                        self._trigger_generated_single_note(
+                            note_int, auto_clear_ms=None, additive=True, source="midi"
+                        )
                     else:
                         self._show_forbidden_note_feedback(note_int)
                 elif message.type == "note_off" or (message.type == "note_on" and message.velocity == 0):
@@ -526,7 +528,7 @@ class InputDetectionMixin:
                     if note_int in self.generated_playing_notes:
                         self._clear_generated_note_highlight(
                             note_int,
-                            stop_audio=(self.instrument_view != "guitar"),
+                            stop_audio=(self.instrument_view != "guitar") and self._should_play_midi_input_locally(),
                         )
                 continue
 

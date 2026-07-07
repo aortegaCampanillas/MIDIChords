@@ -503,6 +503,14 @@ class GenerationMixin:
                 self.redraw_guitar_fretboard()
                 self.redraw_staff()
             return
+        # Identifica esta ronda de forma explícita en vez de confiar solo en
+        # after_cancel: si dos acordes se disparan muy seguidos (p. ej. clics
+        # rápidos en el círculo de quintas), un after_cancel que no surta
+        # efecto a tiempo podía dejar el timer viejo ejecutándose sobre notas
+        # ya reemplazadas, y las notas del acorde anterior se quedaban
+        # sonando indefinidamente (acumulación de voces activas sin apagar).
+        preview_token = getattr(self, "_preview_chord_token", 0) + 1
+        self._preview_chord_token = preview_token
         for note in notes:
             self.play_note(note, 108)
             self.generated_playing_notes.add(note)
@@ -510,11 +518,19 @@ class GenerationMixin:
             self.redraw_keyboard()
             self.redraw_staff()
 
+        is_circle = getattr(self, "circle_fifths_tab_active", False)
+
         def _release_preview() -> None:
             setattr(self, "_preview_chord_after_id", None)
+            if getattr(self, "_preview_chord_token", None) != preview_token:
+                return
             for note in list(notes):
                 if note in self.generated_playing_notes:
-                    self.stop_note(note)
+                    # En el círculo de quintas el preview es un sonido corto,
+                    # no una nota sostenida real: un release rápido evita que
+                    # cambiar de acorde repetidamente acumule voces con la
+                    # cola larga normal del piano (se oía como ruido/crackle).
+                    self.stop_note(note, fast=is_circle)
                     self.generated_playing_notes.discard(note)
             if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
                 self.redraw_keyboard()
@@ -547,8 +563,9 @@ class GenerationMixin:
             except Exception:
                 pass
         self.generated_note_highlight_after.clear()
+        is_circle = getattr(self, "circle_fifths_tab_active", False)
         for note in list(self.generated_playing_notes):
-            self.stop_note(note)
+            self.stop_note(note, fast=is_circle)
         self.generated_playing_notes.clear()
         if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
             self.redraw_keyboard()

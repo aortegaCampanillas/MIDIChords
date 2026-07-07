@@ -122,7 +122,7 @@ DEFAULT_CONFIG = {
     "sound_output": "audio",
     "midi_output": "",
     "midi_input_sound_enabled": True,
-    "sound_preset": "acoustic",
+    "sound_preset": "grand_sample",
     "guitar_sound_preset": "steel_clean",
     "show_keyboard_note_labels": True,
     "metronome_bpm": 120,

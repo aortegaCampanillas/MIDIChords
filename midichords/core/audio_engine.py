@@ -29,6 +29,12 @@ class Voice:
     # Evita mezclar sustain decreciente × exp(release), que puede dar transiente tipo “clic”.
     release_peak: float = 1.0
     release_peak_set: bool = False
+    # True para voces desplazadas a fading_voices en un retrigger (crossfade):
+    # usan un release mucho más rápido (~380ms) que el normal (~1.4-2.2s), ya
+    # que solo necesitan evitar el corte brusco, no sostener el timbre. Sin
+    # esto, cambiar de acorde rápido (p. ej. círculo de quintas) acumula
+    # decenas de voces fantasma sonando a la vez y genera ruido audible.
+    fast_release: bool = False
 
 
 @dataclass
@@ -78,6 +84,7 @@ class PianoAudioEngine:
         self._stream_lock = threading.Lock()
         self.lock = threading.Lock()
         self.voices: dict[int, Voice] = {}
+        self.fading_voices: list[Voice] = []
         self.click_voices: list[ClickVoice] = []
         self.guitar_voices: list[GuitarVoice] = []
         self.sample_voices: list[SampleVoice] = []
@@ -184,6 +191,7 @@ class PianoAudioEngine:
     def stop(self) -> None:
         with self.lock:
             self.voices.clear()
+            self.fading_voices.clear()
             self.click_voices.clear()
             self.guitar_voices.clear()
             self.sample_voices.clear()
@@ -255,6 +263,16 @@ class PianoAudioEngine:
             if prev is not None and not prev.released:
                 vlog("audio", "note_on ignored while holding: note=%s", note)
                 return False
+            if prev is not None and prev.released:
+                # La nota anterior seguía sonando su cola de apagado (release):
+                # esto pasa a menudo al cambiar de acorde con una nota en común.
+                # Sustituirla de golpe corta su envolvente en mitad de la
+                # amplitud, lo que se oye como un click/ruido. Se deja seguir
+                # sonando en una lista aparte, con fade rápido (ver
+                # Voice.fast_release) para que no se acumulen decenas de voces
+                # fantasma si el usuario cambia de acorde repetidamente.
+                prev.fast_release = True
+                self.fading_voices.append(prev)
             self.voices[note] = voice
         return True
 
@@ -267,14 +285,44 @@ class PianoAudioEngine:
             return [-1.8, 1.8]
         return [-3.2, 0.0, 3.2]
 
-    def note_off(self, note: int) -> None:
+    # Nº máximo de voces en cola de apagado (released) toleradas antes de
+    # forzar un fade rápido en las más antiguas. El release normal del piano
+    # dura ~1.4-2.2s; si se cambia de acorde varias veces por segundo (p. ej.
+    # clics rápidos en el círculo de quintas), decenas de esas colas pueden
+    # solaparse y su suma de energía se oye como ruido/distorsión.
+    MAX_RELEASED_VOICES = 12
+
+    def note_off(self, note: int, fast: bool = False) -> None:
+        """`fast=True` usa un release corto (~380ms) en vez del normal (1.4-2.2s).
+
+        Pensado para previews cortos de acorde completo (p. ej. círculo de
+        quintas): ahí no interesa el timbre sostenido de una nota real, y
+        varios acordes cambiando rápido con release largo acumulan muchas
+        voces solapadas cuya suma se oye como ruido.
+        """
         fade_samples = int(0.080 * self.sample_rate)  # 80 ms smoothstep fade-out
         with self.lock:
             voice = self.voices.get(note)
             if voice is not None:
-                voice.released = True
-                voice.release_samples = 0
-                voice.release_peak_set = False
+                if not voice.released:
+                    # Solo (re)iniciar la cola de release la primera vez: si
+                    # la voz ya estaba soltándose y se vuelve a llamar
+                    # note_off (p. ej. release normal seguido de un release
+                    # rápido), reiniciar release_samples/release_peak_set
+                    # fuerza un recálculo del pico de referencia a partir del
+                    # nivel de "sostenido" en vez del nivel real ya decaído,
+                    # produciendo un salto de amplitud audible como click.
+                    voice.released = True
+                    voice.release_samples = 0
+                    voice.release_peak_set = False
+                if fast:
+                    voice.fast_release = True
+            released_voices = [v for v in self.voices.values() if v.released]
+            excess = len(released_voices) - self.MAX_RELEASED_VOICES
+            if excess > 0:
+                released_voices.sort(key=lambda v: v.release_samples, reverse=True)
+                for old_voice in released_voices[:excess]:
+                    old_voice.fast_release = True
             for sample_voice in self.sample_voices:
                 if sample_voice.note == note and sample_voice.fade_out_total == 0:
                     if sample_voice.attack_samples > 0 and sample_voice.rendered_samples < sample_voice.attack_samples:
@@ -527,11 +575,125 @@ class PianoAudioEngine:
             pitched = pitched / peak
         return pitched
 
-    def _audio_callback(self, outdata: np.ndarray, frames: int, _time, _status) -> None:
+    def _render_voice(self, voice: Voice, n: np.ndarray, frames: int) -> tuple[np.ndarray, bool]:
+        """Sintetiza el bloque de audio de una voz (activa o en fading_voices).
+
+        Devuelve (señal, terminada). `terminada=True` indica que la voz ya
+        llegó a silencio y puede descartarse.
+        """
+        start_age = voice.age_samples
+        age = (start_age + n) / self.sample_rate
+        attack = 1.0 - np.exp(-age / 0.0052)
+
+        if self.preset == "warm":
+            partial_count = 6
+            harmonic_shape_base = 1.15
+            harmonic_shape_vel = 0.85
+            decay_base = 0.24
+            decay_step = 0.10
+            sustain_base = 0.65
+            sustain_freq = 3200.0
+            release_rate = 3.9
+            local_gain = 0.95
+        elif self.preset == "bright":
+            partial_count = 9
+            harmonic_shape_base = 0.78
+            harmonic_shape_vel = 0.95
+            decay_base = 0.36
+            decay_step = 0.14
+            sustain_base = 0.9
+            sustain_freq = 2200.0
+            release_rate = 5.4
+            local_gain = 1.05
+        elif self.preset == "soft":
+            partial_count = 5
+            harmonic_shape_base = 1.35
+            harmonic_shape_vel = 0.70
+            decay_base = 0.20
+            decay_step = 0.08
+            sustain_base = 0.58
+            sustain_freq = 3600.0
+            release_rate = 3.45
+            local_gain = 0.88
+        else:
+            partial_count = 7
+            harmonic_shape_base = 0.95
+            harmonic_shape_vel = 1.10
+            decay_base = 0.30
+            decay_step = 0.12
+            sustain_base = 0.78
+            sustain_freq = 2900.0
+            release_rate = 4.05
+            local_gain = 1.0
+
+        # Inharmonicidad de cuerdas reales (mayor en agudos).
+        b_coeff = 0.000015 + (voice.freq / 4200.0) ** 2 * 0.00022
+        spectrum = np.zeros(frames, dtype=np.float64)
+        nyquist_guard = self.sample_rate * 0.45
+
+        # Simulacion de varias cuerdas por nota (batidos por detune).
+        for ratio in voice.detune_ratios:
+            string_tone = np.zeros(frames, dtype=np.float64)
+            for k in range(1, partial_count + 1):
+                inharmonic = math.sqrt(1.0 + b_coeff * (k * k))
+                harmonic_freq = voice.freq * ratio * k * inharmonic
+                if harmonic_freq >= nyquist_guard:
+                    continue
+
+                phases = (2.0 * math.pi * harmonic_freq * age) + (k * 0.17)
+
+                # Brillo dependiente de velocidad y decaimiento por parcial.
+                harmonic_shape = harmonic_shape_base + (harmonic_shape_vel * (1.0 - voice.brightness))
+                harmonic_amp = 1.0 / (k ** harmonic_shape)
+                decay_rate = decay_base + decay_step * k + 0.015 * max(0.0, voice.freq - 220.0) / 220.0
+                partial_env = np.exp(-decay_rate * age)
+                string_tone += harmonic_amp * np.sin(phases) * partial_env
+
+            spectrum += string_tone
+
+        hold_floor = 0.10 + 0.08 * (1.0 - voice.brightness)
+        sustain_decay = np.exp(-(sustain_base + voice.freq / sustain_freq) * age)
+        hold_env = attack * (hold_floor + (1.0 - hold_floor) * sustain_decay)
+
+        if voice.released:
+            release_age = (voice.release_samples + n) / self.sample_rate
+            if not voice.release_peak_set:
+                voice.release_peak = float(np.clip(hold_env[0], 1e-4, 1.0))
+                voice.release_peak_set = True
+            # 20.0 ≈ 380ms hasta silencio. Con 42.0 (~180ms) el propio
+            # decaimiento tan rápido de una señal rica en armónicos generaba
+            # un leve chasquido (un cambio de amplitud muy veloz mete energía
+            # de banda ancha, percibida como click).
+            effective_release_rate = 20.0 if voice.fast_release else release_rate
+            # Cola solo exponencial desde el pico al soltar (no sustain × release).
+            env = voice.release_peak * np.exp(-effective_release_rate * release_age)
+        else:
+            env = hold_env
+
+        tone = spectrum / max(1, len(voice.detune_ratios))
+        tone_signal = (tone * env * voice.velocity_gain * local_gain).astype(np.float32)
+
+        voice.age_samples += frames
+        if voice.released:
+            voice.release_samples += frames
+
+        end_env = float(env[-1]) if frames else 0.0
+        done = voice.released and end_env < 0.0005
+        return tone_signal, done
+
+    def _audio_callback(self, outdata: np.ndarray, frames: int, _time, status) -> None:
+        if status:
+            vlog("audio", "callback status flags: %s", status)
         signal = np.zeros(frames, dtype=np.float32)
 
         with self.lock:
-            if not self.voices and not self.click_voices and not self.guitar_voices and not self.sample_voices:
+            if (
+                not self.voices
+                and not self.fading_voices
+                and not self.click_voices
+                and not self.guitar_voices
+                and not self.sample_voices
+            ):
                 outdata.fill(0)
                 return
 
@@ -539,103 +701,21 @@ class PianoAudioEngine:
             n = np.arange(frames, dtype=np.float64)
 
             for note, voice in list(self.voices.items()):
-                start_age = voice.age_samples
-                age = (start_age + n) / self.sample_rate
-                attack = 1.0 - np.exp(-age / 0.0052)
-
-                if self.preset == "warm":
-                    partial_count = 6
-                    harmonic_shape_base = 1.15
-                    harmonic_shape_vel = 0.85
-                    decay_base = 0.24
-                    decay_step = 0.10
-                    sustain_base = 0.65
-                    sustain_freq = 3200.0
-                    release_rate = 3.9
-                    local_gain = 0.95
-                elif self.preset == "bright":
-                    partial_count = 9
-                    harmonic_shape_base = 0.78
-                    harmonic_shape_vel = 0.95
-                    decay_base = 0.36
-                    decay_step = 0.14
-                    sustain_base = 0.9
-                    sustain_freq = 2200.0
-                    release_rate = 5.4
-                    local_gain = 1.05
-                elif self.preset == "soft":
-                    partial_count = 5
-                    harmonic_shape_base = 1.35
-                    harmonic_shape_vel = 0.70
-                    decay_base = 0.20
-                    decay_step = 0.08
-                    sustain_base = 0.58
-                    sustain_freq = 3600.0
-                    release_rate = 3.45
-                    local_gain = 0.88
-                else:
-                    partial_count = 7
-                    harmonic_shape_base = 0.95
-                    harmonic_shape_vel = 1.10
-                    decay_base = 0.30
-                    decay_step = 0.12
-                    sustain_base = 0.78
-                    sustain_freq = 2900.0
-                    release_rate = 4.05
-                    local_gain = 1.0
-
-                # Inharmonicidad de cuerdas reales (mayor en agudos).
-                b_coeff = 0.000015 + (voice.freq / 4200.0) ** 2 * 0.00022
-                spectrum = np.zeros(frames, dtype=np.float64)
-                nyquist_guard = self.sample_rate * 0.45
-
-                # Simulacion de varias cuerdas por nota (batidos por detune).
-                for ratio in voice.detune_ratios:
-                    string_tone = np.zeros(frames, dtype=np.float64)
-                    for k in range(1, partial_count + 1):
-                        inharmonic = math.sqrt(1.0 + b_coeff * (k * k))
-                        harmonic_freq = voice.freq * ratio * k * inharmonic
-                        if harmonic_freq >= nyquist_guard:
-                            continue
-
-                        phases = (2.0 * math.pi * harmonic_freq * age) + (k * 0.17)
-
-                        # Brillo dependiente de velocidad y decaimiento por parcial.
-                        harmonic_shape = harmonic_shape_base + (harmonic_shape_vel * (1.0 - voice.brightness))
-                        harmonic_amp = 1.0 / (k ** harmonic_shape)
-                        decay_rate = decay_base + decay_step * k + 0.015 * max(0.0, voice.freq - 220.0) / 220.0
-                        partial_env = np.exp(-decay_rate * age)
-                        string_tone += harmonic_amp * np.sin(phases) * partial_env
-
-                    spectrum += string_tone
-
-                hold_floor = 0.10 + 0.08 * (1.0 - voice.brightness)
-                sustain_decay = np.exp(-(sustain_base + voice.freq / sustain_freq) * age)
-                hold_env = attack * (hold_floor + (1.0 - hold_floor) * sustain_decay)
-
-                if voice.released:
-                    release_age = (voice.release_samples + n) / self.sample_rate
-                    if not voice.release_peak_set:
-                        voice.release_peak = float(np.clip(hold_env[0], 1e-4, 1.0))
-                        voice.release_peak_set = True
-                    # Cola solo exponencial desde el pico al soltar (no sustain × release).
-                    env = voice.release_peak * np.exp(-release_rate * release_age)
-                else:
-                    env = hold_env
-
-                tone = spectrum / max(1, len(voice.detune_ratios))
-                signal += (tone * env * voice.velocity_gain * local_gain).astype(np.float32)
-
-                voice.age_samples += frames
-                if voice.released:
-                    voice.release_samples += frames
-
-                end_env = float(env[-1]) if frames else 0.0
-                if voice.released and end_env < 0.0005:
+                tone_signal, done = self._render_voice(voice, n, frames)
+                signal += tone_signal
+                if done:
                     to_remove.append(note)
 
             for note in to_remove:
                 self.voices.pop(note, None)
+
+            remaining_fading: list[Voice] = []
+            for voice in self.fading_voices:
+                tone_signal, done = self._render_voice(voice, n, frames)
+                signal += tone_signal
+                if not done:
+                    remaining_fading.append(voice)
+            self.fading_voices = remaining_fading
 
             remaining_guitars: list[GuitarVoice] = []
             for gvoice in self.guitar_voices:
@@ -754,7 +834,13 @@ class PianoAudioEngine:
                         remaining_clicks.append(click)
             self.click_voices = remaining_clicks
 
-        signal = np.clip(signal * self.master_gain, -0.98, 0.98)
+        signal = signal * self.master_gain
+        # Soft-clip en vez de np.clip duro: al disparar un acorde completo,
+        # varias voces arrancan en el mismo instante y sus armónicos pueden
+        # sumar picos que superan el rango; un corte brusco ahí se oye como
+        # un crack/ruido. tanh comprime el pico suavemente y para señal normal
+        # (|x| bajo) es prácticamente idéntico (tanh(x) ≈ x).
+        signal = np.tanh(signal).astype(np.float32)
         outdata[:, 0] = signal
         if outdata.shape[1] > 1:
             outdata[:, 1] = signal

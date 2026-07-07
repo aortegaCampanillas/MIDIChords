@@ -1373,6 +1373,7 @@ class UiMixin:
         self.circle_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
         self.circle_canvas.bind("<Configure>", self._on_circle_canvas_configure)
         self.circle_canvas.bind("<Button-1>", self._on_circle_canvas_click)
+        self.circle_canvas.bind("<ButtonRelease-1>", self._on_circle_canvas_release)
 
         self.scale_panel_title_label = tk.Label(
             self.tab_scale_frame,

@@ -112,6 +112,15 @@ class CircleFifthsMixin:
             self.circle_chord_root_pc = int(pc)
         self._circle_run_generate(play_preview=True)
 
+    def _on_circle_canvas_release(self, _event: tk.Event) -> None:
+        # Corta el acorde en cuanto se suelta el clic (como soltar una tecla
+        # real), en vez de esperar al auto-apagado fijo de 1.5s.
+        # _stop_generated_playback ya usa release rápido en el círculo de
+        # quintas, evitando acumular voces si se encadenan varios clics.
+        if not getattr(self, "circle_fifths_tab_active", False):
+            return
+        self._stop_generated_playback()
+
     def _circle_run_generate(self, *, play_preview: bool = False) -> None:
         root_pc = int(self.circle_chord_root_pc) % 12
         tonic_pc = circle_major_tonic_pc_for_theory(self.circle_tonic_pc, self.circle_key_mode)

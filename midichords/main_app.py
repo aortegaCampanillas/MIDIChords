@@ -412,24 +412,44 @@ class MidiChordAnalyzerApp(
     def _start_midi_hotplug_poll(self) -> None:
         self._midi_hotplug_last_devices: set[str] = set()
         self._midi_hotplug_dialog_open: bool = False
+        self._midi_configured_device_was_present: bool = False
         self.after(1_500, self._midi_hotplug_tick)
 
     def _midi_hotplug_tick(self) -> None:
         devices, _ = self._scan_midi_inputs_isolated()
         current = set(devices)
         new_devices = current - self._midi_hotplug_last_devices
+
+        configured_device = str(self.config_data.get("midi_input", "") or "")
+        configured_present = bool(configured_device) and configured_device in current
+        was_present = self._midi_configured_device_was_present
+        self._midi_configured_device_was_present = configured_present
+        device_disconnected = bool(configured_device) and was_present and not configured_present
+
         self._midi_hotplug_last_devices = current
-        bridge_active = bool(getattr(self, "midi_bridge_connected", False))
         settings_open = getattr(self, "settings_overlay", None) is not None
         modal_open = getattr(self, "_startup_modal_open", False)
-        if new_devices and not bridge_active and not settings_open and not self._midi_hotplug_dialog_open and not modal_open:
-            self._show_midi_hotplug_dialog()
+        dialog_free = not settings_open and not self._midi_hotplug_dialog_open and not modal_open
+
+        if device_disconnected and dialog_free:
+            self._show_midi_disconnected_dialog(configured_device)
+        else:
+            bridge_active = bool(getattr(self, "midi_bridge_connected", False))
+            if new_devices and not bridge_active and dialog_free:
+                self._show_midi_hotplug_dialog()
         self.after(10_000, self._midi_hotplug_tick)
 
-    def _show_midi_hotplug_dialog(self) -> None:
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-        from PySide6.QtCore import Qt as _Qt
+    def _show_midi_disconnected_dialog(self, device_name: str) -> None:
+        lang = str(self.config_data.get("language", "es"))
+        from midichords.core.i18n import UI_TEXTS
+        texts = UI_TEXTS.get(lang, UI_TEXTS["es"])
 
+        title = texts.get("midi_disconnected_title", "MIDI Device Disconnected")
+        message = texts.get("midi_disconnected_message", "{device} was disconnected.").format(device=device_name)
+        open_label = texts.get("midi_hotplug_open", "Open Settings")
+        self._show_midi_device_dialog(title, message, open_label)
+
+    def _show_midi_hotplug_dialog(self) -> None:
         lang = str(self.config_data.get("language", "es"))
         from midichords.core.i18n import UI_TEXTS
         texts = UI_TEXTS.get(lang, UI_TEXTS["es"])
@@ -437,6 +457,15 @@ class MidiChordAnalyzerApp(
         title = texts.get("midi_hotplug_title", "MIDI Device Detected")
         message = texts.get("midi_hotplug_message", "A new MIDI device was detected.")
         open_label = texts.get("midi_hotplug_open", "Open Settings")
+        self._show_midi_device_dialog(title, message, open_label)
+
+    def _show_midi_device_dialog(self, title: str, message: str, open_label: str) -> None:
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+        from PySide6.QtCore import Qt as _Qt
+        from midichords.core.i18n import UI_TEXTS
+
+        lang = str(self.config_data.get("language", "es"))
+        texts = UI_TEXTS.get(lang, UI_TEXTS["es"])
         cancel_label = texts.get("button_cancel", "Cancelar")
 
         win = QDialog(self)

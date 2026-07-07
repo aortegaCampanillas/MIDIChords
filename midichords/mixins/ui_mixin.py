@@ -3851,9 +3851,6 @@ class UiMixin:
             "mode_picker_trigger:help_mode_select",
             "generation_accidental_switch:help_accidental",
             "config_icon_btn:help_settings_btn",
-            "piano_view_btn:help_inst_piano_btn",
-            "guitar_view_btn:help_inst_guitar_btn",
-            "guitar_handedness_combo:help_guitar_handedness",
         )
         mode = getattr(self, "current_mode", "detection")
         specific: list[tuple[object, str]] = []
@@ -3871,7 +3868,7 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_instrument_guitar")
+                specific += _w("guitar_canvas:help_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "interval_detection":
             specific = _w(
@@ -3888,7 +3885,7 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_interval_instrument")
             else:
-                specific += _w("guitar_canvas:help_interval_instrument")
+                specific += _w("guitar_canvas:help_interval_instrument", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "generation":
             specific = _w(
@@ -3901,22 +3898,28 @@ class UiMixin:
                 "gen_result_chord_row:help_gen_result_name",
                 "gen_result_notes_row:help_gen_result_notes",
                 "gen_result_intervals_row:help_gen_result_intervals",
+                # Selector piano/guitarra: solo vive en el panel inferior en
+                # generación y círculo de quintas (_show_generation_instrument_buttons).
+                "piano_view_btn:help_inst_piano_btn",
+                "guitar_view_btn:help_inst_guitar_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_gen_instrument")
             else:
-                specific += _w("guitar_canvas:help_gen_instrument")
+                specific += _w("guitar_canvas:help_gen_instrument", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "circle_fifths":
             specific = _w(
                 "staff_canvas:help_staff_circle",
                 "circle_play_btn:help_circle_play",
                 "circle_canvas:help_circle_canvas",
+                "piano_view_btn:help_inst_piano_btn",
+                "guitar_view_btn:help_inst_guitar_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_circle_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_circle_instrument_guitar")
+                specific += _w("guitar_canvas:help_circle_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "scales":
             specific = _w(
@@ -3932,11 +3935,17 @@ class UiMixin:
                 "scale_name_label:help_scale_result_name",
                 "scale_result_notes_row:help_scale_result_notes",
                 "scale_result_intervals_row:help_scale_result_intervals",
+                # Selector piano/guitarra propio de Escalas (distinto de
+                # piano_view_btn/guitar_view_btn, que aquí están ocultos).
+                "scale_mode_piano_btn:help_inst_piano_btn",
+                "scale_mode_guitar_btn:help_inst_guitar_btn",
             )
-            if getattr(self, "instrument_view", "piano") == "piano":
+            if getattr(self, "scale_metronome_only", False):
+                specific += _w("scale_metronome_volume_slider:help_scale_metronome_volume")
+            if getattr(self, "scale_play_mode", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_scale_instrument")
             else:
-                specific += _w("guitar_canvas:help_scale_instrument")
+                specific += _w("guitar_canvas:help_scale_instrument", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "metronome":
             specific = _w(
@@ -3952,7 +3961,7 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_metro_instrument")
             else:
-                specific += _w("guitar_canvas:help_metro_instrument")
+                specific += _w("guitar_canvas:help_metro_instrument", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "tuner":
             specific = _w("tab_tuner_frame:help_tuner_panel")

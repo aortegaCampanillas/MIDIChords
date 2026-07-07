@@ -632,6 +632,8 @@ class MidiChordAnalyzerApp(
         self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()
+        if getattr(self, "_help_active", False):
+            self._refresh_help_bindings()
 
 
 

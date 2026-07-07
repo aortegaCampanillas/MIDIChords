@@ -119,6 +119,8 @@ class ScalesMixin:
             # Cambio en caliente: mantener el loop, pero apagar la nota sostenida actual.
             self.stop_note(self.scale_current_note)
             self.scale_playing_notes.discard(self.scale_current_note)
+        if getattr(self, "_help_active", False):
+            self._refresh_help_bindings()
 
     def _set_scale_octaves(self, octaves: int) -> None:
         """Cambia el número de octavas a reproducir en escalas (piano)."""
@@ -303,6 +305,7 @@ class ScalesMixin:
             except Exception:
                 pass
             self.guitar_canvas.pack(fill=tk.X, expand=False)
+            self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
             self._fit_instrument_panel_height()
             self.redraw_guitar_fretboard()
         else:

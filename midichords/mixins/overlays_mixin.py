@@ -563,18 +563,53 @@ class OverlaysMixin:
         sound_output_var = tk.StringVar(value=str(self.config_data.get("sound_output", "audio")))
         sound_output_frame = ttk.Frame(frame)
         sound_output_frame.grid(row=5, column=1, sticky="w", pady=4)
-        ttk.Radiobutton(
+        sound_output_audio_radio = ttk.Radiobutton(
             sound_output_frame,
             text=self.tr("sound_output_audio"),
             variable=sound_output_var,
             value="audio",
-        ).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Radiobutton(
+        )
+        sound_output_audio_radio.pack(side=tk.LEFT, padx=(0, 12))
+        sound_output_midi_radio = ttk.Radiobutton(
             sound_output_frame,
             text=self.tr("sound_output_midi"),
             variable=sound_output_var,
             value="midi",
-        ).pack(side=tk.LEFT)
+        )
+        sound_output_midi_radio.pack(side=tk.LEFT)
+
+        def _sync_sound_output_radios(*_args: Any) -> None:
+            # El shim Qt de Radiobutton solo sincroniza var→UI al construirse;
+            # cambios posteriores del StringVar (p. ej. programáticos, al
+            # detectar/perder una entrada MIDI) no mueven el botón marcado
+            # si no forzamos setChecked explícitamente aquí.
+            current = sound_output_var.get()
+            for radio in (sound_output_audio_radio, sound_output_midi_radio):
+                try:
+                    radio.setChecked(str(getattr(radio, "_value", "")) == current)
+                except Exception:
+                    pass
+
+        sound_output_var.trace_add("write", _sync_sound_output_radios)
+
+        # Si el usuario selecciona una entrada MIDI (antes vacía/"no seleccionado"),
+        # activa automáticamente la salida por MIDI: es el flujo esperado al
+        # conectar un piano MIDI por primera vez. Si se queda sin entrada MIDI
+        # (se quita o se desconecta), vuelve a Audio (síntesis) por defecto.
+        _prev_midi_input_choice = {"value": in_var.get()}
+
+        def _on_midi_input_choice_changed(*_args: Any) -> None:
+            prev = _prev_midi_input_choice["value"]
+            current = in_var.get()
+            _prev_midi_input_choice["value"] = current
+            had_device = bool(prev) and prev != not_selected_label
+            has_device = bool(current) and current != not_selected_label
+            if has_device and not had_device:
+                sound_output_var.set("midi")
+            elif had_device and not has_device:
+                sound_output_var.set("audio")
+
+        in_var.trace_add("write", _on_midi_input_choice_changed)
 
         ttk.Label(frame, text=self.tr("settings_midi_output")).grid(row=6, column=0, sticky="w", pady=4)
         midi_out_values = [not_selected_label] + self.get_midi_output_names()

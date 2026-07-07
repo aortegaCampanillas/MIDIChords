@@ -665,28 +665,14 @@ class OverlaysMixin:
         out_combo.configure(postcommand=refresh_device_lists)
         midi_out_combo.configure(postcommand=refresh_device_lists)
         # Refresco inicial al abrir el diálogo (útil en Qt, donde `postcommand`
-        # puede no dispararse).
-        refresh_device_lists()
-        # Refrescamos también en bucles cortos mientras el overlay esté abierto,
-        # para que se vean dispositivos conectados/desconectados tras el arranque.
-        # (En Qt `postcommand` no es fiable y a veces el dispositivo tarda en
-        # aparecer tras conectarlo físicamente.)
+        # puede no dispararse). El refresco periódico que había aquí (cada
+        # 1.5s, varias veces) llamaba a sd.query_devices() repetidamente
+        # mientras el diálogo estaba abierto, lo cual podía introducir un
+        # glitch/click audible en el stream de audio activo. Cada combo sigue
+        # refrescando al desplegarse (ver postcommand arriba), así que basta
+        # con abrir el desplegable para ver dispositivos recién conectados.
         self._settings_overlay_device_refresh_after_id = None
-
-        def _periodic_device_refresh(tries_left: int = 6) -> None:
-            if self.settings_overlay is None or tries_left <= 0:
-                self._settings_overlay_device_refresh_after_id = None
-                return
-            try:
-                refresh_device_lists()
-            except Exception:
-                pass
-            self._settings_overlay_device_refresh_after_id = self.after(
-                1500,
-                lambda: _periodic_device_refresh(tries_left - 1),
-            )
-
-        _periodic_device_refresh(tries_left=5)
+        refresh_device_lists()
 
         show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", True)))
         show_labels_chk = ttk.Checkbutton(

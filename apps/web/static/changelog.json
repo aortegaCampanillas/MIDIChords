@@ -7,6 +7,13 @@
         "date": "2026-07-07",
         "publish": true,
         "platforms": ["desktop"],
+        "es": "Mejora de calidad de sonido: se eliminan ruidos/clicks al cambiar de nota.",
+        "en": "Sound quality improvement: removed noise/clicks when switching notes."
+      },
+      {
+        "date": "2026-07-07",
+        "publish": true,
+        "platforms": ["desktop"],
         "es": "Detección de dispositivos MIDI: si el dispositivo configurado se desconecta, la app te avisará y te ofrecerá revisar la configuración.",
         "en": "MIDI device detection: if the configured device is disconnected, the app will notify you and offer to check settings."
       },

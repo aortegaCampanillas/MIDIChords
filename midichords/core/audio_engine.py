@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import subprocess
 import threading
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -80,6 +81,7 @@ class PianoAudioEngine:
         self.click_voices: list[ClickVoice] = []
         self.guitar_voices: list[GuitarVoice] = []
         self.sample_voices: list[SampleVoice] = []
+        self._last_activity_monotonic: float = 0.0
         self.metronome_sample: Optional[np.ndarray] = self._load_default_metronome_sample()
         self.metronome_sample_accent: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample)
         self.metronome_sample_bar: Optional[np.ndarray] = self._build_accent_sample(self.metronome_sample, ratio=1.34)
@@ -87,15 +89,13 @@ class PianoAudioEngine:
         self.piano_sample_map = self._load_sample_bank(
             PROJECT_ROOT / "assets" / "samples" / "grand_piano",
             {
+                36: "C2.mp3",
                 48: "C3.mp3",
-                52: "E3.mp3",
-                55: "G3.mp3",
                 60: "C4.mp3",
-                64: "E4.mp3",
-                67: "G4.mp3",
                 72: "C5.mp3",
+                84: "C6.mp3",
             },
-            max_seconds=7.0,
+            max_seconds=10.0,
         )
         self.guitar_sample_map = self._load_sample_bank(
             PROJECT_ROOT / "assets" / "samples" / "guitar_nylon",
@@ -148,11 +148,14 @@ class PianoAudioEngine:
             device=output_device,
             dtype="float32",
             callback=self._audio_callback,
-            # Reducimos la latencia del callback para que el "click" del metrónomo
-            # y el ataque de notas cuadren mejor con la animación UI.
-            # (En algunos backends blocksize=0 elige un buffer más grande.)
-            blocksize=256,
-            latency="low",
+            # Buffer más grande que el original (256/"low"): con buffers muy
+            # pequeños, si el hilo de audio de CoreAudio queda desalojado del
+            # CPU (p. ej. tras un rato sin sonar nada, o mientras se enumeran
+            # dispositivos), el primer bloque al retomar puede producir un
+            # glitch/click audible. Coste: unos 10-20 ms más de latencia,
+            # normalmente imperceptible al tocar.
+            blocksize=1024,
+            latency="high",
         )
         self.stream.start()
         vlog(
@@ -197,17 +200,29 @@ class PianoAudioEngine:
             self.stream = None
         vlog("audio", "OutputStream stopped")
 
+    def _mark_activity(self) -> None:
+        self._last_activity_monotonic = time.monotonic()
+
+    def has_recent_activity(self, within_seconds: float = 2.0) -> bool:
+        """True si hay voces sonando ahora o hubo actividad hace poco.
+
+        Usado para evitar operaciones (como enumerar dispositivos de audio)
+        que pueden introducir un glitch/ruido en un stream de audio activo.
+        """
+        if self.voices or self.click_voices or self.guitar_voices or self.sample_voices:
+            return True
+        return (time.monotonic() - self._last_activity_monotonic) < within_seconds
+
     def note_on(self, note: int, velocity: int) -> bool:
         """Start a note. Returns True if a new voice was started, False if ignored (duplicate) or failed."""
         if velocity <= 0:
-            vlog("audio", "note_on treated as off: note=%s velocity=%s", note, velocity)
             self.note_off(note)
             return False
         try:
             self.ensure_started()
         except Exception:
             return False
-        vlog("audio", "note_on: note=%s velocity=%s preset=%s", note, velocity, self.preset)
+        self._mark_activity()
         if self.preset == "grand_sample" and self.piano_sample_map:
             self._trigger_sample_voice(
                 note=note,
@@ -253,7 +268,6 @@ class PianoAudioEngine:
         return [-3.2, 0.0, 3.2]
 
     def note_off(self, note: int) -> None:
-        vlog("audio", "note_off: note=%s", note)
         fade_samples = int(0.080 * self.sample_rate)  # 80 ms smoothstep fade-out
         with self.lock:
             voice = self.voices.get(note)
@@ -322,6 +336,7 @@ class PianoAudioEngine:
             duration_seconds,
             self.guitar_preset,
         )
+        self._mark_activity()
         # La guitarra sintética (noise+envolvente) suele quedar por debajo del
         # piano en volumen percibido. Subimos el gain para igualar la dinámica.
         guitar_gain_scale = 2.0

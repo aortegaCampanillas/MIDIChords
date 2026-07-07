@@ -67,28 +67,33 @@ class MidiIOMixin:
             )
             self.status_var.set(self.midi_backend_warning)
 
-        self.audio_output_map = {}
-        self.audio_output_names = []
-        self.audio_input_map = {}
-        self.audio_input_names = []
-        try:
-            devices = sd.query_devices()
-            for idx, device in enumerate(devices):
-                if int(device.get("max_input_channels", 0)) > 0:
-                    in_name = f"{idx}: {device.get('name', 'Input')}"
-                    self.audio_input_map[in_name] = idx
-                    self.audio_input_names.append(in_name)
-                if int(device.get("max_output_channels", 0)) <= 0:
-                    continue
-                name = f"{idx}: {device.get('name', 'Output')}"
-                self.audio_output_map[name] = idx
-                self.audio_output_names.append(name)
-        except Exception as exc:
-            self.status_var.set(f"{self.tr('error_list_outputs')}: {exc}")
-            self.audio_output_names = []
+        # sd.query_devices() puede introducir un glitch/ruido audible en el
+        # OutputStream activo (observado al abrir Ajustes mientras sonaba una
+        # nota). Si hay actividad de audio muy reciente, se salta este escaneo
+        # y se conservan las listas ya cargadas hasta el próximo refresco.
+        if not self.audio_engine.has_recent_activity():
             self.audio_output_map = {}
-            self.audio_input_names = []
+            self.audio_output_names = []
             self.audio_input_map = {}
+            self.audio_input_names = []
+            try:
+                devices = sd.query_devices()
+                for idx, device in enumerate(devices):
+                    if int(device.get("max_input_channels", 0)) > 0:
+                        in_name = f"{idx}: {device.get('name', 'Input')}"
+                        self.audio_input_map[in_name] = idx
+                        self.audio_input_names.append(in_name)
+                    if int(device.get("max_output_channels", 0)) <= 0:
+                        continue
+                    name = f"{idx}: {device.get('name', 'Output')}"
+                    self.audio_output_map[name] = idx
+                    self.audio_output_names.append(name)
+            except Exception as exc:
+                self.status_var.set(f"{self.tr('error_list_outputs')}: {exc}")
+                self.audio_output_names = []
+                self.audio_output_map = {}
+                self.audio_input_names = []
+                self.audio_input_map = {}
         if hasattr(self, "tuner_input_combo"):
             self.tuner_input_combo["values"] = [""] + self.audio_input_names
             if self.tuner_input_name in self.tuner_input_combo["values"]:
@@ -106,7 +111,7 @@ class MidiIOMixin:
         if self.input_names:
             vlog("midi", "  MIDI in: %s", " | ".join(self.input_names[:12]) + (" …" if len(self.input_names) > 12 else ""))
     def connect_ports(self) -> None:
-        self.disconnect_ports()
+        self.disconnect_ports(stop_audio=False)
         self.audio_engine.set_preset(str(self.config_data.get("sound_preset", "acoustic")))
         self.audio_engine.set_guitar_preset(str(self.config_data.get("guitar_sound_preset", "steel_clean")))
 
@@ -167,7 +172,7 @@ class MidiIOMixin:
         if self.midi_backend_warning:
             status += f"\n{self.midi_backend_warning}"
         self.status_var.set(status)
-    def disconnect_ports(self) -> None:
+    def disconnect_ports(self, stop_audio: bool = True) -> None:
         if self.input_port is not None:
             try:
                 self.input_port.close()
@@ -184,7 +189,13 @@ class MidiIOMixin:
                 pass
             self.midi_output_port = None
 
-        self.audio_engine.stop()
+        # Guardar Ajustes llama a connect_ports() para cualquier cambio (idioma,
+        # preset de sonido, etc.), no solo el dispositivo de audio. Parar y
+        # reabrir el OutputStream aquí en cada guardado introducía un ruido/click
+        # perceptible en la siguiente nota tocada, aunque el dispositivo de audio
+        # no hubiera cambiado. Solo se detiene explícitamente al cerrar la app.
+        if stop_audio:
+            self.audio_engine.stop()
     def _on_midi_message(self, message: mido.Message) -> None:
         self.message_queue.put(message)
     def _start_midi_bridge(self, input_name: str) -> bool:

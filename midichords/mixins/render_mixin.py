@@ -691,8 +691,11 @@ class RenderMixin:
         )
         strip_h = 22 if scale_fingering_active else 0
         key_top = (strip_h + 4) if scale_fingering_active else 4
-        # Fixed key_bottom so the piano is the same height regardless of fingering.
-        key_bottom = 148
+        # Fixed key_bottom so the piano is the same height regardless of fingering,
+        # but shrink it when the canvas itself is shorter (e.g. metronome compact
+        # mode fixes the canvas to 124px instead of 156px) so keys and note labels
+        # stay fully inside the visible area instead of being clipped.
+        key_bottom = min(148, max(60, h - 8))
         # desc strip at key_bottom+4 .. key_bottom+22; canvas needs key_bottom+28 when active.
         black_h = int((key_bottom - key_top) * 0.58)
         show_key_names = self.config_data.get("show_keyboard_note_labels", True)

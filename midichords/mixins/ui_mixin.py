@@ -1888,8 +1888,8 @@ class UiMixin:
 
         self.metronome_title_row = ttk.Frame(self._metronome_form_root)
         self.metronome_title_row.grid(row=0, column=0, sticky="ew", pady=(4, 10))
-        # Play + MIDI a la izquierda; columna 2 absorbe el hueco (el MIDI no se estira).
-        self.metronome_title_row.columnconfigure(2, weight=1)
+        # Play a la izquierda; columna 1 absorbe el hueco restante.
+        self.metronome_title_row.columnconfigure(1, weight=1)
         self.metronome_play_btn = PlayTransportButton(
             self.metronome_title_row,
             command=self._toggle_metronome,
@@ -1898,23 +1898,6 @@ class UiMixin:
         )
         self.metronome_play_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.metronome_play_btn.bind("<space>", lambda _e: "break")
-        self.metronome_midi_sound_toggle_btn = GrayRoundedButton(
-            self.metronome_title_row,
-            text="",
-            command=self._toggle_midi_input_sound,
-            font_family=self.ui_font_family,
-            width=120,
-            height=34,
-            radius=14,
-            font_size=12,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
-            selected_fill_color="#f3bf2f",
-            selected_outline_color="#c9961f",
-            selected_border_width=2.0,
-            shrink_to_text=True,
-        )
-        self.metronome_midi_sound_toggle_btn.grid(row=0, column=1, sticky="w")
 
         self.metronome_volume_row = ttk.Frame(self._metronome_form_root)
         self.metronome_volume_row.grid(row=1, column=0, sticky="ew", pady=(0, 8))
@@ -2801,7 +2784,7 @@ class UiMixin:
             label = self.tr("button_midi_sound_on")
         else:
             label = self.tr("button_midi_sound_off")
-        for widget_name in ("detection_midi_sound_toggle_btn", "metronome_midi_sound_toggle_btn"):
+        for widget_name in ("detection_midi_sound_toggle_btn",):
             btn = getattr(self, widget_name, None)
             if btn is None:
                 continue

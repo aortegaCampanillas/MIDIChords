@@ -437,7 +437,7 @@ class MidiChordAnalyzerApp(
             bridge_active = bool(getattr(self, "midi_bridge_connected", False))
             if new_devices and not bridge_active and dialog_free:
                 self._show_midi_hotplug_dialog()
-        self.after(10_000, self._midi_hotplug_tick)
+        self.after(3_000, self._midi_hotplug_tick)
 
     def _show_midi_disconnected_dialog(self, device_name: str) -> None:
         lang = str(self.config_data.get("language", "es"))

@@ -15,9 +15,7 @@ def load_config_file(path: Path, defaults: dict[str, Any]) -> dict[str, Any]:
         return data
     if not isinstance(loaded, dict):
         return data
-    for key in defaults:
-        if key in loaded:
-            data[key] = loaded[key]
+    data.update(loaded)
     return data
 
 

@@ -119,6 +119,8 @@ DEFAULT_CONFIG = {
     "language": "es",
     "midi_input": "",
     "audio_output": "",
+    "sound_output": "audio",
+    "midi_output": "",
     "midi_input_sound_enabled": True,
     "sound_preset": "acoustic",
     "guitar_sound_preset": "steel_clean",

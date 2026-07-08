@@ -484,6 +484,14 @@ fi
 cat >> "$ENTITLEMENTS_PATH" <<'EOF'
   <key>com.apple.security.device.audio-input</key>
   <true/>
+EOF
+
+# USB device access (required for python-rtmidi/CoreMIDI to see USB MIDI
+# controllers under App Sandbox; without it MIDI input/output devices are
+# not enumerated even though the same build works unsandboxed).
+cat >> "$ENTITLEMENTS_PATH" <<'EOF'
+  <key>com.apple.security.device.usb</key>
+  <true/>
 </dict>
 </plist>
 EOF

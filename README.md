@@ -18,6 +18,15 @@ Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDI
 - **macOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
 - **Windows (Microsoft Store)**: [Free MIDI Piano&Guitar Chords](https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare)
 
+> **Versión actual: 1.0.4.** iOS y macOS comparten el mismo listing en App Store Connect
+> (`id6760035776`), así que Apple exige `CFBundleShortVersionString` estrictamente creciente
+> en ambas plataformas aunque se publiquen por separado — no puedes resubir una versión ya
+> aprobada en la otra plataforma. Windows toma la versión directamente del tag de git
+> (`vX.Y.Z`, ver `.github/workflows/build-installers.yml`), así que basta con mover el tag;
+> no hay fichero de versión que editar a mano ahí. Al subir una versión nueva en cualquier
+> plataforma, sube las tres a la misma X.Y.Z para evitar confusión, aunque solo Apple lo
+> exija técnicamente.
+
 ## Estructura
 
 ```text

@@ -1900,7 +1900,11 @@ class RenderMixin:
                     anchor="s",
                 )
                 y -= line_step
-        elif not self.generation_tab_active and not self.scale_tab_active:
+        elif (
+            not self.generation_tab_active
+            and not self.scale_tab_active
+            and not getattr(self, "interval_tab_active", False)
+        ):
             canvas.create_text(
                 w / 2,
                 h - 14,

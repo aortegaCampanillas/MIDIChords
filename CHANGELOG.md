@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Escritorio (Qt)**: mismo recorte de texto que en Detección de Acordes, pero en **Detección de Intervalos** ("Pulsa dos notas..."). El label tenía un `wraplength=800` fijo, creado bajo demanda al entrar por primera vez en el modo, sin ningún mecanismo que lo recalculara. Ahora se registra en `_refresh_right_panel_wraplengths` (igual que `detection_help_label`) y se refresca nada más crearse el panel.
 
+- **Escritorio (Qt)**: en modo **Detección de Intervalos**, el panel del pentagrama ya no muestra el texto de ayuda "Mantén Shift para mantener las teclas pulsadas" (pensado para Detección de Acordes; Shift no aplica al modo de intervalos).
+
 - **Escritorio (escalas)**: al arrancar, el selector de **Digitación** vuelve a marcar la última mano elegida en la configuración (`Sin`, `Mano I.` o `Mano D.`) en lugar de quedarse visualmente en `Sin`.
 
 - **Escritorio (escalas)**: al arrancar con digitación activa o al cambiar la mano de digitación, el panel inferior del piano reserva solo la altura necesaria para las bandas de dedos y para la barra horizontal; muestra también la franja descendente sin dejar un hueco grande ni quedar recortada por el scroll.

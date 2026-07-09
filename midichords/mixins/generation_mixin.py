@@ -496,9 +496,15 @@ class GenerationMixin:
             setattr(self, "_preview_chord_after_id", None)
         self._stop_generated_playback()
         notes = sorted(self._generation_piano_staff_midi_notes())
+        is_circle = getattr(self, "circle_fifths_tab_active", False)
+        # El círculo duplica el acorde una octava abajo (mano izquierda), así
+        # que suenan más notas a la vez que en el resto de modos (una sola
+        # nota). Bajar la velocity por voz compensa la suma de amplitudes
+        # para que el volumen total percibido no se dispare.
+        chord_velocity = 78 if is_circle else 108
         if self.instrument_view == "guitar":
             for note in notes:
-                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
+                self.audio_engine.pluck_guitar_note(note, velocity=chord_velocity, duration_seconds=1.3)
             if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
                 self.redraw_guitar_fretboard()
                 self.redraw_staff()
@@ -512,13 +518,11 @@ class GenerationMixin:
         preview_token = getattr(self, "_preview_chord_token", 0) + 1
         self._preview_chord_token = preview_token
         for note in notes:
-            self.play_note(note, 108)
+            self.play_note(note, chord_velocity)
             self.generated_playing_notes.add(note)
         if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
             self.redraw_keyboard()
             self.redraw_staff()
-
-        is_circle = getattr(self, "circle_fifths_tab_active", False)
 
         def _release_preview() -> None:
             setattr(self, "_preview_chord_after_id", None)

@@ -235,8 +235,21 @@ class InputDetectionMixin:
     def _compute_next_sounding_state(self) -> tuple[set[int], set[int]]:
         play_midi_input = self._should_play_midi_input_locally()
         if self.current_mode == "interval_detection":
+            # interval_notes is the displayed pair (kept after key-up so both
+            # notes stay visible for comparison); it has no key-state. Sound
+            # follows the key instead: a note only sounds while its key is
+            # actually held, same as every other mode.
             next_active = set(self.interval_notes)
-            next_sounding = set(next_active)
+            held_notes = set(self.midi_held_notes) | set(self.mouse_held_notes)
+            if play_midi_input:
+                next_sounding = set(next_active) & held_notes
+            else:
+                # Keep mouse-triggered notes audible even if MIDI sound is muted.
+                next_sounding = {
+                    int(note)
+                    for note in next_active
+                    if note in held_notes and note not in self.interval_notes_from_midi
+                }
             return next_active, next_sounding
         elif self.current_mode == "detection":
             next_active = set(self._current_detection_notes())
@@ -247,6 +260,16 @@ class InputDetectionMixin:
                     int(note)
                     for note in next_active
                     if note not in set(self.detection_midi_held_notes)
+                }
+            # Un clic simple (sin Shift) sostiene la nota mientras el ratón
+            # está pulsado: detection_mouse_chord_notes no tiene noción de
+            # "botón soltado" (se mantiene para poder seguir añadiendo notas
+            # con Shift), así que sin este filtro la nota sigue sonando
+            # indefinidamente tras soltar. Con Shift sí debe seguir sonando
+            # el acorde completo mientras se van añadiendo notas sueltas.
+            if not self.detection_shift_pressed and not self.detection_midi_held_notes:
+                next_sounding = {
+                    note for note in next_sounding if note == self.mouse_current_note
                 }
         else:
             next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
@@ -297,10 +320,18 @@ class InputDetectionMixin:
 
         # Handle interval detection mode
         if self.current_mode == "interval_detection":
-            self._add_interval_note(note)
-            # Force re-trigger: remove from sounding_notes so _apply_sounding_note_diff
-            # always sends note_on even if the note was already playing.
-            self.sounding_notes.discard(note)
+            self._add_interval_note(note, from_midi=(source == "midi"))
+            if source == "midi":
+                self.midi_held_notes.add(note)
+            else:
+                self.mouse_held_notes.add(note)
+                # Force re-trigger on mouse re-clicks: remove from sounding_notes
+                # so _apply_sounding_note_diff always sends note_on even if the
+                # note was already playing. Not needed (and harmful) for MIDI:
+                # _process_midi_queue already calls _refresh_sounding_notes()
+                # once per batch, so discarding here just re-triggers the note
+                # a second time, heard as an echo on the last MIDI key pressed.
+                self.sounding_notes.discard(note)
             self._refresh_sounding_notes()
             if hasattr(self, '_update_interval_display'):
                 self._update_interval_display()
@@ -468,6 +499,7 @@ class InputDetectionMixin:
     def _on_keyboard_release(self, _event: tk.Event) -> None:
         if self.current_mode == "detection":
             self.mouse_current_note = None
+            self._refresh_sounding_notes()
             return
         if self.mouse_current_note is not None:
             self._note_off_from_source(self.mouse_current_note, source="mouse")

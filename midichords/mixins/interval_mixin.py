@@ -11,22 +11,33 @@ class IntervalMixin:
     def _init_interval_state(self):
         """Initialize interval detection state."""
         self.interval_notes: list[int] = []
+        # Notes in interval_notes that came from a physical MIDI key, kept
+        # even after key release (the pair stays displayed/held until the
+        # next note or Clear). Used to keep those notes silent when MIDI out
+        # is active, since interval_notes itself doesn't track key-up state.
+        self.interval_notes_from_midi: set[int] = set()
         self.interval_playing_note: int | None = None
         self.interval_playing_idx: int | None = None
         self.interval_melody_playing = False
         self.interval_melody_playback_timer: object | None = None
         self.interval_melody_mode: bool = False  # False = play notes, True = play reference song
 
-    def _add_interval_note(self, midi_note: int):
+    def _add_interval_note(self, midi_note: int, *, from_midi: bool = False):
         """Add a note to the interval pair. Keeps only last 2 notes."""
         self.interval_melody_mode = False
         self.interval_notes.append(midi_note)
         if len(self.interval_notes) > 2:
-            self.interval_notes.pop(0)
+            dropped = self.interval_notes.pop(0)
+            self.interval_notes_from_midi.discard(dropped)
+        if from_midi:
+            self.interval_notes_from_midi.add(midi_note)
+        else:
+            self.interval_notes_from_midi.discard(midi_note)
 
     def _clear_interval_notes(self):
         """Clear the interval detection notes."""
         self.interval_notes = []
+        self.interval_notes_from_midi = set()
         self.interval_playing_note = None
         self.interval_playing_idx = None
         self.interval_melody_mode = False
@@ -35,6 +46,8 @@ class IntervalMixin:
             self.interval_melody_playback_timer = None
         self._update_interval_display()
         if self.current_mode == "interval_detection":
+            self.midi_held_notes = set()
+            self.mouse_held_notes = set()
             self.active_notes = set()
             self.update_music_views()
 
@@ -133,7 +146,7 @@ class IntervalMixin:
         if note is not None:
             self.interval_playing_note = note
             self.interval_playing_idx = index
-            self.audio_engine.note_on(note, velocity=80)
+            self.play_note(note, velocity=80)
             self.update_music_views()
 
         # Calculate duration for this note
@@ -149,7 +162,7 @@ class IntervalMixin:
     def _play_melody_sequence_continue(self, notes: list[int | None], melody_info: dict, index: int, prev_note: int | None):
         """Continue playing melody sequence."""
         if prev_note is not None:
-            self.audio_engine.note_off(prev_note)
+            self.stop_note(prev_note)
 
         self._play_melody_sequence(notes, melody_info, index + 1)
 

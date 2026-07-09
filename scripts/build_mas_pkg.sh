@@ -254,9 +254,15 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   # --collect-submodules + hooks-contrib ayudan; mas_embed_pyside6_bundle.py cubre el hueco.
   # Qt WebEngine: sub-app QtWebEngineProcess.app firmada sin perfil MAS → TestFlight 90885.
   # MIDIChords no usa WebEngine; se excluye del análisis y se eliminan restos tras el build.
+  # --collect-all mido/rtmidi: sin esto PyInstaller detecta mido por análisis
+  # estático pero omite el binario compilado de python-rtmidi (_rtmidi*.so),
+  # así que el bundle queda sin backend MIDI real y no se detecta ningún
+  # dispositivo (aunque la app arranque y el sandbox permita USB).
   "$PYTHON_BIN" -m PyInstaller --noconfirm --clean --windowed --name "$APP_NAME" \
     --collect-all PySide6 \
     --collect-submodules PySide6 \
+    --collect-all mido \
+    --collect-all rtmidi \
     --exclude-module PySide6.QtWebEngineCore \
     --exclude-module PySide6.QtWebEngineWidgets \
     --exclude-module PySide6.QtWebEngineQuick \

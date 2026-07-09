@@ -109,6 +109,59 @@ puede reproducirse en Windows con un acorde con muchas notas (p. ej. acordes de
   Acordes o Escalas, aplicar el mismo fix (leer `winfo_reqheight()` del `*_inner` y
   `setMinimumHeight()` en el canvas correspondiente).
 
+## Cuarto bug: Círculo de quintas — no cabe en el panel, texto sobredimensionado
+
+Reportado directamente en **macOS**, "sobre todo al elegir guitarra": el círculo de
+quintas no cabía en el panel derecho, y el texto de los acordes del anillo interior
+se salía de sus sectores.
+
+Causa: `circle_canvas` (`ui_mixin.py`) se creaba con `width=480, height=480`, que en
+el shim Qt (`Canvas.__init__` → `QtCanvas.__init__`) se traduce en
+`setMinimumSize(480, 480)` — un **mínimo forzado**, no un tamaño inicial que pueda
+encogerse. El `tab_circle_frame` vive en el panel derecho (`chord_panel`), cuyo
+ancho puede ser bastante menor que 480px en ventanas compactas, y cuya altura
+depende del espacio que quede libre arriba tras el panel de instrumento inferior
+(piano/guitarra comparten esa fila; el fretboard de guitarra usa una altura fija de
+196px frente a 156px del teclado — 40px menos disponibles para el círculo cuando se
+selecciona guitarra, lo que **agrava** el problema aunque no es la causa raíz). Con
+el canvas forzado a 480×480, `_circle_redraw_canvas` lee ese tamaño "inflado" vía
+`winfo_width()/winfo_height()` y `draw_circle_of_fifths` calcula radios y tamaños de
+fuente proporcionalmente a esos 480px (`fs_sig = 0.026 * w`, etc.), aunque el
+espacio realmente visible sea menor — de ahí el desbordamiento y el texto
+sobredimensionado.
+
+- Fix: reducido a `width=260, height=260` en la creación de `circle_canvas`, el
+  mismo valor que `_circle_redraw_canvas` ya usaba como suelo (`max(260, ...)`).
+  Así el canvas puede encoger hasta ese mínimo razonable en vez de forzar 480, y el
+  dibujo (que ya es proporcional al tamaño real) se ajusta correctamente al espacio
+  disponible.
+- Verificado con captura de pantalla en modo Círculo de quintas (vista piano): el
+  círculo cabe completo dentro del panel derecho, sin desbordar, con texto legible
+  y proporcionado.
+- **No se pudo verificar visualmente con la vista de guitarra activa** en esta
+  sesión (la automatización de clicks de UI resultó poco fiable, y forzar el modo
+  vía `config.json` con `instrument_view`/`generation_instrument_view` en
+  `"guitar"` se revertía solo a `"piano"` entre una edición y el siguiente
+  arranque, por una razón no identificada — no parece un proceso duplicado, ver
+  nota abajo). Pendiente confirmar en macOS que el caso "sobre todo con guitarra"
+  también queda arreglado.
+
+### Nota rara: `config.json` con `instrument_view: "guitar"` se revierte a `"piano"` solo
+
+Al intentar forzar el arranque en vista de guitarra (editando `instrument_view` y
+`generation_instrument_view` a `"guitar"` en `config.json`) para probar el bug de
+guitarra en el círculo de quintas, el valor volvía a `"piano"` — confirmado incluso
+con un `print()` de depuración justo tras `load_config_file()` en `main_app.py`, que
+mostró `"piano"` aunque el archivo en disco decía `"guitar"` momentos antes. Una
+prueba aislada con `load_config_file(CONFIG_PATH, DEFAULT_CONFIG)` fuera de la app
+sí devolvió `"guitar"` correctamente, así que el propio cargador de config no tiene
+la culpa. No se llegó a la causa (se abandonó la investigación por fricción de
+permisos en la sesión) — **si esto se reproduce en macOS o vuelve a aparecer**,
+revisar si algo restaura `instrument_view`/`generation_instrument_view` a `"piano"`
+durante el arranque en modo `circle_fifths` específicamente (el código de
+`_on_mode_combo_changed` en `ui_mixin.py` no parecía forzarlo tras revisión manual,
+pero el comportamiento observado sugiere lo contrario).
+
 ## Archivos tocados (estado final)
 
 - `midichords/qt/tk_compat.py`: clase `Widget` — `winfo_width()` / `winfo_height()` /
@@ -119,7 +172,8 @@ puede reproducirse en Windows con un acorde con muchas notas (p. ej. acordes de
   `chord_panel.bind("<Configure>", ...)` (redundante, `staff_canvas` ya dispara el
   refresco); ahora también actualiza `interval_help_label`. Nuevo
   `_refresh_generation_result_height()` enganchado a los `StringVar` de notas/
-  intervalos de Generación.
+  intervalos de Generación. `circle_canvas` creado con `width=260, height=260` en
+  vez de `480, 480`.
 - `midichords/mixins/interval_mixin.py`: `interval_help_label` guardado como atributo
   de instancia; `_setup_interval_ui` refresca el wraplength al terminar de construir
   el panel.
@@ -142,6 +196,9 @@ puede reproducirse en Windows con un acorde con muchas notas (p. ej. acordes de
       verificar visualmente dentro de la app con un acorde que realmente fuerce el
       wrap a 2 líneas** (automatización de clicks de UI poco fiable en este entorno)
       — pendiente también en macOS.
+- [x] Captura de pantalla en modo Círculo de quintas (vista piano): el círculo cabe
+      completo en el panel derecho, sin desbordar, texto proporcionado. **No
+      verificado con vista de guitarra** (ver nota sobre `config.json` arriba).
 
 ## Pendiente de verificar en macOS
 
@@ -157,6 +214,10 @@ puede reproducirse en Windows con un acorde con muchas notas (p. ej. acordes de
       notas) y confirmar que el bloque crece sin recortar el texto por abajo — este es
       el caso que originalmente falló en macOS y que en Windows no se pudo reproducir
       con un click real de UI.
+- [ ] Modo **Círculo de quintas**: el círculo cabe completo en el panel derecho, sin
+      desbordar, con texto legible dentro de sus sectores — tanto con vista de
+      **piano** como con vista de **guitarra** (el reporte original decía que era
+      "sobre todo" con guitarra donde se notaba peor).
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

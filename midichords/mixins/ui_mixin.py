@@ -1355,8 +1355,8 @@ class UiMixin:
         self.circle_canvas = tk.Canvas(
             self.circle_canvas_shell,
             bg="#1a2330",
-            width=480,
-            height=480,
+            width=260,
+            height=260,
             highlightthickness=0,
             bd=0,
             cursor="hand2",

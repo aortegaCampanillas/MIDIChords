@@ -327,7 +327,7 @@ class ScalesMixin:
         return None
     def _activate_scale_guitar_drag_note(self, note: int) -> None:
         self.scale_guitar_drag_exact_notes = {int(note)}
-        self.audio_engine.pluck_guitar_note(int(note), velocity=106, duration_seconds=1.1)
+        self.pluck_note(int(note), velocity=106, duration_seconds=1.1)
         staff_note = self._scale_staff_note_for_pitch(int(note))
         self.scale_guitar_drag_staff_notes.clear()
         if staff_note is not None:
@@ -809,7 +809,7 @@ class ScalesMixin:
             self.play_note(note, 104)
             self.scale_playing_notes.add(note)
         elif play_guitar:
-            self.audio_engine.pluck_guitar_note(note, velocity=104, duration_seconds=1.2)
+            self.pluck_note(note, velocity=104, duration_seconds=1.2)
         self._play_metronome_click(accent=(idx == 0 and self.scale_loop_direction > 0))
         if self.scale_tab_active:
             self.redraw_keyboard()

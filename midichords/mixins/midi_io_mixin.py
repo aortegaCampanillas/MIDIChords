@@ -188,6 +188,9 @@ class MidiIOMixin:
             except Exception:
                 pass
             self.midi_output_port = None
+        # Un puerto/dispositivo nuevo no conoce el último Program Change
+        # enviado al anterior; forzar reenviarlo en la próxima nota.
+        self._midi_out_program = None
 
         # Guardar Ajustes llama a connect_ports() para cualquier cambio (idioma,
         # preset de sonido, etc.), no solo el dispositivo de audio. Parar y
@@ -333,3 +336,13 @@ while True:
             midi_output.send(msg)
         except Exception as exc:
             vlog("midi", "send note_off failed: %s", exc)
+
+    def send_midi_program_change(self, midi_output: Optional[mido.ports.BaseOutput], program: int) -> None:
+        """Envía un Program Change (General MIDI) al puerto MIDI de salida."""
+        if midi_output is None:
+            return
+        try:
+            msg = mido.Message("program_change", program=max(0, min(127, program)))
+            midi_output.send(msg)
+        except Exception as exc:
+            vlog("midi", "send program_change failed: %s", exc)

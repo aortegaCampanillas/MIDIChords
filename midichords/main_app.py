@@ -154,6 +154,7 @@ class MidiChordAnalyzerApp(
         # MIDI Output support
         self.midi_output_port: Optional[mido.ports.BaseOutput] = None
         self.sound_output: str = str(self.config_data.get("sound_output", "audio"))  # "audio" o "midi"
+        self._midi_out_program: Optional[int] = None
 
         self.input_names: list[str] = []
         self.audio_input_names: list[str] = []
@@ -571,9 +572,24 @@ class MidiChordAnalyzerApp(
     # antes de enviarlas por MIDI out.
     MIDI_OUT_VELOCITY_SCALE = 0.7
 
+    # General MIDI program numbers used to pick the right instrument sound on
+    # the receiving device: 0 = Acoustic Grand Piano, 25 = Steel String
+    # Guitar. Without a Program Change the device just plays whatever patch
+    # it defaulted to (usually piano), even for notes meant to sound like
+    # guitar.
+    MIDI_OUT_PROGRAM_PIANO = 0
+    MIDI_OUT_PROGRAM_GUITAR = 25
+
+    def _ensure_midi_out_program(self, program: int) -> None:
+        if self._midi_out_program == program:
+            return
+        self.send_midi_program_change(self.midi_output_port, program)
+        self._midi_out_program = program
+
     def play_note(self, midi_note: int, velocity: int = 80) -> bool:
         """Play a note via audio engine or MIDI output based on sound_output setting."""
         if self.sound_output == "midi" and self.midi_output_port is not None:
+            self._ensure_midi_out_program(self.MIDI_OUT_PROGRAM_PIANO)
             scaled_velocity = max(1, min(127, round(velocity * self.MIDI_OUT_VELOCITY_SCALE)))
             self.send_midi_note_on(self.midi_output_port, midi_note, scaled_velocity)
             return True
@@ -586,6 +602,18 @@ class MidiChordAnalyzerApp(
             self.send_midi_note_off(self.midi_output_port, midi_note)
         else:
             self.audio_engine.note_off(midi_note, fast=fast)
+
+    def pluck_note(self, midi_note: int, velocity: int = 100, duration_seconds: float = 1.6) -> None:
+        """Play a short, self-releasing note (guitar pluck) via audio engine or MIDI output."""
+        if self.sound_output == "midi" and self.midi_output_port is not None:
+            # Not routed through play_note(): it would force the piano
+            # Program Change back, undoing the one just sent below.
+            self._ensure_midi_out_program(self.MIDI_OUT_PROGRAM_GUITAR)
+            scaled_velocity = max(1, min(127, round(velocity * self.MIDI_OUT_VELOCITY_SCALE)))
+            self.send_midi_note_on(self.midi_output_port, midi_note, scaled_velocity)
+            self.after(int(duration_seconds * 1000), lambda: self.stop_note(midi_note))
+        else:
+            self.audio_engine.pluck_guitar_note(midi_note, velocity=velocity, duration_seconds=duration_seconds)
 
     def _set_instrument_view(self, view: str) -> None:
         self.instrument_view = "guitar" if view == "guitar" else "piano"
@@ -1321,12 +1349,12 @@ class MidiChordAnalyzerApp(
             self.staff_pressed_scale_notes = {note}
             self.staff_pressed_scale_degrees = {int(degree)}
             if self.scale_play_mode == "guitar":
-                self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.1)
+                self.pluck_note(note, velocity=106, duration_seconds=1.1)
                 self.scale_guitar_drag_exact_notes = {int(note)}
                 self.scale_guitar_drag_staff_notes = {int(note)}
                 self.redraw_guitar_fretboard()
             else:
-                self.audio_engine.note_on(note, 106)
+                self.play_note(note, 106)
             self.redraw_keyboard()
             self.redraw_staff()
             self.staff_canvas.configure(cursor="hand2")
@@ -1381,16 +1409,16 @@ class MidiChordAnalyzerApp(
         if self.scale_play_mode == "guitar":
             self.staff_pressed_scale_notes = {note}
             self.staff_pressed_scale_degrees = {int(degree)}
-            self.audio_engine.pluck_guitar_note(note, velocity=106, duration_seconds=1.1)
+            self.pluck_note(note, velocity=106, duration_seconds=1.1)
             self.scale_guitar_drag_exact_notes = {int(note)}
             self.redraw_guitar_fretboard()
         else:
             for prev in list(self.staff_pressed_scale_notes):
                 if prev != note:
-                    self.audio_engine.note_off(prev)
+                    self.stop_note(prev)
             self.staff_pressed_scale_notes = {note}
             self.staff_pressed_scale_degrees = {int(degree)}
-            self.audio_engine.note_on(note, 106)
+            self.play_note(note, 106)
         self.redraw_staff()
         self.redraw_keyboard()
 
@@ -1406,7 +1434,7 @@ class MidiChordAnalyzerApp(
         self.scale_staff_drag_active = False
         if self.staff_pressed_scale_notes:
             for note in list(self.staff_pressed_scale_notes):
-                self.audio_engine.note_off(note)
+                self.stop_note(note)
             self.staff_pressed_scale_notes.clear()
             self.staff_pressed_scale_degrees.clear()
         if self.scale_play_mode == "guitar" and self.scale_guitar_drag_exact_notes:

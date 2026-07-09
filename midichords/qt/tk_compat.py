@@ -183,6 +183,17 @@ def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
     parent = widget.parentWidget()
     if parent is None:
         return
+    # A diferencia de Tk (donde volver a llamar pack() sobre un widget ya
+    # empaquetado es idempotente), insertWidget() sin retirar primero deja
+    # huérfano el QSpacerItem de padding de la llamada anterior: se repite
+    # pack(side=..., padx/pady=...) sobre el mismo widget sin pack_forget()
+    # de por medio (p. ej. cada cambio de modo vuelve a hacer
+    # instrument_view_switch_side.pack(side=tk.RIGHT, padx=(10, 0))), y cada
+    # ciclo añade un spacer más, empujando el contenido progresivamente.
+    # Retirar cualquier instancia previa (widget + su padding) antes de
+    # insertar de nuevo hace la llamada idempotente, como en Tk.
+    if parent.layout() is not None:
+        _qt_remove_widget_from_parent_layout(widget)
     side = str(kwargs.get("side", TOP)).lower()
     padx = kwargs.get("padx", 0)
     pady = kwargs.get("pady", 0)
@@ -309,19 +320,53 @@ def qt_pack_attach(widget: QWidget, **kwargs: Any) -> None:
 
 
 def _qt_remove_widget_from_parent_layout(widget: QWidget) -> None:
-    """Si el padre tiene QLayout y contiene este widget, lo saca (necesario para place absoluto)."""
+    """Si el padre tiene QLayout y contiene este widget, lo saca (necesario para place absoluto).
+
+    `qt_pack_attach` inserta hasta un `QSpacerItem` de padding inmediatamente
+    antes y/o después del widget (left_pad/right_pad, top_pad/bot_pad). Esos
+    spacers no están vinculados al widget (no tienen `.widget()`), así que si
+    solo se quita el propio widget, quedan huérfanos en el layout. Repetir
+    pack_forget()+pack() en el mismo padre (p. ej. al alternar entre modos
+    que comparten un contenedor) los va acumulando indefinidamente,
+    descuadrando el layout tras varios ciclos. Se eliminan aquí también.
+    """
     parent = widget.parentWidget()
     if parent is None:
         return
     lay = parent.layout()
     if lay is None:
         return
+
+    is_horizontal = isinstance(lay, QHBoxLayout)
+
+    def _is_padding_spacer(layout_item: Any) -> bool:
+        # Distingue el padding fijo (addSpacing/insertSpacing) del stretch
+        # persistente de índice 0 (addStretch), que debe sobrevivir a
+        # pack_forget() (solo se añade una vez por padre). addStretch marca
+        # Expanding en el eje del layout (horizontal en QHBoxLayout, vertical
+        # en QVBoxLayout); addSpacing/insertSpacing marcan Fixed en ese mismo
+        # eje. El otro eje no es distintivo (Minimum en ambos casos).
+        if layout_item is None or layout_item.widget() is not None:
+            return False
+        spacer = layout_item.spacerItem()
+        if spacer is None:
+            return False
+        policy = spacer.sizePolicy()
+        axis_policy = policy.horizontalPolicy() if is_horizontal else policy.verticalPolicy()
+        return axis_policy == QSizePolicy.Policy.Fixed
+
     for i in range(lay.count()):
         item = lay.itemAt(i)
         if item is None:
             continue
         if item.widget() is widget:
             lay.takeAt(i)
+            # El spacer siguiente (si lo hay) era el padding "después" del widget.
+            if _is_padding_spacer(lay.itemAt(i)):
+                lay.takeAt(i)
+            # El spacer anterior (si lo hay) era el padding "antes" del widget.
+            if i > 0 and _is_padding_spacer(lay.itemAt(i - 1)):
+                lay.takeAt(i - 1)
             return
 
 

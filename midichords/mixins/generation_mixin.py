@@ -201,7 +201,7 @@ class GenerationMixin:
             return
         self.generation_drag_notes = {note}
         self.generated_playing_notes = {note}
-        self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
+        self.pluck_note(note, velocity=108, duration_seconds=1.1)
         self.redraw_guitar_fretboard()
         self.redraw_staff()
     def _clear_generation_drag_state(self) -> None:
@@ -506,7 +506,7 @@ class GenerationMixin:
         chord_velocity = 78
         if self.instrument_view == "guitar":
             for note in notes:
-                self.audio_engine.pluck_guitar_note(note, velocity=chord_velocity, duration_seconds=1.3)
+                self.pluck_note(note, velocity=chord_velocity, duration_seconds=1.3)
             if self.generation_tab_active or getattr(self, "circle_fifths_tab_active", False):
                 self.redraw_guitar_fretboard()
                 self.redraw_staff()
@@ -649,7 +649,7 @@ class GenerationMixin:
         play_locally = source != "midi" or self._should_play_midi_input_locally()
         if self.instrument_view == "guitar":
             if play_locally:
-                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.1)
+                self.pluck_note(note, velocity=108, duration_seconds=1.1)
             stop_audio = False
         else:
             if play_locally:
@@ -674,7 +674,7 @@ class GenerationMixin:
         chord_velocity = 78
         if self.instrument_view == "guitar":
             for note in notes:
-                self.audio_engine.pluck_guitar_note(note, velocity=chord_velocity, duration_seconds=1.3)
+                self.pluck_note(note, velocity=chord_velocity, duration_seconds=1.3)
         else:
             for note in notes:
                 self.play_note(note, chord_velocity)

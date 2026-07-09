@@ -1,8 +1,22 @@
 [
   {
-    "version": "v1.0.3",
-    "date": "2026-06-12",
+    "version": "v1.0.4",
+    "date": "2026-07-09",
     "items": [
+      {
+        "date": "2026-07-09",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "Corrección visual: algunos controles (por ejemplo los botones Piano/Guitarra) podían desplazarse o descuadrarse tras cambiar varias veces de modo. Ya no ocurre.",
+        "en": "Visual fix: some controls (e.g. the Piano/Guitar buttons) could drift or misalign after switching modes several times. This no longer happens."
+      },
+      {
+        "date": "2026-07-09",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "MIDI: al seleccionar una entrada MIDI en Configuración se activa automáticamente la salida por MIDI out (y vuelve a Audio si se deselecciona).",
+        "en": "MIDI: selecting a MIDI input in Settings now automatically switches sound output to MIDI out (and back to Audio if deselected)."
+      },
       {
         "date": "2026-07-07",
         "publish": true,

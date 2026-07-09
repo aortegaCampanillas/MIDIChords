@@ -7,26 +7,36 @@ import math
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
+from PySide6.QtGui import QFont, QFontMetrics
+
 import midichords.qt.tk_compat as tk
 
 CIRCLE_FIFTHS_ORDER = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
 
 
-def _fit_font_size_for_slice(text: str, base_size: int, radius: float, min_size: int) -> int:
+def _fit_font_size_for_slice(text: str, base_size: int, radius: float, min_size: int, font_family: str) -> int:
     """Encoge `base_size` si `text` no cabe en el ancho disponible del sector a ese
-    radio (p. ej. "Sol#m" en el anillo menor, más estrecho que el mayor). Usa el
-    mismo estimador de ancho por carácter que `circle_hint` en render_mixin.py
-    (~0.55 * tamaño de fuente por carácter) en vez de medir con la fuente real,
-    para no depender de tener un widget ya realizado."""
+    radio (p. ej. "Sol#m" en el anillo menor, más estrecho que el mayor). Mide el
+    ancho real con QFontMetrics (la etiqueta se dibuja en negrita, que es más ancha
+    por carácter que el texto regular/cursiva de otros sitios de la UI — un
+    estimador por número de caracteres calibrado en otro contexto no vale aquí)."""
     if not text or radius <= 0:
         return base_size
     half_angle = CIRCLE_SLICE_RAD / 2
-    avail_width = 2 * radius * math.sin(half_angle) * 0.9
-    est_width = 0.55 * base_size * len(text)
+    avail_width = 2 * radius * math.sin(half_angle) * 0.88
+    font = QFont(font_family, base_size)
+    font.setBold(True)
+    est_width = QFontMetrics(font).horizontalAdvance(text)
     if est_width <= avail_width or est_width <= 0:
         return base_size
-    scaled = base_size * (avail_width / est_width)
-    return max(min_size, int(round(scaled)))
+    size = max(min_size, int(math.floor(base_size * (avail_width / est_width))))
+    # El escalado lineal es aproximado (hinting/redondeo de la fuente); afinar
+    # bajando de 1 en 1 hasta que el ancho medido quepa de verdad.
+    font.setPointSize(size)
+    while size > min_size and QFontMetrics(font).horizontalAdvance(text) > avail_width:
+        size -= 1
+        font.setPointSize(size)
+    return size
 
 
 def _qt_canvas_polyline(canvas: tk.Canvas, flat: list[float], **kwargs: Any) -> None:
@@ -747,8 +757,8 @@ def draw_circle_of_fifths(
         # fs_maj/fs_min quedan reasignados para esta vuelta; el resto del cuerpo del
         # bucle ya usa estas variables en cada `font=(...)`, así que no hace falta
         # tocar cada create_text por separado.
-        fs_maj = _fit_font_size_for_slice(major_name, fs_maj_base, r_maj_name, 8)
-        fs_min = _fit_font_size_for_slice(minor_name, fs_min_base, r_min, 8)
+        fs_maj = _fit_font_size_for_slice(major_name, fs_maj_base, r_maj_name, 8, font_family)
+        fs_min = _fit_font_size_for_slice(minor_name, fs_min_base, r_min, 8, font_family)
         canvas.create_text(
             cx + cos * r_sig,
             cy + sin * r_sig,
@@ -796,7 +806,7 @@ def draw_circle_of_fifths(
                 )
             if is_ii_dim and ii_dim_root_minor is not None:
                 dim_lbl = f"{note_name_fn(ii_dim_root_minor)}°"
-                fs_dim = _fit_font_size_for_slice(dim_lbl, fs_min_base, r_outer * 0.405, 8)
+                fs_dim = _fit_font_size_for_slice(dim_lbl, fs_min_base, r_outer * 0.405, 8, font_family)
                 canvas.create_text(
                     cx + cos * (r_outer * 0.405),
                     cy + sin * (r_outer * 0.405),
@@ -888,7 +898,7 @@ def draw_circle_of_fifths(
                     )
                 if minor_deg == 11:
                     sim_lbl = f"{note_name_fn(vii_root_pc)}m"
-                    fs_sim = _fit_font_size_for_slice(sim_lbl, fs_min_base, r_outer * 0.405, 8)
+                    fs_sim = _fit_font_size_for_slice(sim_lbl, fs_min_base, r_outer * 0.405, 8, font_family)
                     canvas.create_text(
                         cx + cos * (r_outer * 0.405),
                         cy + sin * (r_outer * 0.405),

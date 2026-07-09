@@ -178,26 +178,36 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
 + `"m"` = 5).
 
 - Fix (`midichords/ui/circle_of_fifths.py`): nueva función
-  `_fit_font_size_for_slice(text, base_size, radius, min_size)` que estima el ancho
-  del texto (mismo heurístico de ~0.55×tamaño de fuente por carácter que ya usa
-  `circle_hint` en `render_mixin.py`) y encoge el tamaño de fuente si no cabe en el
-  ancho disponible del sector a ese radio. Los tamaños base (`fs_maj`→`fs_maj_base`,
-  `fs_min`→`fs_min_base`) se calculan una vez fuera del bucle como antes; dentro del
-  bucle, `fs_maj`/`fs_min` se **reasignan por iteración** al tamaño ajustado para
-  `major_name`/`minor_name` de esa vuelta — así no hace falta tocar cada uno de los
-  ~13 `canvas.create_text(...)` que ya usaban `fs_maj`/`fs_min` en el archivo. Los
-  casos especiales `dim_lbl` (ii° en tonalidad menor) y `sim_lbl` (vii° relativo)
-  tienen su propio texto distinto de `minor_name`, así que calculan su propio
-  tamaño ajustado (`fs_dim`, `fs_sim`) en vez de reutilizar `fs_min`.
+  `_fit_font_size_for_slice(text, base_size, radius, min_size, font_family)` que
+  encoge el tamaño de fuente si no cabe en el ancho disponible del sector a ese
+  radio. Los tamaños base (`fs_maj`→`fs_maj_base`, `fs_min`→`fs_min_base`) se
+  calculan una vez fuera del bucle como antes; dentro del bucle, `fs_maj`/`fs_min`
+  se **reasignan por iteración** al tamaño ajustado para `major_name`/`minor_name`
+  de esa vuelta — así no hace falta tocar cada uno de los ~13
+  `canvas.create_text(...)` que ya usaban `fs_maj`/`fs_min` en el archivo. Los casos
+  especiales `dim_lbl` (ii° en tonalidad menor) y `sim_lbl` (vii° relativo) tienen su
+  propio texto distinto de `minor_name`, así que calculan su propio tamaño ajustado
+  (`fs_dim`, `fs_sim`) en vez de reutilizar `fs_min`.
+- **Primer intento (insuficiente, reemplazado)**: la primera versión estimaba el
+  ancho del texto con un heurístico de ~0.55×tamaño de fuente por carácter (el mismo
+  que usa `circle_hint` en `render_mixin.py`). El usuario reportó que "Sol#m" seguía
+  saliéndose tras ese fix. Causa probable: ese heurístico estaba calibrado para el
+  texto en **cursiva** de `circle_hint`, no para el texto en **negrita** de estas
+  etiquetas (la negrita es más ancha por carácter a igual tamaño de fuente) —
+  subestimaba el ancho real y por tanto encogía de menos.
+- **Fix definitivo**: mide el ancho real con `QFontMetrics` (`QFont(font_family,
+  base_size)` con `setBold(True)`, `horizontalAdvance(text)`), escala lineal según
+  la proporción `avail_width / est_width`, y afina bajando el tamaño de 1 en 1 hasta
+  que el ancho medido en esa fuente concreta quepa de verdad (el escalado lineal es
+  solo una aproximación por el redondeo/hinting de la fuente a distintos tamaños).
+  Requiere pasar `font_family` a la función (antes no hacía falta con el
+  heurístico).
 - Verificado con captura de pantalla: las etiquetas largas (`Sol#m`, `La#m`,
   `Re#m`, `Do#m`) se ven visiblemente más pequeñas que las cortas del mismo anillo
-  (`Rem`, `Lam`, `Mim`, `Sim`), que mantienen su tamaño base al no necesitar
-  encogerse — el mecanismo está funcionando. No se dispone de una forma precisa de
-  medir solapamiento exacto entre sectores sin acceso a la fuente real renderizada
-  (el heurístico usa una estimación de ancho por carácter, no `QFontMetrics`), así
-  que **conviene una revisión visual atenta en macOS** por si el heurístico necesita
-  ajuste fino (constante `0.55` en `_fit_font_size_for_slice`) para las fuentes del
-  sistema de Mac (Avenir Next/SF Pro tienen métricas distintas a Helvetica/Segoe UI).
+  (`Rem`, `Lam`, `Mim`, `Sim`) y ya no cruzan las líneas divisorias de sector en
+  Windows. Al medir con la fuente real en vez de un heurístico, **debería** dar el
+  mismo resultado correcto en macOS con Avenir Next/SF Pro (ya no depende de una
+  constante calibrada a ojo), pero conviene confirmarlo visualmente igualmente.
 
 ## Archivos tocados (estado final)
 
@@ -216,10 +226,10 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
   el panel.
 - `midichords/mixins/render_mixin.py`: se oculta el hint de Shift en Detección de
   Intervalos (`interval_tab_active`).
-- `midichords/ui/circle_of_fifths.py`: nueva `_fit_font_size_for_slice()`;
-  `fs_maj`/`fs_min` (base) renombrados a `fs_maj_base`/`fs_min_base` y reasignados
-  por etiqueta dentro del bucle de dibujo; `dim_lbl`/`sim_lbl` con tamaño propio
-  (`fs_dim`/`fs_sim`).
+- `midichords/ui/circle_of_fifths.py`: nueva `_fit_font_size_for_slice()` (mide con
+  `QFontMetrics`, no con un heurístico por caracteres); `fs_maj`/`fs_min` (base)
+  renombrados a `fs_maj_base`/`fs_min_base` y reasignados por etiqueta dentro del
+  bucle de dibujo; `dim_lbl`/`sim_lbl` con tamaño propio (`fs_dim`/`fs_sim`).
 
 ## Verificado en Windows
 
@@ -268,9 +278,12 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
 - [ ] Modo **Círculo de quintas**: las etiquetas menores largas ("Sol#m", "La#m",
       "Re#m", "Do#m", el "ii°"/"vii°" cuando aplique) caben dentro de su sector sin
       solaparse con las adyacentes, en las 12 posiciones del anillo (no solo las que
-      se ven en la tonalidad de Do por defecto) — si el heurístico de ancho por
-      carácter (`0.55 * tamaño_fuente` en `_fit_font_size_for_slice`) no calza bien
-      con las métricas de Avenir Next/SF Pro en macOS, ajustar esa constante.
+      se ven en la tonalidad de Do por defecto). El fix ya mide con `QFontMetrics`
+      la fuente real (Avenir Next/SF Pro en macOS), así que no debería depender de
+      una constante calibrada a mano — si aun así algo se sale, revisar el margen de
+      seguridad `0.88` en `_fit_font_size_for_slice` (puede que la geometría exacta
+      de intersección texto-sector angular no esté perfectamente modelada por la
+      aproximación de "ancho de cuerda tangencial", ver comentario en el código).
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

@@ -252,6 +252,13 @@ class InputDetectionMixin:
                 }
             return next_active, next_sounding
         elif self.current_mode == "detection":
+            # detection_mouse_chord_notes persists after mouse-up by design:
+            # it's the accumulator for building a chord out of separate
+            # clicks (with or without Shift). Cutting sound on release here
+            # would re-trigger notes as a fresh attack the moment Shift adds
+            # another note back into the pending chord, since the note was
+            # already stopped. Notes sustain until the chord changes (a new
+            # non-Shift click) or Clear, same as before.
             next_active = set(self._current_detection_notes())
             if play_midi_input:
                 next_sounding = set(next_active)
@@ -260,16 +267,6 @@ class InputDetectionMixin:
                     int(note)
                     for note in next_active
                     if note not in set(self.detection_midi_held_notes)
-                }
-            # Un clic simple (sin Shift) sostiene la nota mientras el ratón
-            # está pulsado: detection_mouse_chord_notes no tiene noción de
-            # "botón soltado" (se mantiene para poder seguir añadiendo notas
-            # con Shift), así que sin este filtro la nota sigue sonando
-            # indefinidamente tras soltar. Con Shift sí debe seguir sonando
-            # el acorde completo mientras se van añadiendo notas sueltas.
-            if not self.detection_shift_pressed and not self.detection_midi_held_notes:
-                next_sounding = {
-                    note for note in next_sounding if note == self.mouse_current_note
                 }
         else:
             next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
@@ -499,7 +496,6 @@ class InputDetectionMixin:
     def _on_keyboard_release(self, _event: tk.Event) -> None:
         if self.current_mode == "detection":
             self.mouse_current_note = None
-            self._refresh_sounding_notes()
             return
         if self.mouse_current_note is not None:
             self._note_off_from_source(self.mouse_current_note, source="mouse")

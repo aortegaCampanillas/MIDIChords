@@ -216,7 +216,7 @@ class IntervalMixin:
         ).pack(anchor="w", pady=(0, 6))
 
         # Hint subtitle — same as detection_help_label (14)
-        tk.Label(
+        self.interval_help_label = tk.Label(
             self.interval_panel,
             text=self._get_ui_text('hint_interval_detection'),
             bg=bg,
@@ -225,7 +225,8 @@ class IntervalMixin:
             justify="left",
             anchor="nw",
             wraplength=800,
-        ).pack(anchor="w", pady=(0, 8))
+        )
+        self.interval_help_label.pack(anchor="w", pady=(0, 8))
 
         # Buttons row: ◄ ► Limpiar — same widget types as detection panel
         controls_row = tk.Frame(self.interval_panel, bg=bg, bd=0, highlightthickness=0)
@@ -368,6 +369,8 @@ class IntervalMixin:
 
         self.interval_panel.pack(fill=tk.BOTH, expand=True)
         self._interval_panel_created = True
+        if hasattr(self, "_refresh_right_panel_wraplengths"):
+            self._refresh_right_panel_wraplengths()
         self._refresh_interval_buttons_state()
 
     def _refresh_interval_buttons_state(self):

@@ -2964,6 +2964,11 @@ class UiMixin:
             self.detection_help_label.configure(wraplength=help_wrap)
         except Exception:
             pass
+        if hasattr(self, "interval_help_label"):
+            try:
+                self.interval_help_label.configure(wraplength=help_wrap)
+            except Exception:
+                pass
         if left_w > 1 and hasattr(self, "staff_generated_chord_value"):
             try:
                 self.staff_generated_chord_value.configure(wraplength=max(120, left_w - 100))

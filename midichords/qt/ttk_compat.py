@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QSpinBox,
     QScrollBar,
+    QStyleFactory,
 )
 
 from midichords.qt.qt_primitives import _font_from_tk_tuple
@@ -316,6 +317,18 @@ class Spinbox(QSpinBox, _LayoutCompat):
         font_spec = _kwargs.pop("font", None)
         increment = _kwargs.pop("increment", None)
         super().__init__(master)
+        # El estilo nativo "windows11" de Qt calcula mal el subControlRect de los
+        # botones +/- de QSpinBox (se solapan con el campo de texto: los clics en
+        # la posición visual de la flecha acaban seleccionando el número en vez
+        # de incrementar). Fusion no tiene ese bug y aquí solo se usa para el
+        # spinbox, sin afectar al resto de la app.
+        try:
+            fusion_style = QStyleFactory.create("Fusion")
+            if fusion_style is not None:
+                fusion_style.setParent(self)
+                self.setStyle(fusion_style)
+        except Exception:
+            pass
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self.setRange(int(from_), int(to))

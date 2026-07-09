@@ -310,13 +310,20 @@ class Spinbox(QSpinBox, _LayoutCompat):
         from_: int = 0,
         to: int = 100,
         width: int | None = None,
+        command: Callable[[], None] | None = None,
         **_kwargs: Any,
     ) -> None:
         font_spec = _kwargs.pop("font", None)
+        increment = _kwargs.pop("increment", None)
         super().__init__(master)
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self.setRange(int(from_), int(to))
+        if increment is not None:
+            try:
+                self.setSingleStep(int(increment))
+            except (TypeError, ValueError):
+                pass
         self._textvariable = textvariable
         if textvariable is not None:
             try:
@@ -324,6 +331,12 @@ class Spinbox(QSpinBox, _LayoutCompat):
             except Exception:
                 self.setValue(int(from_))
             self.valueChanged.connect(lambda v: textvariable.set(str(v)))
+        # Tk invoca `command` en cada cambio de valor (flechas, rueda, teclado);
+        # sin esto, los +/- solo movían el número mostrado sin avisar al resto
+        # de la app, que lo volvía a pisar con el valor viejo en el próximo
+        # refresco de UI (p. ej. minutos/segundos del temporizador del metrónomo).
+        if command is not None:
+            self.valueChanged.connect(lambda _v: command())
 
     def configure(self, **kwargs: Any) -> None:
         if "state" in kwargs:

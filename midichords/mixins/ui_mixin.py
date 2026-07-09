@@ -2582,7 +2582,6 @@ class UiMixin:
         self.bind_all("<Shift-MouseWheel>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-4>", self._on_any_mousewheel, add="+")
         self.bind_all("<Button-5>", self._on_any_mousewheel, add="+")
-        self.chord_panel.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
         self.staff_canvas.bind("<Configure>", self._refresh_right_panel_wraplengths, add="+")
         self._refresh_right_panel_wraplengths()
         self._set_instrument_view(self.instrument_view)

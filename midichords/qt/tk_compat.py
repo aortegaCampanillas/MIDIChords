@@ -594,12 +594,6 @@ class Widget(_BindMixin, QWidget):
     def winfo_height(self) -> int:
         return max(1, int(self.height()))
 
-    def resizeEvent(self, event) -> None:  # type: ignore[override]
-        super_method = getattr(super(), "resizeEvent", None)
-        if callable(super_method):
-            super_method(event)
-        self._call_binding("<Configure>", event)
-
     def cget(self, key: str) -> str:
         if key in {"background", "bg"}:
             return self._bg

@@ -497,11 +497,13 @@ class GenerationMixin:
         self._stop_generated_playback()
         notes = sorted(self._generation_piano_staff_midi_notes())
         is_circle = getattr(self, "circle_fifths_tab_active", False)
-        # El círculo duplica el acorde una octava abajo (mano izquierda), así
-        # que suenan más notas a la vez que en el resto de modos (una sola
-        # nota). Bajar la velocity por voz compensa la suma de amplitudes
-        # para que el volumen total percibido no se dispare.
-        chord_velocity = 78 if is_circle else 108
+        # Generación y círculo duplican el acorde una octava abajo (mano
+        # izquierda), así que suenan más notas a la vez que en el resto de
+        # modos (una sola nota). Bajar la velocity por voz compensa la suma
+        # de amplitudes (síntesis) o la falta de mezcla (MIDI out, donde cada
+        # nota suena a su volumen pleno sin ninguna compresión) para que el
+        # volumen total percibido no se dispare.
+        chord_velocity = 78
         if self.instrument_view == "guitar":
             for note in notes:
                 self.audio_engine.pluck_guitar_note(note, velocity=chord_velocity, duration_seconds=1.3)
@@ -667,12 +669,15 @@ class GenerationMixin:
             return
         self._stop_generated_playback()
         notes = sorted(self._generation_piano_staff_midi_notes())
+        # Ver comentario en _preview_generated_chord_short: el acorde
+        # duplicado (mano izquierda) suma más voces que una nota suelta.
+        chord_velocity = 78
         if self.instrument_view == "guitar":
             for note in notes:
-                self.audio_engine.pluck_guitar_note(note, velocity=108, duration_seconds=1.3)
+                self.audio_engine.pluck_guitar_note(note, velocity=chord_velocity, duration_seconds=1.3)
         else:
             for note in notes:
-                self.play_note(note, 108)
+                self.play_note(note, chord_velocity)
                 self.generated_playing_notes.add(note)
         if self.generation_tab_active:
             self.redraw_keyboard()

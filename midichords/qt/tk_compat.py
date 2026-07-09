@@ -993,10 +993,18 @@ class Radiobutton(Widget):
         self._variable = variable
         self._value = value
         self._command = command
+        self._rb_fg: str | None = None
         if variable is not None:
             self._rb.setChecked(str(variable.get()) == str(value))
             variable.trace_add("write", lambda *_: self._rb.setChecked(str(self._variable.get()) == str(self._value)))  # type: ignore[union-attr]
         self._rb.toggled.connect(self._on_toggled)
+        cur = str(_kwargs.get("cursor", "") or "")
+        if cur in {"hand2", "hand1"}:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # bg/fg/font llegan aquí (Tk pasa el estilo en el constructor); sin esto
+        # el QRadioButton se queda con la paleta por defecto de Qt (texto oscuro),
+        # que en el fondo oscuro de la app parece "deshabilitado" aunque no lo esté.
+        self.configure(**_kwargs)
         self._rb.adjustSize()
         self.setFixedSize(self._rb.size())
 
@@ -1016,6 +1024,19 @@ class Radiobutton(Widget):
             self._rb.setText(str(kwargs["text"]))
         if "state" in kwargs:
             self._rb.setEnabled(str(kwargs["state"]) != DISABLED)
+        fg = kwargs.get("fg", kwargs.get("foreground"))
+        if fg is not None:
+            self._rb_fg = str(fg)
+        if self._rb_fg is not None:
+            # :disabled explícito para no perder el atenuado nativo de Qt al
+            # fijar `color` sin condición (si no, el texto se queda igual de
+            # brillante aunque el radio esté deshabilitado).
+            self._rb.setStyleSheet(
+                f"QRadioButton {{ color: {self._rb_fg}; }} "
+                "QRadioButton:disabled { color: #666e7a; }"
+            )
+        if "font" in kwargs:
+            self._rb.setFont(_font_from_tk_tuple(kwargs["font"]))
         super().configure(**kwargs)
 
     def pack(self, **kwargs: Any) -> None:

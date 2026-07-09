@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (Qt, pendiente de verificar en macOS — ver `TODO_MACOS_VERIFICATION.md`)**: en modo **Detección de Acordes**, el texto de ayuda del panel derecho ("Pulsa notas en piano/guitarra...") se recortaba en vez de ajustarse a 2 líneas. Causa: la clase base `Widget` del shim Qt (`midichords/qt/tk_compat.py`) no implementaba `winfo_width()`/`winfo_height()` ni disparaba `<Configure>` en resize (solo `QtCanvas` lo hacía), y el cálculo de `wraplength` en `ui_mixin.py` usaba por error el ancho del panel izquierdo (`staff_canvas`) en lugar del propio panel derecho (`chord_panel`).
+
 - **Escritorio (escalas)**: al arrancar, el selector de **Digitación** vuelve a marcar la última mano elegida en la configuración (`Sin`, `Mano I.` o `Mano D.`) en lugar de quedarse visualmente en `Sin`.
 
 - **Escritorio (escalas)**: al arrancar con digitación activa o al cambiar la mano de digitación, el panel inferior del piano reserva solo la altura necesaria para las bandas de dedos y para la barra horizontal; muestra también la franja descendente sin dejar un hueco grande ni quedar recortada por el scroll.

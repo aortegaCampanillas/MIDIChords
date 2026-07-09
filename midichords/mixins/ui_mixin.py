@@ -2960,7 +2960,7 @@ class UiMixin:
         except Exception:
             left_w = 0
 
-        help_wrap = max(220, left_w - 56) if left_w > 1 else max(220, panel_width - 56)
+        help_wrap = max(220, panel_width - 56)
         try:
             self.detection_help_label.configure(wraplength=help_wrap)
         except Exception:

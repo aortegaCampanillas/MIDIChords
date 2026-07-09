@@ -162,6 +162,43 @@ durante el arranque en modo `circle_fifths` específicamente (el código de
 `_on_mode_combo_changed` en `ui_mixin.py` no parecía forzarlo tras revisión manual,
 pero el comportamiento observado sugiere lo contrario).
 
+## Quinto bug: Círculo de quintas — "Sol#m" (y otras etiquetas largas) se salen del sector
+
+Reportado tras el fix del cuarto bug: el círculo ya cabe en el panel, pero etiquetas
+menores largas como **"Sol#m"** seguían saliéndose de su sector.
+
+Causa: el tamaño de fuente de cada anillo (`fs_maj`, `fs_min`) se calculaba una única
+vez de forma proporcional al **ancho del canvas**, sin tener en cuenta ni la
+longitud del texto concreto ni que el anillo **menor** tiene menos ancho disponible
+por sector que el **mayor** al mismo ángulo (30° por sector; el ancho disponible en
+un radio `r` es aprox. `2 * r * sin(15°)`, así que un radio menor = menos espacio).
+Además, las etiquetas menores llevan el sufijo `"m"` (un carácter más que el nombre
+de nota solo), así que combinan menos espacio disponible con texto más largo —
+sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 caracteres
++ `"m"` = 5).
+
+- Fix (`midichords/ui/circle_of_fifths.py`): nueva función
+  `_fit_font_size_for_slice(text, base_size, radius, min_size)` que estima el ancho
+  del texto (mismo heurístico de ~0.55×tamaño de fuente por carácter que ya usa
+  `circle_hint` en `render_mixin.py`) y encoge el tamaño de fuente si no cabe en el
+  ancho disponible del sector a ese radio. Los tamaños base (`fs_maj`→`fs_maj_base`,
+  `fs_min`→`fs_min_base`) se calculan una vez fuera del bucle como antes; dentro del
+  bucle, `fs_maj`/`fs_min` se **reasignan por iteración** al tamaño ajustado para
+  `major_name`/`minor_name` de esa vuelta — así no hace falta tocar cada uno de los
+  ~13 `canvas.create_text(...)` que ya usaban `fs_maj`/`fs_min` en el archivo. Los
+  casos especiales `dim_lbl` (ii° en tonalidad menor) y `sim_lbl` (vii° relativo)
+  tienen su propio texto distinto de `minor_name`, así que calculan su propio
+  tamaño ajustado (`fs_dim`, `fs_sim`) en vez de reutilizar `fs_min`.
+- Verificado con captura de pantalla: las etiquetas largas (`Sol#m`, `La#m`,
+  `Re#m`, `Do#m`) se ven visiblemente más pequeñas que las cortas del mismo anillo
+  (`Rem`, `Lam`, `Mim`, `Sim`), que mantienen su tamaño base al no necesitar
+  encogerse — el mecanismo está funcionando. No se dispone de una forma precisa de
+  medir solapamiento exacto entre sectores sin acceso a la fuente real renderizada
+  (el heurístico usa una estimación de ancho por carácter, no `QFontMetrics`), así
+  que **conviene una revisión visual atenta en macOS** por si el heurístico necesita
+  ajuste fino (constante `0.55` en `_fit_font_size_for_slice`) para las fuentes del
+  sistema de Mac (Avenir Next/SF Pro tienen métricas distintas a Helvetica/Segoe UI).
+
 ## Archivos tocados (estado final)
 
 - `midichords/qt/tk_compat.py`: clase `Widget` — `winfo_width()` / `winfo_height()` /
@@ -179,6 +216,10 @@ pero el comportamiento observado sugiere lo contrario).
   el panel.
 - `midichords/mixins/render_mixin.py`: se oculta el hint de Shift en Detección de
   Intervalos (`interval_tab_active`).
+- `midichords/ui/circle_of_fifths.py`: nueva `_fit_font_size_for_slice()`;
+  `fs_maj`/`fs_min` (base) renombrados a `fs_maj_base`/`fs_min_base` y reasignados
+  por etiqueta dentro del bucle de dibujo; `dim_lbl`/`sim_lbl` con tamaño propio
+  (`fs_dim`/`fs_sim`).
 
 ## Verificado en Windows
 
@@ -199,6 +240,12 @@ pero el comportamiento observado sugiere lo contrario).
 - [x] Captura de pantalla en modo Círculo de quintas (vista piano): el círculo cabe
       completo en el panel derecho, sin desbordar, texto proporcionado. **No
       verificado con vista de guitarra** (ver nota sobre `config.json` arriba).
+- [x] Captura de pantalla en modo Círculo de quintas tras el fix de fuentes: las
+      etiquetas menores largas (`Sol#m`, `La#m`, `Re#m`, `Do#m`) se ven
+      perceptiblemente más pequeñas que las cortas (`Rem`, `Lam`, `Mim`, `Sim`),
+      confirmando que el encogido por etiqueta funciona. No se pudo confirmar con
+      precisión matemática si el heurístico de ancho por carácter es exacto para
+      las fuentes de macOS (ver "Quinto bug" arriba).
 
 ## Pendiente de verificar en macOS
 
@@ -218,6 +265,12 @@ pero el comportamiento observado sugiere lo contrario).
       desbordar, con texto legible dentro de sus sectores — tanto con vista de
       **piano** como con vista de **guitarra** (el reporte original decía que era
       "sobre todo" con guitarra donde se notaba peor).
+- [ ] Modo **Círculo de quintas**: las etiquetas menores largas ("Sol#m", "La#m",
+      "Re#m", "Do#m", el "ii°"/"vii°" cuando aplique) caben dentro de su sector sin
+      solaparse con las adyacentes, en las 12 posiciones del anillo (no solo las que
+      se ven en la tonalidad de Do por defecto) — si el heurístico de ancho por
+      carácter (`0.55 * tamaño_fuente` en `_fit_font_size_for_slice`) no calza bien
+      con las métricas de Avenir Next/SF Pro en macOS, ajustar esa constante.
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

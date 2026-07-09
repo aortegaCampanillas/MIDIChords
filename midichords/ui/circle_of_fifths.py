@@ -12,6 +12,23 @@ import midichords.qt.tk_compat as tk
 CIRCLE_FIFTHS_ORDER = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
 
 
+def _fit_font_size_for_slice(text: str, base_size: int, radius: float, min_size: int) -> int:
+    """Encoge `base_size` si `text` no cabe en el ancho disponible del sector a ese
+    radio (p. ej. "Sol#m" en el anillo menor, más estrecho que el mayor). Usa el
+    mismo estimador de ancho por carácter que `circle_hint` en render_mixin.py
+    (~0.55 * tamaño de fuente por carácter) en vez de medir con la fuente real,
+    para no depender de tener un widget ya realizado."""
+    if not text or radius <= 0:
+        return base_size
+    half_angle = CIRCLE_SLICE_RAD / 2
+    avail_width = 2 * radius * math.sin(half_angle) * 0.9
+    est_width = 0.55 * base_size * len(text)
+    if est_width <= avail_width or est_width <= 0:
+        return base_size
+    scaled = base_size * (avail_width / est_width)
+    return max(min_size, int(round(scaled)))
+
+
 def _qt_canvas_polyline(canvas: tk.Canvas, flat: list[float], **kwargs: Any) -> None:
     """QtCanvas.create_line solo admite un segmento; Tk acepta muchos puntos en un create_line."""
     if len(flat) < 4:
@@ -615,9 +632,9 @@ def draw_circle_of_fifths(
     # Anillo de armadura: tamaño similar; nombres de acordes un poco más pequeños para que quepan (p. ej. Re#m).
     fs_sig = max(10, min(24, int(round(0.026 * w))))
     _nm = 0.88
-    fs_maj = max(12, min(28, int(round(0.036 * w * _nm))))
+    fs_maj_base = max(12, min(28, int(round(0.036 * w * _nm))))
     fs_maj_r = max(11, min(25, int(round(0.03 * w * _nm))))
-    fs_min = max(11, min(26, int(round(0.034 * w * _nm))))
+    fs_min_base = max(11, min(26, int(round(0.034 * w * _nm))))
     fs_min_r = max(10, min(23, int(round(0.028 * w * _nm))))
 
     canvas.create_rectangle(0, 0, w, h, fill="#1a2330", outline="", tags=tag)
@@ -725,6 +742,13 @@ def draw_circle_of_fifths(
         sig_label = circle_signature_label_for_slice_index(i)
         major_name = note_name_fn(pc)
         minor_name = circle_minor_label(pc)
+        # Nombres largos (p. ej. "Sol#m") no caben en el anillo menor (más estrecho
+        # que el mayor al mismo radio angular); encoger por etiqueta si hace falta.
+        # fs_maj/fs_min quedan reasignados para esta vuelta; el resto del cuerpo del
+        # bucle ya usa estas variables en cada `font=(...)`, así que no hace falta
+        # tocar cada create_text por separado.
+        fs_maj = _fit_font_size_for_slice(major_name, fs_maj_base, r_maj_name, 8)
+        fs_min = _fit_font_size_for_slice(minor_name, fs_min_base, r_min, 8)
         canvas.create_text(
             cx + cos * r_sig,
             cy + sin * r_sig,
@@ -772,12 +796,13 @@ def draw_circle_of_fifths(
                 )
             if is_ii_dim and ii_dim_root_minor is not None:
                 dim_lbl = f"{note_name_fn(ii_dim_root_minor)}°"
+                fs_dim = _fit_font_size_for_slice(dim_lbl, fs_min_base, r_outer * 0.405, 8)
                 canvas.create_text(
                     cx + cos * (r_outer * 0.405),
                     cy + sin * (r_outer * 0.405),
                     text=dim_lbl,
                     fill=CIRCLE_DEGREE_TEXT[11],
-                    font=(font_family, fs_min, "bold"),
+                    font=(font_family, fs_dim, "bold"),
                     tags=tag,
                 )
                 _draw_roman_maybe_flat(
@@ -863,12 +888,13 @@ def draw_circle_of_fifths(
                     )
                 if minor_deg == 11:
                     sim_lbl = f"{note_name_fn(vii_root_pc)}m"
+                    fs_sim = _fit_font_size_for_slice(sim_lbl, fs_min_base, r_outer * 0.405, 8)
                     canvas.create_text(
                         cx + cos * (r_outer * 0.405),
                         cy + sin * (r_outer * 0.405),
                         text=sim_lbl,
                         fill=CIRCLE_DEGREE_TEXT[11],
-                        font=(font_family, fs_min, "bold"),
+                        font=(font_family, fs_sim, "bold"),
                         tags=tag,
                     )
                     canvas.create_text(

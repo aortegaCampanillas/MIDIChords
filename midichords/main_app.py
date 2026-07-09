@@ -1742,6 +1742,20 @@ def _argv_for_qt_and_verbose_env(argv: list[str]) -> list[str]:
 def main() -> None:
     from PySide6.QtWidgets import QApplication
 
+    if sys.platform == "win32":
+        # Sin un AppUserModelID propio, la barra de tareas de Windows muestra el
+        # icono de python.exe en vez del de la ventana (WM_SETICON/QIcon no basta
+        # ahí, a diferencia de la barra de título, que sí lo respeta). Hay que
+        # fijarlo antes de crear cualquier ventana.
+        try:
+            import ctypes
+
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                "MIDIChords.Desktop"
+            )
+        except Exception:
+            pass
+
     qt_argv = _argv_for_qt_and_verbose_env(list(sys.argv))
     qt_app = QApplication.instance() or QApplication(qt_argv)
     # En macOS el Cmd-Tab a veces usa el icono de QApplication (no el de la ventana),

@@ -1326,6 +1326,10 @@ class UiMixin:
         )
         self.generated_intervals_label.pack(anchor="w", pady=(3, 0))
 
+        self.generated_notes_var.trace_add("write", self._refresh_generation_result_height)
+        self.generated_intervals_var.trace_add("write", self._refresh_generation_result_height)
+        self._refresh_generation_result_height()
+
         self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
         self.tab_generation_frame.rowconfigure(0, weight=0)
@@ -2949,6 +2953,24 @@ class UiMixin:
                     pass
         except Exception:
             pass
+    def _refresh_generation_result_height(self, *_args: Any) -> None:
+        """El bloque de acorde/notas/intervalos usa un Canvas de alto fijo (160) como
+        fondo redondeado; en macOS las fuentes del sistema (Avenir Next/SF Pro) son más
+        altas que en Windows y el contenido puede necesitar más líneas (p. ej. notas/
+        intervalos con wraplength). Si el contenido real pide más alto que el mínimo,
+        crecemos el Canvas para que no se recorte por abajo."""
+        if not hasattr(self, "generation_result_canvas") or not hasattr(self, "generation_result_inner"):
+            return
+        try:
+            needed = int(self.generation_result_inner.winfo_reqheight()) + 24
+        except Exception:
+            return
+        target = max(160, needed)
+        try:
+            self.generation_result_canvas.setMinimumHeight(target)
+        except Exception:
+            pass
+
     def _refresh_right_panel_wraplengths(self, _event: Optional[tk.Event] = None) -> None:
         try:
             panel_width = int(self.chord_panel.winfo_width())

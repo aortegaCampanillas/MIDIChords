@@ -594,6 +594,12 @@ class Widget(_BindMixin, QWidget):
     def winfo_height(self) -> int:
         return max(1, int(self.height()))
 
+    def winfo_reqwidth(self) -> int:
+        return max(1, int(self.sizeHint().width()))
+
+    def winfo_reqheight(self) -> int:
+        return max(1, int(self.sizeHint().height()))
+
     def cget(self, key: str) -> str:
         if key in {"background", "bg"}:
             return self._bg

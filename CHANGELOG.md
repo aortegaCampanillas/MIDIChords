@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Escritorio (Qt)**: en modo **Detección de Intervalos**, el panel del pentagrama ya no muestra el texto de ayuda "Mantén Shift para mantener las teclas pulsadas" (pensado para Detección de Acordes; Shift no aplica al modo de intervalos).
 
+- **Escritorio (Qt, pendiente de verificar en macOS)**: en modo **Generación de Acordes**, las filas de **Notas** e **Intervalos** podían recortarse por abajo cuando el texto necesitaba más líneas de las que caben en el alto fijo (160px) del bloque de resultado — más probable en macOS, donde las fuentes del sistema (Avenir Next/SF Pro) son más altas que en Windows. Ahora el alto del bloque crece dinámicamente (`_refresh_generation_result_height`, enganchado a los `StringVar` de notas/intervalos vía `trace_add`) según el alto real que pide el contenido (`winfo_reqheight`, nuevo en la clase base `Widget` del shim Qt, basado en `sizeHint()`).
+
 - **Escritorio (escalas)**: al arrancar, el selector de **Digitación** vuelve a marcar la última mano elegida en la configuración (`Sin`, `Mano I.` o `Mano D.`) en lugar de quedarse visualmente en `Sin`.
 
 - **Escritorio (escalas)**: al arrancar con digitación activa o al cambiar la mano de digitación, el panel inferior del piano reserva solo la altura necesaria para las bandas de dedos y para la barra horizontal; muestra también la franja descendente sin dejar un hueco grande ni quedar recortada por el scroll.

@@ -68,17 +68,63 @@ demanda** (`_setup_interval_ui`, solo la primera vez que se entra en el modo) co
   con `wraplength` fijo, sufre el mismo bug. Revisar `scales`, `metronome`, `tuner`
   si en algún momento se les añade un texto de ayuda similar.
 
+## Tercer bug: Generación de Acordes — Notas/Intervalos recortados por abajo
+
+Reportado directamente en **macOS**: en modo **Generación de Acordes**, las filas
+**Notas** e **Intervalos** dentro del bloque de resultado se veían recortadas por
+abajo, y en general los textos parecían más grandes que en Windows.
+
+Causa: `generation_result_canvas` (el `Canvas` que dibuja el fondo redondeado del
+bloque acorde/notas/intervalos) se crea con **alto fijo `height=160`**
+(`ui_mixin.py`). El contenido real (`generation_result_inner`, con 3 filas de texto)
+no está limitado a esa altura — si necesita más (p. ej. notas/intervalos con muchas
+notas que hacen wrap a 2 líneas por el `wraplength=420`), simplemente se recorta
+porque el `Canvas` no crece. En **macOS**, las fuentes del sistema elegidas por
+`_pick_font_family` (`Avenir Next` / `SF Pro Text`) tienen métricas más altas que
+`Segoe UI`/`Helvetica` en Windows, así que el mismo contenido necesita más alto con
+más frecuencia — de ahí que el bug sea más visible allí, aunque en teoría también
+puede reproducirse en Windows con un acorde con muchas notas (p. ej. acordes de
+9/11/13 con varias inversiones).
+
+- Fix: nuevo método `_refresh_generation_result_height()` (`ui_mixin.py`) que lee
+  `self.generation_result_inner.winfo_reqheight()` (alto real que pide el contenido)
+  y llama a `self.generation_result_canvas.setMinimumHeight(...)` si hace falta más
+  que el mínimo de 160px. Enganchado vía `trace_add("write", ...)` a
+  `generated_notes_var` y `generated_intervals_var`, así se recalcula cada vez que
+  cambian las notas/intervalos mostrados (no solo al arrancar).
+- Para que `winfo_reqheight()` funcione, se añadieron `winfo_reqwidth()` /
+  `winfo_reqheight()` (getters puros basados en `sizeHint()`) a la clase base
+  `Widget` del shim Qt (`tk_compat.py`) — mismo patrón seguro que `winfo_width()` /
+  `winfo_height()`, sin tocar `resizeEvent` (ver el crash documentado arriba).
+- **Importante**: `Canvas.configure(height=...)` en este shim es un no-op (solo
+  llama a `self.update()`, `midichords/qt/tk_compat.py` línea ~1188) — para
+  redimensionar un Canvas hay que usar el método nativo Qt `setMinimumHeight()`
+  directamente, `.configure()` no sirve.
+- Verificado con un script aislado (fuera de la app) que crea un `Frame`+`Label`
+  igual que `generation_result_inner`, confirmando que `winfo_reqheight()` crece de
+  61 a 84 cuando el texto pasa a necesitar 2 líneas.
+- **Mismo patrón de riesgo en otros paneles**: `detection_result_canvas` (height=180)
+  y `scale_result_canvas` (height=220) tienen el mismo alto fijo. No se ha reportado
+  el bug ahí todavía, pero si en el futuro se reporta recorte en Detección de
+  Acordes o Escalas, aplicar el mismo fix (leer `winfo_reqheight()` del `*_inner` y
+  `setMinimumHeight()` en el canvas correspondiente).
+
 ## Archivos tocados (estado final)
 
-- `midichords/qt/tk_compat.py`: clase `Widget` — solo `winfo_width()` / `winfo_height()`
-  (getters puros, sin `resizeEvent` nuevo).
-- `midichords/mixins/ui_mixin.py`: `_refresh_right_panel_wraplengths` usa `panel_width`
-  en vez de `left_w`; se quitó el bind muerto `chord_panel.bind("<Configure>", ...)`
-  (redundante, `staff_canvas` ya dispara el refresco); ahora también actualiza
-  `interval_help_label`.
+- `midichords/qt/tk_compat.py`: clase `Widget` — `winfo_width()` / `winfo_height()` /
+  `winfo_reqwidth()` / `winfo_reqheight()` (todos getters puros, sin `resizeEvent`
+  nuevo).
+- `midichords/mixins/ui_mixin.py`: `_refresh_right_panel_wraplengths` usa
+  `panel_width` en vez de `left_w`; se quitó el bind muerto
+  `chord_panel.bind("<Configure>", ...)` (redundante, `staff_canvas` ya dispara el
+  refresco); ahora también actualiza `interval_help_label`. Nuevo
+  `_refresh_generation_result_height()` enganchado a los `StringVar` de notas/
+  intervalos de Generación.
 - `midichords/mixins/interval_mixin.py`: `interval_help_label` guardado como atributo
   de instancia; `_setup_interval_ui` refresca el wraplength al terminar de construir
   el panel.
+- `midichords/mixins/render_mixin.py`: se oculta el hint de Shift en Detección de
+  Intervalos (`interval_tab_active`).
 
 ## Verificado en Windows
 
@@ -88,7 +134,14 @@ demanda** (`_setup_interval_ui`, solo la primera vez que se entra en el modo) co
 - [x] Captura de pantalla en modo Detección de Acordes: el texto de ayuda se ve
       completo en 2 líneas dentro del panel derecho (antes se cortaba/desbordaba).
 - [x] Captura de pantalla en modo Detección de Intervalos: el texto de ayuda se ve
-      completo en 2 líneas dentro del panel derecho (antes se cortaba/desbordaba).
+      completo en 2 líneas dentro del panel derecho (antes se cortaba/desbordaba), y
+      ya no aparece el hint de Shift bajo el pentagrama.
+- [x] Modo Generación de Acordes: caso simple (acorde de 3 notas) se ve bien; el
+      mecanismo de crecimiento dinámico (`winfo_reqheight` + `setMinimumHeight`) se
+      verificó de forma aislada (script fuera de la app), pero **no se ha podido
+      verificar visualmente dentro de la app con un acorde que realmente fuerce el
+      wrap a 2 líneas** (automatización de clicks de UI poco fiable en este entorno)
+      — pendiente también en macOS.
 
 ## Pendiente de verificar en macOS
 
@@ -97,7 +150,13 @@ demanda** (`_setup_interval_ui`, solo la primera vez que se entra en el modo) co
 - [ ] Modo **Detección de Acordes**: texto de ayuda del panel derecho en 2 líneas, sin
       cortarse ni desbordar, tanto al abrir la app como al redimensionar la ventana.
 - [ ] Modo **Detección de Intervalos**: mismo texto de ayuda ("Pulsa dos notas...") en
-      2 líneas, entrando por primera vez en el modo (no solo si arranca ya en ese modo).
+      2 líneas, entrando por primera vez en el modo (no solo si arranca ya en ese modo);
+      y confirmar que ya NO aparece el hint de Shift bajo el pentagrama en este modo.
+- [ ] Modo **Generación de Acordes**: probar un acorde con muchas notas/inversión que
+      fuerce Notas/Intervalos a 2 líneas (p. ej. un acorde de 9ª o 13ª con varias
+      notas) y confirmar que el bloque crece sin recortar el texto por abajo — este es
+      el caso que originalmente falló en macOS y que en Windows no se pudo reproducir
+      con un click real de UI.
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

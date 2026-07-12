@@ -1134,8 +1134,19 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _enabledModeIndexes() {
     return _kEnableMobileTuner
-        ? const <int>[0, 1, 2, 3, 4, 5]
-        : const <int>[0, 1, 2, 3, 4];
+        ? const <int>[0, 1, 2, 3, 4, 5, 6]
+        : const <int>[0, 1, 2, 3, 4, 5];
+  }
+
+  /// Orden de visualización en el combo de modo, igual que en escritorio:
+  /// Detección, Detección de Intervalos, Generación, Círculo de quintas,
+  /// Escalas, Metrónomo, (Afinador). Los índices de página (_tabIndex) en
+  /// sí no cambian, solo el orden en que aparecen listados.
+  static const List<int> _kDesktopModeOrder = <int>[0, 5, 1, 2, 3, 4, 6];
+
+  List<int> _orderedEnabledModes(List<int> enabledModes) {
+    final enabledSet = enabledModes.toSet();
+    return _kDesktopModeOrder.where(enabledSet.contains).toList();
   }
 
   List<Map<String, dynamic>> _getFilteredScalePatterns() {
@@ -1839,6 +1850,28 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       5 => <_HelpStep>[
           _HelpStep(
+            id: 'interval_detection_staff',
+            titleEs: 'Pentagrama de intervalos',
+            titleEn: 'Interval staff',
+            bodyEs:
+                'Muestra las notas tocadas y el intervalo entre ellas.',
+            bodyEn:
+                'Shows the notes played and the interval between them.',
+            side: _HelpCalloutSide.top,
+          ),
+          _HelpStep(
+            id: 'interval_detection_controls',
+            titleEs: 'Panel de intervalos',
+            titleEn: 'Interval panel',
+            bodyEs:
+                'Aqui se ve el nombre del intervalo y los semitonos entre las dos notas.',
+            bodyEn:
+                'This panel shows the interval name and the semitones between the two notes.',
+            side: _HelpCalloutSide.left,
+          ),
+        ],
+      6 => <_HelpStep>[
+          _HelpStep(
             id: 'tuner_staff',
             titleEs: 'Vista del afinador',
             titleEn: 'Tuner view',
@@ -2092,7 +2125,8 @@ class _HomeScreenState extends State<HomeScreen>
         2 => 'circle_staff',
         3 => 'scales_staff',
         4 => 'metronome_bead_row',
-        5 => 'tuner_staff',
+        5 => 'interval_detection_staff',
+        6 => 'tuner_staff',
         _ => 'detection_staff',
       };
 
@@ -6444,7 +6478,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           isDense: true,
                         ),
-                        items: enabledModes
+                        items: _orderedEnabledModes(enabledModes)
                             .map(
                               (i) => DropdownMenuItem<int>(
                                 value: i,
@@ -6760,7 +6794,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildStaffPanel(Set<int> notes, Set<int> extras) {
     final title = switch (_tabIndex) {
       4 => _ui('Metrónomo', 'Metronome'),
-      5 => _ui('Afinador', 'Tuner'),
+      6 => _ui('Afinador', 'Tuner'),
       _ => _ui('Pentagrama', 'Staff'),
     };
     final guitarStaffMode =
@@ -6959,7 +6993,7 @@ class _HomeScreenState extends State<HomeScreen>
 	                    );
 	                  },
 	                ),
-                5 => CustomPaint(
+                6 => CustomPaint(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final panelSize = Size(
@@ -11228,32 +11262,26 @@ class _MiniStaffPainter extends CustomPainter {
     Canvas canvas, double sx, double syEnd,
     int flagCount, bool stemUp, double gap, Color col,
   ) {
-    final fw = gap * 0.52;
-    final fh = gap * 1.75;
+    // Bandera de corchea: trazo curvo fino (no relleno) desde la punta de la
+    // plica (p0) hacia el lado de la cabeza de nota, con extremos
+    // redondeados — evita las siluetas rellenas anchas de los intentos
+    // anteriores.
+    final fw = gap * 0.62;
+    final fh = gap * 1.15;
     final sign = stemUp ? 1.0 : -1.0;
     final paint = Paint()
       ..color = col
-      ..strokeWidth = 1.8
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeWidth = gap * 0.32
+      ..strokeCap = StrokeCap.round;
     for (int fi = 0; fi < flagCount; fi++) {
       final fy0 = syEnd + sign * fi * gap * 0.55;
       final p0 = Offset(sx, fy0);
-      final p1 = Offset(sx + fw * 0.9, fy0 + sign * fh * 0.07);
-      final p2 = Offset(sx + fw, fy0 + sign * fh * 0.22);
-      final p3 = Offset(sx + fw * 0.65, fy0 + sign * fh * 0.62);
-      final p4 = Offset(sx + fw * 0.1, fy0 + sign * fh * 1.0);
-      final m01 = Offset((p0.dx + p1.dx) / 2, (p0.dy + p1.dy) / 2);
-      final m12 = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-      final m23 = Offset((p2.dx + p3.dx) / 2, (p2.dy + p3.dy) / 2);
-      final m34 = Offset((p3.dx + p4.dx) / 2, (p3.dy + p4.dy) / 2);
-      final path = Path()..moveTo(p0.dx, p0.dy);
-      path.lineTo(m01.dx, m01.dy);
-      path.quadraticBezierTo(p1.dx, p1.dy, m12.dx, m12.dy);
-      path.quadraticBezierTo(p2.dx, p2.dy, m23.dx, m23.dy);
-      path.quadraticBezierTo(p3.dx, p3.dy, m34.dx, m34.dy);
-      path.quadraticBezierTo(p4.dx, p4.dy, p4.dx, p4.dy);
+      final p1 = Offset(sx + fw, fy0 + sign * fh);
+      final ctrl = Offset(sx + fw * 1.15, fy0 + sign * fh * 0.25);
+      final path = Path()
+        ..moveTo(p0.dx, p0.dy)
+        ..quadraticBezierTo(ctrl.dx, ctrl.dy, p1.dx, p1.dy);
       canvas.drawPath(path, paint);
     }
   }

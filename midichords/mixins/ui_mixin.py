@@ -3944,7 +3944,11 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w(
+                    "guitar_canvas:help_instrument_guitar",
+                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_variations_frame:help_guitar_variations",
+                )
 
         elif mode == "interval_detection":
             specific = _w(
@@ -3982,7 +3986,11 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_gen_instrument")
             else:
-                specific += _w("guitar_canvas:help_gen_instrument", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w(
+                    "guitar_canvas:help_gen_instrument",
+                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_variations_frame:help_guitar_variations",
+                )
 
         elif mode == "circle_fifths":
             specific = _w(

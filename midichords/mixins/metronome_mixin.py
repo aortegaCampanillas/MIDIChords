@@ -143,6 +143,24 @@ class MetronomeMixin:
         else:
             outline = self.color_border if enabled else "#3a3f47"
             canvas.create_rectangle(x0, y0, x1, y1, outline=outline, width=1.5, fill=self.color_card)
+    def _draw_radio_indicator(self, canvas: tk.Canvas, selected: bool, enabled: bool = True) -> None:
+        """Círculo de radio button dibujado a mano — reutilizado también en el
+        diálogo de Configuración (ver `_draw_metronome_checkbox` para el porqué:
+        con ttk.Radiobutton nativo, el punto de la opción seleccionada no se
+        pinta con el estilo "windows11" ni con Fusion)."""
+        canvas.delete("all")
+        w = max(2, int(canvas.winfo_width()))
+        h = max(2, int(canvas.winfo_height()))
+        size = min(w, h) - 4
+        cx = w / 2
+        cy = h / 2
+        r = size / 2
+        outline = self.color_border if enabled else "#3a3f47"
+        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline=outline, width=1.5, fill=self.color_card)
+        if selected:
+            fill = self.color_accent if enabled else "#5a626c"
+            dot_r = r * 0.5
+            canvas.create_oval(cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r, fill=fill, outline=fill)
     def _on_metronome_timer_toggle(self, _event: Optional[tk.Event] = None) -> str:
         self.metronome_timer_enabled = not self.metronome_timer_enabled
         self.config_data["metronome_timer_enabled"] = self.metronome_timer_enabled

@@ -253,6 +253,36 @@ check dibujado a mano, sin marcar con el borde neutro habitual.
   botones −/+ y ambos checkboxes funcionan y se ven correctamente (caja
   completa, check visible, valores persisten tras refrescos de UI).
 
+## Octavo bug: mismo problema de radio/checkbox en el diálogo de Configuración
+
+Mismo bug de estilo "windows11" que el sexto/séptimo (Metrónomo), pero en los
+`ttk.Radiobutton`/`ttk.Checkbutton` del diálogo de **Configuración**: Idioma
+(Español/English) y Salida de sonido (Audio/MIDI out) no mostraban el punto
+de la opción marcada; "Mostrar nombres de notas en teclado" no mostraba el
+recuadro al marcarse. Mismo fix: sustituidos por canvas propios vía dos
+helpers nuevos en `OverlaysMixin` (`overlays_mixin.py`):
+
+- `_build_radio_row(parent, options, variable)` — fila de opciones con
+  círculo dibujado a mano (`_draw_radio_indicator`, en `metronome_mixin.py`),
+  reactiva a `variable.trace_add("write", ...)` (importante: "Salida de
+  sonido" cambia sola a MIDI al conectar una entrada MIDI — antes necesitaba
+  un `_sync_sound_output_radios()` con `radio.setChecked(...)` a mano; ahora
+  el `trace_add` interno del helper ya lo cubre).
+- `_build_checkbox_row(parent, text, variable)` — checkbox con caja dibujada
+  a mano (`_draw_metronome_checkbox`).
+
+`ttk.Checkbutton`/`ttk.Radiobutton` (`midichords/qt/ttk_compat.py`) ya no se
+usan en ningún sitio de la app tras este cambio y este del Metrónomo; se
+dejan con un docstring de aviso por si alguien los reutiliza sin conocer el
+bug. **Al igual que el sexto/séptimo bug, esto no depende de la plataforma**
+(mismo patrón canvas ya usado en el resto de la app) — no debería necesitar
+verificación especial en macOS más allá del smoke test general.
+
+- Verificado con captura de pantalla del diálogo completo en Windows: ambos
+  radio groups muestran el punto marcado correctamente (incluida la
+  sincronización automática a "MIDI out" al haber una entrada MIDI
+  conectada), y el checkbox muestra la caja completa con el check.
+
 ## Archivos tocados (estado final)
 
 - `midichords/qt/tk_compat.py`: clase `Widget` — `winfo_width()` / `winfo_height()` /
@@ -282,7 +312,13 @@ check dibujado a mano, sin marcar con el borde neutro habitual.
 - `midichords/mixins/metronome_mixin.py`: `_draw_metronome_checkbox()` nueva;
   `_set_metronome_timer_fields()` + `_on_metronome_timer_minutes/seconds_minus/plus()`
   en vez de `_on_metronome_timer_fields_changed()` (spinbox); `_on_metronome_timer_toggle`/
-  `_on_metronome_bar_accent_toggle` ya no dependen de `BooleanVar`.
+  `_on_metronome_bar_accent_toggle` ya no dependen de `BooleanVar`; nueva
+  `_draw_radio_indicator()`.
+- `midichords/mixins/overlays_mixin.py`: nuevos `_build_radio_row()` /
+  `_build_checkbox_row()`; Idioma, Salida de sonido y "Mostrar nombres de
+  notas en teclado" en `open_settings_dialog()` reconstruidos con esos
+  helpers en vez de `ttk.Radiobutton`/`ttk.Checkbutton`; se quita
+  `_sync_sound_output_radios()` (ya no hace falta, el helper es reactivo).
 
 ## Verificado en Windows
 
@@ -313,6 +349,10 @@ check dibujado a mano, sin marcar con el borde neutro habitual.
       incrementa/decrementa correctamente y persiste tras refrescar la UI;
       captura de pantalla confirma ambos checkboxes (Temporizador, Acentuar
       inicio de compás) con caja completa visible en los dos estados.
+- [x] Captura de pantalla del diálogo de Configuración completo: Idioma y
+      Salida de sonido muestran el punto marcado correctamente (incluida la
+      sincronización automática a "MIDI out"), y "Mostrar nombres de notas en
+      teclado" muestra la caja completa con el check.
 
 ## Pendiente de verificar en macOS
 
@@ -341,11 +381,13 @@ check dibujado a mano, sin marcar con el borde neutro habitual.
       seguridad `0.88` en `_fit_font_size_for_slice` (puede que la geometría exacta
       de intersección texto-sector angular no esté perfectamente modelada por la
       aproximación de "ancho de cuerda tangencial", ver comentario en el código).
-- [ ] Metrónomo (opcional, baja prioridad — ver "Sexto y séptimo bug"): comprobar
-      que los botones −/+ de Minutos/Segundos y los checkboxes Temporizador/
-      Acentuar se ven y funcionan igual que en Windows. No debería fallar (son
-      canvas propios, no widgets nativos con estilo de plataforma), pero es la
-      primera vez que se prueba fuera de Windows.
+- [ ] Metrónomo y Configuración (opcional, baja prioridad — ver "Sexto/séptimo/
+      octavo bug"): comprobar que los botones −/+ de Minutos/Segundos, los
+      checkboxes Temporizador/Acentuar, y en Configuración los radios de
+      Idioma/Salida de sonido + el checkbox de nombres de notas se ven y
+      funcionan igual que en Windows. No debería fallar (son canvas propios,
+      no widgets nativos con estilo de plataforma), pero es la primera vez
+      que se prueba fuera de Windows.
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

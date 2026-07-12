@@ -89,6 +89,12 @@ class Button(QPushButton, _LayoutCompat):
 
 
 class Checkbutton(QCheckBox, _LayoutCompat):
+    """Sin uso en la app (metrónomo y configuración usan canvas propios en su
+    lugar — ver `_draw_metronome_checkbox`/`_build_checkbox_row`): con el
+    estilo nativo "windows11" de Qt, y también con Fusion, el indicador
+    marcado solo pinta el check sin la caja alrededor. Si se reutiliza, probar
+    antes visualmente en estado marcado."""
+
     def __init__(self, master=None, text: str = "", variable: BooleanVar | None = None, command: Callable[[], None] | None = None, **_kwargs: Any) -> None:
         font_spec = _kwargs.pop("font", None)
         super().__init__(text, master)
@@ -110,6 +116,11 @@ class Checkbutton(QCheckBox, _LayoutCompat):
 
 
 class Radiobutton(QRadioButton, _LayoutCompat):
+    """Sin uso en la app (Configuración usa `OverlaysMixin._build_radio_row`,
+    canvas propio, en su lugar): con el estilo nativo "windows11" de Qt, y
+    también con Fusion, el punto de la opción marcada no se pinta. Si se
+    reutiliza, probar antes visualmente en estado marcado."""
+
     def __init__(self, master=None, text: str = "", variable: StringVar | None = None, value: str | None = None, command: Callable[[], None] | None = None, **_kwargs: Any) -> None:
         font_spec = _kwargs.pop("font", None)
         super().__init__(text, master)

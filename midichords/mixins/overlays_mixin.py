@@ -15,6 +15,76 @@ from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class OverlaysMixin:
+    def _build_radio_row(self, parent: Any, options: list[tuple[str, str]], variable: Any) -> Any:
+        """Fila de opciones tipo radio button, dibujadas a mano (ver
+        `_draw_radio_indicator` en metronome_mixin.py). Con ttk.Radiobutton
+        nativo, el punto de la opción marcada no se pinta (visto en Idioma y
+        Salida de sonido del diálogo de Configuración, con el estilo
+        "windows11" y también con Fusion)."""
+        row = ttk.Frame(parent)
+        canvases: dict[str, tk.Canvas] = {}
+
+        def _redraw_all(*_args: Any) -> None:
+            current = str(variable.get())
+            for value, canvas in canvases.items():
+                self._draw_radio_indicator(canvas, value == current)
+
+        for value, label in options:
+            item = ttk.Frame(row)
+            item.pack(side=tk.LEFT, padx=(0, 16))
+            indicator = tk.Canvas(
+                item, width=16, height=16, bg=self.color_surface_alt, highlightthickness=0, bd=0, cursor="hand2"
+            )
+            indicator.pack(side=tk.LEFT, padx=(0, 6))
+            text_label = tk.Label(
+                item,
+                text=label,
+                bg=self.color_surface_alt,
+                fg=self.color_text,
+                font=(self.ui_font_family, 13),
+                cursor="hand2",
+            )
+            text_label.pack(side=tk.LEFT)
+            canvases[value] = indicator
+
+            def _select(_e: Optional[Any] = None, v: str = value) -> str:
+                variable.set(v)
+                return "break"
+
+            indicator.bind("<Button-1>", _select)
+            text_label.bind("<Button-1>", _select)
+            indicator.bind("<Configure>", lambda _e, c=indicator, v=value: self._draw_radio_indicator(c, v == str(variable.get())))
+
+        variable.trace_add("write", _redraw_all)
+        return row
+
+    def _build_checkbox_row(self, parent: Any, text: str, variable: Any) -> Any:
+        """Fila con un checkbox dibujado a mano (ver `_draw_metronome_checkbox`
+        en metronome_mixin.py) — con ttk.Checkbutton nativo, la caja alrededor
+        del check no se pinta cuando está marcado."""
+        row = ttk.Frame(parent)
+        indicator = tk.Canvas(
+            row, width=18, height=18, bg=self.color_surface_alt, highlightthickness=0, bd=0, cursor="hand2"
+        )
+        indicator.pack(side=tk.LEFT, padx=(0, 8))
+        text_label = tk.Label(
+            row, text=text, bg=self.color_surface_alt, fg=self.color_text, font=(self.ui_font_family, 13), cursor="hand2"
+        )
+        text_label.pack(side=tk.LEFT)
+
+        def _toggle(_e: Optional[Any] = None) -> str:
+            variable.set(not bool(variable.get()))
+            return "break"
+
+        def _redraw(*_args: Any) -> None:
+            self._draw_metronome_checkbox(indicator, bool(variable.get()))
+
+        indicator.bind("<Button-1>", _toggle)
+        text_label.bind("<Button-1>", _toggle)
+        indicator.bind("<Configure>", _redraw)
+        variable.trace_add("write", _redraw)
+        return row
+
     def _qt_append_dark_native_controls_stylesheet(self, root: Any) -> None:
         """QLabel/QCheckBox/QSpinBox sin fg explícito heredan gris/negro del estilo nativo (p. ej. Windows)."""
         if not hasattr(root, "setStyleSheet"):
@@ -445,15 +515,8 @@ class OverlaysMixin:
             current_lang = "es"
         lang_var = tk.StringVar(value=current_lang)
 
-        lang_frame = ttk.Frame(frame)
+        lang_frame = self._build_radio_row(frame, language_options, lang_var)
         lang_frame.grid(row=0, column=1, sticky="w", pady=4)
-        for lang_id, label in language_options:
-            ttk.Radiobutton(
-                lang_frame,
-                text=label,
-                variable=lang_var,
-                value=lang_id,
-            ).pack(side=tk.LEFT, padx=(0, 16))
 
         not_selected_label = self.tr("settings_not_selected")
 
@@ -561,36 +624,13 @@ class OverlaysMixin:
         # Sound output: Audio vs MIDI
         ttk.Label(frame, text=self.tr("settings_sound_output")).grid(row=5, column=0, sticky="w", pady=4)
         sound_output_var = tk.StringVar(value=str(self.config_data.get("sound_output", "audio")))
-        sound_output_frame = ttk.Frame(frame)
+        sound_output_options = [("audio", self.tr("sound_output_audio")), ("midi", self.tr("sound_output_midi"))]
+        sound_output_frame = self._build_radio_row(frame, sound_output_options, sound_output_var)
         sound_output_frame.grid(row=5, column=1, sticky="w", pady=4)
-        sound_output_audio_radio = ttk.Radiobutton(
-            sound_output_frame,
-            text=self.tr("sound_output_audio"),
-            variable=sound_output_var,
-            value="audio",
-        )
-        sound_output_audio_radio.pack(side=tk.LEFT, padx=(0, 12))
-        sound_output_midi_radio = ttk.Radiobutton(
-            sound_output_frame,
-            text=self.tr("sound_output_midi"),
-            variable=sound_output_var,
-            value="midi",
-        )
-        sound_output_midi_radio.pack(side=tk.LEFT)
-
-        def _sync_sound_output_radios(*_args: Any) -> None:
-            # El shim Qt de Radiobutton solo sincroniza var→UI al construirse;
-            # cambios posteriores del StringVar (p. ej. programáticos, al
-            # detectar/perder una entrada MIDI) no mueven el botón marcado
-            # si no forzamos setChecked explícitamente aquí.
-            current = sound_output_var.get()
-            for radio in (sound_output_audio_radio, sound_output_midi_radio):
-                try:
-                    radio.setChecked(str(getattr(radio, "_value", "")) == current)
-                except Exception:
-                    pass
-
-        sound_output_var.trace_add("write", _sync_sound_output_radios)
+        # `_build_radio_row` ya redibuja sus indicadores en cada escritura del
+        # StringVar (incluidas las programáticas, p. ej. al detectar/perder
+        # una entrada MIDI más abajo), así que no hace falta sincronizar nada
+        # a mano aquí.
 
         # Si el usuario selecciona una entrada MIDI (antes vacía/"no seleccionado"),
         # activa automáticamente la salida por MIDI: es el flujo esperado al
@@ -710,11 +750,7 @@ class OverlaysMixin:
         refresh_device_lists()
 
         show_labels_var = tk.BooleanVar(value=bool(self.config_data.get("show_keyboard_note_labels", True)))
-        show_labels_chk = ttk.Checkbutton(
-            frame,
-            text=self.tr("settings_show_key_labels"),
-            variable=show_labels_var,
-        )
+        show_labels_chk = self._build_checkbox_row(frame, self.tr("settings_show_key_labels"), show_labels_var)
         show_labels_chk.grid(row=8, column=0, columnspan=2, sticky="w", pady=(6, 4))
 
         def _open_whats_new() -> None:

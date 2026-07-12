@@ -656,7 +656,7 @@ class UiMixin:
             left_w = max(1, int(usable_w * 0.58))
             # Ancho mínimo panel derecho para que no se corten Notas ni Intervalos en Escalas.
             right_w = max(480, usable_w - left_w)
-            left_w = max(1, usable_w - gap - right_w)
+            left_w = max(1, usable_w - right_w)
             self.left_panel.place(x=0, y=0, width=left_w, height=h)
             self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
 

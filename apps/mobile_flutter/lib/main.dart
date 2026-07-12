@@ -1079,6 +1079,7 @@ class _HomeScreenState extends State<HomeScreen>
   int? _scaleInputRawNote;
   int? _scaleGuitarStartNote;
   final Set<int> _detectionSelectedNotes = <int>{};
+  final Set<int> _metronomeHeldNotes = <int>{};
   int _metroBpm = 120;
   int _metroVolume = 100;
   int _metroBeatsPerBar = 4;
@@ -3712,6 +3713,7 @@ class _HomeScreenState extends State<HomeScreen>
       return _intervalNotes.toSet();
     }
     if (_tabIndex == 0) return _activeDetectionNotes;
+    if (_tabIndex == 4) return _metronomeHeldNotes;
     if ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null) {
       final rh = _extractMidiList(_generatedChordJson!, <String>[
         'notes_midi',
@@ -4893,6 +4895,36 @@ class _HomeScreenState extends State<HomeScreen>
           lowVolume: true,
         );
       }
+      return;
+    }
+    if (_tabIndex == 4) {
+      // El piano sigue siendo interactivo mientras corre el metrónomo (ver
+      // texto de ayuda: "puedes seguir viendo y tocando notas en el piano").
+      // El resaltado usa un Set propio actualizado de forma síncrona en vez
+      // de _heldInputPlayers (que _startHeldInputNote solo rellena tras el
+      // `await _playTone`, con retraso variable en Android) para que la
+      // tecla se marque al instante, no cuando el audio termine de cargar.
+      if (pressed) {
+        setState(() => _metronomeHeldNotes.add(midi));
+        await _startHeldInputNote(midi, instrument: 'piano');
+      } else {
+        setState(() => _metronomeHeldNotes.remove(midi));
+        if (_soundOutput == 'midi') {
+          _sendMidiNoteOn(midi, 80);
+          unawaited(
+            Future<void>.delayed(
+              const Duration(milliseconds: 850),
+            ).then((_) => _sendMidiNoteOff(midi)),
+          );
+        } else {
+          await _playTone(
+            midi: midi,
+            instrument: 'piano',
+            durationSeconds: 0.85,
+            lowVolume: true,
+          );
+        }
+      }
     }
   }
 
@@ -4929,6 +4961,9 @@ class _HomeScreenState extends State<HomeScreen>
         _generationInputStaffNotes.clear();
         _clearGenerationPianoHighlight();
       }
+      if (_tabIndex == 4) {
+        setState(() => _metronomeHeldNotes.remove(_dragCurrentNote));
+      }
     }
     _dragCurrentNote = midi;
     _dragLastGlobalPos = globalPos;
@@ -4949,6 +4984,9 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (_tabIndex == 3 && _scaleInputRawNote != null) {
       setState(() => _scaleInputRawNote = null);
+    }
+    if (_tabIndex == 4) {
+      _metronomeHeldNotes.clear();
     }
     if (mounted) {
       setState(() {});
@@ -9716,9 +9754,10 @@ class _HomeScreenState extends State<HomeScreen>
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
           final iphoneCompact = Platform.isIOS && _isCompactPhone(context);
-          final sliderWidth = compact
-              ? constraints.maxWidth - 24
-              : constraints.maxWidth - 170;
+          final sliderWidth = math.max(
+            60.0,
+            compact ? constraints.maxWidth - 24 : constraints.maxWidth - 170,
+          );
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),

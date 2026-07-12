@@ -2073,14 +2073,21 @@ class UiMixin:
         self.metronome_timer_row = ttk.Frame(self._metronome_form_root)
         self.metronome_timer_row.grid(row=6, column=0, sticky="ew", pady=(8, 4))
         self.metronome_timer_row.columnconfigure(1, weight=1)
-        self.metronome_timer_enabled_var = tk.BooleanVar(value=self.metronome_timer_enabled)
-        self.metronome_timer_check = ttk.Checkbutton(
-            self.metronome_timer_row,
-            text="",
-            variable=self.metronome_timer_enabled_var,
-            command=self._on_metronome_timer_toggle,
+        # Canvas dibujado a mano en vez de ttk.Checkbutton: con el estilo nativo
+        # "windows11" (y también con Fusion) el indicador marcado se pinta sin
+        # el recuadro alrededor del check — solo se ve el símbolo ✓ flotando.
+        # Ni QPalette ni QSS (border/background-color en ::indicator:checked)
+        # lo arreglan; el mismo patrón de canvas ya usado para los botones -/+
+        # de este panel evita el problema por completo.
+        self.metronome_timer_check = tk.Canvas(
+            self.metronome_timer_row, width=20, height=20, bg=self.color_surface_alt, highlightthickness=0, bd=0, cursor="hand2"
         )
         self.metronome_timer_check.grid(row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 0))
+        self.metronome_timer_check.bind(
+            "<Configure>",
+            lambda _e: self._draw_metronome_checkbox(self.metronome_timer_check, self.metronome_timer_enabled),
+        )
+        self.metronome_timer_check.bind("<Button-1>", self._on_metronome_timer_toggle)
         self.metronome_timer_label = ttk.Label(
             self.metronome_timer_row,
             text="",
@@ -2099,20 +2106,45 @@ class UiMixin:
             fg=self.color_text,
         )
         self.metronome_timer_minutes_label.grid(row=0, column=0, sticky="w", padx=(0, 8))
-        self.metronome_timer_minutes_var = tk.StringVar(value=str(self.metronome_timer_minutes))
-        self.metronome_timer_minutes_spin = ttk.Spinbox(
-            self.metronome_timer_fields,
-            from_=0,
-            to=99,
-            increment=1,
-            textvariable=self.metronome_timer_minutes_var,
-            width=5,
-            command=self._on_metronome_timer_fields_changed,
-            font=(self.ui_font_family, 14),
+        # Mismo patrón de botones -/+ redondos que Volumen/Tempo/Pulsos (canvas
+        # dibujado a mano): el QSpinBox nativo de Qt con el estilo "windows11"
+        # tiene un bug de hit-testing (el clic en la flecha cae sobre el campo
+        # de texto) y, al forzar el estilo Fusion para evitarlo, se pierde la
+        # paleta oscura de forma poco fiable (flechas invisibles). Los botones
+        # -/+ ya probados en este mismo panel no tienen ninguno de los dos
+        # problemas.
+        self.metronome_timer_minutes_minus_btn = tk.Canvas(
+            self.metronome_timer_fields, width=28, height=28, bg=self.color_surface_alt, highlightthickness=0, bd=0
         )
-        self.metronome_timer_minutes_spin.grid(row=0, column=1, sticky="w", padx=(0, 28))
-        self.metronome_timer_minutes_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
-        self.metronome_timer_minutes_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
+        self.metronome_timer_minutes_minus_btn.grid(row=0, column=1, sticky="w", padx=(0, 4))
+        self.metronome_timer_minutes_minus_btn.bind(
+            "<Configure>",
+            lambda _e: self._draw_circle_step_button(
+                self.metronome_timer_minutes_minus_btn, "−", self.metronome_timer_enabled
+            ),
+        )
+        self.metronome_timer_minutes_minus_btn.bind("<Button-1>", self._on_metronome_timer_minutes_minus)
+        self.metronome_timer_minutes_value_label = tk.Label(
+            self.metronome_timer_fields,
+            text=str(self.metronome_timer_minutes),
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 14),
+            width=2,
+            anchor="center",
+        )
+        self.metronome_timer_minutes_value_label.grid(row=0, column=2, sticky="w", padx=(0, 4))
+        self.metronome_timer_minutes_plus_btn = tk.Canvas(
+            self.metronome_timer_fields, width=28, height=28, bg=self.color_surface_alt, highlightthickness=0, bd=0
+        )
+        self.metronome_timer_minutes_plus_btn.grid(row=0, column=3, sticky="w", padx=(0, 24))
+        self.metronome_timer_minutes_plus_btn.bind(
+            "<Configure>",
+            lambda _e: self._draw_circle_step_button(
+                self.metronome_timer_minutes_plus_btn, "+", self.metronome_timer_enabled
+            ),
+        )
+        self.metronome_timer_minutes_plus_btn.bind("<Button-1>", self._on_metronome_timer_minutes_plus)
 
         self.metronome_timer_seconds_label = ttk.Label(
             self.metronome_timer_fields,
@@ -2120,34 +2152,52 @@ class UiMixin:
             font=(self.ui_font_family, 14, "bold"),
             fg=self.color_text,
         )
-        self.metronome_timer_seconds_label.grid(row=0, column=2, sticky="w", padx=(0, 8))
-        self.metronome_timer_seconds_var = tk.StringVar(value=str(self.metronome_timer_seconds))
-        self.metronome_timer_seconds_spin = ttk.Spinbox(
-            self.metronome_timer_fields,
-            from_=0,
-            to=59,
-            increment=1,
-            textvariable=self.metronome_timer_seconds_var,
-            width=5,
-            command=self._on_metronome_timer_fields_changed,
-            font=(self.ui_font_family, 14),
+        self.metronome_timer_seconds_label.grid(row=0, column=4, sticky="w", padx=(0, 8))
+        self.metronome_timer_seconds_minus_btn = tk.Canvas(
+            self.metronome_timer_fields, width=28, height=28, bg=self.color_surface_alt, highlightthickness=0, bd=0
         )
-        self.metronome_timer_seconds_spin.grid(row=0, column=3, sticky="w", padx=(0, 8))
-        self.metronome_timer_seconds_spin.bind("<FocusOut>", self._on_metronome_timer_fields_changed)
-        self.metronome_timer_seconds_spin.bind("<Return>", self._on_metronome_timer_fields_changed)
+        self.metronome_timer_seconds_minus_btn.grid(row=0, column=5, sticky="w", padx=(0, 4))
+        self.metronome_timer_seconds_minus_btn.bind(
+            "<Configure>",
+            lambda _e: self._draw_circle_step_button(
+                self.metronome_timer_seconds_minus_btn, "−", self.metronome_timer_enabled
+            ),
+        )
+        self.metronome_timer_seconds_minus_btn.bind("<Button-1>", self._on_metronome_timer_seconds_minus)
+        self.metronome_timer_seconds_value_label = tk.Label(
+            self.metronome_timer_fields,
+            text=str(self.metronome_timer_seconds),
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 14),
+            width=2,
+            anchor="center",
+        )
+        self.metronome_timer_seconds_value_label.grid(row=0, column=6, sticky="w", padx=(0, 4))
+        self.metronome_timer_seconds_plus_btn = tk.Canvas(
+            self.metronome_timer_fields, width=28, height=28, bg=self.color_surface_alt, highlightthickness=0, bd=0
+        )
+        self.metronome_timer_seconds_plus_btn.grid(row=0, column=7, sticky="w")
+        self.metronome_timer_seconds_plus_btn.bind(
+            "<Configure>",
+            lambda _e: self._draw_circle_step_button(
+                self.metronome_timer_seconds_plus_btn, "+", self.metronome_timer_enabled
+            ),
+        )
+        self.metronome_timer_seconds_plus_btn.bind("<Button-1>", self._on_metronome_timer_seconds_plus)
 
-        self.metronome_bar_accent_var = tk.BooleanVar(value=self.metronome_bar_accent_enabled)
         self.metronome_bar_accent_row = ttk.Frame(self._metronome_form_root)
         self.metronome_bar_accent_row.grid(row=7, column=0, sticky="ew", pady=(10, 14))
         self.metronome_bar_accent_row.columnconfigure(1, weight=1)
-        self.metronome_bar_accent_check = ttk.Checkbutton(
-            self.metronome_bar_accent_row,
-            text="",
-            variable=self.metronome_bar_accent_var,
-            command=self._on_metronome_bar_accent_toggle,
-            font=(self.ui_font_family, 14, "bold"),
+        self.metronome_bar_accent_check = tk.Canvas(
+            self.metronome_bar_accent_row, width=20, height=20, bg=self.color_surface_alt, highlightthickness=0, bd=0, cursor="hand2"
         )
         self.metronome_bar_accent_check.grid(row=0, column=0, sticky="w", padx=(0, 8), pady=(0, 0))
+        self.metronome_bar_accent_check.bind(
+            "<Configure>",
+            lambda _e: self._draw_metronome_checkbox(self.metronome_bar_accent_check, self.metronome_bar_accent_enabled),
+        )
+        self.metronome_bar_accent_check.bind("<Button-1>", self._on_metronome_bar_accent_toggle)
         self.metronome_bar_accent_label = ttk.Label(
             self.metronome_bar_accent_row,
             text="",

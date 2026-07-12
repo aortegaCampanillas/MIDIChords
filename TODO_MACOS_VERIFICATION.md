@@ -209,6 +209,50 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
   mismo resultado correcto en macOS con Avenir Next/SF Pro (ya no depende de una
   constante calibrada a ojo), pero conviene confirmarlo visualmente igualmente.
 
+## Sexto y séptimo bug: Metrónomo — temporizador y checkboxes (reportados en Windows)
+
+Dos bugs de **estilo nativo "windows11" de Qt**, no específicos de macOS — la
+solución final los sustituye por los widgets dibujados a mano (canvas) que ya
+usa el resto del panel, así que **no deberían depender de la plataforma** y no
+necesitan el mismo nivel de escrutinio que el resto de este documento. Se
+documentan aquí solo por si algo del patrón "canvas propio en vez de widget
+nativo" se quiere replicar en otro sitio, o por si reaparecen en macOS con
+Fusion/Aqua (poco probable, dado que el problema era específico de
+"windows11").
+
+**Temporizador (Minutos/Segundos)**: los botones ▲▼ nativos de `QSpinBox`
+tenían un bug de hit-test con el estilo "windows11" — el clic en la posición
+visual de la flecha caía sobre el campo de texto (`SC_SpinBoxEditField` y
+`SC_SpinBoxUp` solapados ~30px en `subControlRect`, confirmado con
+`QTest.mouseClick` en la posición real). Probar el estilo Fusion arreglaba el
+clic pero rompía la paleta oscura de forma que no se consiguió fijar de forma
+fiable (ver commits intermedios). **Se sustituyó el `QSpinBox` por los mismos
+botones −/+ redondos (canvas) que ya usan Volumen/Tempo/Pulsos** en el mismo
+panel — código en `ui_mixin.py` (construcción) y `metronome_mixin.py`
+(`_on_metronome_timer_minutes_minus/plus`, `_set_metronome_timer_fields`).
+
+**Checkboxes (Temporizador, Acentuar inicio de compás)**: al marcarse, el
+`QCheckBox` nativo pintaba solo el símbolo ✓ sin el recuadro alrededor — con
+"windows11" y también con Fusion. QSS explícito en
+`QCheckBox::indicator:checked` (border + background-color) tampoco lo
+arreglaba, aunque se confirmó que el stylesheet SÍ llegaba al widget
+(`styleSheet()` con el CSS correcto). **Se sustituyeron ambos por canvas
+dibujados a mano** (`_draw_metronome_checkbox` en `metronome_mixin.py`): caja
+completa en ambos estados, marcado en color de acento (`#f3bf2f`) con un
+check dibujado a mano, sin marcar con el borde neutro habitual.
+
+- `ttk.Spinbox` (`midichords/qt/ttk_compat.py`) ya no se usa en ningún sitio
+  de la app tras este cambio; se dejó con soporte correcto de
+  `command`/`increment` (arreglado en un commit intermedio, sigue siendo una
+  mejora de compat válida) pero sin el intento de estilo Fusion (revertido,
+  no funcionaba de forma fiable). Si se reutiliza en el futuro, probar
+  primero con `QTest.mouseClick` en la posición real
+  (`style().subControlRect(...)`) antes de asumir que el clic cae donde se
+  ve la flecha.
+- Verificado con `QTest.mouseClick`/captura de pantalla en Windows: los
+  botones −/+ y ambos checkboxes funcionan y se ven correctamente (caja
+  completa, check visible, valores persisten tras refrescos de UI).
+
 ## Archivos tocados (estado final)
 
 - `midichords/qt/tk_compat.py`: clase `Widget` — `winfo_width()` / `winfo_height()` /
@@ -230,6 +274,15 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
   `QFontMetrics`, no con un heurístico por caracteres); `fs_maj`/`fs_min` (base)
   renombrados a `fs_maj_base`/`fs_min_base` y reasignados por etiqueta dentro del
   bucle de dibujo; `dim_lbl`/`sim_lbl` con tamaño propio (`fs_dim`/`fs_sim`).
+- `midichords/qt/ttk_compat.py`: `Spinbox` con `command`/`increment` correctos
+  (ya no usado en la app, pero es una mejora de compat válida si se reutiliza).
+- `midichords/mixins/ui_mixin.py`: Minutos/Segundos del temporizador y los
+  checkboxes Temporizador/Acentuar reconstruidos con canvas propios en vez de
+  `ttk.Spinbox`/`ttk.Checkbutton`.
+- `midichords/mixins/metronome_mixin.py`: `_draw_metronome_checkbox()` nueva;
+  `_set_metronome_timer_fields()` + `_on_metronome_timer_minutes/seconds_minus/plus()`
+  en vez de `_on_metronome_timer_fields_changed()` (spinbox); `_on_metronome_timer_toggle`/
+  `_on_metronome_bar_accent_toggle` ya no dependen de `BooleanVar`.
 
 ## Verificado en Windows
 
@@ -256,6 +309,10 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
       confirmando que el encogido por etiqueta funciona. No se pudo confirmar con
       precisión matemática si el heurístico de ancho por carácter es exacto para
       las fuentes de macOS (ver "Quinto bug" arriba).
+- [x] Metrónomo: `QTest.mouseClick` sobre los botones −/+ de Minutos/Segundos
+      incrementa/decrementa correctamente y persiste tras refrescar la UI;
+      captura de pantalla confirma ambos checkboxes (Temporizador, Acentuar
+      inicio de compás) con caja completa visible en los dos estados.
 
 ## Pendiente de verificar en macOS
 
@@ -284,6 +341,11 @@ sobre todo con nombres que ya de por sí son largos en español (`Sol#`, 4 carac
       seguridad `0.88` en `_fit_font_size_for_slice` (puede que la geometría exacta
       de intersección texto-sector angular no esté perfectamente modelada por la
       aproximación de "ancho de cuerda tangencial", ver comentario en el código).
+- [ ] Metrónomo (opcional, baja prioridad — ver "Sexto y séptimo bug"): comprobar
+      que los botones −/+ de Minutos/Segundos y los checkboxes Temporizador/
+      Acentuar se ven y funcionan igual que en Windows. No debería fallar (son
+      canvas propios, no widgets nativos con estilo de plataforma), pero es la
+      primera vez que se prueba fuera de Windows.
 - [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
       metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
       el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy

@@ -105,59 +105,97 @@ class MetronomeMixin:
             self.scale_metronome_volume_var.set(f"{self.metronome_volume}%")
         self.metronome_bpm_var.set(self._metronome_bpm_value_label_text(bpm))
         self.metronome_meter_var.set(str(self.metronome_beats_per_bar))
-        self.metronome_timer_enabled_var.set(self.metronome_timer_enabled)
-        self.metronome_timer_minutes_var.set(str(self.metronome_timer_minutes))
-        self.metronome_timer_seconds_var.set(str(self.metronome_timer_seconds))
-        self.metronome_bar_accent_var.set(self.metronome_bar_accent_enabled)
+        timer_on = self.metronome_timer_enabled
+        muted = "#666e7a"
+        self._draw_metronome_checkbox(self.metronome_timer_check, timer_on)
+        self.metronome_timer_minutes_value_label.configure(
+            text=str(self.metronome_timer_minutes), fg=self.color_text if timer_on else muted
+        )
+        self.metronome_timer_seconds_value_label.configure(
+            text=str(self.metronome_timer_seconds), fg=self.color_text if timer_on else muted
+        )
+        self._draw_circle_step_button(self.metronome_timer_minutes_minus_btn, "−", timer_on)
+        self._draw_circle_step_button(self.metronome_timer_minutes_plus_btn, "+", timer_on)
+        self._draw_circle_step_button(self.metronome_timer_seconds_minus_btn, "−", timer_on)
+        self._draw_circle_step_button(self.metronome_timer_seconds_plus_btn, "+", timer_on)
+        self._draw_metronome_checkbox(self.metronome_bar_accent_check, self.metronome_bar_accent_enabled)
         self.metronome_play_btn.set_playing(self.metronome_running)
         self._draw_metronome_volume_slider()
         self._draw_scale_metronome_volume_slider()
         self._draw_metronome_bpm_slider()
         self._draw_metronome_meter_slider()
         self._refresh_metronome_figure_buttons()
-        timer_state = tk.NORMAL if self.metronome_timer_enabled else tk.DISABLED
-        self.metronome_timer_minutes_spin.configure(state=timer_state)
-        self.metronome_timer_seconds_spin.configure(state=timer_state)
         self.redraw_staff()
-    def _on_metronome_timer_toggle(self) -> None:
-        self.metronome_timer_enabled = bool(self.metronome_timer_enabled_var.get())
+    def _draw_metronome_checkbox(self, canvas: tk.Canvas, checked: bool, enabled: bool = True) -> None:
+        canvas.delete("all")
+        w = max(2, int(canvas.winfo_width()))
+        h = max(2, int(canvas.winfo_height()))
+        size = min(w, h) - 4
+        x0 = (w - size) / 2
+        y0 = (h - size) / 2
+        x1 = x0 + size
+        y1 = y0 + size
+        if checked:
+            fill = self.color_accent if enabled else "#5a626c"
+            canvas.create_rectangle(x0, y0, x1, y1, fill=fill, outline=fill, width=1)
+            canvas.create_line(x0 + size * 0.2, y0 + size * 0.55, x0 + size * 0.42, y0 + size * 0.78, fill="#17273a", width=2)
+            canvas.create_line(x0 + size * 0.42, y0 + size * 0.78, x0 + size * 0.82, y0 + size * 0.25, fill="#17273a", width=2)
+        else:
+            outline = self.color_border if enabled else "#3a3f47"
+            canvas.create_rectangle(x0, y0, x1, y1, outline=outline, width=1.5, fill=self.color_card)
+    def _on_metronome_timer_toggle(self, _event: Optional[tk.Event] = None) -> str:
+        self.metronome_timer_enabled = not self.metronome_timer_enabled
         self.config_data["metronome_timer_enabled"] = self.metronome_timer_enabled
         self.save_config()
         self._refresh_metronome_ui()
-    def _on_metronome_timer_fields_changed(self, _event: Optional[tk.Event] = None) -> None:
-        try:
-            minutes = int(float(self.metronome_timer_minutes_var.get()))
-        except (TypeError, ValueError):
-            minutes = self.metronome_timer_minutes
-        try:
-            seconds = int(float(self.metronome_timer_seconds_var.get()))
-        except (TypeError, ValueError):
-            seconds = self.metronome_timer_seconds
+        return "break"
+    def _set_metronome_timer_fields(self, minutes: int, seconds: int) -> None:
         self.metronome_timer_minutes = max(0, min(99, minutes))
         self.metronome_timer_seconds = max(0, min(59, seconds))
         self.config_data["metronome_timer_minutes"] = self.metronome_timer_minutes
         self.config_data["metronome_timer_seconds"] = self.metronome_timer_seconds
         self.save_config()
         self._refresh_metronome_ui()
-    def _on_metronome_bar_accent_toggle(self) -> None:
-        self.metronome_bar_accent_enabled = bool(self.metronome_bar_accent_var.get())
+    def _on_metronome_timer_minutes_minus(self, _event: tk.Event) -> str:
+        if self.metronome_timer_enabled:
+            self._set_metronome_timer_fields(self.metronome_timer_minutes - 1, self.metronome_timer_seconds)
+        return "break"
+    def _on_metronome_timer_minutes_plus(self, _event: tk.Event) -> str:
+        if self.metronome_timer_enabled:
+            self._set_metronome_timer_fields(self.metronome_timer_minutes + 1, self.metronome_timer_seconds)
+        return "break"
+    def _on_metronome_timer_seconds_minus(self, _event: tk.Event) -> str:
+        if self.metronome_timer_enabled:
+            self._set_metronome_timer_fields(self.metronome_timer_minutes, self.metronome_timer_seconds - 1)
+        return "break"
+    def _on_metronome_timer_seconds_plus(self, _event: tk.Event) -> str:
+        if self.metronome_timer_enabled:
+            self._set_metronome_timer_fields(self.metronome_timer_minutes, self.metronome_timer_seconds + 1)
+        return "break"
+    def _on_metronome_bar_accent_toggle(self, _event: Optional[tk.Event] = None) -> str:
+        self.metronome_bar_accent_enabled = not self.metronome_bar_accent_enabled
         self.config_data["metronome_bar_accent_enabled"] = self.metronome_bar_accent_enabled
         self.save_config()
         self._refresh_metronome_ui()
+        return "break"
     def _format_timer_mmss(self, total_seconds: float) -> str:
         total = max(0, int(total_seconds))
         mm = total // 60
         ss = total % 60
         return f"{mm:02d}:{ss:02d}"
-    def _draw_circle_step_button(self, canvas: tk.Canvas, symbol: str) -> None:
+    def _draw_circle_step_button(self, canvas: tk.Canvas, symbol: str, enabled: bool = True) -> None:
         canvas.delete("all")
         w = max(2, int(canvas.winfo_width()))
         h = max(2, int(canvas.winfo_height()))
         cx = w / 2
         cy = h / 2
         r = min(w, h) * 0.46
-        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline="#555d67", width=1.5, fill="#1f2127")
-        canvas.create_text(cx, cy, text=symbol, fill="#dfe3e9", font=("Helvetica", 16, "bold"))
+        if enabled:
+            outline, fill, text_fill = "#555d67", "#1f2127", "#dfe3e9"
+        else:
+            outline, fill, text_fill = "#3a3f47", "#1f2127", "#5a626c"
+        canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline=outline, width=1.5, fill=fill)
+        canvas.create_text(cx, cy, text=symbol, fill=text_fill, font=("Helvetica", 16, "bold"))
     def _draw_metronome_bpm_slider(self) -> None:
         canvas = self.metronome_slider_canvas
         canvas.delete("all")

@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QSpinBox,
     QScrollBar,
-    QStyleFactory,
 )
 
 from midichords.qt.qt_primitives import _font_from_tk_tuple
@@ -317,18 +316,14 @@ class Spinbox(QSpinBox, _LayoutCompat):
         font_spec = _kwargs.pop("font", None)
         increment = _kwargs.pop("increment", None)
         super().__init__(master)
-        # El estilo nativo "windows11" de Qt calcula mal el subControlRect de los
-        # botones +/- de QSpinBox (se solapan con el campo de texto: los clics en
-        # la posición visual de la flecha acaban seleccionando el número en vez
-        # de incrementar). Fusion no tiene ese bug y aquí solo se usa para el
-        # spinbox, sin afectar al resto de la app.
-        try:
-            fusion_style = QStyleFactory.create("Fusion")
-            if fusion_style is not None:
-                fusion_style.setParent(self)
-                self.setStyle(fusion_style)
-        except Exception:
-            pass
+        # Nota: con el estilo nativo "windows11" de Qt, el hit-test de los
+        # botones +/- de QSpinBox puede no coincidir con dónde se pintan (el
+        # clic en la flecha cae sobre el campo de texto en vez de incrementar)
+        # — visto en el temporizador del metrónomo, que por eso usa ahora los
+        # botones -/+ redondos ya existentes en este panel en vez de este
+        # widget. Si se reutiliza Spinbox en otro sitio, probar primero con
+        # QTest.mouseClick en la posición real (style().subControlRect) antes
+        # de asumir que el clic del usuario cae donde se ve la flecha.
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self.setRange(int(from_), int(to))
@@ -346,8 +341,7 @@ class Spinbox(QSpinBox, _LayoutCompat):
             self.valueChanged.connect(lambda v: textvariable.set(str(v)))
         # Tk invoca `command` en cada cambio de valor (flechas, rueda, teclado);
         # sin esto, los +/- solo movían el número mostrado sin avisar al resto
-        # de la app, que lo volvía a pisar con el valor viejo en el próximo
-        # refresco de UI (p. ej. minutos/segundos del temporizador del metrónomo).
+        # de la app.
         if command is not None:
             self.valueChanged.connect(lambda _v: command())
 

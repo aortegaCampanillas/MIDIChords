@@ -2266,6 +2266,10 @@ class _HomeScreenState extends State<HomeScreen>
       _scaleOctaves = prefs.getInt('scaleOctaves') ?? 1;
       final finger = prefs.getString('scaleFingeringHand');
       _scaleFingeringHand = (finger == 'left' || finger == 'right') ? finger : null;
+      final savedTab = prefs.getInt('tabIndex');
+      if (savedTab != null && savedTab >= 0 && savedTab <= 6) {
+        _tabIndex = savedTab;
+      }
     });
     await _loadMeta();
     await _loadChangelog();
@@ -2284,6 +2288,7 @@ class _HomeScreenState extends State<HomeScreen>
     } else {
       await prefs.remove('scaleFingeringHand');
     }
+    await prefs.setInt('tabIndex', _tabIndex);
   }
 
   Future<void> _loadChangelog() async {
@@ -6493,6 +6498,7 @@ class _HomeScreenState extends State<HomeScreen>
                           if (value != 0) {
                             _cancelMidiScreenActivityExtension();
                           }
+                          _savePrefs();
                         },
                       ),
                     ),

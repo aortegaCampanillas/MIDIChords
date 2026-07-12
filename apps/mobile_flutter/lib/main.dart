@@ -2383,7 +2383,16 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 380),
+                    // Deja sitio para el título del diálogo, el checkbox
+                    // "No volver a mostrar" y los botones de acción, que
+                    // viven fuera de este ConstrainedBox pero comparten el
+                    // mismo alto disponible dentro del AlertDialog.
+                    constraints: BoxConstraints(
+                      maxHeight: math.min(
+                        380.0,
+                        MediaQuery.of(context).size.height * 0.45,
+                      ),
+                    ),
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

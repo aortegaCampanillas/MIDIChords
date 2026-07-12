@@ -7,6 +7,20 @@
         "date": "2026-07-12",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "La app ahora recuerda el último modo que estabas usando (Detección, Generación, Escalas...) al volver a abrirla.",
+        "en": "The app now remembers the last mode you were using (Detection, Generation, Scales...) when you reopen it."
+      },
+      {
+        "date": "2026-07-12",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "El orden de los modos en el menú superior ahora coincide con el de la app de escritorio.",
+        "en": "The mode order in the top menu now matches the desktop app."
+      },
+      {
+        "date": "2026-07-12",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Círculo de quintas: se invierte el gesto para que resulte más natural en móvil. Ahora tocar un sector elige un acorde diatónico dentro de la tonalidad; mantener pulsado cambia de tonalidad.",
         "en": "Circle of fifths: the gesture is now more natural on mobile. Tapping a sector picks a diatonic chord within the key; long-press changes the key."
       },

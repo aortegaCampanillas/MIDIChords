@@ -1045,6 +1045,7 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<int> _detectionPlayHeldNotes = <int>{};
   final Set<int> _generationMidiHeldNotes = <int>{};  // MIDI notes held in chord generation mode
   bool _midiInputEnabled = false;
+  String _midiError = '';
   /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
   /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).
   static const Duration _kMidiResetsIdleDuration = Duration(minutes: 3);
@@ -3528,12 +3529,22 @@ class _HomeScreenState extends State<HomeScreen>
           _midiConnectedDevices[device.id] = device;
         } catch (_) {}
       }
+
+      if (_midiInputEnabled) {
+        _midiError = _midiConnectedDevices.isEmpty
+            ? _ui(
+                'No se encontró ningún dispositivo MIDI conectado.',
+                'No connected MIDI device was found.',
+              )
+            : '';
+      }
     } catch (_) {}
     if (mounted) setState(() {});
   }
 
   Future<void> _disableMidiInput() async {
     _midiInputEnabled = false;
+    _midiError = '';
     for (final device in _midiConnectedDevices.values.toList()) {
       try {
         _midiCommand.disconnectDevice(device);
@@ -3555,6 +3566,7 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     _midiInputEnabled = true;
+    _midiError = '';
     if (mounted) setState(() {});
     await _refreshMidiConnections();
   }
@@ -6531,7 +6543,20 @@ class _HomeScreenState extends State<HomeScreen>
             colors: <Color>[_bgTop, _bgBottom],
           ),
         ),
-        child: Column(children: <Widget>[Expanded(child: pages[currentTab])]),
+        child: Column(children: <Widget>[
+          if (_midiInputEnabled && _midiError.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFF3A1414),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                _midiError,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(child: pages[currentTab]),
+        ]),
       ),
     ),
         if (_helpActive) _buildHelpOverlay(),

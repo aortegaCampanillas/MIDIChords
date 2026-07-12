@@ -2727,10 +2727,16 @@ class UiMixin:
                 pass
 
     def _refresh_staff_generated_chord_overlay(self) -> None:
-        """Muestra el nombre del acorde generado sobre el pentagrama (generación y círculo de quintas)."""
+        """Muestra el nombre del acorde generado sobre el pentagrama.
+
+        Solo en círculo de quintas: ahí el panel derecho lo ocupa el círculo y no
+        hay sitio para el nombre del acorde. En generación, el subpanel de
+        resultado del panel derecho ya lo muestra (gen_result_chord_row), así que
+        repetirlo aquí es redundante.
+        """
         if not hasattr(self, "staff_generated_chord_frame"):
             return
-        show = bool(self.generation_tab_active or self.circle_fifths_tab_active)
+        show = bool(self.circle_fifths_tab_active)
         try:
             self.staff_generated_chord_frame.setVisible(bool(show))  # type: ignore[attr-defined]
         except Exception:

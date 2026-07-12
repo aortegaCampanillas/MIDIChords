@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -149,27 +150,46 @@ class PianoAudioEngine:
     def start(self, output_device: Optional[int]) -> None:
         self.stop()
         self.output_device = output_device
-        self.stream = sd.OutputStream(
-            samplerate=self.sample_rate,
-            channels=self.channels,
-            device=output_device,
-            dtype="float32",
-            callback=self._audio_callback,
+        if sys.platform == "win32":
+            # En Windows, "high"/"low" son solo hints: con el host API MME
+            # (el que PortAudio usa por defecto aquí si no se fuerza otro),
+            # "low" + 256 medía ~96ms reales (frente a ~213ms con el ajuste
+            # de macOS de abajo) — mejor, pero sigue siendo lag perceptible al
+            # tocar. Pasando un valor numérico en segundos en vez del string,
+            # PortAudio/MME lo respeta de forma mucho más literal. 128/0.01
+            # medía ~10.7ms reales pero producía cortes audibles (underruns)
+            # bajo carga pesada (acordes de muchas notas con sample_piano);
+            # 512/0.03 mide ~32ms reales (aún muy por debajo de los 213ms
+            # originales) y no mostró ningún underrun en pruebas de estrés
+            # repetidas con acordes de 13 notas simultáneas.
+            blocksize = 512
+            latency: object = 0.03
+        else:
             # Buffer más grande que el original (256/"low"): con buffers muy
             # pequeños, si el hilo de audio de CoreAudio queda desalojado del
             # CPU (p. ej. tras un rato sin sonar nada, o mientras se enumeran
             # dispositivos), el primer bloque al retomar puede producir un
             # glitch/click audible. Coste: unos 10-20 ms más de latencia,
             # normalmente imperceptible al tocar.
-            blocksize=1024,
-            latency="high",
+            blocksize = 1024
+            latency = "high"
+        self.stream = sd.OutputStream(
+            samplerate=self.sample_rate,
+            channels=self.channels,
+            device=output_device,
+            dtype="float32",
+            callback=self._audio_callback,
+            blocksize=blocksize,
+            latency=latency,
         )
         self.stream.start()
         vlog(
             "audio",
-            "OutputStream started: device=%s sample_rate=%s blocksize=256 channels=%s",
+            "OutputStream started: device=%s sample_rate=%s blocksize=%s latency=%s channels=%s",
             output_device,
             self.sample_rate,
+            blocksize,
+            latency,
             self.channels,
         )
 

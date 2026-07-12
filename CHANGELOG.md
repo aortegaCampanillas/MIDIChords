@@ -70,6 +70,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web (escalas)**: el selector de octavas en piano añade la segunda octava hacia la izquierda (grave) y reserva la tercera para extender hacia la derecha (agudo).
 
+- **Escritorio (Windows, audio)**: al pulsar teclas del piano, la guitarra, los botones de reproducir o el círculo de quintas, el sonido tardaba en salir (lag perceptible). Causa: `PianoAudioEngine.start()` usaba siempre `blocksize=1024, latency="high"` (ajuste pensado para CoreAudio en macOS); en Windows, el host API por defecto de PortAudio es **MME**, que trata los hints de texto (`"high"`/`"low"`) de forma muy laxa y acababa negociando ~213ms de latencia real. Pasar un valor numérico de latencia en segundos hace que MME lo respete de forma mucho más literal: se probó `128/0.01` (~10.7ms reales) pero producía cortes de audio audibles (underruns) bajo carga pesada (acordes de muchas notas con `grand_sample`); el valor final `blocksize=512, latency=0.03` mide ~32ms reales y no mostró ningún underrun en pruebas de estrés repetidas (acordes de 13 notas simultáneas, reintentos rápidos). macOS no se ve afectado y mantiene su ajuste original.
+
 - **Web (escalas)**: los círculos de notas sobre el piano usan ahora la escritura diatónica de la escala generada (por ejemplo, `Si#` en Sol#) en lugar del nombre cromático enarmónico (`Do`).
 
 - **Web (escalas)**: la lista de notas del panel de resultado ya no muestra el número de octava al final de cada nota.

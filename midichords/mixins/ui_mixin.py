@@ -4031,7 +4031,10 @@ class UiMixin:
                 "scale_mode_guitar_btn:help_inst_guitar_btn",
             )
             if getattr(self, "scale_metronome_only", False):
-                specific += _w("scale_metronome_volume_slider:help_scale_metronome_volume")
+                specific += _w(
+                    "scale_metronome_volume_caption_frame:help_scale_metronome_volume",
+                    "scale_metronome_volume_slider:help_scale_metronome_volume",
+                )
             if getattr(self, "scale_play_mode", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_scale_instrument")
             else:

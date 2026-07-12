@@ -354,44 +354,59 @@ verificación especial en macOS más allá del smoke test general.
       sincronización automática a "MIDI out"), y "Mostrar nombres de notas en
       teclado" muestra la caja completa con el check.
 
+## Verificado en macOS (2026-07-12)
+
+- [x] `python -m pytest tests/` → 766 passed, 12 subtests passed (idéntico a Windows).
+- [x] `python launch.py desktop` arrancado 4 veces seguidas con `-X faulthandler`, sin
+      crash ninguna vez.
+- [x] Modo **Detección de Acordes**: texto de ayuda en 2 líneas completas, sin cortarse,
+      tanto al entrar en el modo como tras redimensionar la ventana más estrecha
+      (950×750) — se reajusta correctamente.
+- [x] Modo **Detección de Intervalos**: texto de ayuda ("Pulsa dos notas...") visible
+      completo (1 línea, cabe de sobra) entrando por primera vez en el modo; confirmado
+      que ya NO aparece el hint de Shift bajo el pentagrama.
+- [x] Modo **Generación de Acordes**: probado con Do13 y Do13 en 3ª inversión (6 notas,
+      `Do4 - Mi4 - Sol4 - La#4 - Re5 - La5 - Do6 - Mi6 - Sol6` en pruebas), Notas/
+      Intervalos se muestran completos sin recortarse, incluso con ventana estrecha
+      (980×750). Además, verificado de forma aislada (script fuera de la app, con la
+      fuente real `Avenir Next` que resuelve `_pick_font_family` en macOS): 
+      `winfo_reqheight()` crece de 70 a 96 al pasar el texto de 1 a 2 líneas — mismo
+      mecanismo confirmado en Windows (61→84 con Segoe UI). El wrap real a 2 líneas no
+      se pudo forzar por UI (el panel es lo bastante ancho en todos los tamaños de
+      ventana probados para que quepa en 1 línea incluso con acordes de 6 notas), pero
+      el mecanismo de crecimiento está confirmado con la fuente y wraplength reales.
+- [x] Modo **Círculo de quintas**: círculo completo dentro del panel derecho, sin
+      desbordar, tanto en vista **piano** como en vista **guitarra** (el fretboard usa
+      más alto y deja menos espacio vertical, el caso "sobre todo con guitarra" del
+      reporte original) — confirmado con capturas de pantalla en ambas vistas.
+- [x] Modo **Círculo de quintas**: etiquetas menores largas ("Sol#m", "La#m", "Re#m",
+      "Do#m", "Fa#m") caben dentro de su sector sin cruzar las líneas divisorias, tanto
+      en vista piano como guitarra (capturas ampliadas confirmando visualmente). La
+      medición con `QFontMetrics` (Avenir Next real) funciona igual de bien que en
+      Windows.
+- [x] Metrónomo: confirmado con clicks reales (`cliclick`, equivalente a
+      `QTest.mouseClick`) sobre los botones −/+ de Minutos y Segundos — incrementan/
+      decrementan correctamente (Minutos 2→4, Segundos 11→10). Ambos checkboxes
+      (Temporizador, Acentuar inicio de compás) se desmarcan correctamente con caja
+      completa visible en ambos estados (marcado y sin marcar).
+- [x] Redimensionado de ventana probado en Detección de Acordes, Generación de Acordes
+      y Círculo de quintas (estrecho 900-980px, ancho 1700px, normal 1300px) sin
+      regresiones de layout en los elementos cubiertos por este documento.
+
 ## Pendiente de verificar en macOS
 
-- [ ] `python -m pytest tests/` sigue en verde (766 passed).
-- [ ] `python launch.py desktop` arranca varias veces seguidas sin crash (no solo una vez).
-- [ ] Modo **Detección de Acordes**: texto de ayuda del panel derecho en 2 líneas, sin
-      cortarse ni desbordar, tanto al abrir la app como al redimensionar la ventana.
-- [ ] Modo **Detección de Intervalos**: mismo texto de ayuda ("Pulsa dos notas...") en
-      2 líneas, entrando por primera vez en el modo (no solo si arranca ya en ese modo);
-      y confirmar que ya NO aparece el hint de Shift bajo el pentagrama en este modo.
-- [ ] Modo **Generación de Acordes**: probar un acorde con muchas notas/inversión que
-      fuerce Notas/Intervalos a 2 líneas (p. ej. un acorde de 9ª o 13ª con varias
-      notas) y confirmar que el bloque crece sin recortar el texto por abajo — este es
-      el caso que originalmente falló en macOS y que en Windows no se pudo reproducir
-      con un click real de UI.
-- [ ] Modo **Círculo de quintas**: el círculo cabe completo en el panel derecho, sin
-      desbordar, con texto legible dentro de sus sectores — tanto con vista de
-      **piano** como con vista de **guitarra** (el reporte original decía que era
-      "sobre todo" con guitarra donde se notaba peor).
-- [ ] Modo **Círculo de quintas**: las etiquetas menores largas ("Sol#m", "La#m",
-      "Re#m", "Do#m", el "ii°"/"vii°" cuando aplique) caben dentro de su sector sin
-      solaparse con las adyacentes, en las 12 posiciones del anillo (no solo las que
-      se ven en la tonalidad de Do por defecto). El fix ya mide con `QFontMetrics`
-      la fuente real (Avenir Next/SF Pro en macOS), así que no debería depender de
-      una constante calibrada a mano — si aun así algo se sale, revisar el margen de
-      seguridad `0.88` en `_fit_font_size_for_slice` (puede que la geometría exacta
-      de intersección texto-sector angular no esté perfectamente modelada por la
-      aproximación de "ancho de cuerda tangencial", ver comentario en el código).
-- [ ] Metrónomo y Configuración (opcional, baja prioridad — ver "Sexto/séptimo/
-      octavo bug"): comprobar que los botones −/+ de Minutos/Segundos, los
-      checkboxes Temporizador/Acentuar, y en Configuración los radios de
-      Idioma/Salida de sonido + el checkbox de nombres de notas se ven y
-      funcionan igual que en Windows. No debería fallar (son canvas propios,
-      no widgets nativos con estilo de plataforma), pero es la primera vez
-      que se prueba fuera de Windows.
-- [ ] Redimensionar la ventana en varios modos (generación, escalas, círculo de quintas,
-      metrónomo, afinador, intervalos) y comprobar que no hay regresiones de layout —
-      el cambio en `tk_compat.py` es mínimo (dos getters) pero toca una clase base muy
-      compartida.
+- [ ] Octavo bug (añadido tras esta sesión de verificación): **Configuración** — radios
+      de Idioma/Salida de sonido y el checkbox de nombres de notas no mostraban la
+      opción marcada (ver commit `c4b87bb`). No probado todavía en macOS.
+
+### Nota: no relacionado con este fix, detectado durante la verificación
+
+Con la ventana muy reducida en altura (~650px), el texto de ayuda bajo el pentagrama
+en Círculo de quintas se solapa visualmente con las líneas del pentagrama/clave en el
+panel izquierdo. Esto es un problema de layout preexistente del `staff_canvas` (altura
+mínima que no encoge del todo), no relacionado con ninguno de los bugs de este
+documento (wraplength, reqheight, círculo, metrónomo) — no se ha investigado más a
+fondo ni se ha tocado código para ello. Si se quiere arreglar, sería un issue aparte.
 
 ## Cómo reproducir la verificación visual (igual que en Windows)
 

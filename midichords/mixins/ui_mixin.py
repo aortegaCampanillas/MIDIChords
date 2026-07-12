@@ -13,6 +13,30 @@ from PySide6.QtCore import Qt, QPoint, QObject, QEvent
 from PySide6.QtGui import QPainter, QPen, QColor
 
 
+def _union_rect(widgets: Any, relative_to: Any) -> "tuple[int,int,int,int] | None":
+    """Bounding box (x, y, w, h) of one widget or a tuple/list of widgets, in
+    `relative_to` coordinates. Lets a single help binding highlight several
+    widgets (e.g. a caption label + its combo) as one contiguous box."""
+    items = widgets if isinstance(widgets, (tuple, list)) else (widgets,)
+    x1 = y1 = x2 = y2 = None
+    for widget in items:
+        try:
+            pos = widget.mapTo(relative_to, QPoint(0, 0))
+            rw, rh = widget.width(), widget.height()
+        except Exception:
+            continue
+        if rw <= 0 or rh <= 0:
+            continue
+        wx1, wy1, wx2, wy2 = pos.x(), pos.y(), pos.x() + rw, pos.y() + rh
+        x1 = wx1 if x1 is None else min(x1, wx1)
+        y1 = wy1 if y1 is None else min(y1, wy1)
+        x2 = wx2 if x2 is None else max(x2, wx2)
+        y2 = wy2 if y2 is None else max(y2, wy2)
+    if x1 is None:
+        return None
+    return x1, y1, x2 - x1, y2 - y1
+
+
 class _HelpOverlayWidget(QWidget):
     """Paint-only overlay: draws dashed/solid frames, never intercepts mouse."""
 
@@ -28,13 +52,12 @@ class _HelpOverlayWidget(QWidget):
         self._mixin: Any = parent
         self._callout: QLabel | None = None
 
-    def show_callout(self, widget: Any, text: str) -> None:
+    def show_callout(self, widgets: Any, text: str) -> None:
         self._hide_callout()
-        try:
-            pos = widget.mapTo(self._mixin, QPoint(0, 0))
-            rw, rh = widget.width(), widget.height()
-        except Exception:
+        rect = _union_rect(widgets, self._mixin)
+        if rect is None:
             return
+        pos_x, pos_y, rw, rh = rect
 
         label = QLabel(text, self)
         label.setWordWrap(True)
@@ -48,10 +71,10 @@ class _HelpOverlayWidget(QWidget):
         cw, ch = label.width(), label.height()
 
         win_w, win_h = self.width(), self.height()
-        cy = pos.y() + rh + 8
+        cy = pos_y + rh + 8
         if cy + ch > win_h - 8:
-            cy = pos.y() - ch - 8
-        cx = pos.x() + rw // 2 - cw // 2
+            cy = pos_y - ch - 8
+        cx = pos_x + rw // 2 - cw // 2
         cx = max(4, min(cx, win_w - cw - 4))
 
         label.setGeometry(cx, cy, cw, ch)
@@ -73,19 +96,16 @@ class _HelpOverlayWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         pad = 3
-        for widget, _key in bindings:
-            try:
-                pos = widget.mapTo(self._mixin, QPoint(0, 0))
-                rw, rh = widget.width(), widget.height()
-            except Exception:
+        for widgets, _key in bindings:
+            rect = _union_rect(widgets, self._mixin)
+            if rect is None:
                 continue
-            if rw <= 0 or rh <= 0:
-                continue
-            x1 = pos.x() - pad
-            y1 = pos.y() - pad
-            x2 = pos.x() + rw + pad
-            y2 = pos.y() + rh + pad
-            if widget is active:
+            rx, ry, rw, rh = rect
+            x1 = rx - pad
+            y1 = ry - pad
+            x2 = rx + rw + pad
+            y2 = ry + rh + pad
+            if widgets is active:
                 pen = QPen(self._COLOR_ACTIVE, 2, Qt.PenStyle.SolidLine)
                 painter.setPen(pen)
                 painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -128,15 +148,14 @@ class _HelpMouseFilter(QObject):
 
     def _hit_test(self, ox: int, oy: int) -> "tuple[Any, str] | None":
         pad = 3
-        for widget, key in getattr(self._mixin, "_help_bindings", []):
-            try:
-                pos = widget.mapTo(self._mixin, QPoint(0, 0))
-                rw, rh = widget.width(), widget.height()
-            except Exception:
+        for widgets, key in getattr(self._mixin, "_help_bindings", []):
+            rect = _union_rect(widgets, self._mixin)
+            if rect is None:
                 continue
-            if (pos.x() - pad) <= ox <= (pos.x() + rw + pad) and \
-               (pos.y() - pad) <= oy <= (pos.y() + rh + pad):
-                return (widget, key)
+            rx, ry, rw, rh = rect
+            if (rx - pad) <= ox <= (rx + rw + pad) and \
+               (ry - pad) <= oy <= (ry + rh + pad):
+                return (widgets, key)
         return None
 
     def _on_move(self, event: Any) -> None:
@@ -3913,20 +3932,31 @@ class UiMixin:
     # ── Help mode ────────────────────────────────────────────────────────────
 
     def _help_items_for_mode(self) -> list[tuple[object, str]]:
-        """Return [(widget, i18n_key), …] for the current mode."""
+        """Return [(widget(s), i18n_key), …] for the current mode.
+
+        A spec can join several attribute names with "+" (e.g.
+        "scale_tonic_selector_label+scale_tonic_combo:help_scale_root") so the
+        help overlay highlights their combined bounding box as a single target
+        (useful for a caption label sitting next to its own control).
+        """
         def _w(*names: str) -> "list[tuple[object,str]]":
             result = []
             for name in names:
                 parts = name.split(":")
-                attr, key = parts[0], parts[1] if len(parts) > 1 else parts[0]
-                widget = getattr(self, attr, None)
-                if widget is None:
+                attrs, key = parts[0], parts[1] if len(parts) > 1 else parts[0]
+                widgets = []
+                for attr in attrs.split("+"):
+                    widget = getattr(self, attr, None)
+                    if widget is None:
+                        continue
+                    try:
+                        widget.width()  # type: ignore[attr-defined]
+                    except Exception:
+                        continue
+                    widgets.append(widget)
+                if not widgets:
                     continue
-                try:
-                    widget.width()  # type: ignore[attr-defined]
-                except Exception:
-                    continue
-                result.append((widget, key))
+                result.append((tuple(widgets) if len(widgets) > 1 else widgets[0], key))
             return result
 
         common: list[tuple[object, str]] = _w(
@@ -4016,8 +4046,8 @@ class UiMixin:
                 "staff_canvas:help_staff",
                 "scale_play_btn:help_scale_play",
                 "scale_mode_metronome_btn:help_scale_metronome",
-                "scale_tonic_combo:help_scale_root",
-                "scale_type_combo:help_scale_type",
+                "scale_tonic_selector_label+scale_tonic_combo:help_scale_root",
+                "scale_type_selector_label+scale_type_combo:help_scale_type",
                 "scale_inline_filter_btn:help_scale_filter",
                 "scale_bpm_row:help_scale_bpm",
                 "scale_octaves_row:help_scale_octaves",
@@ -4149,16 +4179,13 @@ class UiMixin:
 
     def _refresh_help_bindings(self) -> None:
         self._disable_help_mode()
-        bindings: list = []
-        for widget, key in self._help_items_for_mode():
-            try:
-                widget.width()  # type: ignore[attr-defined]
-            except Exception:
-                continue
-            bindings.append((widget, key))
-        self._help_bindings = bindings
+        # _help_items_for_mode() (via its _w() helper) already validated that
+        # every widget in each entry responds to .width() — no need to redo
+        # that check here (and it would break on grouped entries, whose first
+        # element can be a tuple of widgets rather than a single widget).
+        self._help_bindings = list(self._help_items_for_mode())
 
-        if not bindings:
+        if not self._help_bindings:
             return
 
         ov = self._ensure_help_overlay()

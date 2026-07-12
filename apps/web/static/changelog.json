@@ -1,8 +1,22 @@
 [
   {
     "version": "v1.0.4",
-    "date": "2026-07-09",
+    "date": "2026-07-12",
     "items": [
+      {
+        "date": "2026-07-12",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Círculo de quintas: se invierte el gesto para que resulte más natural en móvil. Ahora tocar un sector elige un acorde diatónico dentro de la tonalidad; mantener pulsado cambia de tonalidad.",
+        "en": "Circle of fifths: the gesture is now more natural on mobile. Tapping a sector picks a diatonic chord within the key; long-press changes the key."
+      },
+      {
+        "date": "2026-07-12",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Salida de sonido MIDI: al seleccionar salida MIDI ahora las notas se envían realmente al dispositivo MIDI conectado (antes seguían sonando por el altavoz del dispositivo).",
+        "en": "MIDI sound output: selecting MIDI output now actually sends notes to the connected MIDI device (previously it kept playing through the device's speaker)."
+      },
       {
         "date": "2026-07-09",
         "publish": true,

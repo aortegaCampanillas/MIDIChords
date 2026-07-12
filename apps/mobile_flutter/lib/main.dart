@@ -1030,6 +1030,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _heldChordPlayToken = 0;
   final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
   final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
+  /// Notas actualmente sonando vía salida MIDI (sin AudioPlayer asociado).
+  final Set<int> _midiOutHeldNotes = <int>{};
   final Map<String, String> _toneFileCache = <String, String>{};
   bool _samplePlaybackAvailable = true;
   bool _metronomeSampleAvailable = true;
@@ -1501,9 +1503,9 @@ class _HomeScreenState extends State<HomeScreen>
             titleEs: 'Circulo de quintas',
             titleEn: 'Circle of fifths',
             bodyEs:
-                'Toca un sector: anillo exterior = tonica mayor; interior = modo menor relativo. Manten pulsado para un acorde diatonico.',
+                'Toca un sector para elegir un acorde diatonico. Manten pulsado: anillo exterior = tonica mayor; interior = modo menor relativo.',
             bodyEn:
-                'Tap a sector: outer ring = major tonic; inner = relative minor. Long-press for a diatonic chord.',
+                'Tap a sector to pick a diatonic chord. Long-press: outer ring = major tonic; inner = relative minor.',
             side: _HelpCalloutSide.left,
           ),
           _HelpStep(
@@ -4758,6 +4760,16 @@ class _HomeScreenState extends State<HomeScreen>
           midi,
           instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
         );
+      } else if (_soundOutput == 'midi') {
+        _sendMidiNoteOn(midi, 80);
+        unawaited(
+          Future<void>.delayed(
+            Duration(
+              milliseconds:
+                  ((_instrumentView == 'guitar' ? 1.02 : 0.92) * 1000).round(),
+            ),
+          ).then((_) => _sendMidiNoteOff(midi)),
+        );
       } else {
         await _playTone(
           midi: midi,
@@ -4814,6 +4826,16 @@ class _HomeScreenState extends State<HomeScreen>
         await _startHeldInputNote(
           midi,
           instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+        );
+      } else if (_soundOutput == 'midi') {
+        _sendMidiNoteOn(midi, 80);
+        unawaited(
+          Future<void>.delayed(
+            Duration(
+              milliseconds:
+                  ((_instrumentView == 'guitar' ? 0.95 : 0.85) * 1000).round(),
+            ),
+          ).then((_) => _sendMidiNoteOff(midi)),
         );
       } else {
         await _playTone(
@@ -4892,33 +4914,48 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     if (!_needsPianoScrollSync) return;
     _needsPianoScrollSync = false;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_pianoScrollController.hasClients) return;
-      final maxExt = _pianoScrollController.position.maxScrollExtent;
-      if (maxExt <= 0) return;
-      final int anchorMidi;
-      if (_tabIndex == 3 && _generatedScaleJson != null) {
-        final rh = _scaleRhNotes();
-        if (rh.isNotEmpty) {
-          anchorMidi = (rh.first + rh.last) ~/ 2;
+
+    void attempt(int retriesLeft) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pianoScrollController.hasClients) return;
+        final maxExt = _pianoScrollController.position.maxScrollExtent;
+        if (maxExt <= 0) {
+          // El layout puede tardar un frame extra en asentarse tras un
+          // cambio de altura (p. ej. al activar/desactivar la digitación,
+          // que añade/quita las tiras encima del piano). Reintentar evita
+          // que el scroll se quede en 0 y desalinee las tiras del teclado.
+          if (retriesLeft > 0) attempt(retriesLeft - 1);
+          return;
+        }
+        final int anchorMidi;
+        if (_tabIndex == 3 && _generatedScaleJson != null) {
+          final rh = _scaleRhNotes();
+          if (rh.isNotEmpty) {
+            anchorMidi = (rh.first + rh.last) ~/ 2;
+          } else {
+            anchorMidi = _kPianoMiddleCMidi;
+          }
         } else {
           anchorMidi = _kPianoMiddleCMidi;
         }
-      } else {
-        anchorMidi = _kPianoMiddleCMidi;
-      }
-      final cIdx = whiteMidi.indexOf(anchorMidi);
-      final wIdx = cIdx >= 0 ? cIdx : math.max(0, whiteMidi.indexWhere((m) => m >= anchorMidi));
-      final keyCenterX = wIdx * whiteW + whiteW / 2;
-      final target = (keyCenterX - viewportW / 2).clamp(0.0, maxExt);
-      _pianoScrollController.jumpTo(target);
-    });
+        final cIdx = whiteMidi.indexOf(anchorMidi);
+        final wIdx = cIdx >= 0 ? cIdx : math.max(0, whiteMidi.indexWhere((m) => m >= anchorMidi));
+        final keyCenterX = wIdx * whiteW + whiteW / 2;
+        final target = (keyCenterX - viewportW / 2).clamp(0.0, maxExt);
+        _pianoScrollController.jumpTo(target);
+      });
+    }
+
+    attempt(5);
   }
 
   void _stopHeldChord() {
     _heldChordPlaybackEndTimer?.cancel();
     _heldChordPlaybackEndTimer = null;
     _heldChordPlayToken++;
+    for (final midi in _heldChordNativeNotes) {
+      _sendMidiNoteOff(midi);
+    }
     // En iOS, el sintetizador nativo no expone note-off por nota.
     // Para evitar cortes bruscos al soltar, dejamos que la nota termine por duración.
     final uniquePlayers = _heldChordPlayers.values.toSet();
@@ -4931,6 +4968,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _stopHeldInputs() {
+    for (final midi in _midiOutHeldNotes) {
+      _sendMidiNoteOff(midi);
+    }
+    _midiOutHeldNotes.clear();
     // En iOS, no parar el synth evita cortar el "release" de la nota.
     for (final entry in _heldInputPlayers.entries) {
       unawaited(_safeStopDispose(entry.value));
@@ -4973,6 +5014,12 @@ class _HomeScreenState extends State<HomeScreen>
     final playToken = _heldChordPlayToken;
     if (mounted) {
       setState(() {});
+    }
+    if (_soundOutput == 'midi') {
+      for (final midi in chordNotes) {
+        _sendMidiNoteOn(midi, 80);
+      }
+      return;
     }
     if (Platform.isAndroid && chordNotes.length > 1) {
       await _playAndroidSynthChord(
@@ -5046,6 +5093,11 @@ class _HomeScreenState extends State<HomeScreen>
     required String instrument,
   }) async {
     _releaseHeldInputNote(midi);
+    if (_soundOutput == 'midi') {
+      _sendMidiNoteOn(midi, 80);
+      _midiOutHeldNotes.add(midi);
+      return;
+    }
     final durationSeconds = Platform.isIOS
         ? (instrument == 'guitar' ? 1.6 : 2.2)
         : (instrument == 'guitar' ? 1.05 : 0.95);
@@ -5078,6 +5130,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _releaseHeldInputNote(int midi) {
+    if (_midiOutHeldNotes.remove(midi)) {
+      _sendMidiNoteOff(midi);
+    }
     final player = _heldInputPlayers.remove(midi);
     if (player != null) {
       unawaited(_safeStopDispose(player));
@@ -5296,7 +5351,6 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildScaleResultBlock() {
     return Container(
       width: double.infinity,
-      height: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF17273A),
@@ -5306,6 +5360,7 @@ class _HomeScreenState extends State<HomeScreen>
       child: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _detectionResultRow(
@@ -5538,14 +5593,17 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onCircleCanvasInteraction(Offset local, Size size, {required bool longPress}) {
+    // Invertido respecto al gesto "shiftClick" original: mantener pulsado
+    // cambia de tonalidad; una pulsación simple cambia de acorde dentro de
+    // la tonalidad actual (más natural en móvil, donde no hay tecla Shift).
     final pc = CircleFifthsHit.chordRootPcFromClick(
       local,
       size,
-      shiftClick: longPress,
+      shiftClick: !longPress,
     );
     if (pc == null) return;
     final theory = _circleMajorTonicPcForTheory();
-    if (longPress) {
+    if (!longPress) {
       if (!CircleFifthsHit.chordShiftClickIsDiatonic(
         theory,
         local,
@@ -5657,6 +5715,16 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
       HapticFeedback.selectionClick();
+    } else if (_soundOutput == 'midi') {
+      _sendMidiNoteOn(note, 80);
+      unawaited(
+        Future<void>.delayed(
+          Duration(
+            milliseconds:
+                ((_instrumentView == 'guitar' ? 0.92 : 0.78) * 1000).round(),
+          ),
+        ).then((_) => _sendMidiNoteOff(note)),
+      );
     } else {
       await _playTone(
         midi: note,
@@ -6333,15 +6401,23 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
-        centerTitle: true,
-        titleSpacing: 0,
+        // Sin centrar: así Flutter ajusta `title` al espacio libre real
+        // entre `leading` y `actions` (que varía según si el botón "Salida
+        // MIDI/Audio" está visible), en vez de tener que estimarlo a mano.
+        centerTitle: false,
+        titleSpacing: 8,
         title: LayoutBuilder(
           builder: (context, titleConstraints) {
+            // Margen de seguridad extra para que el combo no quede pegado
+            // a los botones vecinos de `actions`.
+            final safetyMargin = compactPhone ? 16.0 : 20.0;
+            final availableForTitle =
+                math.max(80.0, titleConstraints.maxWidth - safetyMargin);
             final dropdownW = math.min(
               compactPhone
                   ? (portrait ? 260.0 : 300.0)
                   : (portrait ? 380.0 : 340.0),
-              titleConstraints.maxWidth,
+              availableForTitle,
             );
             return SizedBox(
                 width: dropdownW,
@@ -6944,8 +7020,8 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(height: 8),
             Text(
               _ui(
-                'Toca el anillo: fija la tónica y la tonalidad (mayor en el exterior, menor natural relativa en el interior; misma armadura). Mantén pulsado: elige un acorde diatónico (triada sobre un grado de la escala); no cambia la tónica.',
-                'Tap: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature). Long-press: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic.',
+                'Toca el anillo: elige un acorde diatónico (triada sobre un grado de la escala); no cambia la tónica. Mantén pulsado: fija la tónica y la tonalidad (mayor en el exterior, menor natural relativa en el interior; misma armadura).',
+                'Tap: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic. Long-press: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature).',
               ),
               style: const TextStyle(color: _muted, fontSize: 12, height: 1.35),
             ),
@@ -7511,11 +7587,8 @@ class _HomeScreenState extends State<HomeScreen>
         _scaleFingeringHand != null &&
         _scaleFingeringsMap.isNotEmpty;
 
-    if (!showStrips) return _buildPianoStrip(activeMidi);
-
     final sortedNotes = _scaleFingeringsMap.keys.toList()..sort();
     final fingers = sortedNotes.map((n) => _scaleFingeringsMap[n]!).toList();
-
     final ascCross = List<bool>.filled(fingers.length, false);
     final descCross = List<bool>.filled(fingers.length, false);
     for (int i = 1; i < fingers.length; i++) {
@@ -7525,6 +7598,14 @@ class _HomeScreenState extends State<HomeScreen>
       if ((fingers[i] - fingers[i + 1]).abs() > 1) descCross[i] = true;
     }
 
+    // El `Column` con tiras (aunque ocultas con Opacity) se devuelve siempre
+    // con la misma forma de árbol de widgets y las mismas dimensiones
+    // (`stripH`/`gap` fijos); si `!showStrips` cambiara esas dimensiones, el
+    // alto disponible del piano (`pianoViewH`) variaría entre modos y dejaría
+    // hueco en blanco o desajustaría el tamaño de tecla. Y si en su lugar
+    // devolviéramos directamente `_buildPianoStrip(...)` cuando `!showStrips`
+    // (cambiando el tipo del widget raíz), Flutter destruiría y recrearía
+    // todo el subárbol del piano — reseteando el ScrollController a offset 0.
     return LayoutBuilder(builder: (context, constraints) {
       const stripH = 22.0;
       const gap = 2.0;
@@ -7545,82 +7626,85 @@ class _HomeScreenState extends State<HomeScreen>
       final double keyboardW = allWhite.length * effectiveW;
       final double badgeW = (effectiveW * 0.85).clamp(16.0, 22.0);
 
+      List<Widget> buildBadges(bool ascending) {
+        final badges = <Widget>[];
+        for (int i = 0; i < sortedNotes.length; i++) {
+          final midi = sortedNotes[i];
+          final finger = fingers[i];
+          final cross = ascending ? ascCross[i] : descCross[i];
+          final bool isBlack =
+              const <int>{1, 3, 6, 8, 10}.contains(midi % 12);
+          final double x;
+          if (isBlack) {
+            final wIdx = allWhite.indexWhere((m) => m >= midi);
+            x = (wIdx < 0 ? allWhite.length - 1 : wIdx) * effectiveW;
+          } else {
+            final wIdx = allWhite.indexOf(midi);
+            x = wIdx < 0 ? 0 : wIdx * effectiveW;
+          }
+          final bool isActive = _scaleLoopRunning &&
+              _scaleCurrentNote != null &&
+              midi == _scaleCurrentNote &&
+              (ascending ? _scaleLoopDirection > 0 : _scaleLoopDirection < 0);
+          final Color bg = ascending
+              ? (cross ? const Color(0xFFD42010) : const Color(0xFFE07818))
+              : (cross ? const Color(0xFF3A3A8A) : const Color(0xFF4A6A8A));
+          badges.add(
+            Positioned(
+              key: ValueKey<String>('${ascending ? 'a' : 'd'}-$midi-$i'),
+              left: x + (effectiveW - badgeW) / 2,
+              top: 1,
+              child: Container(
+                width: badgeW,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.white : bg,
+                  borderRadius: BorderRadius.circular(4),
+                  border: isActive ? Border.all(color: bg, width: 2) : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$finger',
+                  style: TextStyle(
+                    color: isActive ? bg : Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        return badges;
+      }
+
       Widget buildStrip(bool ascending) {
         final badgeStack = SizedBox(
           width: keyboardW,
           height: stripH,
           child: Stack(
-            children: <Widget>[
-              for (int i = 0; i < sortedNotes.length; i++)
-                Builder(builder: (ctx) {
-                  final midi = sortedNotes[i];
-                  final finger = fingers[i];
-                  final cross = ascending ? ascCross[i] : descCross[i];
-                  final bool isBlack =
-                      const <int>{1, 3, 6, 8, 10}.contains(midi % 12);
-                  final double x;
-                  if (isBlack) {
-                    final wIdx = allWhite.indexWhere((m) => m >= midi);
-                    x = (wIdx < 0 ? allWhite.length - 1 : wIdx) * effectiveW;
-                  } else {
-                    final wIdx = allWhite.indexOf(midi);
-                    x = wIdx < 0 ? 0 : wIdx * effectiveW;
-                  }
-                  final bool isActive = _scaleLoopRunning &&
-                      _scaleCurrentNote != null &&
-                      midi == _scaleCurrentNote &&
-                      (ascending
-                          ? _scaleLoopDirection > 0
-                          : _scaleLoopDirection < 0);
-                  final Color bg = ascending
-                      ? (cross
-                          ? const Color(0xFFD42010)
-                          : const Color(0xFFE07818))
-                      : (cross
-                          ? const Color(0xFF3A3A8A)
-                          : const Color(0xFF4A6A8A));
-                  return Positioned(
-                    left: x + (effectiveW - badgeW) / 2,
-                    top: 1,
-                    child: Container(
-                      width: badgeW,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: isActive ? Colors.white : bg,
-                        borderRadius: BorderRadius.circular(4),
-                        border: isActive
-                            ? Border.all(color: bg, width: 2)
-                            : null,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$finger',
-                        style: TextStyle(
-                          color: isActive ? bg : Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-            ],
+            clipBehavior: Clip.none,
+            children: buildBadges(ascending),
           ),
         );
         return SizedBox(
+          width: viewportW,
           height: stripH,
           child: ClipRect(
-            child: ListenableBuilder(
-              listenable: _pianoScrollController,
-              builder: (context, _) {
-                final offset = _pianoScrollController.hasClients
-                    ? _pianoScrollController.offset
-                    : 0.0;
-                return Transform.translate(
-                  offset: Offset(-offset, 0),
-                  child: badgeStack,
-                );
-              },
+            child: Opacity(
+              opacity: showStrips ? 1.0 : 0.0,
+              child: ListenableBuilder(
+                listenable: _pianoScrollController,
+                builder: (context, _) {
+                  final offset = _pianoScrollController.hasClients
+                      ? _pianoScrollController.offset
+                      : 0.0;
+                  return Transform.translate(
+                    offset: Offset(-offset, 0),
+                    child: badgeStack,
+                  );
+                },
+              ),
             ),
           ),
         );
@@ -7629,11 +7713,11 @@ class _HomeScreenState extends State<HomeScreen>
       return Column(
         children: <Widget>[
           buildStrip(true),
-          const SizedBox(height: gap),
+          SizedBox(height: gap),
           Expanded(
-            child: _buildPianoStrip(activeMidi),
+            child: _buildPianoStrip(activeMidi, forcedWhiteW: effectiveW),
           ),
-          const SizedBox(height: gap),
+          SizedBox(height: gap),
           buildStrip(false),
         ],
       );
@@ -7641,7 +7725,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
 
-  Widget _buildPianoStrip(Set<int> activeMidi) {
+  Widget _buildPianoStrip(Set<int> activeMidi, {double? forcedWhiteW}) {
     final midiRange = List<int>.generate(
       _kPianoHighMidi - _kPianoLowMidi + 1,
       (i) => _kPianoLowMidi + i,
@@ -7725,12 +7809,16 @@ class _HomeScreenState extends State<HomeScreen>
           viewportH: viewportH,
           whiteKeyCount: whiteMidi.length,
         );
-        final whiteW = metrics.whiteW;
-        final whiteH = metrics.whiteH;
+        final whiteW = forcedWhiteW ?? metrics.whiteW;
+        final whiteH = forcedWhiteW != null
+            ? (forcedWhiteW * _kPianoKeyAspect).clamp(0.0, viewportH)
+            : metrics.whiteH;
         final blackW = whiteW * 0.64;
         final blackH = whiteH * 0.58;
         final keyboardW = whiteMidi.length * whiteW;
-        final scrollable = metrics.scrollable;
+        final scrollable = forcedWhiteW != null
+            ? (keyboardW > viewportW + 1)
+            : metrics.scrollable;
         final whiteMarkerTop = whiteH * 0.63;
         final forbiddenTop = whiteH * 0.41;
         _syncPianoScrollToMiddleC(viewportW, whiteW, whiteMidi);
@@ -8993,7 +9081,9 @@ class _HomeScreenState extends State<HomeScreen>
             (p) => (p['name'] as String?) == _scalePatternName,
           );
 
-          return SingleChildScrollView(
+          return Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
@@ -9283,8 +9373,8 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                SizedBox(
-                  height: resultHeight,
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: resultHeight),
                   child: _buildScaleResultBlock(),
                 ),
                 if (_instrumentView != 'guitar') ...<Widget>[
@@ -9292,6 +9382,7 @@ class _HomeScreenState extends State<HomeScreen>
                   _helpAnchor('scales_fingering', _buildScaleFingeringRow()),
                 ],
               ],
+            ),
             ),
             ),
           );
@@ -9331,9 +9422,16 @@ class _HomeScreenState extends State<HomeScreen>
                 return GestureDetector(
                   onTap: () {
                     final hand = value == 'none' ? null : value;
-                    setState(() => _scaleFingeringHand = hand);
+                    setState(() {
+                      _scaleFingeringHand = hand;
+                      _updateScaleFingeringsMap();
+                      // Activar/desactivar las tiras cambia la altura
+                      // disponible del piano y por tanto el ancho de tecla;
+                      // hay que recentrar el scroll para que las tiras y
+                      // las teclas queden alineadas de nuevo.
+                      _needsPianoScrollSync = true;
+                    });
                     _savePrefs();
-                    _updateScaleFingeringsMap();
                   },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -10308,18 +10406,28 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  /// Send a MIDI note_on (0x90) message to all connected MIDI devices.
+  void _sendMidiNoteOn(int midiNote, int velocity) {
+    try {
+      _midiCommand.sendData(
+        Uint8List.fromList(<int>[0x90, midiNote & 0x7F, velocity & 0x7F]),
+      );
+    } catch (_) {}
+  }
+
+  /// Send a MIDI note_off (0x80) message to all connected MIDI devices.
+  void _sendMidiNoteOff(int midiNote) {
+    try {
+      _midiCommand.sendData(
+        Uint8List.fromList(<int>[0x80, midiNote & 0x7F, 0]),
+      );
+    } catch (_) {}
+  }
+
   /// Play a note via audio or MIDI output based on _soundOutput setting.
   Future<void> playNote(int midiNote, {int velocity = 80, String instrument = 'piano', double durationSeconds = 0.6}) async {
     if (_soundOutput == 'midi') {
-      // Send MIDI note_on to connected device if available
-      try {
-        if (_midiConnectedDevices.isNotEmpty) {
-          // TODO: Implement MIDI note_on message sending via _midiCommand
-          // Would send: status=0x90 (note_on), note=midiNote, velocity=velocity
-        }
-      } catch (e) {
-        // MIDI error, continue without sound
-      }
+      _sendMidiNoteOn(midiNote, velocity);
       return;
     }
     // Default: audio playback via synthesizer
@@ -10333,15 +10441,7 @@ class _HomeScreenState extends State<HomeScreen>
   /// Stop a note via audio or MIDI output based on _soundOutput setting.
   Future<void> stopNote(int midiNote) async {
     if (_soundOutput == 'midi') {
-      // Send MIDI note_off to connected device if available
-      try {
-        if (_midiConnectedDevices.isNotEmpty) {
-          // TODO: Implement MIDI note_off message sending via _midiCommand
-          // Would send: status=0x80 (note_off), note=midiNote, velocity=0
-        }
-      } catch (e) {
-        // MIDI error, continue
-      }
+      _sendMidiNoteOff(midiNote);
       return;
     }
     // Default: audio playback (note will naturally decay based on duration parameter)

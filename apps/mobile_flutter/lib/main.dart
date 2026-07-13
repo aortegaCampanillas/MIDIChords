@@ -2532,11 +2532,18 @@ class _HomeScreenState extends State<HomeScreen>
                     // Deja sitio para el título del diálogo, el checkbox
                     // "No volver a mostrar" y los botones de acción, que
                     // viven fuera de este ConstrainedBox pero comparten el
-                    // mismo alto disponible dentro del AlertDialog.
+                    // mismo alto disponible dentro del AlertDialog. Restamos
+                    // una reserva fija (título + padding + checkbox +
+                    // acciones) del alto de pantalla en vez de un simple
+                    // porcentaje, para que quepa también en landscape de
+                    // iPhone (pantallas de ~400-430pt de alto).
                     constraints: BoxConstraints(
-                      maxHeight: math.min(
-                        380.0,
-                        MediaQuery.of(context).size.height * 0.45,
+                      maxHeight: math.max(
+                        120.0,
+                        math.min(
+                          380.0,
+                          MediaQuery.of(context).size.height - 260.0,
+                        ),
                       ),
                     ),
                     child: SingleChildScrollView(

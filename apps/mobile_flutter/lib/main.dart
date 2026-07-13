@@ -1126,6 +1126,7 @@ class _HomeScreenState extends State<HomeScreen>
   Offset? _dragLastGlobalPos;
   DateTime _dragLastSwitchAt = DateTime.fromMillisecondsSinceEpoch(0);
   final ScrollController _pianoScrollController = ScrollController();
+  final ScrollController _scaleControlsScrollController = ScrollController();
   bool _needsPianoScrollSync = false;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
@@ -2674,6 +2675,7 @@ class _HomeScreenState extends State<HomeScreen>
     _scaleOutputController.dispose();
     _helpOverlayController.dispose();
     _pianoScrollController.dispose();
+    _scaleControlsScrollController.dispose();
     _cancelMidiScreenActivityExtension();
     super.dispose();
   }
@@ -9388,9 +9390,12 @@ class _HomeScreenState extends State<HomeScreen>
             (p) => (p['name'] as String?) == _scalePatternName,
           );
 
-          return Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: SingleChildScrollView(
+            controller: _scaleControlsScrollController,
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
@@ -9691,7 +9696,21 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
             ),
-            ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 8,
+                child: RawScrollbar(
+                  controller: _scaleControlsScrollController,
+                  thumbVisibility: true,
+                  thickness: 5,
+                  radius: const Radius.circular(3),
+                  thumbColor: const Color(0xFF6B7A99),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
           );
         },
       ),

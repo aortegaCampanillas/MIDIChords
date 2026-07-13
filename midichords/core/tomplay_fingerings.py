@@ -50,6 +50,14 @@ BASE_FINGERINGS = {
         "right": [1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 5],
         "left": [4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 4, 3, 2, 1],
     },
+    "whole_tone": {
+        "right": [1, 2, 1, 2, 3, 4, 1, 2, 1, 2, 3, 4, 5],
+        "left": [3, 2, 1, 4, 3, 2, 3, 2, 1, 4, 3, 2, 1],
+    },
+    "minor_blues": {
+        "right": [1, 2, 3, 4, 1, 3, 1, 2, 3, 4, 1, 3, 4],
+        "left": [5, 4, 3, 2, 1, 2, 1, 4, 2, 3, 1, 2, 1],
+    },
 }
 
 # Fingering overrides by key (root note abbreviation)
@@ -605,9 +613,13 @@ def get_fingering_for_scale(
     elif pc is not None and scale_type in KEYED_FINGERINGS:
         fingering = KEYED_FINGERINGS[scale_type].get(hand, {}).get(pc)
         if fingering is None:
-            return []
+            fingering = _generic_scale_fingering(hand, count or 8)
     else:
-        return []
+        # Sin digitación documentada (TomPlay) para esta escala — p. ej.
+        # tonos enteros, blues, o cualquier escala "exótica" sin fuente de
+        # referencia. Generamos una digitación algorítmica estándar en vez
+        # de dejarlo vacío.
+        fingering = _generic_scale_fingering(hand, count or 8)
 
     if count is None:
         return list(fingering)
@@ -620,6 +632,20 @@ def get_fingering_for_scale(
         return _extend_fingering_pattern(fingering, count)
 
     return list(fingering[:count])
+
+
+def _generic_scale_fingering(hand: str, count: int) -> list[int]:
+    """Digitación algorítmica de respaldo para escalas sin patrón documentado.
+
+    Ciclo de mano derecha: 1-2-3-1-2-3-4 (7 notas); mano izquierda es el
+    espejo: 5-4-3-2-1-3-2-1.
+    """
+    n = count if count > 0 else 8
+    if hand == "left":
+        cycle = [5, 4, 3, 2, 1, 3, 2, 1]
+    else:
+        cycle = [1, 2, 3, 1, 2, 3, 4]
+    return [cycle[i % len(cycle)] for i in range(n)]
 
 
 def _extend_fingering_pattern(fingering: list[int], count: int) -> list[int]:

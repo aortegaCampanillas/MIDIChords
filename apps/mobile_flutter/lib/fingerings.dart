@@ -1,5 +1,8 @@
 /// Piano scale fingerings (right and left hand) from TomPlay database.
 /// Organized by scale type, with overrides by key to match awkward fingerings.
+library;
+
+import 'dart:math' as math;
 
 const Map<String, Map<String, List<int>>> baseFingerings = {
   'major': {
@@ -45,6 +48,15 @@ const Map<String, Map<String, List<int>>> baseFingerings = {
   'locrian_mode': {
     'right': [1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 5],
     'left': [4, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1, 4, 3, 2, 1],
+  },
+  // Fuente: tomplay.com/es/tools/scales/piano (verificado en Do).
+  'whole_tone': {
+    'right': [1, 2, 1, 2, 3, 4, 1, 2, 1, 2, 3, 4, 5],
+    'left': [3, 2, 1, 4, 3, 2, 3, 2, 1, 4, 3, 2, 1],
+  },
+  'minor_blues': {
+    'right': [1, 2, 3, 4, 1, 3, 1, 2, 3, 4, 1, 3, 4],
+    'left': [5, 4, 3, 2, 1, 2, 1, 4, 2, 3, 1, 2, 1],
   },
 };
 
@@ -118,7 +130,12 @@ const Map<String, List<int>> fingeringOverrides = {
 };
 
 /// Get fingering for a scale. Returns right or left hand fingering pattern.
-List<int> getFingeringForScale(String scaleType, int pcTonic, String hand, {int? count}) {
+List<int> getFingeringForScale(
+  String scaleType,
+  int pcTonic,
+  String hand, {
+  int? count,
+}) {
   scaleType = scaleType.toLowerCase();
   hand = hand.toLowerCase();
   String keyStr = _pcToKeyStr(pcTonic);
@@ -136,23 +153,44 @@ List<int> getFingeringForScale(String scaleType, int pcTonic, String hand, {int?
     fingering = baseFingerings[scaleType]![hand];
   }
 
-  if (fingering == null) return [];
+  // Sin digitación documentada (ni en TomPlay ni verificada a mano) para
+  // esta escala — usamos un ciclo genérico como aproximación razonable en
+  // vez de dejarlo vacío. Añadir la escala a `baseFingerings` con datos
+  // reales de Tomplay siempre tiene prioridad sobre este respaldo.
+  final List<int> resolvedFingering =
+      fingering ?? _genericScaleFingering(hand, count ?? 8);
 
-  if (count == null) return List<int>.from(fingering);
+  if (count == null) return List<int>.from(resolvedFingering);
 
   if (count <= 0) return [];
-  if (count >= fingering.length) {
-    final result = List<int>.from(fingering);
-    if (count > fingering.length) {
-      final patternBase = fingering.sublist(0, 7);
-      for (int i = fingering.length; i < count; i++) {
-        result.add(patternBase[i % 7]);
+  if (count >= resolvedFingering.length) {
+    final result = List<int>.from(resolvedFingering);
+    if (count > resolvedFingering.length) {
+      final patternBase = resolvedFingering.sublist(
+        0,
+        math.min(7, resolvedFingering.length),
+      );
+      for (int i = resolvedFingering.length; i < count; i++) {
+        result.add(patternBase[i % patternBase.length]);
       }
     }
     return result;
   }
 
-  return fingering.sublist(0, count);
+  return resolvedFingering.sublist(0, count);
+}
+
+/// Digitación algorítmica de respaldo para escalas sin patrón documentado.
+/// Ciclo de mano derecha: 1-2-3-1-2-3-4 (7 notas); mano izquierda es el
+/// espejo: 5-4-3-2-1-3-2-1.
+List<int> _genericScaleFingering(String hand, int count) {
+  final n = count <= 0 ? 8 : count;
+  if (hand == 'left') {
+    const cycle = <int>[5, 4, 3, 2, 1, 3, 2, 1];
+    return List<int>.generate(n, (i) => cycle[i % cycle.length]);
+  }
+  const cycle = <int>[1, 2, 3, 1, 2, 3, 4];
+  return List<int>.generate(n, (i) => cycle[i % cycle.length]);
 }
 
 String _pcToKeyStr(int pc) {

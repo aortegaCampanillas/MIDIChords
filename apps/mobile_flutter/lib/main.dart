@@ -998,6 +998,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _tabIndex = 0;
   bool _requestInFlight = false;
   String _instrumentView = 'piano';
+  int? _midiOutProgram;
 
   String _language = 'es';
   String _accidental = 'sharp';
@@ -1131,6 +1132,8 @@ class _HomeScreenState extends State<HomeScreen>
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
   late final AnimationController _helpOverlayController;
   bool _helpActive = false;
+  bool _helpBannerVisible = true;
+  Timer? _helpBannerTimer;
   String? _helpSelectedId;
 
   List<int> _enabledModeIndexes() {
@@ -1212,6 +1215,18 @@ class _HomeScreenState extends State<HomeScreen>
             'Activa o desactiva la entrada de un teclado o controlador MIDI.',
         bodyEn:
             'Enable or disable input from a MIDI keyboard or controller.',
+        highlightPadding: -3,
+      ),
+      _HelpStep(
+        id: 'sound_output',
+        titleEs: 'Salida Audio/MIDI',
+        titleEn: 'Audio/MIDI output',
+        bodyEs:
+            'Con MIDI activado, elige si las notas suenan con el audio local '
+            'de la app o se envían al dispositivo MIDI conectado.',
+        bodyEn:
+            'With MIDI enabled, choose whether notes play through the app\'s '
+            'local audio or get sent to the connected MIDI device.',
         highlightPadding: -3,
       ),
       _HelpStep(
@@ -1530,6 +1545,54 @@ class _HomeScreenState extends State<HomeScreen>
                 'Hold the play button to hear the chord on the instrument.',
             side: _HelpCalloutSide.left,
           ),
+          _HelpStep(
+            id: 'circle_instrument_piano_btn',
+            titleEs: 'Piano',
+            titleEn: 'Piano',
+            bodyEs: 'Muestra el teclado de piano en el círculo de quintas.',
+            bodyEn: 'Show the piano keyboard in the circle of fifths.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'circle_instrument_guitar_btn',
+            titleEs: 'Guitarra',
+            titleEn: 'Guitar',
+            bodyEs: 'Muestra el diapasón de guitarra en el círculo de quintas.',
+            bodyEn: 'Show the guitar fretboard in the circle of fifths.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'circle_instrument',
+            titleEs: 'Instrumento del círculo',
+            titleEn: 'Circle instrument',
+            bodyEs:
+                'Al tocar una nota se resalta en el círculo la tonalidad correspondiente.',
+            bodyEn:
+                'Playing a note highlights the corresponding key in the circle.',
+            side: _HelpCalloutSide.top,
+          ),
+          _HelpStep(
+            id: 'circle_guitar_hand',
+            titleEs: 'Mano de la guitarra',
+            titleEn: 'Guitar handedness',
+            bodyEs:
+                'Ajusta la visualizacion para diestro o zurdo en la guitarra.',
+            bodyEn:
+                'Adjusts the guitar display for right- or left-handed view.',
+            side: _HelpCalloutSide.top,
+            highlightPadding: 2,
+          ),
+          _HelpStep(
+            id: 'circle_guitar_variant',
+            titleEs: 'Variantes de acorde',
+            titleEn: 'Chord variations',
+            bodyEs:
+                'Permite recorrer distintas posiciones o variantes del mismo acorde en la guitarra.',
+            bodyEn:
+                'Lets you cycle through different positions or variants of the same chord on guitar.',
+            side: _HelpCalloutSide.top,
+            highlightPadding: 2,
+          ),
         ],
       3 => <_HelpStep>[
           _HelpStep(
@@ -1571,6 +1634,19 @@ class _HomeScreenState extends State<HomeScreen>
                 'Selecciona el patron o modo de escala que quieres estudiar o reproducir.',
             bodyEn:
                 'Select the scale pattern or mode you want to study or play.',
+            side: _HelpCalloutSide.left,
+            highlightPadding: 2,
+          ),
+          _HelpStep(
+            id: 'scales_filter',
+            titleEs: 'Básicas / Todas',
+            titleEn: 'Basic / All',
+            bodyEs:
+                'Alterna entre el conjunto de escalas más habituales (Básicas) '
+                'y la lista completa (Todas).',
+            bodyEn:
+                'Toggle between the most common scales (Basic) and the full '
+                'list (All).',
             side: _HelpCalloutSide.left,
             highlightPadding: 2,
           ),
@@ -1855,20 +1931,84 @@ class _HomeScreenState extends State<HomeScreen>
             titleEs: 'Pentagrama de intervalos',
             titleEn: 'Interval staff',
             bodyEs:
-                'Muestra las notas tocadas y el intervalo entre ellas.',
+                'Muestra las dos últimas notas pulsadas.',
             bodyEn:
-                'Shows the notes played and the interval between them.',
+                'Shows the two latest pressed notes.',
             side: _HelpCalloutSide.top,
           ),
           _HelpStep(
-            id: 'interval_detection_controls',
-            titleEs: 'Panel de intervalos',
-            titleEn: 'Interval panel',
-            bodyEs:
-                'Aqui se ve el nombre del intervalo y los semitonos entre las dos notas.',
-            bodyEn:
-                'This panel shows the interval name and the semitones between the two notes.',
+            id: 'interval_notes_row',
+            titleEs: 'Notas',
+            titleEn: 'Notes',
+            bodyEs: 'Las dos últimas notas pulsadas.',
+            bodyEn: 'The two latest pressed notes.',
             side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_name_row',
+            titleEs: 'Intervalo',
+            titleEn: 'Interval',
+            bodyEs: 'Nombre del intervalo detectado.',
+            bodyEn: 'Name of the detected interval.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_semitones_row',
+            titleEs: 'Semitonos',
+            titleEn: 'Semitones',
+            bodyEs: 'Número de semitonos entre las dos notas.',
+            bodyEn: 'Number of semitones between the two notes.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_melody_row',
+            titleEs: 'Canción mnemotécnica',
+            titleEn: 'Mnemonic song',
+            bodyEs:
+                'Pulsa el nombre para activar la melodía de referencia y reproducirla.',
+            bodyEn:
+                'Tap the name to activate the reference melody and play it.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_play_btn',
+            titleEs: 'Reproducir',
+            titleEn: 'Play',
+            bodyEs: 'Reproduce las dos notas del intervalo de forma melódica.',
+            bodyEn: 'Play the two interval notes melodically.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_play_reverse_btn',
+            titleEs: 'Descendente',
+            titleEn: 'Reverse',
+            bodyEs:
+                'Reproduce el intervalo de forma descendente (nota alta → nota baja).',
+            bodyEn:
+                'Play the interval descending (high note → low note).',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_clear_btn',
+            titleEs: 'Limpiar',
+            titleEn: 'Clear',
+            bodyEs: 'Limpia las notas activas para comenzar de nuevo.',
+            bodyEn: 'Clear active notes and start over.',
+            side: _HelpCalloutSide.left,
+          ),
+          _HelpStep(
+            id: 'interval_detection_instrument',
+            titleEs: 'Teclado interactivo',
+            titleEn: 'Interactive keyboard',
+            bodyEs:
+                'Pulsa notas para detectar intervalos (también vía MIDI). '
+                'Cada pulsación añade la nota al par; la más antigua se '
+                'descarta automáticamente.',
+            bodyEn:
+                'Press notes to detect intervals (also via MIDI). Each '
+                'press adds a note to the pair; the oldest is '
+                'automatically discarded.',
+            side: _HelpCalloutSide.top,
           ),
         ],
       6 => <_HelpStep>[
@@ -1958,8 +2098,13 @@ class _HomeScreenState extends State<HomeScreen>
   void _setHelpMode(bool enabled) {
     _helpActive = enabled && _helpAvailableForCurrentMode();
     _helpSelectedId = null;
+    _helpBannerTimer?.cancel();
     if (_helpActive) {
+      _helpBannerVisible = true;
       _helpOverlayController.repeat();
+      _helpBannerTimer = Timer(const Duration(seconds: 15), () {
+        if (mounted) setState(() => _helpBannerVisible = false);
+      });
     } else {
       _helpOverlayController.stop();
       _helpOverlayController.value = 0;
@@ -2489,6 +2634,7 @@ class _HomeScreenState extends State<HomeScreen>
     _metroTimer?.cancel();
     _metroAnimTimer?.cancel();
     _scaleLoopTimer?.cancel();
+    _helpBannerTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
     _stopHeldMidiInputs();
@@ -3520,6 +3666,21 @@ class _HomeScreenState extends State<HomeScreen>
         continue;
       }
 
+      // Metronome mode handling (tabIndex 4): el piano sigue siendo
+      // interactivo mientras suena el metrónomo, igual que con ratón/touch.
+      if (_tabIndex == 4) {
+        if (isNoteOn) {
+          setState(() => _metronomeHeldNotes.add(note));
+          if (_midiInputSoundEnabled) {
+            unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
+          }
+        } else {
+          setState(() => _metronomeHeldNotes.remove(note));
+          _releaseHeldMidiInputNote(note);
+        }
+        continue;
+      }
+
       // Scale mode handling (tabIndex 3): show forbidden on non-scale MIDI notes
       if (_tabIndex == 3 && isNoteOn && _generatedScaleJson != null) {
         final scaleNotes = _scaleRhNotes();
@@ -3596,6 +3757,10 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _disableMidiInput() async {
     _midiInputEnabled = false;
     _midiError = '';
+    // El botón "Salida MIDI/Audio" solo es visible con MIDI activado; si se
+    // queda en 'midi' al desactivar el toggle, la app se queda sin sonido
+    // (no hay dispositivo MIDI ni tampoco vuelve a sonar por el altavoz).
+    _soundOutput = 'audio';
     for (final device in _midiConnectedDevices.values.toList()) {
       try {
         _midiCommand.disconnectDevice(device);
@@ -5202,6 +5367,10 @@ class _HomeScreenState extends State<HomeScreen>
     required String instrument,
   }) async {
     _releaseHeldMidiInputNote(midi);
+    // Con salida MIDI seleccionada no reproducimos audio local para una
+    // nota que ya llega de un teclado MIDI externo — ni tampoco la
+    // reenviamos por MIDI-out, para no producir un eco de la misma nota.
+    if (_soundOutput == 'midi') return;
     final durationSeconds = Platform.isIOS
         ? (instrument == 'guitar' ? 1.6 : 2.2)
         : (instrument == 'guitar' ? 1.05 : 0.95);
@@ -5886,6 +6055,14 @@ class _HomeScreenState extends State<HomeScreen>
         return scaleLabel;
       }
     }
+    return _pcLabelCanonical(pc);
+  }
+
+  /// Nombre de nota neutro (Do, Do#, Re...), sin la ortografía diatónica de
+  /// la escala actual — para selectores que deben listar las 12 tónicas
+  /// posibles siempre igual (p. ej. no debe aparecer "Si#" en vez de "Do"
+  /// solo porque la última escala generada lo deletreaba así).
+  String _pcLabelCanonical(int pc) {
     const labelsSharpEs = <String>[
       'Do',
       'Do#',
@@ -7176,7 +7353,10 @@ class _HomeScreenState extends State<HomeScreen>
                       ? const Alignment(0, 0.36)
                       : const Alignment(0, 0.18),
                   child: IgnorePointer(
-                    child: Container(
+                    child: AnimatedOpacity(
+                      opacity: _helpBannerVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 600),
+                      child: Container(
                       constraints: const BoxConstraints(maxWidth: 520),
                       margin: const EdgeInsets.symmetric(horizontal: 24),
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -7208,6 +7388,7 @@ class _HomeScreenState extends State<HomeScreen>
                           height: 1.3,
                         ),
                       ),
+                      ),
                     ),
                   ),
                 ),
@@ -7226,7 +7407,13 @@ class _HomeScreenState extends State<HomeScreen>
                       cursor: SystemMouseCursors.help,
                       child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () => setState(() => _helpSelectedId = item.step.id),
+                        onTap: () {
+                          _helpBannerTimer?.cancel();
+                          setState(() {
+                            _helpSelectedId = item.step.id;
+                            _helpBannerVisible = false;
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -7332,21 +7519,31 @@ class _HomeScreenState extends State<HomeScreen>
     final showRightControls =
         _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3;
     final displayInstrumentView = metronomeFixedPiano ? 'piano' : _instrumentView;
-    final pianoHelpId = _tabIndex == 3
-        ? 'scales_instrument_piano'
-        : 'generation_instrument_piano';
-    final guitarHelpId = _tabIndex == 3
-        ? 'scales_instrument_guitar'
-        : 'generation_instrument_guitar';
-    final handHelpId = _tabIndex == 3
-        ? 'scales_guitar_hand'
-        : 'generation_guitar_hand';
+    final pianoHelpId = switch (_tabIndex) {
+      3 => 'scales_instrument_piano',
+      2 => 'circle_instrument_piano_btn',
+      _ => 'generation_instrument_piano',
+    };
+    final guitarHelpId = switch (_tabIndex) {
+      3 => 'scales_instrument_guitar',
+      2 => 'circle_instrument_guitar_btn',
+      _ => 'generation_instrument_guitar',
+    };
+    final handHelpId = switch (_tabIndex) {
+      3 => 'scales_guitar_hand',
+      2 => 'circle_guitar_hand',
+      _ => 'generation_guitar_hand',
+    };
+    final guitarVariantHelpId = _tabIndex == 2
+        ? 'circle_guitar_variant'
+        : 'generation_guitar_variant';
     final instrumentSurfaceHelpId = switch (_tabIndex) {
       0 => 'detection_instrument',
       1 => 'generation_instrument',
-      2 => 'generation_instrument',
+      2 => 'circle_instrument',
       3 => 'scales_instrument',
       4 => 'metronome_instrument',
+      5 => 'interval_detection_instrument',
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {
@@ -7414,7 +7611,7 @@ class _HomeScreenState extends State<HomeScreen>
                               _instrumentView == 'guitar' &&
                               chordVoicings.length > 1) ...<Widget>[
                             _helpAnchor(
-                              'generation_guitar_variant',
+                              guitarVariantHelpId,
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
@@ -7550,7 +7747,7 @@ class _HomeScreenState extends State<HomeScreen>
               _instrumentView == 'guitar') ...<Widget>[
             const SizedBox(height: 2),
             _helpAnchor(
-              'generation_guitar_variant',
+              guitarVariantHelpId,
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
@@ -9190,7 +9387,7 @@ class _HomeScreenState extends State<HomeScreen>
                       12,
                       (index) => DropdownMenuItem<int>(
                         value: index,
-                        child: Text(_pcLabel(index)),
+                        child: Text(_pcLabelCanonical(index)),
                       ),
                     ),
                     onChanged: (value) {
@@ -9590,7 +9787,9 @@ class _HomeScreenState extends State<HomeScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         // Notes display
-                        Row(
+                        _helpAnchor(
+                          'interval_notes_row',
+                          Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Text(
@@ -9608,10 +9807,13 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         // Interval name
-                        Row(
+                        _helpAnchor(
+                          'interval_name_row',
+                          Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Text(
@@ -9627,10 +9829,13 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         // Semitones
-                        Row(
+                        _helpAnchor(
+                          'interval_semitones_row',
+                          Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Text(
@@ -9647,10 +9852,13 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         // Melody name — tappable toggle
-                        Row(
+                        _helpAnchor(
+                          'interval_melody_row',
+                          Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Text(
@@ -9688,6 +9896,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ],
+                          ),
                         ),
                       ],
                     ),
@@ -9698,7 +9907,9 @@ class _HomeScreenState extends State<HomeScreen>
                     spacing: 8,
                     runSpacing: 8,
                     children: <Widget>[
-                      ElevatedButton.icon(
+                      _helpAnchor(
+                        'interval_play_btn',
+                        ElevatedButton.icon(
                         onPressed: _intervalNotes.length >= 2
                             ? () => _playIntervalMelody()
                             : null,
@@ -9709,8 +9920,11 @@ class _HomeScreenState extends State<HomeScreen>
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: _panelA,
                         ),
+                        ),
                       ),
-                      ElevatedButton.icon(
+                      _helpAnchor(
+                        'interval_play_reverse_btn',
+                        ElevatedButton.icon(
                         onPressed: _intervalNotes.length >= 2 && !_intervalMelodyMode
                             ? () => _playIntervalMelody(reversed: true)
                             : null,
@@ -9721,10 +9935,14 @@ class _HomeScreenState extends State<HomeScreen>
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: _panelA,
                         ),
+                        ),
                       ),
-                      OutlinedButton(
+                      _helpAnchor(
+                        'interval_clear_btn',
+                        OutlinedButton(
                         onPressed: _intervalNotes.isEmpty ? null : _clearIntervalNotes,
                         child: Text(_ui('Limpiar', 'Clear')),
+                        ),
                       ),
                     ],
                   ),
@@ -10494,8 +10712,30 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // General MIDI: 0 = Acoustic Grand Piano, 25 = Steel String Guitar. Sin un
+  // Program Change el dispositivo receptor se queda con el timbre por
+  // defecto (normalmente piano) aunque la app esté mostrando la guitarra.
+  static const int _kMidiOutProgramPiano = 0;
+  static const int _kMidiOutProgramGuitar = 25;
+
+  void _ensureMidiOutProgram(int program) {
+    if (_midiOutProgram == program) return;
+    try {
+      _midiCommand.sendData(
+        Uint8List.fromList(<int>[0xC0, program & 0x7F]),
+      );
+      _midiOutProgram = program;
+    } catch (_) {}
+  }
+
   /// Send a MIDI note_on (0x90) message to all connected MIDI devices.
+  /// Envía primero un Program Change si el instrumento visible ha cambiado
+  /// (piano/guitarra), para que el dispositivo receptor use el timbre
+  /// correcto en vez de quedarse con el que tuviera por defecto.
   void _sendMidiNoteOn(int midiNote, int velocity) {
+    _ensureMidiOutProgram(
+      _instrumentView == 'guitar' ? _kMidiOutProgramGuitar : _kMidiOutProgramPiano,
+    );
     try {
       _midiCommand.sendData(
         Uint8List.fromList(<int>[0x90, midiNote & 0x7F, velocity & 0x7F]),
@@ -10565,6 +10805,8 @@ class _HomeScreenState extends State<HomeScreen>
         'melodic minor': 'melodic_minor',
         'major pentatonic': 'major',
         'minor pentatonic': 'natural_minor',
+        'whole tone (wt)': 'whole_tone',
+        'minor blues': 'minor_blues',
       };
       final rawName = _scalePatternName.toLowerCase();
       final scaleType = nameMap[rawName] ?? rawName.replaceAll(' ', '_');

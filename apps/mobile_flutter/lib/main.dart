@@ -3685,7 +3685,7 @@ class _HomeScreenState extends State<HomeScreen>
         if (isNoteOn) {
           _addIntervalNote(note);
           if (_midiInputSoundEnabled) {
-            unawaited(playNote(note, instrument: 'piano'));
+            unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
           }
         }
         continue;

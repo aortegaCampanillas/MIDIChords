@@ -2318,7 +2318,21 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             content: SizedBox(
               width: 420,
-              child: Column(
+              child: ConstrainedBox(
+                // Misma reserva fija que en el diálogo de Novedades: título +
+                // padding + acciones no caben en pantallas bajas (landscape
+                // de iPhone) si el contenido no tiene un alto máximo propio.
+                constraints: BoxConstraints(
+                  maxHeight: math.max(
+                    160.0,
+                    math.min(
+                      420.0,
+                      MediaQuery.of(context).size.height - 220.0,
+                    ),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   DropdownButtonFormField<String>(
@@ -2397,6 +2411,8 @@ class _HomeScreenState extends State<HomeScreen>
                     },
                   ),
                 ],
+                  ),
+                ),
               ),
             ),
             actions: <Widget>[

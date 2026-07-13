@@ -6186,9 +6186,18 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _inversionLabel(int inversion, {bool compact = false}) {
     if (inversion == 0) {
-      return compact ? 'Fundamental' : 'Posición fundamental';
+      return compact
+          ? _ui('Fundamental', 'Root')
+          : _ui('Posición fundamental', 'Root position');
     }
-    return '$inversionª inversión';
+    final names = _language == 'en' ? _kInversionNamesEn : _kInversionNamesEs;
+    if (inversion < names.length) {
+      final name = names[inversion];
+      return _language == 'en'
+          ? '${name[0].toUpperCase()}${name.substring(1)}'
+          : name;
+    }
+    return _ui('$inversionª inversión', 'Inversion $inversion');
   }
 
   void _metronomeTick() {
@@ -6893,7 +6902,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           )),
           _helpAnchor('settings', IconButton(
-            tooltip: 'Configuración',
+            tooltip: _ui('Configuración', 'Settings'),
             onPressed: _openSettingsPanel,
             icon: const Icon(Icons.settings),
           )),
@@ -7176,6 +7185,7 @@ class _HomeScreenState extends State<HomeScreen>
 	                            motionProgress: _metronomeMotionProgress(),
 	                            timerEnabled: _metroTimerEnabled,
 	                            timerRemaining: _metroRemaining,
+	                            idleLabel: _ui('Pulsa Play para iniciar', 'Press Play to start'),
 	                          ),
 	                          child: const SizedBox.expand(),
 	                        ),
@@ -7629,7 +7639,7 @@ class _HomeScreenState extends State<HomeScreen>
                             width: 140,
                             child: _helpAnchor(
                               guitarHelpId,
-                              _instToggle('guitar', 'Guitarra'),
+                              _instToggle('guitar', _ui('Guitarra', 'Guitar')),
                             ),
                           ),
                           if ((_tabIndex == 1 || _tabIndex == 2) &&
@@ -7671,18 +7681,18 @@ class _HomeScreenState extends State<HomeScreen>
                                   initialValue: _guitarHandedness,
                                   dropdownColor: _surfaceDark,
                                   style: const TextStyle(color: _text),
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     isDense: true,
-                                    labelText: 'Mano',
+                                    labelText: _ui('Mano', 'Hand'),
                                   ),
-                                  items: const <DropdownMenuItem<String>>[
+                                  items: <DropdownMenuItem<String>>[
                                     DropdownMenuItem<String>(
                                       value: 'right',
-                                      child: Text('Diestro'),
+                                      child: Text(_ui('Diestro', 'Right-handed')),
                                     ),
                                     DropdownMenuItem<String>(
                                       value: 'left',
-                                      child: Text('Zurdo'),
+                                      child: Text(_ui('Zurdo', 'Left-handed')),
                                     ),
                                   ],
                                   onChanged: (value) {
@@ -7727,7 +7737,7 @@ class _HomeScreenState extends State<HomeScreen>
                               const SizedBox(height: 8),
                               _helpAnchor(
                                 guitarHelpId,
-                                _instToggle('guitar', 'Guitarra'),
+                                _instToggle('guitar', _ui('Guitarra', 'Guitar')),
                               ),
                               if (_instrumentView == 'guitar') ...<Widget>[
                                 const SizedBox(height: 8),
@@ -7738,18 +7748,18 @@ class _HomeScreenState extends State<HomeScreen>
                                     initialValue: _guitarHandedness,
                                     dropdownColor: _surfaceDark,
                                     style: const TextStyle(color: _text),
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       isDense: true,
-                                      labelText: 'Mano',
+                                      labelText: _ui('Mano', 'Hand'),
                                     ),
-                                    items: const <DropdownMenuItem<String>>[
+                                    items: <DropdownMenuItem<String>>[
                                       DropdownMenuItem<String>(
                                         value: 'right',
-                                        child: Text('Diestro'),
+                                        child: Text(_ui('Diestro', 'Right-handed')),
                                       ),
                                       DropdownMenuItem<String>(
                                         value: 'left',
-                                        child: Text('Zurdo'),
+                                        child: Text(_ui('Zurdo', 'Left-handed')),
                                       ),
                                     ],
                                     onChanged: (value) {
@@ -11728,6 +11738,7 @@ class _MiniMetronomePainter extends CustomPainter {
     required this.motionProgress,
     required this.timerEnabled,
     required this.timerRemaining,
+    required this.idleLabel,
   });
 
   final int beatsPerBar;
@@ -11738,6 +11749,7 @@ class _MiniMetronomePainter extends CustomPainter {
   final double motionProgress;
   final bool timerEnabled;
   final Duration timerRemaining;
+  final String idleLabel;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -11847,9 +11859,9 @@ class _MiniMetronomePainter extends CustomPainter {
       );
     } else if (!running) {
       final idle = TextPainter(
-        text: const TextSpan(
-          text: 'Pulsa Play para iniciar',
-          style: TextStyle(
+        text: TextSpan(
+          text: idleLabel,
+          style: const TextStyle(
             color: Color(0xFF8090A8),
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -11870,6 +11882,7 @@ class _MiniMetronomePainter extends CustomPainter {
         oldDelegate.direction != direction ||
         oldDelegate.timerEnabled != timerEnabled ||
         oldDelegate.timerRemaining.inSeconds != timerRemaining.inSeconds ||
+        oldDelegate.idleLabel != idleLabel ||
         (oldDelegate.motionProgress - motionProgress).abs() > 0.001;
   }
 }

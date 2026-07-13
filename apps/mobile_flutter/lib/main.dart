@@ -7797,8 +7797,11 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(width: 8),
                   Text(
                     chordVoicings.isEmpty
-                        ? 'Variante 0/0'
-                        : 'Variante ${safeVariant + 1}/${chordVoicings.length}',
+                        ? _ui('Variante 0/0', 'Variant 0/0')
+                        : _ui(
+                            'Variante ${safeVariant + 1}/${chordVoicings.length}',
+                            'Variant ${safeVariant + 1}/${chordVoicings.length}',
+                          ),
                     style: const TextStyle(
                       color: _muted,
                       fontWeight: FontWeight.w700,

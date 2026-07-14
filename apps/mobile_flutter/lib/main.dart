@@ -1046,7 +1046,8 @@ class _HomeScreenState extends State<HomeScreen>
   final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
   final Set<int> _detectionMidiHeldNotes = <int>{};
   final Set<int> _detectionPlayHeldNotes = <int>{};
-  final Set<int> _generationMidiHeldNotes = <int>{};  // MIDI notes held in chord generation mode
+  final Set<int> _generationMidiHeldNotes = <int>{};
+  final Set<int> _scaleMidiHeldNotes = <int>{};
   bool _midiInputEnabled = false;
   String _midiError = '';
   /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
@@ -1197,15 +1198,23 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<_HelpStep> _helpStepsForCurrentMode() {
+    final modeSelectBodyEs = _kEnableMobileTuner
+        ? 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
+              'generacion, circulo de quintas, escalas, metronomo y afinador.'
+        : 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
+              'generacion, circulo de quintas, escalas y metronomo.';
+    final modeSelectBodyEn = _kEnableMobileTuner
+        ? 'Switch between chord detection, interval detection, generation, '
+              'circle of fifths, scales, metronome, and tuner here.'
+        : 'Switch between chord detection, interval detection, generation, '
+              'circle of fifths, scales, and metronome here.';
     final common = <_HelpStep>[
       _HelpStep(
         id: 'mode_select',
         titleEs: 'Selector de modo',
         titleEn: 'Mode selector',
-        bodyEs:
-            'Aqui cambias entre deteccion, generacion, circulo de quintas, escalas, metronomo y afinador.',
-        bodyEn:
-            'Switch between detection, generation, circle of fifths, scales, metronome, and tuner here.',
+        bodyEs: modeSelectBodyEs,
+        bodyEn: modeSelectBodyEn,
         highlightPadding: 4,
       ),
       _HelpStep(
@@ -1531,9 +1540,16 @@ class _HomeScreenState extends State<HomeScreen>
             titleEs: 'Circulo de quintas',
             titleEn: 'Circle of fifths',
             bodyEs:
-                'Toca un sector para elegir un acorde diatonico. Manten pulsado: anillo exterior = tonica mayor; interior = modo menor relativo.',
+                'Toca el anillo: elige un acorde diatónico (triada sobre un '
+                'grado de la escala); no cambia la tónica. Mantén pulsado: '
+                'fija la tónica y la tonalidad (mayor en el exterior, menor '
+                'natural relativa en el interior; misma armadura).',
             bodyEn:
-                'Tap a sector to pick a diatonic chord. Long-press: outer ring = major tonic; inner = relative minor.',
+                'Tap: choose a diatonic chord—a triad on a scale degree '
+                '(major, minor, or diminished); does not change the tonic. '
+                'Long-press: sets the tonic and key (major on the outer '
+                'ring, relative natural minor on the inner; same key '
+                'signature).',
             side: _HelpCalloutSide.left,
           ),
           _HelpStep(
@@ -2448,6 +2464,7 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
+    _needsPianoScrollSync = true;
     _initMidiInput();
     unawaited(_initPlatformAudioWorkarounds());
     unawaited(_loadPrefsAndStart());
@@ -3671,13 +3688,14 @@ class _HomeScreenState extends State<HomeScreen>
       if (!isNoteOn && !isNoteOff) continue;
       hadNoteChannelMessage = true;
 
-      // Track held notes for MIDI highlighting in generation mode (tabIndex 1 or 2)
+      // Generation / Circle of fifths mode handling (tabIndex 1 or 2): mismo
+      // resaltado/aviso de nota prohibida que con dedo/ratón, sin reenviar
+      // por MIDI-out la nota que ya llega de un teclado MIDI externo.
       if (_tabIndex == 1 || _tabIndex == 2) {
-        if (isNoteOn) {
-          _generationMidiHeldNotes.add(note);
-        } else {
-          _generationMidiHeldNotes.remove(note);
-        }
+        unawaited(
+          _handleInstrumentNote(note, pressed: isNoteOn, fromMidi: true),
+        );
+        continue;
       }
 
       // Interval detection mode handling (tabIndex 5)
@@ -3706,13 +3724,12 @@ class _HomeScreenState extends State<HomeScreen>
         continue;
       }
 
-      // Scale mode handling (tabIndex 3): show forbidden on non-scale MIDI notes
-      if (_tabIndex == 3 && isNoteOn && _generatedScaleJson != null) {
-        final scaleNotes = _scaleRhNotes();
-        final scalePcs = scaleNotes.map((n) => n % 12).toSet();
-        if (scalePcs.isNotEmpty && !scalePcs.contains(note % 12)) {
-          _showForbiddenOnPiano(note);
-        }
+      // Scale mode handling (tabIndex 3): mismo resaltado/aviso de nota
+      // prohibida que con dedo/ratón, sin reenviar por MIDI-out.
+      if (_tabIndex == 3 && _generatedScaleJson != null) {
+        unawaited(
+          _handleInstrumentNote(note, pressed: isNoteOn, fromMidi: true),
+        );
         continue;
       }
 
@@ -3793,6 +3810,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
     _midiConnectedDevices.clear();
     _detectionMidiHeldNotes.clear();
+    _generationMidiHeldNotes.clear();
+    _scaleMidiHeldNotes.clear();
     _stopHeldMidiInputs();
     _cancelMidiScreenActivityExtension();
     if (mounted) setState(() {});
@@ -3917,7 +3936,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (_tabIndex == 3 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
-      final notes = <int>{...rh};
+      final notes = <int>{...rh, ..._scaleMidiHeldNotes};
       if (_scaleCurrentNote != null) notes.add(_scaleCurrentNote!);
       if (_instrumentView == 'piano' && _scaleInputRawNote != null) {
         notes.add(_scaleInputRawNote!);
@@ -3930,26 +3949,13 @@ class _HomeScreenState extends State<HomeScreen>
   int? _generationStaffNoteForPitch(int note, {required bool includeBass}) {
     if (_generatedChordJson == null) return null;
     if (_instrumentView == 'guitar') {
-      final selected = _selectedChordGuitarNotes().toList()..sort();
-      if (selected.isNotEmpty) {
-        final display = selected.map((n) => n + 12).toList()..sort();
-        display[0] -= 12;
-        final exactIndex = selected.indexOf(note);
-        if (exactIndex != -1 && exactIndex < display.length) {
-          return display[exactIndex];
-        }
-        final pc = _positiveMod12(note);
-        final samePc = <int>[];
-        for (int i = 0; i < selected.length; i += 1) {
-          if (_positiveMod12(selected[i]) == pc && i < display.length) {
-            samePc.add(display[i]);
-          }
-        }
-        if (samePc.isNotEmpty) {
-          samePc.sort((a, b) => (a - (note + 12)).abs().compareTo((b - (note + 12)).abs()));
-          return samePc.first;
-        }
-      }
+      // Devolvemos la nota real del voicing seleccionado tal cual: la
+      // transposición para que se lea en el registro habitual de guitarra
+      // (+12) ya la aplica _buildStaffPanel (vía staffMidi/guitarDisplayVoicing)
+      // de forma uniforme a todas las notas del pentagrama; aplicarla aquí
+      // también duplicaba el desplazamiento y descolocaba las notas.
+      final selected = _selectedChordGuitarNotes();
+      if (selected.contains(note)) return note;
     }
     final rh = _extractMidiList(_generatedChordJson!, <String>['notes_midi']);
     final lh = includeBass
@@ -4125,7 +4131,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _scaleRhNotes() {
     final base = _scaleBaseNotes();
-    if (base.isEmpty || _scaleOctaves <= 1) return base;
+    // En guitarra el selector de octavas no aplica: el diapasón/pentagrama
+    // siempre muestran una sola octava, independientemente de lo elegido
+    // para piano.
+    if (base.isEmpty || _scaleOctaves <= 1 || _instrumentView == 'guitar') {
+      return base;
+    }
     final result = <int>{...base};
     if (_scaleOctaves >= 2) {
       result.addAll(base.map((n) => n - 12).where((n) => n >= _kPianoLowMidi));
@@ -4931,7 +4942,11 @@ class _HomeScreenState extends State<HomeScreen>
     _generationPianoHighlightMidi = null;
   }
 
-  Future<void> _handleInstrumentNote(int midi, {required bool pressed}) async {
+  Future<void> _handleInstrumentNote(
+    int midi, {
+    required bool pressed,
+    bool fromMidi = false,
+  }) async {
     if (_tabIndex == 5) {
       if (!pressed) return;
       _addIntervalNote(midi);
@@ -4985,17 +5000,45 @@ class _HomeScreenState extends State<HomeScreen>
         midi,
         includeBass: _instrumentView != 'guitar',
       );
-      if (staffNote != null) {
-        _generationInputStaffNotes
-          ..clear()
-          ..add(staffNote);
+      if (fromMidi) {
+        // Con MIDI puede haber varias notas sostenidas a la vez (acorde real
+        // en el teclado externo): se acumulan en el pentagrama y en el
+        // teclado en vez de usar el highlight de una sola nota pensado para
+        // el toque con dedo/ratón (que solo tiene un puntero activo a la
+        // vez). Al soltar una nota, solo se retira esa, no todo el Set.
+        setState(() {
+          if (pressed) {
+            _generationMidiHeldNotes.add(midi);
+            if (staffNote != null) _generationInputStaffNotes.add(staffNote);
+          } else {
+            _generationMidiHeldNotes.remove(midi);
+            if (staffNote != null) {
+              _generationInputStaffNotes.remove(staffNote);
+            }
+          }
+        });
+      } else {
+        if (staffNote != null) {
+          _generationInputStaffNotes
+            ..clear()
+            ..add(staffNote);
+        }
+        if (_instrumentView == 'piano') {
+          _bumpGenerationPianoHighlight(midi);
+        } else if (staffNote != null) {
+          setState(() {});
+        }
       }
-      if (_instrumentView == 'piano') {
-        _bumpGenerationPianoHighlight(midi);
-      } else if (staffNote != null) {
-        setState(() {});
-      }
-      if (pressed) {
+      if (fromMidi) {
+        if (pressed) {
+          await _startHeldMidiInputNote(
+            midi,
+            instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+          );
+        } else {
+          _releaseHeldMidiInputNote(midi);
+        }
+      } else if (pressed) {
         await _startHeldInputNote(
           midi,
           instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
@@ -5045,24 +5088,52 @@ class _HomeScreenState extends State<HomeScreen>
         _showForbiddenOnPiano(midi);
         return;
       }
-      if (_instrumentView == 'piano') {
-        final picked = _scaleStaffSelectionForPiano(midi);
-        if (picked != null) {
-          _scaleCurrentNote = picked.key;
-          _scaleCurrentIsLeft = picked.value;
+      if (pressed) {
+        if (_instrumentView == 'piano') {
+          final picked = _scaleStaffSelectionForPiano(midi);
+          if (picked != null) {
+            _scaleCurrentNote = picked.key;
+            _scaleCurrentIsLeft = picked.value;
+          } else {
+            _scaleCurrentNote =
+                _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+            _scaleCurrentIsLeft = null;
+          }
         } else {
           _scaleCurrentNote =
               _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
           _scaleCurrentIsLeft = null;
         }
-      } else {
-        _scaleCurrentNote =
-            _scaleStaffNoteForPitch(midi, includeBass: true) ?? midi;
+        _scaleInputRawNote = _instrumentView == 'piano' ? midi : null;
+      } else if (fromMidi && _scaleCurrentNote == midi) {
+        // Al soltar en MIDI la nota que estaba marcada como "actual", no la
+        // dejamos pegada: si quedan otras notas sostenidas, el pentagrama
+        // seguirá mostrando la escala completa igualmente.
+        _scaleCurrentNote = null;
         _scaleCurrentIsLeft = null;
+        _scaleInputRawNote = null;
       }
-      _scaleInputRawNote = _instrumentView == 'piano' ? midi : null;
+      if (fromMidi) {
+        // Igual que en Generación: con MIDI puede haber varias notas
+        // sostenidas a la vez, así que se acumulan en un Set en vez de la
+        // única "nota actual" que usa el resto de la pantalla de Escalas.
+        if (pressed) {
+          _scaleMidiHeldNotes.add(midi);
+        } else {
+          _scaleMidiHeldNotes.remove(midi);
+        }
+      }
       setState(() {});
-      if (pressed) {
+      if (fromMidi) {
+        if (pressed) {
+          await _startHeldMidiInputNote(
+            midi,
+            instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+          );
+        } else {
+          _releaseHeldMidiInputNote(midi);
+        }
+      } else if (pressed) {
         await _startHeldInputNote(
           midi,
           instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
@@ -5191,16 +5262,23 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_needsPianoScrollSync) return;
     _needsPianoScrollSync = false;
 
-    void attempt(int retriesLeft) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    void attempt(int retriesLeft, double lastMaxExt) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted || !_pianoScrollController.hasClients) return;
         final maxExt = _pianoScrollController.position.maxScrollExtent;
-        if (maxExt <= 0) {
-          // El layout puede tardar un frame extra en asentarse tras un
-          // cambio de altura (p. ej. al activar/desactivar la digitación,
-          // que añade/quita las tiras encima del piano). Reintentar evita
-          // que el scroll se quede en 0 y desalinee las tiras del teclado.
-          if (retriesLeft > 0) attempt(retriesLeft - 1);
+        // El layout puede tardar varios frames en asentarse tras un cambio
+        // de altura (p. ej. al activar/desactivar la digitación, que añade
+        // o quita las tiras encima del piano) o simplemente en el primer
+        // frame tras abrir la app. Reintentamos no solo cuando maxExt es 0,
+        // sino también mientras siga cambiando de un intento a otro: un
+        // valor positivo pero todavía provisional produce un centrado
+        // desviado (el clamp corta el scroll antes de llegar al centro
+        // real una vez el layout termina de crecer).
+        if (maxExt <= 0 || (retriesLeft > 0 && maxExt != lastMaxExt)) {
+          if (retriesLeft > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 32));
+            attempt(retriesLeft - 1, maxExt);
+          }
           return;
         }
         final int anchorMidi;
@@ -5222,7 +5300,7 @@ class _HomeScreenState extends State<HomeScreen>
       });
     }
 
-    attempt(5);
+    attempt(8, -1.0);
   }
 
   void _stopHeldChord() {
@@ -5298,40 +5376,46 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     if (Platform.isAndroid && chordNotes.length > 1) {
-      await _playAndroidSynthChord(
-        notes: chordNotes,
-        instrument: instrument,
-        durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
-        volume: 0.92,
+      // No paramos aquí el resaltado: playChord en nativo devuelve el
+      // control casi al instante (solo agenda el audio), muy antes de que
+      // termine de sonar, así que parar aquí borraría el resaltado nada
+      // más empezar. El temporizador de _scheduleHeldChordPlaybackAutoClear
+      // ya se encarga de limpiarlo cuando el acorde termina de sonar.
+      unawaited(
+        _playAndroidSynthChord(
+          notes: chordNotes,
+          instrument: instrument,
+          durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
+          volume: 0.92,
+        ),
       );
-      if (mounted) {
-        _stopHeldChord();
-        setState(() {});
-      }
       return;
     }
     if (Platform.isIOS) {
       final volume = (0.92 * (instrument == 'piano' ? 0.72 : 0.82)).clamp(0.0, 1.0);
+      // Igual que en Android: no paramos el resaltado aquí, el temporizador
+      // de _scheduleHeldChordPlaybackAutoClear ya lo hace cuando el acorde
+      // termina de sonar de verdad.
       if (chordNotes.length > 1) {
-        await _playIosSynthChord(
-          notes: chordNotes,
-          instrument: instrument,
-          durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
-              .round(),
-          volume: volume,
+        unawaited(
+          _playIosSynthChord(
+            notes: chordNotes,
+            instrument: instrument,
+            durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
+                .round(),
+            volume: volume,
+          ),
         );
       } else {
-        await _playIosSynthTone(
-          midi: chordNotes.first,
-          instrument: instrument,
-          durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
-              .round(),
-          volume: volume,
+        unawaited(
+          _playIosSynthTone(
+            midi: chordNotes.first,
+            instrument: instrument,
+            durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000)
+                .round(),
+            volume: volume,
+          ),
         );
-      }
-      if (mounted) {
-        _stopHeldChord();
-        setState(() {});
       }
       return;
     }
@@ -6653,10 +6737,6 @@ class _HomeScreenState extends State<HomeScreen>
         if (mounted) {
           setState(() {
             _tabIndex = currentTab;
-            // Clean up held notes if exiting generation mode
-            if (!(_tabIndex == 1 || _tabIndex == 2)) {
-              _generationMidiHeldNotes.clear();
-            }
           });
           if (currentTab != 0) {
             _cancelMidiScreenActivityExtension();
@@ -6777,6 +6857,12 @@ class _HomeScreenState extends State<HomeScreen>
                           _generationPlayPressed = false;
                           if (value != 0) {
                             _detectionMidiHeldNotes.clear();
+                          }
+                          if (value != 1 && value != 2) {
+                            _generationMidiHeldNotes.clear();
+                          }
+                          if (value != 3) {
+                            _scaleMidiHeldNotes.clear();
                           }
                           if (value == 0 && !_requestInFlight) {
                             unawaited(_callDetect());
@@ -7057,10 +7143,7 @@ class _HomeScreenState extends State<HomeScreen>
     };
     final guitarStaffMode =
         _instrumentView == 'guitar' &&
-        (_tabIndex == 0 ||
-            _tabIndex == 1 ||
-            _tabIndex == 2 ||
-            _tabIndex == 3);
+        (_tabIndex == 0 || _tabIndex == 1 || _tabIndex == 2);
     int staffMidi(int midi) => guitarStaffMode ? midi + 12 : midi;
     List<int> guitarDisplayVoicing(Iterable<int> source, {bool lowerBass = false}) {
       final mapped = source.map(staffMidi).toList()..sort();
@@ -7851,6 +7934,12 @@ class _HomeScreenState extends State<HomeScreen>
             _generationPlayPressed = false;
           }
           _instrumentView = key;
+          if (_tabIndex == 3) {
+            // _scaleRhNotes() fuerza 1 octava en guitarra; al volver a
+            // piano hay que recalcular la digitación con las octavas
+            // realmente seleccionadas, si no se queda con solo 1 octava.
+            _updateScaleFingeringsMap();
+          }
         });
       },
       child: FittedBox(
@@ -8179,13 +8268,16 @@ class _HomeScreenState extends State<HomeScreen>
                       final isExtra = extras.contains(midi);
                       final isScaleCurrent =
                           _tabIndex == 3 &&
-                          _scaleCurrentNote != null &&
-                          _scaleCurrentNote == midi;
+                          ((_scaleCurrentNote != null &&
+                                  _scaleCurrentNote == midi) ||
+                              _scaleMidiHeldNotes.contains(midi));
                       final rh = rhFinger[midi];
                       final lh = lhFinger[midi];
                       final genKeyHi = chordGenPiano &&
                           _generatedChordJson != null &&
-                          _generationPianoHighlightMidi == midi;
+                          (_generationPianoHighlightMidi == midi ||
+                              _generationMidiHeldNotes.contains(midi) ||
+                              _heldChordNativeNotes.contains(midi));
                       final inChordRh = chordRhSet.contains(midi);
                       final inChordLhOnly =
                           chordLhSet.contains(midi) && !chordRhSet.contains(midi);
@@ -8342,7 +8434,9 @@ class _HomeScreenState extends State<HomeScreen>
                         final lh = lhFinger[midi];
                         final genKeyHi = chordGenPiano &&
                             _generatedChordJson != null &&
-                            _generationPianoHighlightMidi == midi;
+                            (_generationPianoHighlightMidi == midi ||
+                              _generationMidiHeldNotes.contains(midi) ||
+                              _heldChordNativeNotes.contains(midi));
                         final inChordRh = chordRhSet.contains(midi);
                         final inChordLhOnly =
                             chordLhSet.contains(midi) && !chordRhSet.contains(midi);
@@ -8719,6 +8813,13 @@ class _HomeScreenState extends State<HomeScreen>
                         : activePcs.contains(note % 12);
                     final isExtra = extraPcs.contains(note % 12);
                     final showDot = detectionMode || active;
+                    final isPlaying = active &&
+                        (chordMode
+                            ? _heldChordNativeNotes.contains(note)
+                            : (_tabIndex == 3 &&
+                                ((_scaleCurrentNote != null &&
+                                        _scaleCurrentNote == note) ||
+                                    _scaleMidiHeldNotes.contains(note))));
                     return Positioned(
                       left: x,
                       top: y,
@@ -8756,7 +8857,9 @@ class _HomeScreenState extends State<HomeScreen>
                             color: active
                                 ? (isExtra
                                       ? const Color(0xFFE04A4A)
-                                      : const Color(0xFFF3BF2F))
+                                      : (isPlaying
+                                            ? const Color(0xFFCC9200)
+                                            : const Color(0xFFF3BF2F)))
                                 : (showDot
                                       ? const Color(0xFFE5E7EB)
                                       : Colors.transparent),
@@ -8767,6 +8870,7 @@ class _HomeScreenState extends State<HomeScreen>
                                               ? const Color(0xFFB33434)
                                               : const Color(0xFFD29B20))
                                         : const Color(0xFFAAB1BC),
+                                    width: isPlaying ? 2.5 : 1.0,
                                   )
                                 : null,
                           ),
@@ -8780,18 +8884,26 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                 )
                               : (showDot
-                                    ? Text(
-                                        active
-                                            ? _pcLabel(note % 12)
-                                            : (detectionMode ? '•' : ''),
-                                        style: TextStyle(
-                                          color: active
-                                              ? (isExtra
-                                                    ? const Color(0xFFFCECEC)
-                                                    : const Color(0xFF1A222D))
-                                              : const Color(0xFF7D8797),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(2),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            active
+                                                ? _pcLabel(note % 12)
+                                                : (detectionMode ? '•' : ''),
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            style: TextStyle(
+                                              color: active
+                                                  ? (isExtra
+                                                        ? const Color(0xFFFCECEC)
+                                                        : const Color(0xFF1A222D))
+                                                  : const Color(0xFF7D8797),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
                                         ),
                                       )
                                     : null),
@@ -10894,9 +11006,6 @@ class _HomeScreenState extends State<HomeScreen>
     return Map<int, int>.from(_scaleFingeringsMap);
   }
 
-  /// Get MIDI notes held for highlighting in generation
-  Set<int> getGenerationMidiHeldNotes() => Set<int>.from(_generationMidiHeldNotes);
-
   // Interval detection methods
   void _addIntervalNote(int midiNote) {
     setState(() {
@@ -11189,6 +11298,7 @@ class _MiniStaffPainter extends CustomPainter {
     if (intervalMelodyMode && intervalMelodyNotes.isNotEmpty) {
       _drawIntervalMelody(canvas, trebleTop, bassTop, gap, noteStartX, right, noteW, noteH);
     } else if (scaleRhNotes.isNotEmpty) {
+      final noteFill = Paint()..style = PaintingStyle.fill;
       final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
       for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
         final x = noteStartX + (degree * scaleStepX);
@@ -11211,10 +11321,16 @@ class _MiniStaffPainter extends CustomPainter {
             treble: false,
             color: noteOutline.color,
           );
-          canvas.drawOval(
-            Rect.fromCenter(center: Offset(x, yBass), width: noteW, height: noteH),
-            noteOutline,
+          final bassRect = Rect.fromCenter(
+            center: Offset(x, yBass),
+            width: noteW,
+            height: noteH,
           );
+          if (currentBass) {
+            noteFill.color = const Color(0xFFFF8A2B);
+            canvas.drawOval(bassRect, noteFill);
+          }
+          canvas.drawOval(bassRect, noteOutline);
         }
         final trebleMidi = scaleRhNotes[degree];
         final yTreble = _midiToTrebleY(trebleMidi.toDouble(), trebleTop, gap);
@@ -11234,6 +11350,17 @@ class _MiniStaffPainter extends CustomPainter {
           treble: true,
           color: noteOutline.color,
         );
+        if (currentTreble) {
+          noteFill.color = const Color(0xFF4DA3EA);
+          canvas.drawOval(
+            Rect.fromCenter(
+              center: Offset(x, yTreble),
+              width: noteW,
+              height: noteH,
+            ),
+            noteFill,
+          );
+        }
         canvas.drawOval(
           Rect.fromCenter(center: Offset(x, yTreble), width: noteW, height: noteH),
           noteOutline,
@@ -11462,6 +11589,16 @@ class _MiniStaffPainter extends CustomPainter {
       final cum = ticks.sublist(0, i).fold(0, (a, b) => a + b);
       return melLeft + cum / totalTicks * availW;
     });
+    // El espaciado proporcional puro deja las notas que siguen a un
+    // tresillo (duración muy corta) pegadas a la última nota del tresillo.
+    // Forzamos una separación mínima entre notas consecutivas, empujando
+    // el resto de posiciones hacia la derecha cuando haga falta.
+    final minGap = math.max(noteW * 1.15, gap * 1.3);
+    for (int i = 1; i < n; i++) {
+      if (xPos[i] - xPos[i - 1] < minGap) {
+        xPos[i] = xPos[i - 1] + minGap;
+      }
+    }
 
     // Bar lines
     final barTicks = intervalBeatsPerBar * qt;
@@ -11482,14 +11619,20 @@ class _MiniStaffPainter extends CustomPainter {
     var tickPos = 0;
     var bgCurrent = <int>[];
     var bgBeat = 0;
+    var bgIsTreble = true;
     for (int i = 0; i < n; i++) {
       final dur = i < intervalMelodyDurations.length ? intervalMelodyDurations[i] : 'q';
       final durBase = dur.endsWith('.') ? dur.substring(0, dur.length - 1) : dur;
       final isSubQ = (durBase == 'e' || durBase == 'et' || durBase == 's') &&
           intervalMelodyNotes[i] != null;
       final beat = tickPos ~/ qt;
+      // Una nota puede estar en clave de sol o de fa; no unimos con barra
+      // notas que caen en pentagramas distintos, aunque sean corcheas
+      // consecutivas del mismo grupo rítmico (se vería como una línea
+      // cruzando de un pentagrama a otro, como una ligadura fuera de lugar).
+      final noteIsTreble = isSubQ ? (intervalMelodyNotes[i]! >= 60) : bgIsTreble;
       if (isSubQ) {
-        if (bgCurrent.isNotEmpty && beat != bgBeat) {
+        if (bgCurrent.isNotEmpty && (beat != bgBeat || noteIsTreble != bgIsTreble)) {
           if (bgCurrent.length > 1) {
             final gid = beamGroups.length;
             for (final g in bgCurrent) { beamGroupOf[g] = gid; }
@@ -11497,7 +11640,10 @@ class _MiniStaffPainter extends CustomPainter {
           }
           bgCurrent = [];
         }
-        if (bgCurrent.isEmpty) bgBeat = beat;
+        if (bgCurrent.isEmpty) {
+          bgBeat = beat;
+          bgIsTreble = noteIsTreble;
+        }
         bgCurrent.add(i);
       } else {
         if (bgCurrent.length > 1) {
@@ -11576,9 +11722,17 @@ class _MiniStaffPainter extends CustomPainter {
       }
       if (data.length < 2) continue;
       final nPrim = data.map((d) => d.flagCount).reduce(math.min);
+      final su = data.first.stemUp;
+      // Pendiente de la barra principal (une la primera y última nota del
+      // grupo): los "stubs" de las notas con más banderas (p. ej. una
+      // semicorchea junto a una corchea) deben seguir esta misma pendiente
+      // en vez de salir horizontales desde su propia plica.
+      final dx = data.last.x - data.first.x;
+      final slope = dx.abs() < 0.001
+          ? 0.0
+          : (data.last.yEnd - data.first.yEnd) / dx;
       for (int bar = 0; bar < nPrim; bar++) {
         final bOff = bar * gap * 0.3;
-        final su = data.first.stemUp;
         final y0 = su ? data.first.yEnd + bOff : data.first.yEnd - bOff;
         final y1 = su ? data.last.yEnd + bOff : data.last.yEnd - bOff;
         canvas.drawLine(Offset(data.first.x, y0), Offset(data.last.x, y1),
@@ -11593,10 +11747,15 @@ class _MiniStaffPainter extends CustomPainter {
         if (extra <= 0) continue;
         final stubDir = gi == grpLast ? -1.0 : 1.0;
         final stubW = math.max(gap * 1.2, 14.0);
+        // Punto sobre la barra principal en la X de esta nota (en vez de
+        // d.yEnd, que ignoraría la inclinación del grupo).
+        final baseY = data.first.yEnd + slope * (d.x - data.first.x);
         for (int be = 0; be < extra; be++) {
           final stubOff = (nPrim + be) * gap * 0.3;
-          final sy = d.stemUp ? d.yEnd + stubOff : d.yEnd - stubOff;
-          canvas.drawLine(Offset(d.x, sy), Offset(d.x + stubDir * stubW, sy),
+          final sy = su ? baseY + stubOff : baseY - stubOff;
+          final sxEnd = d.x + stubDir * stubW;
+          final syEnd = sy + slope * (stubDir * stubW);
+          canvas.drawLine(Offset(d.x, sy), Offset(sxEnd, syEnd),
               Paint()..color = noteColor..strokeWidth = beamW);
         }
       }

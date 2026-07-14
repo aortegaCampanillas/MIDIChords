@@ -1,5 +1,19 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- flutter_midi_command declara estas dos como required="true" por
+         defecto, lo que excluye de la Play Store cualquier dispositivo sin
+         soporte MIDI o Bluetooth LE (~18.000 dispositivos). Las marcamos
+         opcionales: en esos dispositivos la app se puede instalar igual,
+         simplemente sin la función MIDI. -->
+    <uses-feature
+        android:name="android.software.midi"
+        android:required="false"
+        tools:replace="android:required" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false"
+        tools:replace="android:required" />
     <application
         android:label="MIDI Piano &amp; Guitar Chords"
         android:name="${applicationName}"
@@ -42,6 +56,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Requerido para que url_launcher (canLaunchUrl/launchUrl) pueda
+             abrir enlaces https en el navegador desde Android 11+. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>

@@ -2517,9 +2517,13 @@ class _HomeScreenState extends State<HomeScreen>
       _changelogEntries.isNotEmpty ? (_changelogEntries.first['version'] as String? ?? '') : '';
 
   void _maybeShowChangelogPopup() {
+    // Mientras el usuario no marque "No volver a mostrar", el diálogo
+    // reaparece en cada arranque de la app (no solo la primera vez que se
+    // publica la versión) — es la única forma de que quede claro que sigue
+    // sin haberlo confirmado.
     if (_changelogDontShow) return;
     final latest = _latestChangelogVersion;
-    if (latest.isEmpty || latest == _lastSeenChangelogVersion) return;
+    if (latest.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_showChangelogDialog(fromSettings: false));
     });
@@ -2660,10 +2664,18 @@ class _HomeScreenState extends State<HomeScreen>
         },
       ),
     );
-    // Runs after dialog closes for ANY reason (button, back, tap outside)
+    // Runs after dialog closes for ANY reason (button, back, tap outside).
+    // El checkbox "No volver a mostrar" siempre se persiste tal cual lo deja
+    // el usuario (tanto al marcarlo como al desmarcarlo), incluso abriendo
+    // el diálogo desde Configuración. Solo actualizamos "última versión
+    // vista" cuando el diálogo apareció automáticamente (no desde
+    // Configuración) y el usuario marcó el check — si no lo marca, debe
+    // volver a aparecer solo en el próximo arranque, no en cada apertura.
     setState(() {
-      _lastSeenChangelogVersion = _latestChangelogVersion;
-      if (!fromSettings) _changelogDontShow = dontShowAgain;
+      _changelogDontShow = dontShowAgain;
+      if (!fromSettings && dontShowAgain) {
+        _lastSeenChangelogVersion = _latestChangelogVersion;
+      }
     });
     await _savePrefs();
   }
@@ -7003,20 +7015,26 @@ class _HomeScreenState extends State<HomeScreen>
             colors: <Color>[_bgTop, _bgBottom],
           ),
         ),
-        child: Column(children: <Widget>[
-          if (_midiInputEnabled && _midiError.isNotEmpty)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFF3A1414),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                _midiError,
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
+        // SafeArea solo abajo: en Android con navegación por gestos, el
+        // contenido final de cada pantalla (p.ej. el selector de variante
+        // de acorde) quedaba tapado por la barra de gestos del sistema.
+        child: SafeArea(
+          top: false,
+          child: Column(children: <Widget>[
+            if (_midiInputEnabled && _midiError.isNotEmpty)
+              Container(
+                width: double.infinity,
+                color: const Color(0xFF3A1414),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  _midiError,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-          Expanded(child: pages[currentTab]),
-        ]),
+            Expanded(child: pages[currentTab]),
+          ]),
+        ),
       ),
     ),
         if (_helpActive) _buildHelpOverlay(),
@@ -7189,10 +7207,23 @@ class _HomeScreenState extends State<HomeScreen>
             _generationInputStaffNotes.isNotEmpty);
     final displayGenerationPlayingNotes = (_tabIndex == 1 || _tabIndex == 2)
         ? (generationPlaybackActive
-              ? guitarDisplayVoicing(
-                  _generationPlayingNotesForStaff(),
-                  lowerBass: lowerGuitarBass,
-                ).toSet()
+              // No usamos lowerBass tal cual (que baja el índice [0] del
+              // propio conjunto resaltado): con una sola nota tocada con el
+              // dedo, ese conjunto tiene un solo elemento y "el más grave"
+              // sería siempre esa nota suelta, desplazándola mal. En su
+              // lugar, comparamos contra la nota que SÍ se bajó una octava
+              // en el voicing completo (displayNotes) y aplicamos el mismo
+              // desplazamiento solo si es esa nota concreta la que suena.
+              ? guitarDisplayVoicing(_generationPlayingNotesForStaff())
+                    .map((n) {
+                      if (lowerGuitarBass &&
+                          displayNotes.isNotEmpty &&
+                          n == displayNotes[0] + 12) {
+                        return n - 12;
+                      }
+                      return n;
+                    })
+                    .toSet()
               : <int>{})
         : const <int>{};
     final displayScaleRhNotes = _tabIndex == 3

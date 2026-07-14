@@ -1,8 +1,50 @@
 [
   {
     "version": "v1.0.4",
-    "date": "2026-07-12",
+    "date": "2026-07-14",
     "items": [
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Se corrige que al conectar un piano/teclado MIDI por USB el sonido sintetizado se silenciaba o distorsionaba; ahora suena correctamente por el altavoz del dispositivo.",
+        "en": "Fixed audio being silenced or distorted when a USB-MIDI keyboard/piano is connected — sound now correctly plays through the device's speaker."
+      },
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Se corrige que las notas por encima de Do6 o por debajo de Do2 sonaran todas igual con audio sintetizado; ahora cada nota suena con su tono correcto.",
+        "en": "Fixed notes above C6 or below C2 all sounding the same pitch with audio synthesis — each note now plays correctly across the full range."
+      },
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Se corrige la ventana de \"Novedades\": ahora reaparece en cada apertura de la app hasta marcar \"No volver a mostrar\", y ese ajuste se guarda correctamente también desde Configuración.",
+        "en": "Fixed the \"What's new\" dialog: it now reappears on every app launch until \"Don't show again\" is checked, and that setting now saves correctly from Settings too."
+      },
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Se corrige el enlace \"Visitar la web\" en Configuración, que no hacía nada.",
+        "en": "Fixed the \"Visit website\" link in Settings, which previously did nothing."
+      },
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Generación de acordes con guitarra: al tocar una nota en el diapasón, ahora se resalta correctamente en el pentagrama (clave y octava correctas).",
+        "en": "Chord generation with guitar: touching a note on the fretboard now correctly highlights it on the staff (right clef and octave)."
+      },
+      {
+        "date": "2026-07-14",
+        "publish": true,
+        "platforms": ["mobile"],
+        "es": "Se corrige el selector de variante de acorde de guitarra, que en algunos dispositivos Android quedaba tapado por la barra de navegación por gestos.",
+        "en": "Fixed the guitar chord variant selector being hidden behind the gesture navigation bar on some Android devices."
+      },
       {
         "date": "2026-07-12",
         "publish": true,

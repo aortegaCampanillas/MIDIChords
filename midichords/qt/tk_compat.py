@@ -677,7 +677,14 @@ class Widget(_BindMixin, QWidget):
         return self.parentWidget().focusWidget() if self.parentWidget() is not None else None
 
     def destroy(self) -> None:
-        # Tk uses destroy() to remove widget. En Qt usamos deleteLater().
+        # Tk uses destroy() to remove widget. En Qt usamos deleteLater(), pero
+        # antes hay que sacarlo del layout del padre (igual que pack_forget):
+        # si no, el/los QSpacerItem de padding que dejó qt_pack_attach quedan
+        # huérfanos y se acumulan en cada ciclo destroy()+recreate (p. ej.
+        # _refresh_guitar_variations recreando los botones de variante en
+        # cada cambio de tónica/inversión), empujando el contenido cada vez
+        # más hacia un lado hasta solaparse.
+        _qt_remove_widget_from_parent_layout(self)
         self.deleteLater()
 
     def nametowidget(self, _name: str) -> QWidget:

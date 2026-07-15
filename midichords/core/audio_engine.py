@@ -407,13 +407,20 @@ class PianoAudioEngine:
         self._mark_activity()
         # La guitarra sintética (noise+envolvente) suele quedar por debajo del
         # piano en volumen percibido. Subimos el gain para igualar la dinámica.
-        guitar_gain_scale = 2.0
+        # Medido con audio_engine._audio_callback en modo offline (RMS de nota
+        # suelta C4 vel=108 vs piano "acoustic"): con guitar_synth_gain_scale=2
+        # la guitarra sonaba ~14x más floja en RMS; 18 iguala el RMS (ratio
+        # ~1.0-1.2) en los 4 presets sintéticos manteniendo pico < 0.6 (sin
+        # clipping duro). No toca la muestra grabada (nylon_sample) porque
+        # ese balance no se ha podido remedir aquí (requiere ffmpeg/assets).
+        guitar_sample_gain_scale = 2.0
+        guitar_synth_gain_scale = 18.0
         if self.guitar_preset == "nylon_sample" and self.guitar_sample_map:
             self._trigger_sample_voice(
                 note=note,
                 velocity=velocity,
                 sample_bank=self.guitar_sample_map,
-                gain_mul=0.96 * guitar_gain_scale,
+                gain_mul=0.96 * guitar_sample_gain_scale,
                 decay=0.99994,
                 max_seconds=max(0.3, min(4.0, duration_seconds * 1.45)),
             )
@@ -422,7 +429,7 @@ class PianoAudioEngine:
         period = max(8, int(round(self.sample_rate / max(40.0, freq))))
         noise = self.rng.uniform(-1.0, 1.0, period).astype(np.float32)
         env_end = 0.35
-        gain_mul = 0.35 * guitar_gain_scale
+        gain_mul = 0.35 * guitar_synth_gain_scale
         decay = 0.9965 if freq < 180 else 0.9958
         duration_mul = 1.0
         # Suavizamos el “white noise” del pick para que, al tocar varios acordes,
@@ -430,17 +437,17 @@ class PianoAudioEngine:
         lowpass_alpha = 0.18  # steel_clean (default)
         if self.guitar_preset == "steel_bright":
             env_end = 0.28
-            gain_mul = 0.38 * guitar_gain_scale
+            gain_mul = 0.38 * guitar_synth_gain_scale
             decay = 0.9971 if freq < 180 else 0.9963
             lowpass_alpha = 0.22
         elif self.guitar_preset == "nylon_warm":
             env_end = 0.46
-            gain_mul = 0.33 * guitar_gain_scale
+            gain_mul = 0.33 * guitar_synth_gain_scale
             decay = 0.9960 if freq < 180 else 0.9953
             lowpass_alpha = 0.14
         elif self.guitar_preset == "muted_short":
             env_end = 0.25
-            gain_mul = 0.32 * guitar_gain_scale
+            gain_mul = 0.32 * guitar_synth_gain_scale
             decay = 0.9928 if freq < 180 else 0.9920
             duration_mul = 0.55
             lowpass_alpha = 0.10

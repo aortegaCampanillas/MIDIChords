@@ -15,19 +15,33 @@ from midichords.ui.widgets_qt import GrayRoundedButton
 
 
 class OverlaysMixin:
-    def _build_radio_row(self, parent: Any, options: list[tuple[str, str]], variable: Any) -> Any:
+    def _build_radio_row(
+        self,
+        parent: Any,
+        options: list[tuple[str, str]],
+        variable: Any,
+        command: Optional[Any] = None,
+    ) -> Any:
         """Fila de opciones tipo radio button, dibujadas a mano (ver
         `_draw_radio_indicator` en metronome_mixin.py). Con ttk.Radiobutton
         nativo, el punto de la opción marcada no se pinta (visto en Idioma y
         Salida de sonido del diálogo de Configuración, con el estilo
-        "windows11" y también con Fusion)."""
+        "windows11" y también con Fusion).
+
+        `command`, si se pasa, se llama con el valor elegido solo al hacer
+        clic (igual que el `command=` del Radiobutton nativo que sustituye;
+        no se dispara al sincronizar `variable` programáticamente).
+        El objeto devuelto expone `set_enabled(bool)` para atenuar/deshabilitar
+        toda la fila (p. ej. digitación de escalas, que solo aplica en piano)."""
         row = ttk.Frame(parent)
-        canvases: dict[str, tk.Canvas] = {}
+        items: dict[str, dict[str, Any]] = {}
+        enabled_flag = {"value": True}
+        muted = "#666e7a"
 
         def _redraw_all(*_args: Any) -> None:
             current = str(variable.get())
-            for value, canvas in canvases.items():
-                self._draw_radio_indicator(canvas, value == current)
+            for value, info in items.items():
+                self._draw_radio_indicator(info["canvas"], value == current, enabled=enabled_flag["value"])
 
         for value, label in options:
             item = ttk.Frame(row)
@@ -45,17 +59,34 @@ class OverlaysMixin:
                 cursor="hand2",
             )
             text_label.pack(side=tk.LEFT)
-            canvases[value] = indicator
+            items[value] = {"canvas": indicator, "label": text_label}
 
             def _select(_e: Optional[Any] = None, v: str = value) -> str:
+                if not enabled_flag["value"]:
+                    return "break"
                 variable.set(v)
+                if command is not None:
+                    command(v)
                 return "break"
 
             indicator.bind("<Button-1>", _select)
             text_label.bind("<Button-1>", _select)
-            indicator.bind("<Configure>", lambda _e, c=indicator, v=value: self._draw_radio_indicator(c, v == str(variable.get())))
+            indicator.bind(
+                "<Configure>",
+                lambda _e, c=indicator, v=value: self._draw_radio_indicator(
+                    c, v == str(variable.get()), enabled=enabled_flag["value"]
+                ),
+            )
 
         variable.trace_add("write", _redraw_all)
+
+        def _set_enabled(enabled: bool) -> None:
+            enabled_flag["value"] = enabled
+            for info in items.values():
+                info["label"].configure(fg=self.color_text if enabled else muted)
+            _redraw_all()
+
+        row.set_enabled = _set_enabled  # type: ignore[attr-defined]
         return row
 
     def _build_checkbox_row(self, parent: Any, text: str, variable: Any) -> Any:

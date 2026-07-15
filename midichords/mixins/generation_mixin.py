@@ -398,14 +398,19 @@ class GenerationMixin:
         return CHORD_PATTERNS[0]
 
     def _generation_piano_staff_midi_notes(self) -> set[int]:
-        """Notas MIDI que el pentagrama muestra en piano: clave de sol + fa (una octava abajo).
+        """Notas MIDI que se reproducen y que el pentagrama muestra.
 
-        Debe coincidir con `display_notes` en `redraw_staff` (generación y círculo de quintas).
-        En guitarra solo la vista previa del acorde (sin duplicar octava).
+        Piano: clave de sol + fa (una octava abajo). Debe coincidir con
+        `display_notes` en `redraw_staff` (generación y círculo de quintas).
+        Guitarra: si hay una variante de digitación seleccionada, sus notas
+        reales (pueden incluir cuerdas al aire en otra octava); si no, la
+        vista previa del acorde sin duplicar octava.
         """
-        rh = set(self.generated_preview_notes)
         if self.instrument_view != "piano":
-            return rh
+            if self.guitar_selected_variation_notes:
+                return set(self.guitar_selected_variation_notes)
+            return set(self.generated_preview_notes)
+        rh = set(self.generated_preview_notes)
         return rh | {int(n - 12) for n in rh if int(n - 12) >= 0}
     def _update_generation_preview(self) -> None:
         # No usar `generated_playing_notes` aquí: incluye notas sueltas (MIDI/clic) y al

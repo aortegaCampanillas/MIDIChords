@@ -89,7 +89,11 @@ class CircleFifthsMixin:
         if pc is None:
             return
         theory_tonic = circle_major_tonic_pc_for_theory(self.circle_tonic_pc, self.circle_key_mode)
-        if shift:
+        # Invertido respecto al gesto original (alineado con móvil, ver
+        # apps/mobile_flutter/lib/main.dart _onCircleCanvasInteraction): clic
+        # simple elige un acorde diatónico dentro de la tonalidad actual;
+        # Mayús+clic cambia de tónica/tonalidad.
+        if not shift:
             if not circle_chord_shift_click_is_diatonic(
                 theory_tonic,
                 float(w),

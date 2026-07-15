@@ -1676,33 +1676,19 @@ class UiMixin:
         self.scale_fingering_label.pack(side=tk.LEFT, padx=(0, 8))
 
         self.scale_fingering_var = tk.StringVar(value="none")
-        self.scale_fingering_frame = tk.Frame(
+        fingering_options = [
+            (hand, self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano I.", "Mano D."][idx])
+            for idx, (hand, label_key) in enumerate(
+                [("none", "label_fingering_none"), ("left", "label_fingering_left"), ("right", "label_fingering_right")]
+            )
+        ]
+        self.scale_fingering_frame = self._build_radio_row(
             self.scale_fingering_row,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
+            fingering_options,
+            self.scale_fingering_var,
+            command=lambda h: self._set_scale_fingering(h),
         )
         self.scale_fingering_frame.pack(side=tk.LEFT)
-        scale_fingering_frame = self.scale_fingering_frame
-        self.scale_fingering_radios: list[tk.Radiobutton] = []
-        for hand, label_key in [("none", "label_fingering_none"), ("left", "label_fingering_left"), ("right", "label_fingering_right")]:
-            label = self.tr(label_key) if hasattr(self, "tr") else ["Sin", "Mano I.", "Mano D."][["none", "left", "right"].index(hand)]
-            rb = tk.Radiobutton(
-                scale_fingering_frame,
-                text=label,
-                variable=self.scale_fingering_var,
-                value=hand,
-                command=lambda h=hand: self._set_scale_fingering(h),
-                bg=self.color_surface_alt,
-                fg=self.color_text,
-                selectcolor="#3a4452",
-                activebackground=self.color_surface_alt,
-                activeforeground=self.color_text,
-                font=(self.ui_font_family, 13),
-                cursor="hand2",
-            )
-            rb.pack(side=tk.LEFT, padx=(0, 14))
-            self.scale_fingering_radios.append(rb)
 
         self.scale_result_row = tk.Frame(
             self.tab_scale_frame,
@@ -2459,8 +2445,18 @@ class UiMixin:
             highlightbackground=self.color_border,
         )
         self.guitar_variations_frame = tk.Frame(self.instrument_canvas_holder, bg=self.color_surface_alt)
-        self.guitar_variations_inner = tk.Frame(self.guitar_variations_frame, bg=self.color_surface_alt)
-        self.guitar_variations_inner.pack(anchor="center")
+        self.guitar_variations_row = tk.Frame(self.guitar_variations_frame, bg=self.color_surface_alt)
+        self.guitar_variations_row.pack(anchor="center")
+        self.guitar_variations_label = tk.Label(
+            self.guitar_variations_row,
+            text=self.tr("label_guitar_variations") if hasattr(self, "tr") else "Variantes",
+            bg=self.color_surface_alt,
+            fg=self.color_text,
+            font=(self.ui_font_family, 12),
+        )
+        self.guitar_variations_label.pack(side=tk.LEFT, padx=(0, 10))
+        self.guitar_variations_inner = tk.Frame(self.guitar_variations_row, bg=self.color_surface_alt)
+        self.guitar_variations_inner.pack(side=tk.LEFT)
         # Qt: hermanos sin pack siguen visibles y tapaban el teclado (solo fondo gris).
         self.tuner_spectrum_canvas.setVisible(False)
         self.guitar_canvas.setVisible(False)
@@ -2820,6 +2816,8 @@ class UiMixin:
             self.guitar_view_btn.set_text(self.tr("instrument_guitar"))
         if hasattr(self, "guitar_handedness_combo"):
             self._refresh_handedness_toggle_styles()
+        if hasattr(self, "guitar_variations_label"):
+            self.guitar_variations_label.configure(text=self.tr("label_guitar_variations"))
         if not self.scale_transport_buttons_are_images:
             self.scale_mode_piano_btn.set_text(self.tr("instrument_piano"))
             self.scale_mode_guitar_btn.set_text(self.tr("instrument_guitar"))
@@ -3976,15 +3974,13 @@ class UiMixin:
                 "notes_row:help_detect_result_notes",
                 "extra_notes_row:help_detect_result_extras",
                 "intervals_row:help_detect_result_intervals",
+                # Detección siempre muestra el piano (ver rama `else` final de
+                # _apply_mode, que fuerza keyboard_qscroll y oculta
+                # guitar_canvas/handedness/variations pase lo que pase);
+                # no hay guitarra real en este modo aunque `instrument_view`
+                # global se haya quedado en "guitar" desde Generación.
+                "keyboard_qscroll:help_instrument_piano",
             )
-            if getattr(self, "instrument_view", "piano") == "piano":
-                specific += _w("keyboard_qscroll:help_instrument_piano")
-            else:
-                specific += _w(
-                    "guitar_canvas:help_instrument_guitar",
-                    "guitar_handedness_combo:help_guitar_handedness",
-                    "guitar_variations_frame:help_guitar_variations",
-                )
 
         elif mode == "interval_detection":
             specific = _w(
@@ -3997,11 +3993,11 @@ class UiMixin:
                 "interval_name_row:help_interval_name",
                 "interval_semitones_row:help_interval_semitones",
                 "interval_ejemplo_row:help_interval_melody",
+                # Igual que en Detección: este modo siempre muestra el piano
+                # (_apply_mode fuerza keyboard_qscroll y oculta la guitarra),
+                # nunca guitarra real.
+                "keyboard_qscroll:help_interval_instrument",
             )
-            if getattr(self, "instrument_view", "piano") == "piano":
-                specific += _w("keyboard_qscroll:help_interval_instrument")
-            else:
-                specific += _w("guitar_canvas:help_interval_instrument", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "generation":
             specific = _w(
@@ -4020,10 +4016,10 @@ class UiMixin:
                 "guitar_view_btn:help_inst_guitar_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
-                specific += _w("keyboard_qscroll:help_gen_instrument")
+                specific += _w("keyboard_qscroll:help_gen_instrument_piano")
             else:
                 specific += _w(
-                    "guitar_canvas:help_gen_instrument",
+                    "guitar_canvas:help_gen_instrument_guitar",
                     "guitar_handedness_combo:help_guitar_handedness",
                     "guitar_variations_frame:help_guitar_variations",
                 )
@@ -4039,7 +4035,11 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_circle_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_circle_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w(
+                    "guitar_canvas:help_circle_instrument_guitar",
+                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_variations_frame:help_guitar_variations",
+                )
 
         elif mode == "scales":
             specific = _w(
@@ -4066,9 +4066,9 @@ class UiMixin:
                     "scale_metronome_volume_slider:help_scale_metronome_volume",
                 )
             if getattr(self, "scale_play_mode", "piano") == "piano":
-                specific += _w("keyboard_qscroll:help_scale_instrument")
+                specific += _w("keyboard_qscroll:help_scale_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_scale_instrument", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w("guitar_canvas:help_scale_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "metronome":
             specific = _w(
@@ -4082,9 +4082,9 @@ class UiMixin:
                 "metronome_timer_row:help_metro_timer",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
-                specific += _w("keyboard_qscroll:help_metro_instrument")
+                specific += _w("keyboard_qscroll:help_metro_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_metro_instrument", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w("guitar_canvas:help_metro_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
 
         elif mode == "tuner":
             specific = _w("tab_tuner_frame:help_tuner_panel")

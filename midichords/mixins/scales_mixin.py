@@ -172,15 +172,13 @@ class ScalesMixin:
 
     def _refresh_scale_fingering_buttons(self) -> None:
         """Actualiza el estado de los radio buttons de digitación."""
-        if not hasattr(self, "scale_fingering_radios"):
+        if not hasattr(self, "scale_fingering_frame"):
             return
         is_piano = self.scale_play_mode == "piano"
         muted = "#666e7a"
-        state = "normal" if is_piano else "disabled"
         current = "none" if self.scale_fingering_hand is None else self.scale_fingering_hand
         self.scale_fingering_var.set(current)
-        for rb in self.scale_fingering_radios:
-            rb.configure(state=state)
+        self.scale_fingering_frame.set_enabled(is_piano)
         if hasattr(self, "scale_fingering_label"):
             self.scale_fingering_label.configure(fg=self.color_text if is_piano else muted)
 

@@ -304,10 +304,10 @@ const UI_TEXTS = {
     help_gen_result_chord: "Nombre del acorde generado.",
     help_gen_result_notes: "Notas que forman el acorde generado.",
     help_gen_result_intervals: "Intervalos del acorde respecto a su tónica.",
-    circle_hint: "Clic: fija la tónica y la tonalidad (mayor en el anillo exterior, menor natural relativa en el interior; misma armadura). Mayús+clic: elige un acorde diatónico, es decir, una triada sobre un grado de esa escala (mayor, menor o disminuida); no cambia la tónica.",
+    circle_hint: "Clic: elige un acorde diatónico, es decir, una triada sobre un grado de esa escala (mayor, menor o disminuida); no cambia la tónica. Mayús+clic: fija la tónica y la tonalidad (mayor en el anillo exterior, menor natural relativa en el interior; misma armadura).",
     help_circle_staff_footer: "Bajo el pentagrama: ayuda (clic / Mayús) para el círculo. Reproducir: botón ▶ sobre el círculo (arriba a la izquierda).",
-    help_circle_panel: "Círculo de tónicas: elige la tonalidad con el ratón; con Mayús, un acorde diatónico.",
-    help_circle_canvas: "Círculo de tónicas (en quintas): cada sector es una tónica posible. Clic con el ratón para fijar la tonalidad (mayor en el anillo exterior, menor relativa en el interior). Con Mayús pulsado, clic para elegir un acorde diatónico de esa tonalidad (triada en un grado de la escala) sin cambiar la tónica.",
+    help_circle_panel: "Círculo de tónicas: elige un acorde diatónico con el ratón; con Mayús, cambia de tonalidad.",
+    help_circle_canvas: "Círculo de tónicas (en quintas): cada sector es una tónica posible. Clic con el ratón para elegir un acorde diatónico de esa tonalidad (triada en un grado de la escala) sin cambiar la tónica. Con Mayús pulsado, clic para fijar la tonalidad (mayor en el anillo exterior, menor relativa en el interior).",
     help_circle_play: "Reproduce el acorde seleccionado.",
     help_circle_result_chord: "Nombre del acorde según la tonalidad elegida.",
     help_guitar_variations_bar: "Barra de variaciones de guitarra: aquí aparecen posiciones alternativas del mismo acorde.",
@@ -513,10 +513,10 @@ const UI_TEXTS = {
     help_gen_result_chord: "Generated chord name.",
     help_gen_result_notes: "Notes that form the generated chord.",
     help_gen_result_intervals: "Chord intervals relative to its tonic.",
-    circle_hint: "Click: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature). Shift+click: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic.",
+    circle_hint: "Click: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic. Shift+click: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature).",
     help_circle_staff_footer: "Below the staff: hint (click / Shift) for the circle. Play: ▶ button on the circle (top left).",
-    help_circle_panel: "Circle of tonics: choose the key with the mouse; with Shift, a diatonic chord.",
-    help_circle_canvas: "Circle of tonics (by fifths): each sector is a possible tonic. Click to set the key (major on the outer ring, relative natural minor on the inner). Hold Shift and click to pick a diatonic chord in that key (a triad on a scale degree) without changing the tonic.",
+    help_circle_panel: "Circle of tonics: choose a diatonic chord with the mouse; with Shift, change the key.",
+    help_circle_canvas: "Circle of tonics (by fifths): each sector is a possible tonic. Click to pick a diatonic chord in that key (a triad on a scale degree) without changing the tonic. Hold Shift and click to set the key (major on the outer ring, relative natural minor on the inner).",
     help_circle_play: "Play the selected chord.",
     help_circle_result_chord: "Chord name in the chosen key context.",
     help_guitar_variations_bar: "Guitar variations bar: alternative positions for the same chord appear here.",
@@ -1696,7 +1696,10 @@ function bindCircleFifthsCanvas() {
     const cy = canvas.height / 2;
     const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y, event.shiftKey);
     if (pc == null) return;
-    if (event.shiftKey) {
+    // Invertido respecto al gesto original (alineado con móvil): clic simple
+    // elige un acorde diatónico dentro de la tonalidad actual; Mayús+clic
+    // cambia de tónica/tonalidad.
+    if (!event.shiftKey) {
       if (!circleChordShiftClickIsDiatonic(circleMajorTonicPcForTheory(), canvas.width, canvas.height, cx, cy, x, y)) return;
       state.circleChordRootPc = pc;
     } else {

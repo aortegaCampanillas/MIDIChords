@@ -1525,12 +1525,22 @@ class RenderMixin:
             generation_single_note: Optional[int] = None
             if self.generation_tab_active and len(self.generated_playing_notes) == 1:
                 generation_single_note = next(iter(self.generated_playing_notes))
-            generation_rh_staff_notes: set[int] = {int(note) for note in set(self.generated_preview_notes)}
-            generation_lh_staff_notes: set[int] = {
-                int(note - 12)
-                for note in set(self.generated_preview_notes)
-                if int(note - 12) >= 0
-            }
+            if instrument_override:
+                # Con una variante de guitarra seleccionada, el pentagrama
+                # muestra directamente sus notas (frets reales, que pueden
+                # incluir octavas que no están en generated_preview_notes);
+                # el set de "sonando" debe coincidir o esas notas nunca se
+                # resaltarían al pulsar Reproducir (p. ej. el Do agudo de
+                # ciertas digitaciones de Do mayor).
+                generation_rh_staff_notes: set[int] = {int(note) for note in set(self.guitar_selected_variation_notes)}
+                generation_lh_staff_notes: set[int] = set()
+            else:
+                generation_rh_staff_notes = {int(note) for note in set(self.generated_preview_notes)}
+                generation_lh_staff_notes = {
+                    int(note - 12)
+                    for note in set(self.generated_preview_notes)
+                    if int(note - 12) >= 0
+                }
             generation_staff_playing_rh_notes: set[int] = set()
             generation_staff_playing_lh_notes: set[int] = set()
             if self.generation_tab_active:

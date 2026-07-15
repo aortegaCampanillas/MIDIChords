@@ -12,9 +12,14 @@ on:
         required: false
         type: string
       msix_revision:
-        description: "Solo MSIX (Microsoft Store): cuarto segmento de versión (0–65535). 0 = auto (v1.0.1 → 1.0.1.0). Usa 1, 2… para reenviar a la Store sin cambiar el tag semver."
+        description: "Solo MSIX: cuarto segmento de versión si NO se usa msix_version (0 = auto, p. ej. v1.0.1 → 1.0.1.0). La Store rechaza revisión distinta de 0 en el manifiesto, así que esto solo sirve para paquetes MSIX fuera de la Store (sideload)."
         required: false
         default: "0"
+        type: string
+      msix_version:
+        description: "Solo MSIX (Microsoft Store): versión completa X.Y.Z.0 a grabar en el manifiesto, independiente del tag/release (p. ej. 1.0.6.0 para reenviar a la Store sin cambiar la versión del resto de plataformas). La revisión se fuerza a 0 siempre. Vacío = usar tag + msix_revision."
+        required: false
+        default: ""
         type: string
   push:
     tags:
@@ -105,24 +110,40 @@ jobs:
         shell: pwsh
         env:
           MSIX_REVISION: ${{ inputs.msix_revision || '0' }}
+          MSIX_VERSION_OVERRIDE: ${{ inputs.msix_version || '' }}
         run: |
-          $tag = $env:RELEASE_REF_NAME
-          $tag = $tag -replace '^refs/tags/',''
-          $bare = $tag.TrimStart('v')
-          $revIn = $env:MSIX_REVISION
-          if ([string]::IsNullOrWhiteSpace($revIn)) { $revIn = "0" }
-          $revNum = 0
-          [void][int]::TryParse($revIn, [ref]$revNum)
-          if ($revNum -lt 0) { $revNum = 0 }
-          if ($revNum -gt 65535) { $revNum = 65535 }
-          if ($bare -match '^(\d+)\.(\d+)\.(\d+)$') {
-            $a, $b, $c = $Matches[1], $Matches[2], $Matches[3]
-            $ver = "$a.$b.$c.$revNum"
+          $override = $env:MSIX_VERSION_OVERRIDE
+          if (-not [string]::IsNullOrWhiteSpace($override)) {
+            # Versión completa indicada a mano: independiente del tag/release
+            # (p. ej. reenvíos a la Store sin tocar la versión del resto de
+            # plataformas). La Store rechaza revisión != 0, así que se fuerza
+            # aquí pase lo que pase.
+            $bare = $override.TrimStart('v')
+            if ($bare -match '^(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$') {
+              $ver = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+            } else {
+              throw "msix_version inválido: '$override' (se espera X.Y.Z o X.Y.Z.W)"
+            }
+            Write-Host "MSIX Package Version: $ver (override=$override)"
           } else {
-            $ver = $bare -replace '^(\d+\.\d+\.\d+)$','$1.0'
-            if ($ver -notmatch '^\d+\.\d+\.\d+\.\d+$') { $ver = "1.0.0.0" }
+            $tag = $env:RELEASE_REF_NAME
+            $tag = $tag -replace '^refs/tags/',''
+            $bare = $tag.TrimStart('v')
+            $revIn = $env:MSIX_REVISION
+            if ([string]::IsNullOrWhiteSpace($revIn)) { $revIn = "0" }
+            $revNum = 0
+            [void][int]::TryParse($revIn, [ref]$revNum)
+            if ($revNum -lt 0) { $revNum = 0 }
+            if ($revNum -gt 65535) { $revNum = 65535 }
+            if ($bare -match '^(\d+)\.(\d+)\.(\d+)$') {
+              $a, $b, $c = $Matches[1], $Matches[2], $Matches[3]
+              $ver = "$a.$b.$c.$revNum"
+            } else {
+              $ver = $bare -replace '^(\d+\.\d+\.\d+)$','$1.0'
+              if ($ver -notmatch '^\d+\.\d+\.\d+\.\d+$') { $ver = "1.0.0.0" }
+            }
+            Write-Host "MSIX Package Version: $ver (tag=$tag msix_revision=$revNum)"
           }
-          Write-Host "MSIX Package Version: $ver (tag=$tag msix_revision=$revNum)"
           New-Item -ItemType Directory -Force -Path msix_stage\Assets | Out-Null
           Copy-Item -Path dist\MIDIChords.exe -Destination msix_stage\MIDIChords.exe
           Copy-Item -Path assets\app_logo.png -Destination msix_stage\Assets\StoreLogo.png

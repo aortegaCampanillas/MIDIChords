@@ -158,12 +158,15 @@ class PianoAudioEngine:
             # tocar. Pasando un valor numérico en segundos en vez del string,
             # PortAudio/MME lo respeta de forma mucho más literal. 128/0.01
             # medía ~10.7ms reales pero producía cortes audibles (underruns)
-            # bajo carga pesada (acordes de muchas notas con sample_piano);
-            # 512/0.03 mide ~32ms reales (aún muy por debajo de los 213ms
-            # originales) y no mostró ningún underrun en pruebas de estrés
-            # repetidas con acordes de 13 notas simultáneas.
-            blocksize = 512
-            latency: object = 0.03
+            # bajo carga pesada (acordes de muchas notas con sample_piano).
+            # 512/0.03 no mostró underruns en las pruebas originales, pero en
+            # otros equipos (con `--verbose`, trazas de `callback late` +
+            # `status flags: output underflow`) el callback llegaba tarde de
+            # forma sistemática incluso sin voces sonando — el margen de
+            # ~10.7ms del bloque de 512 es insuficiente ahí. 1024/0.06 casi
+            # duplica el margen (~21ms) a cambio de algo más de latencia.
+            blocksize = 1024
+            latency: object = 0.06
         else:
             # Buffer más grande que el original (256/"low"): con buffers muy
             # pequeños, si el hilo de audio de CoreAudio queda desalojado del
@@ -312,6 +315,16 @@ class PianoAudioEngine:
     # solaparse y su suma de energía se oye como ruido/distorsión.
     MAX_RELEASED_VOICES = 12
 
+    # Igual que MAX_RELEASED_VOICES pero para plucks de guitarra (ver
+    # pluck_guitar_note): sin tope, retriggerar el mismo acorde rápido en
+    # Generación/Círculo de quintas acumula decenas de voces vivas y su
+    # render en Python puro (no vectorizado) satura la CPU del hilo de audio.
+    # Medido: 16 voces ya consume ~20ms de un presupuesto de ~21ms/callback
+    # (bloque 1024 @48kHz) sin margen para nada más; 8 deja un margen real
+    # (~13ms) y sigue permitiendo que un acorde nuevo suene mientras se apaga
+    # el anterior.
+    MAX_GUITAR_VOICES = 8
+
     def note_off(self, note: int, fast: bool = False) -> None:
         """`fast=True` usa un release corto (~380ms) en vez del normal (1.4-2.2s).
 
@@ -457,6 +470,19 @@ class PianoAudioEngine:
         gain = max(0.08, min(0.9, velocity / 127.0)) * gain_mul
         remaining = max(1, int(duration_seconds * duration_mul * self.sample_rate))
         with self.lock:
+            # A diferencia de las voces de piano (Voice/fading_voices, topadas
+            # en MAX_RELEASED_VOICES), aquí no había límite: retriggerar el
+            # mismo acorde repetidamente en Generación/Círculo de quintas
+            # (p. ej. clics rápidos) acumulaba decenas de GuitarVoice vivas a
+            # la vez (medido con --verbose: 45-50). El bucle de render de
+            # cada una es Python puro (no vectorizado como el piano), así que
+            # tantas voces saturan la CPU del hilo de audio y provocan
+            # underruns reales ("output underflow"), oídos como un eco/ruido.
+            # Se descartan las más antiguas (ya muy decaídas) para dejar
+            # sitio a la nueva.
+            if len(self.guitar_voices) >= self.MAX_GUITAR_VOICES:
+                excess = len(self.guitar_voices) - self.MAX_GUITAR_VOICES + 1
+                del self.guitar_voices[:excess]
             self.guitar_voices.append(
                 GuitarVoice(
                     buffer=noise.copy(),
@@ -745,6 +771,16 @@ class PianoAudioEngine:
             self.fading_voices = remaining_fading
 
             remaining_guitars: list[GuitarVoice] = []
+            # Compensación de polifonía: con guitar_synth_gain_scale alto (ver
+            # pluck_guitar_note) una nota suelta suena a la par del piano,
+            # pero varios rasgueos solapados (los plucks siguen sonando ~1s
+            # tras soltarlos, así que cambiar de acorde rápido en
+            # Generación/Círculo acumula voces) podían saturar por encima de
+            # 1.0 antes del tanh (medido con trazas --verbose: picos de hasta
+            # 1.2 con 10-11 voces). División por raíz del nº de voces
+            # (mezcla a potencia constante) mantiene una nota sola a volumen
+            # pleno y atenúa la suma cuando se acumulan varias.
+            guitar_voice_divisor = max(1.0, math.sqrt(len(self.guitar_voices)))
             for gvoice in self.guitar_voices:
                 if gvoice.remaining_samples <= 0 or gvoice.buffer.size < 2:
                     continue
@@ -763,7 +799,7 @@ class PianoAudioEngine:
                     pos = nxt
                     gvoice.remaining_samples -= 1
                 gvoice.pos = pos
-                signal += local * gvoice.gain
+                signal += local * (gvoice.gain / guitar_voice_divisor)
                 if gvoice.remaining_samples > 0:
                     remaining_guitars.append(gvoice)
             self.guitar_voices = remaining_guitars

@@ -387,7 +387,7 @@ jobs:
           Priority: optional
           Architecture: amd64
           Maintainer: Antonio Ortega González
-          Depends: libasound2, libjack-jackd2-0 | libjack0
+          Depends: libasound2, libjack-jackd2-0 | libjack0, libportaudio2
           Description: MIDI Chords Analyzer desktop application
            Real-time MIDI chord analyzer with staff and piano visualization.
           CONTROL

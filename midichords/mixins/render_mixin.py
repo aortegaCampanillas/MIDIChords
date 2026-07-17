@@ -1241,6 +1241,20 @@ class RenderMixin:
         right_x = w - 20
         line_space = min(22, max(11, h // 24))
         vertical_shift = int(2 * line_space)
+        # Si la nota mas aguda a dibujar (p.ej. una escala cromatica de mas
+        # de una octava) necesita varias lineas adicionales por encima del
+        # pentagrama de clave de sol, el margen superior fijo la dejaba
+        # recortada fuera del canvas. Se amplia el desplazamiento vertical
+        # segun cuantas lineas adicionales hagan falta.
+        treble_bottom_line_diatonic_probe = 4 * 7 + 2  # E4
+        treble_top_line_diatonic_probe = treble_bottom_line_diatonic_probe + 8  # F5
+        treble_notes_probe = [n for n in display_notes if int(n) >= 60]
+        if treble_notes_probe:
+            max_diatonic_idx = max(self._diatonic_index(int(n)) for n in treble_notes_probe)
+            extra_above = max_diatonic_idx - treble_top_line_diatonic_probe
+            if extra_above > 0:
+                extra_ledger_lines = (extra_above + 1) // 2
+                vertical_shift += int(extra_ledger_lines * line_space)
         treble_top = max(68, int(h * 0.23)) + vertical_shift
         bass_top = treble_top + int(line_space * 7.4)
 

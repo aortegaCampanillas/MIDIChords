@@ -7,6 +7,7 @@ require("../static/circle_theory.js");
 require("../static/interval_theory.js");
 require("../static/piano_fingering.js");
 require("../static/key_signature.js");
+require("../static/ui_lifecycle.js");
 require("../static/scale_theory.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
@@ -56,6 +57,7 @@ test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsIntervalTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsPianoFingering));
   assert.ok(Object.isFrozen(globalThis.MidiChordsKeySignature));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsUiLifecycle));
   assert.ok(Object.isFrozen(globalThis.MidiChordsScaleTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));

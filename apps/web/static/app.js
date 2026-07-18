@@ -145,6 +145,8 @@ const state = {
   heldMidiChordNotes: new Set(),
 };
 
+const uiLifecycle = globalThis.MidiChordsUiLifecycle.createUiLifecycle(window);
+
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
 
@@ -7080,16 +7082,16 @@ function bindEvents() {
     if (panelTuner) panelTuner.classList.add("hidden");
   }
 
-  window.addEventListener("resize", () => {
+  uiLifecycle.listen(window, "resize", () => {
     if (activeModeSupportsStaff()) renderStaff();
     if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
     if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
     if (state.help.active) refreshHelpOverlay();
   });
-  window.addEventListener("scroll", () => {
+  uiLifecycle.listen(window, "scroll", () => {
     if (state.help.active) refreshHelpOverlay();
   }, true);
-  window.addEventListener("blur", () => {
+  uiLifecycle.listen(window, "blur", () => {
     stopHeldChord();
     stopAllHeldInputNotes();
     if (state.help.active) setHelpActive(false);
@@ -7102,11 +7104,12 @@ function bindEvents() {
   const feedbackForm = el("feedbackForm");
   if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
 
-  document.addEventListener("visibilitychange", () => {
+  uiLifecycle.listen(document, "visibilitychange", () => {
     if (document.visibilityState === "visible" && state.midiScreenWakeLockWanted) {
       void acquireMidiScreenWakeLock();
     }
   });
+  uiLifecycle.listen(window, "pagehide", () => uiLifecycle.unmount());
 }
 
 async function main() {

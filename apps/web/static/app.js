@@ -147,7 +147,7 @@ const state = {
 
 const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
-const { commonStemUp } = globalThis.MidiChordsStaffBeamGeometry;
+const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
@@ -3745,41 +3745,18 @@ function drawRest(ctx, x, staffTop, gap, duration, stroke) {
  */
 function drawBeam(ctx, positions, stroke) {
   if (positions.length < 2) return;
-  const p0 = positions[0];
-  const pN = positions[positions.length - 1];
   const bh = 4;    // grosor de cada barra
   const bGap = 3;  // separación entre barras
-  const dir = p0.stemUp ? 1 : -1; // 1 = barras hacia el pentagrama (abajo); -1 = hacia arriba
 
-  const drawBar = (xa, ya, xb, yb) => {
+  beamSegments(positions, bh, bGap).forEach(({ xa, ya, xb, yb, direction }) => {
     ctx.fillStyle = stroke;
     ctx.beginPath();
     ctx.moveTo(xa, ya);
     ctx.lineTo(xb, yb);
-    ctx.lineTo(xb, yb + dir * bh);
-    ctx.lineTo(xa, ya + dir * bh);
+    ctx.lineTo(xb, yb + direction * bh);
+    ctx.lineTo(xa, ya + direction * bh);
     ctx.closePath();
     ctx.fill();
-  };
-
-  // Barra primaria: recorre todo el grupo
-  drawBar(p0.stemX, p0.stemEndY, pN.stemX, pN.stemEndY);
-
-  // Barras secundarias: para semicorcheas (2 banderas → 2 barras)
-  const dx = pN.stemX - p0.stemX;
-  const dy = pN.stemEndY - p0.stemEndY;
-  positions.forEach((p, i) => {
-    if (p.base !== "s") return;
-    const adj = i > 0 ? positions[i - 1] : positions[i + 1];
-    const halfX = (p.stemX + adj.stemX) / 2;
-    const t = dx !== 0 ? (halfX - p0.stemX) / dx : 0;
-    const halfY = p0.stemEndY + t * dy;
-    const off = dir * (bh + bGap);
-    if (i > 0) {
-      drawBar(halfX, halfY + off, p.stemX, p.stemEndY + off);
-    } else {
-      drawBar(p.stemX, p.stemEndY + off, halfX, halfY + off);
-    }
   });
 }
 

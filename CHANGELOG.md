@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídos los patrones documentados y la resolución de digitaciones de piano a un módulo puro, con pruebas para acordes, escalas mayores, cromáticas, cruces de dedo y ausencia explícita de fallback cuando no existe referencia.
+
 - **Web (mantenimiento)**: extraídos nombres, cálculo y melodías mnemotécnicas de intervalos a un módulo puro; las pruebas cubren unísono, octava, dirección, traducciones, intervalos consecutivos y alineación de silencios con duraciones.
 
 - **Web (mantenimiento)**: extraídas la teoría diatónica y la geometría pura del círculo de quintas a un módulo sin DOM ni estado, con pruebas directas de orden, armaduras, relativos, grados y tríadas mayores y menores.

@@ -4,7 +4,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 ## Fuentes editables
 
-- SPA: `static/app.js`, `static/ui_texts.js`, `static/music_notation.js`, `static/circle_theory.js`, `static/interval_theory.js`, `static/chord_help.js`, `static/help_callouts.js` y `static/style.css`.
+- SPA: `static/app.js`, `static/ui_texts.js`, `static/music_notation.js`, `static/circle_theory.js`, `static/interval_theory.js`, `static/piano_fingering.js`, `static/chord_help.js`, `static/help_callouts.js` y `static/style.css`.
 - HTML público: `index.html`, `app.html` y `fp30x.html`.
 - API: `worker/_worker.js`.
 - Assets web: `static/`.
@@ -31,6 +31,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 `static/circle_theory.js` contiene orden de quintas, grados, tríadas diatónicas, armaduras y geometría pura del círculo. El renderizado con estado y DOM permanece en `app.js`; mantener esa frontera para que la teoría pueda probarse directamente con Node.
 
 `static/interval_theory.js` contiene nombres bilingües, cálculo de semitonos y catálogo/mapeo de melodías mnemotécnicas. La cola de notas, temporizadores y reproducción permanecen en `app.js`.
+
+`static/piano_fingering.js` contiene patrones documentados y resolución pura de digitaciones de acordes y escalas. No añadir fallbacks inventados para tonalidades sin fuente; el resultado vacío indica que no hay referencia documentada.
 
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 

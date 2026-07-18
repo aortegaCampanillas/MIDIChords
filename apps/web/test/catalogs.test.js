@@ -5,6 +5,7 @@ require("../static/ui_texts.js");
 require("../static/music_notation.js");
 require("../static/circle_theory.js");
 require("../static/interval_theory.js");
+require("../static/piano_fingering.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -51,8 +52,39 @@ test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsMusicNotation));
   assert.ok(Object.isFrozen(globalThis.MidiChordsCircleTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsIntervalTheory));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsPianoFingering));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("piano fingering resolves documented scales without synthetic fallbacks", () => {
+  const { pianoFingeringForCount, computeScaleFingering } =
+    globalThis.MidiChordsPianoFingering;
+
+  assert.deepEqual(pianoFingeringForCount(3, "right"), [1, 3, 5]);
+  assert.deepEqual(pianoFingeringForCount(3, "left"), [5, 3, 1]);
+
+  const cMajor = computeScaleFingering(
+    [60, 62, 64, 65, 67, 69, 71, 72],
+    "right",
+    { patternName: "Ionian", tonicPc: 0, preferFlat: false },
+  );
+  assert.deepEqual(cMajor.map((item) => item.finger), [1, 2, 3, 1, 2, 3, 4, 5]);
+  assert.equal(cMajor[3].crossover, true);
+
+  const chromatic = computeScaleFingering(
+    Array.from({ length: 13 }, (_, index) => 60 + index),
+    "left",
+    { patternName: "Chromatic", tonicPc: 0 },
+  );
+  assert.equal(chromatic.length, 13);
+  assert.deepEqual(
+    computeScaleFingering([61, 64, 67, 70, 72, 73, 76], "right", {
+      patternName: "Minor Blues",
+      tonicPc: 1,
+    }),
+    [],
+  );
 });
 
 test("interval theory identifies intervals and preserves melody timing", () => {

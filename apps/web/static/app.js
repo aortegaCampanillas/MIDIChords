@@ -160,7 +160,7 @@ const {
   scaleClientPoint,
   findCircularHitRegion,
 } = globalThis.MidiChordsGuitarGeometry;
-const { drawFretboardFrame } = globalThis.MidiChordsGuitarCanvas;
+const { drawFretboardFrame, drawFretboardStrings } = globalThis.MidiChordsGuitarCanvas;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
 const {
@@ -2801,9 +2801,10 @@ function renderGuitar() {
     stringCount: tuning.length,
     leftHanded,
   });
-  const { top, bottom, nutX, boardEdgeX, step, dir, openX, yGap } = layout;
+  const { top, yGap } = layout;
   const fretCenterX = (fret) => guitarFretCenterX(layout, fret);
   drawFretboardFrame(ctx, { layout, width, height, frets });
+  drawFretboardStrings(ctx, { layout, width, stringNames, leftHanded });
 
   let barreSegments = [];
   let barreCovered = new Set();
@@ -2837,31 +2838,6 @@ function renderGuitar() {
 
   tuning.forEach((openNote, i) => {
     const y = top + i * yGap;
-    ctx.strokeStyle = "#bdbdbd";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.min(openX, boardEdgeX), y);
-    ctx.lineTo(Math.max(openX, boardEdgeX), y);
-    ctx.stroke();
-    ctx.strokeStyle = "#8a8a8a";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(Math.min(openX, boardEdgeX), y + 1);
-    ctx.lineTo(Math.max(openX, boardEdgeX), y + 1);
-    ctx.stroke();
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 11px sans-serif";
-    ctx.textBaseline = "middle";
-    if (leftHanded) {
-      ctx.textAlign = "left";
-      const rightEdge = Math.max(openX, boardEdgeX);
-      ctx.fillText(stringNames[i], Math.min(width - 2, rightEdge + 10), y);
-    } else {
-      ctx.textAlign = "right";
-      const leftEdge = Math.min(openX, boardEdgeX);
-      ctx.fillText(stringNames[i], Math.max(2, leftEdge - 10), y);
-    }
-    ctx.textAlign = "start";
 
     for (let fret = 0; fret < frets; fret += 1) {
       if (generationVariationMode) {

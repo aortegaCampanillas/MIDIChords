@@ -11,6 +11,7 @@ Historial de versiones publicadas de MIDIChords.
 ### Documentado
 
 - **Mantenimiento / agentes**: cerrada la fase estructural con resultados cuantitativos, criterios verificables y un backlog explícito para ciclos de vida Flutter, renderers/eventos web y construcción Qt; cada bloque pendiente indica las pruebas de integración necesarias antes de dividirlo.
+- **Mantenimiento / agentes**: completada la continuación de contratos de integración: smoke contract y builders Qt, ciclo de vida y geometría de partitura web, y adaptadores probados para actividad, preferencias y suscripciones MIDI en Flutter.
 
 - **Mantenimiento / agentes**: corregida la arquitectura documentada del escritorio (Qt/PySide6 con compatibilidad de API Tk), añadidas instrucciones locales para Python, web y Flutter, y una matriz de fuentes de verdad y copias multiplataforma.
 

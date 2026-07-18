@@ -2,11 +2,11 @@
 
 Estado de la refactorización orientada a reducir contexto, explicitar fronteras y hacer verificables los cambios realizados por agentes.
 
-**Estado de la fase: completada.** Las extracciones restantes requieren primero nuevos contratos de ciclo de vida o pruebas de integración de UI; no forman parte de esta fase estructural.
+**Estado de la fase: completada.** La fase estructural y su continuación de contratos de integración están cerradas; las extracciones futuras deberán ampliar estos contratos antes de mover más estado.
 
 ## Fase de contratos de integración
 
-En curso. El primer prerrequisito del backlog de escritorio ya existe:
+Completada. El contrato del backlog de escritorio queda establecido:
 
 - `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
 - El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
@@ -14,7 +14,7 @@ En curso. El primer prerrequisito del backlog de escritorio ya existe:
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 
-El prerrequisito web también está en curso: `ui_lifecycle.js` aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles se migrarán por bloques antes de separar el resto.
+El contrato web queda establecido en `ui_lifecycle.js`: aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles podrán migrarse por bloques bajo el mismo contrato.
 
 La separación del renderer ha comenzado por geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios de los grupos barrados. Sus pruebas fijan tanto la dirección coherente como el paralelismo de las barras de semicorchea sin depender del canvas.
 
@@ -28,8 +28,8 @@ En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de
 
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
-| Flutter `main.dart` | 13.774 líneas | 7.524 líneas | catálogo musical, servicio musical puro, painters, layout del piano, páginas por modo y subsistema de ayuda |
-| Web `app.js` | 8.902 líneas | 7.169 líneas | textos, notación, teoría/interacción del círculo, intervalos/escalas, digitaciones, armaduras, ayudas, salida MIDI, audio por samples, resaltado de reproducción y matemática del afinador |
+| Flutter `main.dart` | 13.774 líneas | 7.523 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias y ciclos de vida MIDI |
+| Web `app.js` | 8.902 líneas | 7.187 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de barras |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
@@ -44,9 +44,9 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 
 | Área | Acoplamiento observado | Prerrequisito antes de separar |
 |---|---|---|
-| Flutter `main.dart` | audio, entrada/salida MIDI, preferencias, afinador, `initState()` y `dispose()` comparten plugins, suscripciones, timers y estado visual | adaptadores inyectables para plugins y pruebas de alta/baja, reconexión, cancelación y permisos |
-| Web `app.js` | `renderStaff`, `renderGuitar`, `bindEvents` y el desbloqueo de audio comparten DOM, canvas, listeners, timers y estado global | fixture DOM/canvas con listeners y reloj falsos; pruebas de montar, cambiar de modo y desmontar |
-| Escritorio `ui_mixin.py` | `_build_ui()` crea y enlaza en una sola operación los widgets Qt que consumen todos los mixins | smoke test de árbol de widgets, atributos públicos, señales y cambio de modo antes de extraer builders por panel |
+| Flutter `main.dart` | audio, salida MIDI y afinador aún comparten plugins y estado visual | puertos específicos de sesión/player y pruebas de integración del widget antes de moverlos |
+| Web `app.js` | `renderStaff`, `renderGuitar` y eventos de controles conservan DOM/canvas y estado global | ampliar el fixture con el canvas o control concreto antes de cada extracción |
+| Escritorio `ui_mixin.py` | los controles internos de cada modo aún se construyen en métodos extensos | ampliar el smoke contract con sus señales públicas antes de nuevos builders |
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.
 

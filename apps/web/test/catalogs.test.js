@@ -7,6 +7,7 @@ require("../static/circle_theory.js");
 require("../static/interval_theory.js");
 require("../static/piano_fingering.js");
 require("../static/key_signature.js");
+require("../static/scale_theory.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -55,8 +56,32 @@ test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsIntervalTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsPianoFingering));
   assert.ok(Object.isFrozen(globalThis.MidiChordsKeySignature));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsScaleTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("scale theory normalizes notes, octaves, aliases, and labels", () => {
+  const {
+    SCALE_BASIC_NAMES,
+    scaleAliases,
+    scaleBaseNotes,
+    scaleNotesForOctaves,
+    scaleLabelWithoutOctave,
+    scaleLabelForMidi,
+  } = globalThis.MidiChordsScaleTheory;
+
+  assert.ok(SCALE_BASIC_NAMES.has("Ionian"));
+  assert.equal(scaleAliases("es").Aeolian, "Menor Natural");
+  assert.equal(scaleAliases("en")["Super Locrian"], "Altered");
+  assert.deepEqual(scaleBaseNotes([67, 60, 64, 60]), [60, 64, 67]);
+  assert.deepEqual(scaleBaseNotes([60, 64, 67], 72), [72, 76, 79]);
+  assert.deepEqual(scaleBaseNotes([60, 64, 67], 73), [60, 64, 67]);
+  assert.deepEqual(scaleNotesForOctaves([60, 64, 67], 3), [48, 52, 55, 60, 64, 67, 72, 76, 79]);
+  assert.equal(scaleLabelWithoutOctave("Do#4"), "Do#");
+  assert.equal(scaleLabelForMidi(72, [60, 64, 67], ["Do4", "Mi4", "Sol4"]), "Do");
+  assert.equal(scaleLabelForMidi(84, [60, 72], ["Do4", "Do5"]), "Do");
+  assert.equal(scaleLabelForMidi(61, [], []), null);
 });
 
 test("key signatures choose the shortest spelling and modal relative major", () => {

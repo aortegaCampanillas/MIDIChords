@@ -2245,71 +2245,36 @@ function getActiveMidiForMode() {
   return new Set();
 }
 
-const SCALE_BASIC_NAMES = new Set([
-  "Ionian", "Aeolian", "Harmonic Minor", "Melodic Minor",
-  "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian",
-  "Major Pentatonic", "Minor Pentatonic",
-  "Blues Pentatonic", "Minor Blues",
-  "Chromatic", "Whole Tone (WT)",
-]);
+const {
+  SCALE_BASIC_NAMES,
+  scaleAliases,
+  scaleBaseNotes,
+  scaleNotesForOctaves,
+  scaleLabelWithoutOctave,
+  scaleLabelForMidi: findScaleLabelForMidi,
+} = globalThis.MidiChordsScaleTheory;
 
 function getScaleAliases() {
-  return state.language === "en"
-    ? { Ionian: "Major", Aeolian: "Natural Minor", "Super Locrian": "Altered" }
-    : { Ionian: "Mayor", Aeolian: "Menor Natural", "Super Locrian": "Alterada" };
+  return scaleAliases(state.language);
 }
 
 function getScaleBaseNotes() {
-  if (!state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return [];
-  const base = Array.from(new Set(state.generatedScale.notes_midi.map((n) => Number(n))))
-    .filter((n) => Number.isFinite(n))
-    .sort((a, b) => a - b);
+  const notesMidi = state.generatedScale?.notes_midi;
   const guitarScaleMode = state.mode === "scales" && getScalePlaybackInstrument() === "guitar";
-  if (!guitarScaleMode || !base.length || state.scaleGuitarStartNote == null) return base;
-  const start = Number(state.scaleGuitarStartNote);
-  if (!Number.isFinite(start)) return base;
-  const first = Number(base[0]);
-  if ((((start % 12) + 12) % 12) !== (((first % 12) + 12) % 12)) return base;
-  const delta = start - first;
-  return base.map((n) => Number(n) + delta).filter((n) => Number.isFinite(n));
+  const startNote = guitarScaleMode ? state.scaleGuitarStartNote : null;
+  return scaleBaseNotes(notesMidi, startNote);
 }
 
 function getScaleNotesForOctaves() {
-  const base = getScaleBaseNotes();
-  if (!base.length) return base;
-  const oct = state.scaleOctaves || 1;
-  if (oct <= 1) return base;
-  const result = new Set(base);
-  if (oct >= 2) {
-    for (const n of base) result.add(n - 12);
-  }
-  if (oct >= 3) {
-    for (const n of base) result.add(n + 12);
-  }
-  return Array.from(result).sort((a, b) => a - b);
-}
-
-function scaleLabelWithoutOctave(label) {
-  return String(label || "").replace(/-?\d+$/g, "");
+  return scaleNotesForOctaves(getScaleBaseNotes(), state.scaleOctaves || 1);
 }
 
 function scaleLabelForMidi(midi) {
-  const target = Number(midi);
-  if (!Number.isFinite(target) || !state.generatedScale) return null;
-  const notesMidi = state.generatedScale.notes_midi;
-  const labels = state.generatedScale.notes;
-  if (!Array.isArray(notesMidi) || !Array.isArray(labels)) return null;
-  const targetPc = ((target % 12) + 12) % 12;
-  let best = null;
-  notesMidi.forEach((baseMidi, idx) => {
-    const base = Number(baseMidi);
-    if (!Number.isFinite(base) || (((base % 12) + 12) % 12) !== targetPc) return;
-    const label = scaleLabelWithoutOctave(labels[idx]);
-    if (!label) return;
-    const distance = Math.abs(target - base);
-    if (!best || distance < best.distance) best = { label, distance };
-  });
-  return best ? best.label : null;
+  return findScaleLabelForMidi(
+    midi,
+    state.generatedScale?.notes_midi,
+    state.generatedScale?.notes,
+  );
 }
 
 function setScaleGuitarStartNote(note) {

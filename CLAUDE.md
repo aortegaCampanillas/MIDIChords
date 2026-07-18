@@ -26,6 +26,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Web: detección de intervalos | `apps/web/static/interval_theory.js` (teoría/melodías), `apps/web/static/app.js` (estado/reproducción) |
 | Web: digitaciones de piano | `apps/web/static/piano_fingering.js` |
 | Web: armaduras y relativos modales | `apps/web/static/key_signature.js` |
+| Web: normalización y etiquetas de escalas | `apps/web/static/scale_theory.js` |
 | Web: textos generales ES/EN | `apps/web/static/ui_texts.js` |
 | Web: nombres, alteraciones y armaduras | `apps/web/static/music_notation.js` |
 | Web: ayuda teórica de acordes | `apps/web/static/chord_help.js` |
@@ -46,7 +47,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Archivo | Líneas | Contenido |
 |---------|--------|-----------|
 | `apps/mobile_flutter/lib/main.dart` | ~8600 | Estado, servicios de plataforma y composición transversal de la UI móvil |
-| `apps/web/static/app.js` | ~7450 | Estado, modos, renderers, audio y MIDI de la SPA |
+| `apps/web/static/app.js` | ~7400 | Estado, modos, renderers, audio y MIDI de la SPA |
 | `midichords/mixins/ui_mixin.py` | ~4300 | Construcción de paneles y modos Qt |
 | `midichords/mixins/render_mixin.py` | ~2100 | Dibujo de instrumentos y pentagrama |
 | `midichords/main_app.py` | ~1800 | Ventana principal y estado transversal |

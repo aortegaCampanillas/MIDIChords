@@ -46,6 +46,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/audio_voice.js` define envolventes y liberación segura de voces mediante nodos inyectados. La creación del bus, las fuentes y los mapas de notas retenidas permanecen en `app.js`; probar tiempos de piano/guitarra y fuentes ya detenidas en `test/audio_voice.test.js`.
 
+`static/tuner_math.js` contiene autocorrelación y conversiones frecuencia/MIDI sin acceder a micrófono ni DOM. Permisos, suavizado, selección de cuerda y animación permanecen en `app.js`; probar con señales sintéticas decrecientes en `test/tuner_math.test.js`.
+
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 
 Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.

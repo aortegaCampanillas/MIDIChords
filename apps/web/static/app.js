@@ -180,6 +180,7 @@ const {
   heldVoiceReleaseTiming,
   releaseAudioVoice,
 } = globalThis.MidiChordsAudioVoice;
+const { autoCorrelate, freqToMidi, midiToFreq } = globalThis.MidiChordsTunerMath;
 const audioSampleLoader = createAudioSampleLoader({
   getContext: ensureAudioCtx,
   sampleUrls: allAudioSampleUrls(),
@@ -6081,31 +6082,6 @@ async function toggleMetronome() {
   metronomeTick();
   startMetronomeAnimation();
   setMetronomeToggleButtonState(true);
-}
-
-function autoCorrelate(buffer, sampleRate) {
-  let bestOffset = -1;
-  let bestCorrelation = 0;
-  const size = buffer.length;
-  for (let offset = 8; offset < 1200; offset += 1) {
-    let corr = 0;
-    for (let i = 0; i < size - offset; i += 1) corr += buffer[i] * buffer[i + offset];
-    corr /= (size - offset);
-    if (corr > bestCorrelation) {
-      bestCorrelation = corr;
-      bestOffset = offset;
-    }
-  }
-  if (bestOffset === -1 || bestCorrelation < 0.01) return null;
-  return sampleRate / bestOffset;
-}
-
-function freqToMidi(freq) {
-  return 69 + 12 * Math.log2(freq / 440);
-}
-
-function midiToFreq(midi) {
-  return 440 * (2 ** ((Number(midi) - 69) / 12));
 }
 
 function updateTunerNeedle(cents) {

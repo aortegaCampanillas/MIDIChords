@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.
+
 - **Web (mantenimiento)**: extraídas las envolventes de piano/guitarra y la liberación segura de voces retenidas a un módulo probado con nodos Web Audio falsos, eliminando dos implementaciones duplicadas y cubriendo también fuentes ya detenidas.
 
 - **Web (mantenimiento)**: encapsuladas la descarga, decodificación y caché de samples en un cargador inyectable; las pruebas verifican una sola carga concurrente, normalización exclusiva del metrónomo y conservación de resultados parciales ante fallos de red.

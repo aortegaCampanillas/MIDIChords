@@ -232,7 +232,7 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, las tablas y conversiones de notación en **`static/music_notation.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; estos módulos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, las tablas y conversiones de notación en **`static/music_notation.js`**, la teoría y geometría pura del círculo en **`static/circle_theory.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; estos módulos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 Las pruebas JavaScript sin dependencias externas están en **`test/`** y se ejecutan con `node --test`; `python scripts/check.py web` incluye esta suite, la comprobación de sintaxis y la construcción del bundle.
 
@@ -249,7 +249,7 @@ El perfil web y el chequeo de salud de producción validan automáticamente todo
 
 ### Círculo de quintas (`circle_fifths`)
 
-- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "circle_fifths"`, canvas `#circleFifthsCanvas`, funciones como `renderCircleFifths`, `circleChordRootPcFromClick`, `circleChordShiftClickIsDiatonic`, `runGenerateChordCircle`, `circleMajorTonicPcForTheory()`.
+- **Ubicación en código**: `apps/web/static/app.js` conserva estado, canvas y renderizado (`renderCircleFifths`, `runGenerateChordCircle`); `apps/web/static/circle_theory.js` contiene orden, grados, tríadas diatónicas y geometría pura.
 - **Interacción**: **clic** para fijar la **tonalidad** según la banda (anillo exterior = acordes mayores del sector → modo mayor; anillo interior = fundamental menor relativa → modo menor natural; misma armadura). **Mayús+clic** para elegir un **acorde diatónico** (triada) de esa tonalidad sin cambiar la tónica; solo se acepta la combinación banda/sector coherente con la escala.
 - **Datos**: el acorde mostrado y reproducido se obtiene con **`POST /api/generate/chord`** (mismo cuerpo conceptual que el modo generación: `root_pc`, `suffix`, `inversion`, `language`, `accidental`).
 - **UI**: colores por función en el anillo; en modo menor, numerales tipo **♭III / ♭VI / ♭VII** (bemol en superíndice en canvas); botón **▶** superpuesto en la esquina superior izquierda del área del canvas (no ocupa una fila aparte). Textos y traducciones ES/EN están en los objetos de strings de `app.js` (`tr()`).

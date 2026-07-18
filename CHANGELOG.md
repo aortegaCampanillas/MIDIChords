@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídas la teoría diatónica y la geometría pura del círculo de quintas a un módulo sin DOM ni estado, con pruebas directas de orden, armaduras, relativos, grados y tríadas mayores y menores.
+
 - **Web (mantenimiento)**: extraídas las tablas y conversiones puras de notación musical —nombres de notas, tónicas, alteraciones, armaduras y pitch classes— a un módulo con pruebas JavaScript directas.
 
 - **Web (mantenimiento)**: el build, la comprobación de sintaxis y el chequeo de salud descubren ahora automáticamente todos los JS/CSS locales enlazados desde `app.html`; añadir otro módulo ya no requiere mantener listas paralelas de assets en varios scripts Python.

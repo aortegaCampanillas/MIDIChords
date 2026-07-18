@@ -4,7 +4,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 ## Fuentes editables
 
-- SPA: `static/app.js`, `static/ui_texts.js`, `static/music_notation.js`, `static/chord_help.js`, `static/help_callouts.js` y `static/style.css`.
+- SPA: `static/app.js`, `static/ui_texts.js`, `static/music_notation.js`, `static/circle_theory.js`, `static/chord_help.js`, `static/help_callouts.js` y `static/style.css`.
 - HTML público: `index.html`, `app.html` y `fp30x.html`.
 - API: `worker/_worker.js`.
 - Assets web: `static/`.
@@ -27,6 +27,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 `static/ui_texts.js` contiene los textos generales ES/EN y publica `globalThis.MidiChordsUiTexts`. Cada clave debe existir en ambos idiomas; `tests/test_web_ui_texts.py` comprueba esa paridad y el orden de carga.
 
 `static/music_notation.js` contiene nombres de notas, letras de tónica, alteraciones, armaduras y conversiones puras de pitch class. La UI debe consumir estas funciones en vez de duplicar normalización o tablas.
+
+`static/circle_theory.js` contiene orden de quintas, grados, tríadas diatónicas, armaduras y geometría pura del círculo. El renderizado con estado y DOM permanece en `app.js`; mantener esa frontera para que la teoría pueda probarse directamente con Node.
 
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 

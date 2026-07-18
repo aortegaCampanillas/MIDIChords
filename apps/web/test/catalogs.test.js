@@ -3,6 +3,7 @@ const test = require("node:test");
 
 require("../static/ui_texts.js");
 require("../static/music_notation.js");
+require("../static/circle_theory.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -47,8 +48,37 @@ test("generic inversion help follows the selected bass degree", () => {
 test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsUiTexts));
   assert.ok(Object.isFrozen(globalThis.MidiChordsMusicNotation));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsCircleTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("circle of fifths theory maps keys and diatonic triads", () => {
+  const {
+    CIRCLE_FIFTHS_ORDER,
+    diatonicTriadSuffixMajorKey,
+    diatonicTriadSuffixNaturalMinorKey,
+    circleSignatureLabelForSliceIndex,
+    relativeMinorPcFromMajorPc,
+    circleSliceIndexForPitchClass,
+    chordRootPcForMajorScaleDegree,
+  } = globalThis.MidiChordsCircleTheory;
+
+  assert.equal(CIRCLE_FIFTHS_ORDER.length, 12);
+  assert.equal(new Set(CIRCLE_FIFTHS_ORDER).size, 12);
+  assert.deepEqual(CIRCLE_FIFTHS_ORDER, [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]);
+  assert.deepEqual(diatonicTriadSuffixMajorKey(0, 7), { suffix: "", degree: 7 });
+  assert.deepEqual(diatonicTriadSuffixMajorKey(0, 2), { suffix: "m", degree: 2 });
+  assert.deepEqual(diatonicTriadSuffixNaturalMinorKey(9, 11), {
+    suffix: "dim",
+    interval: 2,
+    roman: "ii°",
+  });
+  assert.equal(relativeMinorPcFromMajorPc(0), 9);
+  assert.equal(circleSliceIndexForPitchClass(10), 10);
+  assert.equal(chordRootPcForMajorScaleDegree(0, 11), 11);
+  assert.equal(circleSignatureLabelForSliceIndex(0), "0");
+  assert.equal(circleSignatureLabelForSliceIndex(8), "4♭");
 });
 
 test("music notation normalizes pitch classes and accidentals", () => {

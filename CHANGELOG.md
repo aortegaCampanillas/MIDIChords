@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (generación / piano)**: al entrar en Generación de acordes o volver desde la guitarra, el teclado se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior hacia la mano izquierda.
+
 - **Móvil (pentagrama interactivo)**: la reproducción al tocar una nota del pentagrama se extiende de Escalas a Detección, Generación de acordes, Círculo de quintas e Intervalos; en los modos de acordes la selección se refleja también en el instrumento.
 
 - **Móvil (escalas / guitarra)**: el diapasón adopta la misma jerarquía de colores que escritorio: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.

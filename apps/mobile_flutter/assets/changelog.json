@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "Generación: al entrar en el modo o volver desde la guitarra, el piano se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior.",
+        "en": "Generation: entering the mode or returning from guitar now recenters the piano on the right-hand C instead of keeping the previous scroll position."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Pentagrama: la reproducción al tocar sus notas se extiende a Detección, Generación de acordes, Círculo de quintas e Intervalos; en los modos de acordes la selección se refleja también en el instrumento.",
         "en": "Staff: tapping its notes now also works in Detection, Chord Generation, Circle of Fifths, and Intervals; chord-mode selections are reflected on the instrument as well."
       },

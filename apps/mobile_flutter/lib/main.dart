@@ -20,6 +20,7 @@ import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
 import 'key_signature_highlight.dart';
+import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
 import 'scale_staff_interaction.dart';
 
@@ -7410,7 +7411,9 @@ class _HomeScreenState extends State<HomeScreen>
                           if (value == 0) {
                             _instrumentView = 'piano';
                           }
-                          if (value == 3) _needsPianoScrollSync = true;
+                          if (modeUsesCenteredTheoryPiano(value)) {
+                            _needsPianoScrollSync = true;
+                          }
                         });
                         if (value != 3) {
                           _stopScaleLoop();
@@ -8653,6 +8656,10 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       onPressed: () {
         setState(() {
+          final switchingToCenteredPiano =
+              key == 'piano' &&
+              _instrumentView != key &&
+              modeUsesCenteredTheoryPiano(_tabIndex);
           if (_instrumentView != key && (_tabIndex == 1 || _tabIndex == 2)) {
             _generationInputStaffNotes.clear();
             _clearGenerationPianoHighlight();
@@ -8661,6 +8668,9 @@ class _HomeScreenState extends State<HomeScreen>
             _generationPlayPressed = false;
           }
           _instrumentView = key;
+          if (switchingToCenteredPiano) {
+            _needsPianoScrollSync = true;
+          }
           if (_tabIndex == 3) {
             // _scaleRhNotes() fuerza 1 octava en guitarra; al volver a
             // piano hay que recalcular la digitación con las octavas

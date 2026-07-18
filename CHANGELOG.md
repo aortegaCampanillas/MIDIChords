@@ -36,6 +36,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Generación de acordes (guitarra)**: cada tónica menor add4 ofrece sus dos digitaciones de referencia y cada add9 sus tres posiciones verificadas, incluidas las digitaciones abiertas especiales.
 - **Generación de acordes (guitarra)**: las tríadas mayores, menores, disminuidas y aumentadas usan ya las posiciones y dedos del catálogo público actual para las doce tónicas; una nueva utilidad audita los tipos compartidos y separa explícitamente las variantes propias sin referencia directa.
 - **Generación de acordes (guitarra)**: los power chords y acordes suspendidos `sus2` y `sus4` quedan sincronizados con sus digitaciones de referencia para las doce tónicas.
+- **Generación de acordes (guitarra)**: completada la auditoría de la familia de notas añadidas; `madd9` corrige trastes y dedos en las ocho tónicas que todavía divergían, mientras `add2`, `add4`, `madd2`, `madd4` y `add9` conservan sus posiciones ya verificadas.
 
 - **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
 

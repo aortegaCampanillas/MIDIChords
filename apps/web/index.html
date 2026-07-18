@@ -6,6 +6,9 @@
   <title>FreeMIDIChords — Free Music Theory Tools for Every Platform</title>
   <meta name="description" content="Free music theory tools: chord and interval detection, chord generation, circle of fifths, scales and metronome — available as a web app, mobile app (iOS &amp; Android), desktop app (Mac &amp; Windows), and Roland FP-30X controller." />
   <link rel="canonical" href="https://freemidichords.com/" />
+  <link rel="alternate" hreflang="en" href="https://freemidichords.com/?lang=en" />
+  <link rel="alternate" hreflang="es" href="https://freemidichords.com/?lang=es" />
+  <link rel="alternate" hreflang="x-default" href="https://freemidichords.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://freemidichords.com/" />
   <meta property="og:title" content="FreeMIDIChords — Free Music Theory Tools" />
@@ -891,6 +894,24 @@ const closeFeedback = () => MidiChordsLanding.closeFeedback();
 MidiChordsLanding.init({
   translations: TRANSLATIONS,
   feedbackMode: "landing",
+  metadata: {
+    en: {
+      title: "FreeMIDIChords — Understand chords, scales and harmony",
+      description: "See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop.",
+      ogTitle: "FreeMIDIChords — Free music theory tools",
+      ogDescription: "Understand chords, intervals, scales and harmony visually on piano, guitar and staff.",
+      twitterTitle: "FreeMIDIChords — Understand chords, scales and harmony",
+      twitterDescription: "See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop.",
+    },
+    es: {
+      title: "FreeMIDIChords — Comprende acordes, escalas y armonía",
+      description: "Visualiza y escucha acordes, intervalos y escalas en piano, guitarra y pentagrama. Gratis en web, móvil y escritorio.",
+      ogTitle: "FreeMIDIChords — Herramientas gratuitas de teoría musical",
+      ogDescription: "Comprende visualmente acordes, intervalos, escalas y armonía en piano, guitarra y pentagrama.",
+      twitterTitle: "FreeMIDIChords — Comprende acordes, escalas y armonía",
+      twitterDescription: "Visualiza y escucha acordes, intervalos y escalas en piano, guitarra y pentagrama. Gratis en web, móvil y escritorio.",
+    },
+  },
   onLanguageChanged: (language) => {
     if (activeFeat) toggleFeatContent(language, activeFeat);
   },

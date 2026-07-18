@@ -6,6 +6,8 @@
   let lastFocusedElement = null;
 
   function detectLanguage() {
+    const requested = new URLSearchParams(global.location.search).get("lang");
+    if (requested === "es" || requested === "en") return requested;
     const saved = global.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (saved === "es" || saved === "en") return saved;
     const browserLanguage = (global.navigator.language || "en").toLowerCase();
@@ -42,12 +44,31 @@
       }
     });
 
+    const metadata = config?.metadata?.[language];
+    if (metadata) {
+      document.title = metadata.title;
+      const selectors = {
+        description: 'meta[name="description"]',
+        ogTitle: 'meta[property="og:title"]',
+        ogDescription: 'meta[property="og:description"]',
+        twitterTitle: 'meta[name="twitter:title"]',
+        twitterDescription: 'meta[name="twitter:description"]',
+      };
+      Object.entries(selectors).forEach(([key, selector]) => {
+        const element = document.querySelector(selector);
+        if (element && metadata[key]) element.setAttribute("content", metadata[key]);
+      });
+    }
+
     config?.onLanguageChanged?.(language, texts);
   }
 
   function toggleLanguage() {
     const next = detectLanguage() === "en" ? "es" : "en";
     global.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+    const url = new URL(global.location.href);
+    url.searchParams.set("lang", next);
+    global.history.replaceState({}, "", url);
     applyLanguage(next);
   }
 

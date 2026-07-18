@@ -16,6 +16,9 @@
   <meta name="twitter:description" content="Manage supported settings, tones, keyboard modes, presets and the metronome of your FP-30X from macOS or Windows." />
   <meta name="twitter:image" content="https://freemidichords.com/static/fp30x/settings.webp" />
   <link rel="canonical" href="https://freemidichords.com/fp30x" />
+  <link rel="alternate" hreflang="en" href="https://freemidichords.com/fp30x?lang=en" />
+  <link rel="alternate" hreflang="es" href="https://freemidichords.com/fp30x?lang=es" />
+  <link rel="alternate" hreflang="x-default" href="https://freemidichords.com/fp30x" />
   <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
   <script type="application/ld+json">
@@ -841,6 +844,24 @@ const closeFeedback = () => MidiChordsLanding.closeFeedback();
 MidiChordsLanding.init({
   translations: TRANSLATIONS,
   feedbackMode: "fp30x",
+  metadata: {
+    en: {
+      title: "PianoPilot — Desktop companion for Roland FP-30X",
+      description: "Manage supported settings, tones, modes, presets and the metronome of a Roland FP-30X from macOS or Windows.",
+      ogTitle: "PianoPilot — Desktop companion for Roland FP-30X",
+      ogDescription: "Manage supported FP-30X settings, tones, keyboard modes, presets and metronome controls over MIDI.",
+      twitterTitle: "PianoPilot — Desktop companion for Roland FP-30X",
+      twitterDescription: "Manage supported FP-30X settings, tones, modes, presets and the metronome from macOS or Windows.",
+    },
+    es: {
+      title: "PianoPilot — Compañero de escritorio para Roland FP-30X",
+      description: "Gestiona ajustes compatibles, tonos, modos, presets y el metrónomo de un Roland FP-30X desde macOS o Windows.",
+      ogTitle: "PianoPilot — Compañero de escritorio para Roland FP-30X",
+      ogDescription: "Gestiona por MIDI ajustes compatibles, tonos, modos de teclado, presets y metrónomo del FP-30X.",
+      twitterTitle: "PianoPilot — Compañero de escritorio para Roland FP-30X",
+      twitterDescription: "Gestiona ajustes compatibles, tonos, modos, presets y el metrónomo del FP-30X desde macOS o Windows.",
+    },
+  },
 });
 </script>
 </body>

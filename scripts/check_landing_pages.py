@@ -61,6 +61,14 @@ def check_page(filename: str, product_name: str, minimum_screenshots: int) -> No
         f"{filename}: faltan capturas navegables en la galería"
     )
     assert any(link.get("rel") == "canonical" for link in parser.links)
+    alternate_languages = {
+        link.get("hreflang")
+        for link in parser.links
+        if link.get("rel") == "alternate"
+    }
+    assert alternate_languages == {"en", "es", "x-default"}, (
+        f"{filename}: faltan alternas bilingües"
+    )
     for meta_type, key in (
         ("name", "description"),
         ("property", "og:title"),

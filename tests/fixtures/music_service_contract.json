@@ -1,0 +1,601 @@
+{
+  "schema_version": 1,
+  "canonical_implementation": "midichords.core.music_service",
+  "cases": [
+    {
+      "id": "chord-major-root-es",
+      "operation": "generate_chord",
+      "input": {
+        "root_pc": 0,
+        "suffix": "",
+        "inversion": 0,
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "root_pc": 0,
+        "suffix": "",
+        "inversion": 0,
+        "name": "Do",
+        "notes_midi": [
+          60,
+          64,
+          67
+        ],
+        "notes": [
+          "Do4",
+          "Mi4",
+          "Sol4"
+        ],
+        "notes_no_octave": [
+          "Do",
+          "Mi",
+          "Sol"
+        ],
+        "intervals": [
+          0,
+          4,
+          7
+        ]
+      }
+    },
+    {
+      "id": "chord-minor-flat-en",
+      "operation": "generate_chord",
+      "input": {
+        "root_pc": 10,
+        "suffix": "m",
+        "inversion": 0,
+        "language": "en",
+        "prefer_flat": true
+      },
+      "expected": {
+        "root_pc": 10,
+        "suffix": "m",
+        "inversion": 0,
+        "name": "B♭m",
+        "notes_midi": [
+          70,
+          73,
+          77
+        ],
+        "notes": [
+          "B♭4",
+          "D♭5",
+          "F5"
+        ],
+        "notes_no_octave": [
+          "B♭",
+          "D♭",
+          "F"
+        ],
+        "intervals": [
+          0,
+          3,
+          7
+        ]
+      }
+    },
+    {
+      "id": "chord-inversion-es",
+      "operation": "generate_chord",
+      "input": {
+        "root_pc": 4,
+        "suffix": "7",
+        "inversion": 2,
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "root_pc": 4,
+        "suffix": "7",
+        "inversion": 2,
+        "name": "Mi7/Si",
+        "notes_midi": [
+          71,
+          74,
+          76,
+          80
+        ],
+        "notes": [
+          "Si4",
+          "Re5",
+          "Mi5",
+          "Sol#5"
+        ],
+        "notes_no_octave": [
+          "Si",
+          "Re",
+          "Mi",
+          "Sol#"
+        ],
+        "intervals": [
+          7,
+          10,
+          12,
+          16
+        ]
+      }
+    },
+    {
+      "id": "chord-added-tone-en",
+      "operation": "generate_chord",
+      "input": {
+        "root_pc": 1,
+        "suffix": "madd4",
+        "inversion": 1,
+        "language": "en",
+        "prefer_flat": true
+      },
+      "expected": {
+        "root_pc": 1,
+        "suffix": "madd4",
+        "inversion": 1,
+        "name": "D♭madd4/F♭",
+        "notes_midi": [
+          64,
+          66,
+          68,
+          73
+        ],
+        "notes": [
+          "F♭4",
+          "G♭4",
+          "A♭4",
+          "D♭5"
+        ],
+        "notes_no_octave": [
+          "F♭",
+          "G♭",
+          "A♭",
+          "D♭"
+        ],
+        "intervals": [
+          3,
+          5,
+          7,
+          12
+        ]
+      }
+    },
+    {
+      "id": "chord-extended-sharp",
+      "operation": "generate_chord",
+      "input": {
+        "root_pc": 6,
+        "suffix": "maj9#11",
+        "inversion": 4,
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "root_pc": 6,
+        "suffix": "maj9#11",
+        "inversion": 4,
+        "name": "Fa#maj9#11/Sol#",
+        "notes_midi": [
+          80,
+          84,
+          90,
+          94,
+          97,
+          101
+        ],
+        "notes": [
+          "Sol#5",
+          "Si#6",
+          "Fa#6",
+          "La#6",
+          "Si##7",
+          "Fa7"
+        ],
+        "notes_no_octave": [
+          "Sol#",
+          "Si#",
+          "Fa#",
+          "La#",
+          "Si##",
+          "Fa"
+        ],
+        "intervals": [
+          14,
+          18,
+          24,
+          28,
+          31,
+          35
+        ]
+      }
+    },
+    {
+      "id": "scale-ionian-es",
+      "operation": "generate_scale",
+      "input": {
+        "tonic_pc": 0,
+        "pattern_name": "Ionian",
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "tonic_pc": 0,
+        "pattern_name": "Ionian",
+        "pattern_localized_name": "Jónica",
+        "notes_midi": [
+          60,
+          62,
+          64,
+          65,
+          67,
+          69,
+          71,
+          72
+        ],
+        "notes": [
+          "Do4",
+          "Re4",
+          "Mi4",
+          "Fa4",
+          "Sol4",
+          "La4",
+          "Si4",
+          "Do5"
+        ],
+        "intervals": [
+          0,
+          2,
+          4,
+          5,
+          7,
+          9,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "scale-dorian-flat-en",
+      "operation": "generate_scale",
+      "input": {
+        "tonic_pc": 3,
+        "pattern_name": "Dorian",
+        "language": "en",
+        "prefer_flat": true
+      },
+      "expected": {
+        "tonic_pc": 3,
+        "pattern_name": "Dorian",
+        "pattern_localized_name": "Dorian",
+        "notes_midi": [
+          63,
+          65,
+          66,
+          68,
+          70,
+          72,
+          73,
+          75
+        ],
+        "notes": [
+          "E♭4",
+          "F4",
+          "G♭4",
+          "A♭4",
+          "B♭4",
+          "C5",
+          "D♭5",
+          "E♭5"
+        ],
+        "intervals": [
+          0,
+          2,
+          3,
+          5,
+          7,
+          9,
+          10,
+          12
+        ]
+      }
+    },
+    {
+      "id": "scale-harmonic-minor",
+      "operation": "generate_scale",
+      "input": {
+        "tonic_pc": 9,
+        "pattern_name": "Harmonic Minor",
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "tonic_pc": 9,
+        "pattern_name": "Harmonic Minor",
+        "pattern_localized_name": "Menor armónica",
+        "notes_midi": [
+          69,
+          71,
+          72,
+          74,
+          76,
+          77,
+          80,
+          81
+        ],
+        "notes": [
+          "La4",
+          "Si4",
+          "Do5",
+          "Re5",
+          "Mi5",
+          "Fa5",
+          "Sol#5",
+          "La5"
+        ],
+        "intervals": [
+          0,
+          2,
+          3,
+          5,
+          7,
+          8,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "scale-whole-tone-flat",
+      "operation": "generate_scale",
+      "input": {
+        "tonic_pc": 6,
+        "pattern_name": "Whole Tone",
+        "language": "en",
+        "prefer_flat": true
+      },
+      "expected": {
+        "tonic_pc": 6,
+        "pattern_name": "Ionian",
+        "pattern_localized_name": "Ionian",
+        "notes_midi": [
+          66,
+          68,
+          70,
+          71,
+          73,
+          75,
+          77,
+          78
+        ],
+        "notes": [
+          "G♭4",
+          "A♭4",
+          "B♭4",
+          "C♭4",
+          "D♭5",
+          "E♭5",
+          "F5",
+          "G♭5"
+        ],
+        "intervals": [
+          0,
+          2,
+          4,
+          5,
+          7,
+          9,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "scale-world-pattern",
+      "operation": "generate_scale",
+      "input": {
+        "tonic_pc": 1,
+        "pattern_name": "Hirajoshi",
+        "language": "es",
+        "prefer_flat": true
+      },
+      "expected": {
+        "tonic_pc": 1,
+        "pattern_name": "Ionian",
+        "pattern_localized_name": "Jónica",
+        "notes_midi": [
+          61,
+          63,
+          65,
+          66,
+          68,
+          70,
+          72,
+          73
+        ],
+        "notes": [
+          "Re♭4",
+          "Mi♭4",
+          "Fa4",
+          "Sol♭4",
+          "La♭4",
+          "Si♭4",
+          "Do5",
+          "Re♭5"
+        ],
+        "intervals": [
+          0,
+          2,
+          4,
+          5,
+          7,
+          9,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "detect-empty",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [],
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "name": "-",
+        "notes_midi": [],
+        "notes": [],
+        "extras_midi": [],
+        "extras": []
+      }
+    },
+    {
+      "id": "detect-single-flat",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [
+          61
+        ],
+        "language": "en",
+        "prefer_flat": true
+      },
+      "expected": {
+        "name": "D♭",
+        "notes_midi": [
+          61
+        ],
+        "notes": [
+          "D♭4"
+        ],
+        "extras_midi": [],
+        "extras": []
+      }
+    },
+    {
+      "id": "detect-major-root",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [
+          60,
+          64,
+          67
+        ],
+        "language": "es",
+        "prefer_flat": false
+      },
+      "expected": {
+        "name": "Do",
+        "notes_midi": [
+          60,
+          64,
+          67
+        ],
+        "notes": [
+          "Do4",
+          "Mi4",
+          "Sol4"
+        ],
+        "extras_midi": [],
+        "extras": [],
+        "root_pc": 0,
+        "suffix": ""
+      }
+    },
+    {
+      "id": "detect-major-inversion",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [
+          64,
+          67,
+          72
+        ],
+        "language": "en",
+        "prefer_flat": false
+      },
+      "expected": {
+        "name": "C/E",
+        "notes_midi": [
+          64,
+          67,
+          72
+        ],
+        "notes": [
+          "E4",
+          "G4",
+          "C5"
+        ],
+        "extras_midi": [],
+        "extras": [],
+        "root_pc": 0,
+        "suffix": ""
+      }
+    },
+    {
+      "id": "detect-dominant-flat",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [
+          58,
+          62,
+          65,
+          68
+        ],
+        "language": "es",
+        "prefer_flat": true
+      },
+      "expected": {
+        "name": "Si♭7",
+        "notes_midi": [
+          58,
+          62,
+          65,
+          68
+        ],
+        "notes": [
+          "Si♭3",
+          "Re4",
+          "Fa4",
+          "La♭4"
+        ],
+        "extras_midi": [],
+        "extras": [],
+        "root_pc": 10,
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "detect-unmatched",
+      "operation": "detect_chord",
+      "input": {
+        "notes": [
+          60,
+          61,
+          66
+        ],
+        "language": "en",
+        "prefer_flat": false
+      },
+      "expected": {
+        "name": "G♭5/C",
+        "notes_midi": [
+          60,
+          61,
+          66
+        ],
+        "notes": [
+          "C4",
+          "D♭4",
+          "G♭4"
+        ],
+        "extras_midi": [
+          60
+        ],
+        "extras": [
+          "C4"
+        ],
+        "root_pc": 6,
+        "suffix": "5"
+      }
+    }
+  ]
+}

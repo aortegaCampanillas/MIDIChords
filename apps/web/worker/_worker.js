@@ -846,6 +846,8 @@ async function forwardFeedbackByEmail(body, env) {
   return json({ ok: true, sent: false, queued: true, provider, sent_to: to, reason: "provider_disabled" });
 }
 
+export { detectChord, generateChord, generateScale };
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);

@@ -21,6 +21,8 @@ const CHORD_PATTERNS = [
   { suffix: "sus2", intervals: [0, 2, 7] },
   { suffix: "sus4", intervals: [0, 5, 7] },
   { suffix: "sus2sus4", intervals: [0, 2, 5, 7] },
+  { suffix: "add2", intervals: [0, 2, 4, 7] },
+  { suffix: "add4", intervals: [0, 4, 5, 7] },
   { suffix: "add9", intervals: [0, 4, 7, 14] },
   { suffix: "madd9", intervals: [0, 3, 7, 14] },
   { suffix: "6", intervals: [0, 4, 7, 9] },
@@ -65,7 +67,7 @@ const CHORD_PATTERNS = [
 ];
 
 const COMMON_CHORD_SUFFIX_ORDER = [
-  "", "m", "7", "maj7", "m7", "sus4", "sus2", "dim", "aug", "5", "6", "m6",
+  "", "m", "7", "maj7", "m7", "sus4", "sus2", "add2", "add4", "dim", "aug", "5", "6", "m6",
   "add9", "madd9", "9", "maj9", "m9", "11", "m11", "13", "m13", "dim7", "m7b5",
 ];
 
@@ -80,6 +82,8 @@ const CHORD_SUFFIX_NAMES = {
     "sus2": "Suspendido 2ª",
     "sus4": "Suspendido 4ª",
     "sus2sus4": "Suspendido 2ª y 4ª",
+    "add2": "Mayor con 2ª añadida",
+    "add4": "Mayor con 4ª añadida",
     "add9": "Mayor con 9ª añadida",
     "madd9": "Menor con 9ª añadida",
     "6": "Mayor con 6ª",
@@ -132,6 +136,8 @@ const CHORD_SUFFIX_NAMES = {
     "sus2": "Suspended 2nd",
     "sus4": "Suspended 4th",
     "sus2sus4": "Suspended 2nd and 4th",
+    "add2": "Major add 2nd",
+    "add4": "Major add 4th",
     "add9": "Major add 9th",
     "madd9": "Minor add 9th",
     "6": "Major 6th",

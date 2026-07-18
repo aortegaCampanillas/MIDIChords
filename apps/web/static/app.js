@@ -5064,8 +5064,31 @@ const KEY_SIG_BASS_SHARP_MIDIS = [54, 49, 56, 51, 46, 52, 47];
 // Bemoles: Bb Eb Ab Db Gb Cb Fb — offsets como render_mixin.py (treble_offsets / bass flat).
 const KEY_SIG_TREBLE_FLAT_OFFSETS = [2, 0.5, 2.5, 1, 3, 1.5, 3.5];
 const KEY_SIG_BASS_FLAT_OFFSETS = [3, 1.5, 3.5, 2, 4, 2.5, 4.5];
+const KEY_SIG_SHARP_NATURAL_PC_ORDER = [5, 0, 7, 2, 9, 4, 11]; // F C G D A E B
+const KEY_SIG_FLAT_NATURAL_PC_ORDER = [11, 4, 9, 2, 7, 0, 5]; // B E A D G C F
 
-function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef) {
+function keySignatureIndexForScaleNote(label, midi, sig) {
+  if (!sig || !sig.count || !Number.isFinite(Number(midi))) return -1;
+  const text = scaleLabelWithoutOctave(label);
+  const symbol = sig.preferFlats ? "♭" : "#";
+  const accidentalCount = Array.from(text).filter((char) => char === symbol).length;
+  if (accidentalCount !== 1) return -1;
+  const pc = ((Number(midi) % 12) + 12) % 12;
+  const naturalPc = sig.preferFlats
+    ? (pc + accidentalCount) % 12
+    : (pc - accidentalCount + 12) % 12;
+  const order = sig.preferFlats ? KEY_SIG_FLAT_NATURAL_PC_ORDER : KEY_SIG_SHARP_NATURAL_PC_ORDER;
+  const index = order.indexOf(naturalPc);
+  return index >= 0 && index < Number(sig.count) ? index : -1;
+}
+
+function activeScaleKeySignatureIndex(sig) {
+  if (state.mode !== "scales" || state.scaleCurrentNote == null) return -1;
+  const label = scaleLabelForMidi(state.scaleCurrentNote);
+  return keySignatureIndexForScaleNote(label, state.scaleCurrentNote, sig);
+}
+
+function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef, activeIndex = -1) {
   if (!sig || !sig.count) return x0;
   const staffTop = bassClef ? bassTop : trebleTop;
   const step = 18;
@@ -5084,6 +5107,11 @@ function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef
       const midi = bassClef ? KEY_SIG_BASS_SHARP_MIDIS[i] : KEY_SIG_TREBLE_SHARP_MIDIS[i];
       y = bassClef ? midiToBassY(midi, bassTop, gap) : midiToTrebleY(midi, trebleTop, gap);
     }
+    const active = i === activeIndex;
+    ctx.fillStyle = active ? "#6fe0ff" : "#e9edf2";
+    ctx.font = active ? "bold 26px serif" : "24px serif";
+    ctx.shadowColor = active ? "rgba(111, 224, 255, 0.65)" : "transparent";
+    ctx.shadowBlur = active ? 7 : 0;
     ctx.fillText(sig.preferFlats ? "♭" : "♯", x + step / 2, y);
     x += step;
   }
@@ -5091,11 +5119,11 @@ function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef
   return x;
 }
 
-function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig) {
+function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig, activeIndex = -1) {
   if (!sig || !sig.count) return 132;
   const xStart = 162;
-  const xTrebleEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, false);
-  const xBassEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, true);
+  const xTrebleEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, false, activeIndex);
+  const xBassEnd = drawKeySignatureOnStaff(ctx, xStart, trebleTop, bassTop, gap, sig, true, activeIndex);
   return Math.max(xTrebleEnd, xBassEnd) + 10;
 }
 
@@ -5847,7 +5875,15 @@ function renderStaff() {
   drawBassClef(ctx, 108, bassTop + gap * 2.25);
 
   const staffCtx = getStaffContext();
-  const startX = drawGrandKeySignature(ctx, trebleTop, bassTop, gap, staffCtx.signature);
+  const activeKeySignatureIndex = activeScaleKeySignatureIndex(staffCtx.signature);
+  const startX = drawGrandKeySignature(
+    ctx,
+    trebleTop,
+    bassTop,
+    gap,
+    staffCtx.signature,
+    activeKeySignatureIndex,
+  );
 
   const notes = getStaffNotes();
   const extras = getExtraMidiForMode();

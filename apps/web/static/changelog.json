@@ -6,6 +6,13 @@
       {
         "date": "2026-07-18",
         "publish": true,
+        "platforms": ["web"],
+        "es": "Escalas en web: al pulsar una nota alterada o alcanzarla durante la reproducción, el sostenido o bemol correspondiente se resalta también en la armadura de ambas claves.",
+        "en": "Web scales: when an altered note is pressed or reached during playback, its corresponding sharp or flat is also highlighted in the key signature on both staves."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
         "platforms": ["desktop"],
         "es": "Ayuda de acordes en escritorio: la ventana ajusta su altura al contenido, elimina el espacio vacío inferior, recupera los márgenes y coloca Cerrar debajo del texto, en la esquina inferior derecha.",
         "en": "Desktop chord help: the window now fits its height to the content, removes the empty area below, restores its margins, and places Close beneath the text in the bottom-right corner."

@@ -7,7 +7,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Concepto | Fuente o referencia actual | Consumidores/copias | Verificación existente |
 |---|---|---|---|
 | Patrones de acordes y escalas | `midichords/core/music_theory.py` | `apps/web/worker/_worker.js`, `apps/mobile_flutter/lib/music_catalog.dart` | Tests Python, `apps/mobile_flutter/test/music_catalog_test.dart` y `scripts/compare_api_parity.py` (comparación con producción) |
-| Contrato musical Python | `midichords/core/music_service.py` | Worker y `apps/mobile_flutter/lib/music_service.dart` implementan resultados equivalentes | Tests Python, `apps/mobile_flutter/test/music_service_test.dart` y `scripts/compare_api_parity.py` para una muestra Python/producción |
+| Contrato musical Python | `midichords/core/music_service.py` | Worker y `apps/mobile_flutter/lib/music_service.dart` implementan resultados equivalentes | `tests/fixtures/music_service_contract.json` se ejecuta offline en Python, Worker y Flutter; `scripts/compare_api_parity.py` queda como comprobación adicional de producción |
 | Ayuda de variantes | `assets/chord_variant_theory.json` | `apps/mobile_flutter/assets/chord_variant_theory.json`; la web mantiene su catálogo en `apps/web/static/chord_help.js` | `tests/test_chord_help_cross_platform.py` y `tests/test_web_chord_variant_help.py` |
 | Textos generales de la web | `apps/web/static/ui_texts.js` | La SPA los consume mediante `globalThis.MidiChordsUiTexts` | `tests/test_web_ui_texts.py` |
 | Notación básica de la web | `apps/web/static/music_notation.js` | Nombres de notas, alteraciones, armaduras y mapeos diatónicos de la SPA | `apps/web/test/catalogs.test.js` |
@@ -70,9 +70,29 @@ python scripts/check.py all
 
 El workflow `.github/workflows/quality.yml` ejecuta los tres perfiles en jobs aislados para que un fallo de herramientas de una plataforma no oculte los resultados de las demás.
 
+### Contrato musical offline
+
+`tests/fixtures/music_service_contract.json` contiene entradas y salidas
+canónicas para generación de acordes, generación de escalas y detección. Los
+tests de Python, Node y Flutter leen exactamente el mismo archivo, por lo que no
+necesitan levantar el Worker ni contactar producción.
+
+La fuente funcional del resultado esperado es `midichords.core.music_service`.
+Si el cambio musical es intencionado, regenerar el fixture y revisar su diff:
+
+```bash
+python scripts/generate_music_service_contract.py
+python scripts/check.py all
+```
+
+No regenerar el fixture para ocultar un fallo de una sola plataforma: primero se
+debe determinar si ha cambiado el contrato canónico o si una copia se ha
+desviado. Al añadir una regla musical nueva, incorporar al menos un caso que la
+ejercite en el fixture compartido.
+
 ## Carencias conocidas y dirección recomendada
 
 - Los patrones musicales están declarados en tres lenguajes. La dirección recomendada es mover los datos declarativos a un catálogo canónico, manteniendo lectores o generación por plataforma.
-- Los algoritmos no deben depender de una llamada de red para compartirse. La paridad debe apoyarse en fixtures de entrada/salida comunes y tests locales.
-- `scripts/compare_api_parity.py` depende de producción y no sustituye una comprobación offline en CI.
+- Los algoritmos no dependen de red para su contrato básico; ampliar el fixture común cuando aparezcan nuevas reglas o formatos.
+- `scripts/compare_api_parity.py` sigue siendo útil para comprobar el despliegue, pero no sustituye el contrato offline del CI.
 - Falta una orden única de sincronización de assets; hasta que exista, los tests de igualdad son el guardarraíl obligatorio.

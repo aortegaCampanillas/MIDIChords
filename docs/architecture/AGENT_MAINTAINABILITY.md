@@ -151,6 +151,22 @@ en módulos `*_spec.py`, no se importan desde otros módulos `test_*`. Los fixtu
 JSON continúan siendo íntegros y cada combinación anterior de tonalidad, mano,
 una/dos octavas y ascenso/descenso sigue validándose.
 
+## Paridad musical offline
+
+La generación y detección musical de Python, Worker y Flutter ejecutan el mismo
+fixture `tests/fixtures/music_service_contract.json`. El contrato incluye
+ortografía ES/EN con sostenidos y bemoles, inversiones, extensiones, familias de
+escalas y detecciones representativas. El Worker exporta sus tres funciones
+puras únicamente para poder probarlas con Node; su handler HTTP sigue siendo el
+adaptador público.
+
+El fixture se regenera explícitamente con
+`scripts/generate_music_service_contract.py`. Durante su introducción detectó y
+corrigió una divergencia de spelling en Python: las notas reconocidas dentro de
+un acorde usan la ortografía armónica del acorde, mientras la preferencia visual
+se reserva para notas ajenas. La comparación con producción permanece como
+chequeo de despliegue, no como requisito de la suite local.
+
 ## Auditoría funcional posterior: guitarra
 
 La revisión de digitaciones se ejecuta por familias mediante

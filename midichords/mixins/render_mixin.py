@@ -42,6 +42,29 @@ class RenderMixin:
         return max(14, min(22, int(round(line_space * 0.82)), int(accidental_pt * 0.72) + 6))
 
     @staticmethod
+    def _key_signature_index_for_scale_note(
+        label: str,
+        midi_note: int,
+        signature_count: int,
+        prefer_flats: bool,
+    ) -> int:
+        """Índice de la alteración de armadura correspondiente a una nota escrita."""
+        if signature_count <= 0:
+            return -1
+        text = str(label)
+        accidental_count = text.count("♭") if prefer_flats else (text.count("#") + text.count("♯"))
+        if accidental_count != 1:
+            return -1
+        pc = int(midi_note) % 12
+        natural_pc = (pc + 1) % 12 if prefer_flats else (pc - 1) % 12
+        order = [11, 4, 9, 2, 7, 0, 5] if prefer_flats else [5, 0, 7, 2, 9, 4, 11]
+        try:
+            index = order.index(natural_pc)
+        except ValueError:
+            return -1
+        return index if index < int(signature_count) else -1
+
+    @staticmethod
     def _draw_rest_symbol(canvas: object, x: float, center_y: float, dur_code: str,
                           line_space: float, fill: str, treble_top: float) -> None:
         """Draw a rest symbol using canvas primitives (Unicode glyphs are not reliable across fonts)."""
@@ -1407,6 +1430,37 @@ class RenderMixin:
             signature_base_naturals = set()
         use_key_signature = signature_count > 0
         signature_pc_set = set(signature_pcs)
+        active_signature_indices: set[int] = set()
+        if self.scale_tab_active and display_notes_list and use_key_signature:
+            base_scale_ordered_for_signature = [int(note) for note in display_notes_list]
+            root_midi = base_scale_ordered_for_signature[0]
+            scale_labels_for_signature = self._spelled_scale_note_names(
+                root_midi=root_midi,
+                intervals=[int(note - root_midi) for note in base_scale_ordered_for_signature],
+                tonic_pc=self.scale_tonic_pc,
+                with_octave=False,
+            )
+            active_scale_notes = (
+                set(self.staff_pressed_scale_notes)
+                | set(self.scale_guitar_click_highlight_notes)
+                | set(self.scale_guitar_drag_staff_notes)
+            )
+            if self.scale_loop_active and self.scale_current_note is not None:
+                active_scale_notes.add(int(self.scale_current_note))
+            for active_note in active_scale_notes:
+                active_pc = int(active_note) % 12
+                for degree, scale_note in enumerate(base_scale_ordered_for_signature):
+                    if int(scale_note) % 12 != active_pc or degree >= len(scale_labels_for_signature):
+                        continue
+                    signature_index = self._key_signature_index_for_scale_note(
+                        scale_labels_for_signature[degree],
+                        scale_note,
+                        signature_count,
+                        prefer_flat_signature,
+                    )
+                    if signature_index >= 0:
+                        active_signature_indices.add(signature_index)
+                    break
         signature_end_x = 132.0
         if use_key_signature:
             accidental_text = "♭" if prefer_flat_signature else "#"
@@ -1430,8 +1484,9 @@ class RenderMixin:
                 x = sig_x_start + (idx * sig_step_x)
                 y_treble = treble_top + (treble_offsets[idx] * line_space)
                 y_bass = bass_top + (bass_offsets[idx] * line_space)
-                canvas.create_text(x, y_treble, text=accidental_text, fill="#ffffff", font=accidental_font)
-                canvas.create_text(x, y_bass, text=accidental_text, fill="#ffffff", font=accidental_font)
+                signature_color = "#39c5ff" if idx in active_signature_indices else "#ffffff"
+                canvas.create_text(x, y_treble, text=accidental_text, fill=signature_color, font=accidental_font)
+                canvas.create_text(x, y_bass, text=accidental_text, fill=signature_color, font=accidental_font)
 
         if not display_notes:
             canvas.create_text(

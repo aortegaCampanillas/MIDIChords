@@ -6,9 +6,9 @@
       {
         "date": "2026-07-18",
         "publish": true,
-        "platforms": ["web"],
-        "es": "Escalas en web: al pulsar una nota alterada o alcanzarla durante la reproducción, el sostenido o bemol correspondiente se resalta también en la armadura de ambas claves.",
-        "en": "Web scales: when an altered note is pressed or reached during playback, its corresponding sharp or flat is also highlighted in the key signature on both staves."
+        "platforms": ["web", "desktop"],
+        "es": "Escalas en web y escritorio: al pulsar una nota alterada o alcanzarla durante la reproducción, el sostenido o bemol correspondiente se resalta también en la armadura de ambas claves. Escritorio admite varias alteraciones simultáneas al tocar por MIDI.",
+        "en": "Web and desktop scales: when an altered note is pressed or reached during playback, its corresponding sharp or flat is also highlighted in the key signature on both staves. Desktop supports multiple simultaneous highlights via MIDI."
       },
       {
         "date": "2026-07-18",

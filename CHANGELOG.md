@@ -102,7 +102,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
-- **Web (escalas / pentagrama)**: al pulsar manualmente una nota alterada o alcanzarla durante la reproducción con **▶**, el sostenido o bemol correspondiente se resalta también en la armadura, tanto en clave de sol como en clave de fa.
+- **Web y escritorio (escalas / pentagrama)**: al pulsar manualmente una nota alterada o alcanzarla durante la reproducción con **▶**, el sostenido o bemol correspondiente se resalta también en la armadura, tanto en clave de sol como en clave de fa. Escritorio admite además varias alteraciones resaltadas simultáneamente al tocar varias notas por MIDI.
 
 - **Todas las plataformas (detección de acordes)**: nuevo botón **?** inmediatamente a la derecha de **Reproducir**. Cuando se reconoce un acorde, abre la misma ayuda teórica disponible en Generación, con su fórmula, explicación y la descripción de la posición fundamental o inversión detectada.
 

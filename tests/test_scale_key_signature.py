@@ -92,3 +92,24 @@ def test_all_84_combinations_covered():
 def test_regression_cases(tonic_pc, mode, expected_count, expected_prefer_flats):
     count, prefer_flats = _sig_for_mode(tonic_pc, mode)
     assert (count, prefer_flats) == (expected_count, expected_prefer_flats)
+
+
+@pytest.mark.parametrize(
+    "label,midi,count,prefer_flats,expected",
+    [
+        ("Fa#", 66, 1, False, 0),
+        ("Do#", 61, 2, False, 1),
+        ("Mi#", 65, 6, False, 5),
+        ("Si#", 60, 7, False, 6),
+        ("Si♭", 70, 1, True, 0),
+        ("Do♭", 59, 6, True, 5),
+        ("Fa♭", 64, 7, True, 6),
+        ("Do#", 61, 1, False, -1),
+        ("Fa##", 67, 7, False, -1),
+        ("Fa", 65, 7, False, -1),
+    ],
+)
+def test_active_scale_note_maps_to_key_signature_position(label, midi, count, prefer_flats, expected):
+    assert RenderMixin._key_signature_index_for_scale_note(
+        label, midi, count, prefer_flats
+    ) == expected

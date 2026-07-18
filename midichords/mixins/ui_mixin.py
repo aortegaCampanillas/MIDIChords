@@ -7,7 +7,7 @@ import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
-from midichords.ui.desktop_ui_builders import build_mode_frames, build_top_bar
+from midichords.ui.desktop_ui_builders import build_main_panel_shell, build_top_bar
 
 from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import Qt, QPoint, QObject, QEvent
@@ -491,142 +491,7 @@ class UiMixin:
         build_top_bar(self, container)
         topbar_bg = self.cget("background")
 
-        top_area = tk.Canvas(container, bg=self.color_bg, bd=0, highlightthickness=0)
-        top_area.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
-
-        # Layout superior similar a web: panel izquierdo dominante y derecho secundario.
-        self.left_panel = RoundedPanel(
-            top_area,
-            radius=12,
-            bg_color=self.color_surface_alt,
-            border_color=self.color_border,
-            border_width=1.2,
-            padding=(12, 12, 12, 12),
-        )
-        self.right_panel = RoundedPanel(
-            top_area,
-            radius=12,
-            bg_color=self.color_surface_alt,
-            border_color=self.color_border,
-            border_width=1.2,
-            # Un poco menos de aire vertical que el panel izquierdo (panel de acordes más compacto).
-            padding=(10, 8, 10, 8),
-        )
-        def _layout_top_panels(_event: Optional[tk.Event] = None) -> None:
-            self._draw_vertical_gradient(
-                top_area,
-                self.color_bg_gradient_top,
-                self.color_bg_gradient_bottom,
-            )
-            w = max(1, int(top_area.winfo_width()))
-            h = max(1, int(top_area.winfo_height()))
-            gap = 12
-            usable_w = max(1, w - gap)
-            left_w = max(1, int(usable_w * 0.58))
-            # Ancho mínimo panel derecho para que no se corten Notas ni Intervalos en Escalas.
-            right_w = max(480, usable_w - left_w)
-            left_w = max(1, usable_w - right_w)
-            self.left_panel.place(x=0, y=0, width=left_w, height=h)
-            self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
-
-        top_area.bind("<Configure>", _layout_top_panels)
-        _layout_top_panels()
-
-        self.staff_canvas = tk.Canvas(
-            self.left_panel.content,
-            bg="#0f1621",
-            highlightthickness=1,
-            highlightbackground="#3a4558",
-        )
-        self.left_panel_title_label = tk.Label(
-            self.left_panel.content,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
-            anchor="w",
-        )
-        self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
-
-        # Build staff_generated_chord_frame here so Qt layout order is: frame → canvas.
-        # (pack before= is not honored by Qt's VBoxLayout; order of first pack() wins.)
-        self.generated_chord_var = tk.StringVar(value="-")
-        self.staff_generated_chord_frame = tk.Frame(
-            self.left_panel.content,
-            bg="#1a2330",
-            bd=0,
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption = tk.Label(
-            self.staff_generated_chord_frame,
-            text="",
-            bg="transparent",
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14),
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
-        self.staff_generated_chord_value = tk.Label(
-            self.staff_generated_chord_frame,
-            textvariable=self.generated_chord_var,
-            bg="transparent",
-            fg=self.color_accent,
-            font=(self.ui_font_family, 20, "bold"),
-            anchor="w",
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2))
-        try:
-            _sf = self.staff_generated_chord_frame
-            if hasattr(_sf, "setStyleSheet"):
-                _sf.setStyleSheet(
-                    "background-color: #1a2330; border: 1px solid #4a5668;"
-                )
-            from PySide6.QtWidgets import QHBoxLayout
-            _lay = _sf.layout()
-            if isinstance(_lay, QHBoxLayout):
-                _lay.setContentsMargins(8, 4, 8, 4)
-        except Exception:
-            pass
-        # Pack now (hidden) to register position in Qt layout before staff_canvas.
-        # Must use setVisible(False) — pack_forget() removes from layout and loses position.
-        # retainSizeWhenHidden=False prevents the hidden frame from consuming vertical space.
-        self.staff_generated_chord_frame.pack(fill=tk.X, anchor="w", pady=(0, 8))
-        try:
-            sp = self.staff_generated_chord_frame.sizePolicy()
-            sp.setRetainSizeWhenHidden(False)
-            self.staff_generated_chord_frame.setSizePolicy(sp)
-            self.staff_generated_chord_frame.setVisible(False)
-        except Exception:
-            self.staff_generated_chord_frame.pack_forget()
-
-        self.staff_canvas.pack(fill=tk.BOTH, expand=True)
-
-        self.right_panel_title_label = tk.Label(
-            self.right_panel.content,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
-            anchor="w",
-        )
-        self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
-        self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
-        self.right_side_panel.pack(fill=tk.BOTH, expand=True)
-        self.right_side_panel.columnconfigure(0, weight=1)
-
-        self.chord_panel = tk.Frame(
-            self.right_side_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=0,
-            pady=0,
-        )
-        self.chord_panel.grid(row=0, column=0, sticky="nsew")
-        self.right_side_panel.rowconfigure(0, weight=1)
-
-        build_mode_frames(self)
+        build_main_panel_shell(self, container)
 
         self.chord_title_label = tk.Label(
             self.tab_detection_frame,

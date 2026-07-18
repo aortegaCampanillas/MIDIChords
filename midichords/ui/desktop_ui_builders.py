@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Optional
 
 import midichords.qt.tk_compat as tk
+from PySide6.QtWidgets import QHBoxLayout
+
+from midichords.ui.widgets_qt import RoundedPanel
 
 
 def build_top_bar(app: object, container: tk.Widget) -> None:
@@ -157,3 +160,100 @@ def build_mode_frames(app: object) -> None:
         app.tab_interval_frame,
     ):
         hidden_tab.setVisible(False)
+
+
+def build_main_panel_shell(app: object, container: tk.Widget) -> None:
+    """Build the responsive staff/result shell that owns all mode panels."""
+    top_area = tk.Canvas(container, bg=app.color_bg, bd=0, highlightthickness=0)
+    top_area.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
+    app.left_panel = RoundedPanel(
+        top_area, radius=12, bg_color=app.color_surface_alt,
+        border_color=app.color_border, border_width=1.2,
+        padding=(12, 12, 12, 12),
+    )
+    app.right_panel = RoundedPanel(
+        top_area, radius=12, bg_color=app.color_surface_alt,
+        border_color=app.color_border, border_width=1.2,
+        padding=(10, 8, 10, 8),
+    )
+
+    def layout_panels(_event: Optional[tk.Event] = None) -> None:
+        app._draw_vertical_gradient(
+            top_area, app.color_bg_gradient_top, app.color_bg_gradient_bottom
+        )
+        width = max(1, int(top_area.winfo_width()))
+        height = max(1, int(top_area.winfo_height()))
+        usable_width = max(1, width - 12)
+        left_width = max(1, int(usable_width * 0.58))
+        right_width = max(480, usable_width - left_width)
+        left_width = max(1, usable_width - right_width)
+        app.left_panel.place(x=0, y=0, width=left_width, height=height)
+        app.right_panel.place(x=left_width + 12, y=0, width=right_width, height=height)
+
+    top_area.bind("<Configure>", layout_panels)
+    layout_panels()
+
+    app.staff_canvas = tk.Canvas(
+        app.left_panel.content, bg="#0f1621", highlightthickness=1,
+        highlightbackground="#3a4558",
+    )
+    app.left_panel_title_label = tk.Label(
+        app.left_panel.content, text="", bg=app.color_surface_alt,
+        fg=app.color_muted, font=(app.ui_font_family, 14, "bold"), anchor="w",
+    )
+    app.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
+
+    app.generated_chord_var = tk.StringVar(value="-")
+    app.staff_generated_chord_frame = tk.Frame(
+        app.left_panel.content, bg="#1a2330", bd=0, highlightthickness=0
+    )
+    app.staff_generated_chord_caption = tk.Label(
+        app.staff_generated_chord_frame, text="", bg="transparent",
+        fg=app.color_muted, font=(app.ui_font_family, 14), highlightthickness=0,
+    )
+    app.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
+    app.staff_generated_chord_value = tk.Label(
+        app.staff_generated_chord_frame, textvariable=app.generated_chord_var,
+        bg="transparent", fg=app.color_accent,
+        font=(app.ui_font_family, 20, "bold"), anchor="w", highlightthickness=0,
+    )
+    app.staff_generated_chord_value.pack(
+        side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2)
+    )
+    try:
+        app.staff_generated_chord_frame.setStyleSheet(
+            "background-color: #1a2330; border: 1px solid #4a5668;"
+        )
+        layout = app.staff_generated_chord_frame.layout()
+        if isinstance(layout, QHBoxLayout):
+            layout.setContentsMargins(8, 4, 8, 4)
+    except Exception:
+        pass
+    app.staff_generated_chord_frame.pack(fill=tk.X, anchor="w", pady=(0, 8))
+    try:
+        policy = app.staff_generated_chord_frame.sizePolicy()
+        policy.setRetainSizeWhenHidden(False)
+        app.staff_generated_chord_frame.setSizePolicy(policy)
+        app.staff_generated_chord_frame.setVisible(False)
+    except Exception:
+        app.staff_generated_chord_frame.pack_forget()
+    app.staff_canvas.pack(fill=tk.BOTH, expand=True)
+
+    app.right_panel_title_label = tk.Label(
+        app.right_panel.content, text="", bg=app.color_surface_alt,
+        fg=app.color_muted, font=(app.ui_font_family, 14, "bold"), anchor="w",
+    )
+    app.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
+    app.right_side_panel = tk.Frame(
+        app.right_panel.content, bg=app.color_surface_alt, bd=0,
+        highlightthickness=0, padx=0,
+    )
+    app.right_side_panel.pack(fill=tk.BOTH, expand=True)
+    app.right_side_panel.columnconfigure(0, weight=1)
+    app.chord_panel = tk.Frame(
+        app.right_side_panel, bg=app.color_surface_alt, bd=0,
+        highlightthickness=0, padx=0, pady=0,
+    )
+    app.chord_panel.grid(row=0, column=0, sticky="nsew")
+    app.right_side_panel.rowconfigure(0, weight=1)
+    build_mode_frames(app)

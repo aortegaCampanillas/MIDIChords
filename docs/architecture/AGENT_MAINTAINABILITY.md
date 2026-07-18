@@ -10,7 +10,7 @@ En curso. El primer prerrequisito del backlog de escritorio ya existe:
 
 - `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
 - El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
-- `midichords/ui/desktop_ui_builders.py` contiene el primer builder extraído (`build_top_bar`), cubierto por ese smoke test.
+- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central y las raíces de cada modo, cubiertos por ese smoke test.
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 

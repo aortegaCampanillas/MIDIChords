@@ -41,6 +41,9 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         )
         for attribute in required_widgets:
             assert isinstance(getattr(window, attribute), QWidget), attribute
+        assert window.staff_canvas.parent() is window.left_panel.content
+        assert window.chord_panel.parent() is window.right_side_panel
+        assert window.tab_generation_frame.parent() is window.chord_panel
 
         window._apply_mode("circle_fifths")
         qt_app.processEvents()

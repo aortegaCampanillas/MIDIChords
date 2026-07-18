@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (mantenimiento)**: movidos los painters privados de pentagrama, metrónomo y afinador desde `main.dart` a un `part` dedicado, conservando sus símbolos y comportamiento mientras se reduce el tamaño de la pantalla principal.
+
 - **Móvil (mantenimiento)**: extraídas de `main.dart` la generación y detección local de acordes, inversiones, spelling y generación de escalas a un servicio puro con tests directos de comportamiento.
 
 - **Móvil (mantenimiento)**: extraído de `main.dart` el catálogo declarativo de acordes, escalas, traducciones e inversiones a un módulo puro con tests de integridad, reduciendo el contexto necesario para modificar la UI móvil.

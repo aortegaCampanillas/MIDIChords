@@ -7,6 +7,7 @@ import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
+from midichords.ui.desktop_ui_builders import build_top_bar
 
 from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import Qt, QPoint, QObject, QEvent
@@ -487,140 +488,8 @@ class UiMixin:
         unified_green_height = 46
         unified_green_radius = 22
 
+        build_top_bar(self, container)
         topbar_bg = self.cget("background")
-        mode_bar = tk.Frame(container, bg=topbar_bg, bd=0, highlightthickness=0)
-        mode_bar.pack(fill=tk.X, pady=(0, 6))
-        mode_bar.columnconfigure(0, weight=1)
-        mode_bar.columnconfigure(1, weight=1)
-        mode_bar.columnconfigure(2, weight=1)
-
-        title_col = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        title_col.grid(row=0, column=0, sticky="w")
-        self.top_title_label = tk.Label(
-            title_col,
-            text="",
-            bg=topbar_bg,
-            fg=self.color_text,
-            font=(self.ui_font_family, 20, "bold"),
-        )
-        self.top_title_label.pack(side=tk.LEFT, padx=(16, 0))
-
-        mode_center = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        mode_center.grid(row=0, column=1, sticky="ns")
-
-        self.mode_trigger_var = tk.StringVar(value="")
-        self._mode_picker_hover = False
-        self.mode_picker_trigger = tk.Canvas(
-            mode_center,
-            width=240,
-            height=40,
-            bg="transparent",
-            highlightthickness=0,
-            bd=0,
-            cursor="hand2",
-        )
-        self.mode_picker_trigger.pack(side=tk.LEFT)
-        try:
-            self.mode_picker_trigger.setMaximumWidth(280)
-        except Exception:
-            pass
-
-        # Aplicar el mismo estilo redondeado que los combos de configuración
-        try:
-            card = getattr(self, "color_card", "#3a4452")
-            border = getattr(self, "color_border", "#56627a")
-            hover_border = getattr(self, "color_border_hover", "#6a7a98")
-            fg = getattr(self, "color_text", "#e9edf2")
-            self.mode_picker_trigger.setStyleSheet(f"""
-                background-color: {card};
-                border: 1px solid {border};
-                border-radius: 8px;
-                color: {fg};
-            """)
-            self._mode_picker_border = border
-            self._mode_picker_hover_border = hover_border
-            self._mode_picker_card = card
-        except Exception:
-            pass
-
-        self._mode_picker_text_id = self.mode_picker_trigger.create_text(
-            120,
-            20,
-            anchor="center",
-            text="",
-            fill=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
-        )
-        self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
-            0,
-            20,
-            anchor="e",
-            text="▼",
-            fill=self.color_muted,
-            font=(self.ui_font_family, 11),
-        )
-
-        def _redraw_mode_picker(_event: Optional[tk.Event] = None) -> None:
-            w = max(120, int(self.mode_picker_trigger.winfo_width()))
-            h = max(34, int(self.mode_picker_trigger.winfo_height()))
-            self.mode_picker_trigger.delete("mode_picker_bg")
-            self.mode_picker_trigger.coords(self._mode_picker_text_id, w / 2, h / 2)
-            self.mode_picker_trigger.coords(self._mode_picker_arrow_id, w - 14, h / 2)
-            # Actualizar borde en hover via stylesheet
-            try:
-                b = self._mode_picker_hover_border if self._mode_picker_hover else self._mode_picker_border
-                self.mode_picker_trigger.setStyleSheet(f"""
-                    background-color: {self._mode_picker_card};
-                    border: 1px solid {b};
-                    border-radius: 8px;
-                """)
-            except Exception:
-                pass
-
-        def _refresh_mode_picker_text(*_args: object) -> None:
-            self.mode_picker_trigger.itemconfigure(self._mode_picker_text_id, text=self.mode_trigger_var.get())
-
-        self.mode_picker_trigger.bind("<Configure>", _redraw_mode_picker)
-        self.mode_picker_trigger.bind("<Button-1>", self._toggle_mode_selector)
-        self.mode_picker_trigger.bind("<Enter>", lambda _e: (setattr(self, "_mode_picker_hover", True), _redraw_mode_picker()))
-        self.mode_picker_trigger.bind("<Leave>", lambda _e: (setattr(self, "_mode_picker_hover", False), _redraw_mode_picker()))
-        self.mode_trigger_var.trace_add("write", _refresh_mode_picker_text)
-        _refresh_mode_picker_text()
-        _redraw_mode_picker()
-
-        self.top_right_controls = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        self.top_right_controls.grid(row=0, column=2, sticky="e")
-
-        self.top_right_mode_controls = tk.Frame(self.top_right_controls, bg=topbar_bg, bd=0, highlightthickness=0)
-        self.top_right_mode_controls.pack(side=tk.LEFT, padx=(0, 8))
-
-        self._help_active = False
-
-        self.help_icon_btn = tk.Label(
-            self.top_right_controls,
-            text="?",
-            fg=self.color_muted,
-            bg=topbar_bg,
-            font=(self.ui_font_family, 18, "bold"),
-            cursor="hand2",
-        )
-        self.help_icon_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self.help_icon_btn.bind("<Button-1>", lambda _e: self._toggle_help_mode())
-        self.help_icon_btn.bind("<Enter>", lambda _e: self._on_help_btn_enter())
-        self.help_icon_btn.bind("<Leave>", lambda _e: self._on_help_btn_leave())
-
-        self.config_icon_btn = tk.Label(
-            self.top_right_controls,
-            text="⚙",
-            fg=self.color_accent,
-            bg=topbar_bg,
-            font=(self.ui_font_family, 22, "bold"),
-            cursor="hand2",
-        )
-        self.config_icon_btn.pack(side=tk.LEFT, padx=(0, 16))
-        self.config_icon_btn.bind("<Button-1>", lambda _e: self.open_settings_dialog())
-        self.config_icon_btn.bind("<Enter>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent_soft))
-        self.config_icon_btn.bind("<Leave>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent))
 
         top_area = tk.Canvas(container, bg=self.color_bg, bd=0, highlightthickness=0)
         top_area.pack(fill=tk.BOTH, expand=True, pady=(0, 2))

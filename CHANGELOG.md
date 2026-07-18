@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija el contrato de widgets públicos y cambio de modo; la construcción de la barra superior se trasladó a un builder dedicado protegido por ese contrato.
+
 - **Escritorio (rendimiento)**: el selector principal cierra antes de aplicar el cambio de modo, se evitan actualizaciones visuales duplicadas y las digitaciones de guitarra se calculan solo al mostrar la guitarra; cambiar de tónica y reproducir acordes desde el piano deja de quedar bloqueado por ese cálculo.
 
 - **Escritorio (integración)**: definida explícitamente la identidad interna de producto en Qt para que títulos y menús propios no hereden el nombre del intérprete.

@@ -4,6 +4,16 @@ Estado de la refactorización orientada a reducir contexto, explicitar fronteras
 
 **Estado de la fase: completada.** Las extracciones restantes requieren primero nuevos contratos de ciclo de vida o pruebas de integración de UI; no forman parte de esta fase estructural.
 
+## Fase de contratos de integración
+
+En curso. El primer prerrequisito del backlog de escritorio ya existe:
+
+- `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
+- El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
+- `midichords/ui/desktop_ui_builders.py` contiene el primer builder extraído (`build_top_bar`), cubierto por ese smoke test.
+
+Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "Pentagrama: la reproducción al tocar sus notas se extiende a Detección, Generación de acordes, Círculo de quintas e Intervalos; en los modos de acordes la selección se refleja también en el instrumento.",
+        "en": "Staff: tapping its notes now also works in Detection, Chord Generation, Circle of Fifths, and Intervals; chord-mode selections are reflected on the instrument as well."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Escalas: el diapasón adopta la misma jerarquía visual que las otras versiones: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.",
         "en": "Scales: the fretboard now uses the same visual hierarchy as the other versions: blue active note, orange starting tonic, yellow remaining tonics, and white scale degrees."
       },

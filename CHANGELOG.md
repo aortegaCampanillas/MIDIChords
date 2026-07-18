@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (pentagrama interactivo)**: la reproducción al tocar una nota del pentagrama se extiende de Escalas a Detección, Generación de acordes, Círculo de quintas e Intervalos; en los modos de acordes la selección se refleja también en el instrumento.
+
 - **Móvil (escalas / guitarra)**: el diapasón adopta la misma jerarquía de colores que escritorio: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.
 
 - **Móvil (escalas / pentagrama)**: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.

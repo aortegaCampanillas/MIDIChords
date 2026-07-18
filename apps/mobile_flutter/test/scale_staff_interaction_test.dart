@@ -83,4 +83,48 @@ void main() {
       contains('_handleInstrumentNote(hit.midi, pressed: false)'),
     );
   });
+
+  test('finds chord and detection notes using the generic staff layout', () {
+    const size = Size(800, 320);
+    const notes = <int>{48, 60, 64, 67};
+    final regions = buildStaffNoteHitRegions(
+      size: size,
+      notes: notes,
+      keySignatureCount: 3,
+      preferFlats: true,
+    );
+
+    for (final region in regions) {
+      expect(
+        staffNoteHitAt(
+          position: region.center,
+          size: size,
+          notes: notes,
+          keySignatureCount: 3,
+          preferFlats: true,
+        )?.midi,
+        region.midi,
+      );
+    }
+  });
+
+  test('other note-based modes are connected to staff playback', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final tapBlock = source
+        .split('onTapDown: (details) {')
+        .last
+        .split('child: CustomPaint(')
+        .first;
+    final handler = source
+        .split('void _playGeneralStaffNote(int midi)')
+        .last
+        .split('Future<void> _stepScaleLoop()')
+        .first;
+
+    expect(tapBlock, contains('const <int>{0, 1, 2, 5}'));
+    expect(tapBlock, contains('staffNoteHitAt('));
+    expect(handler, contains('if (_tabIndex == 0)'));
+    expect(handler, contains('if (_tabIndex == 1 || _tabIndex == 2)'));
+    expect(handler, contains('if (_tabIndex == 5)'));
+  });
 }

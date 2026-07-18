@@ -6433,6 +6433,56 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  void _playStaffPreviewNote(int midi) {
+    if (_soundOutput == 'midi') {
+      _sendMidiNoteOn(midi, 80);
+      unawaited(
+        Future<void>.delayed(
+          const Duration(milliseconds: 720),
+        ).then((_) => _sendMidiNoteOff(midi)),
+      );
+      return;
+    }
+    unawaited(
+      _playTone(
+        midi: midi,
+        instrument: _instrumentView == 'guitar' ? 'guitar' : 'piano',
+        durationSeconds: _instrumentView == 'guitar' ? 0.95 : 0.85,
+        lowVolume: true,
+      ),
+    );
+  }
+
+  void _playGeneralStaffNote(int midi) {
+    if (_tabIndex == 0) {
+      if (_detectionMidiHeldNotes.isNotEmpty) {
+        _detectionMidiHeldNotes.clear();
+        _stopHeldMidiInputs();
+      }
+      setState(() {
+        if (_detectionSelectedNotes.contains(midi)) {
+          _detectionSelectedNotes.remove(midi);
+        } else {
+          _detectionSelectedNotes.add(midi);
+        }
+      });
+      if (!_requestInFlight) {
+        unawaited(_callDetect());
+      }
+      if (_midiInputSoundEnabled) {
+        _playStaffPreviewNote(midi);
+      }
+      return;
+    }
+    if (_tabIndex == 1 || _tabIndex == 2) {
+      unawaited(_handleInstrumentNote(midi, pressed: false));
+      return;
+    }
+    if (_tabIndex == 5) {
+      _playStaffPreviewNote(midi);
+    }
+  }
+
   Future<void> _stepScaleLoop() async {
     if (!_scaleLoopRunning) {
       return;
@@ -7713,6 +7763,15 @@ class _HomeScreenState extends State<HomeScreen>
       notes,
       lowerBass: lowerGuitarBass,
     );
+    final sourceNotes = notes.toList()..sort();
+    final displayToSourceNote = <int, int>{};
+    for (
+      var index = 0;
+      index < sourceNotes.length && index < displayNotes.length;
+      index += 1
+    ) {
+      displayToSourceNote[displayNotes[index]] = sourceNotes[index];
+    }
     final displayExtras = extras.map(staffMidi).toSet();
     final displayDetectionActiveNotes = _tabIndex == 0
         ? guitarDisplayVoicing(_activeDetectionNotes).toSet()
@@ -7953,20 +8012,37 @@ class _HomeScreenState extends State<HomeScreen>
                     );
                     return GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTapDown: _tabIndex == 3
-                          ? (details) {
-                              final hit = scaleStaffHitAt(
-                                position: details.localPosition,
-                                size: panelSize,
-                                rightHandNotes: displayScaleRhNotes,
-                                leftHandNotes: displayScaleLhNotes,
-                                keySignatureCount: staffKeySig.count,
-                              );
-                              if (hit != null) {
-                                _playScaleStaffNote(hit);
-                              }
-                            }
-                          : null,
+                      onTapDown: (details) {
+                        if (_tabIndex == 3) {
+                          final hit = scaleStaffHitAt(
+                            position: details.localPosition,
+                            size: panelSize,
+                            rightHandNotes: displayScaleRhNotes,
+                            leftHandNotes: displayScaleLhNotes,
+                            keySignatureCount: staffKeySig.count,
+                          );
+                          if (hit != null) {
+                            _playScaleStaffNote(hit);
+                          }
+                          return;
+                        }
+                        if (!const <int>{0, 1, 2, 5}.contains(_tabIndex) ||
+                            imelMode) {
+                          return;
+                        }
+                        final hit = staffNoteHitAt(
+                          position: details.localPosition,
+                          size: panelSize,
+                          notes: displayNotes,
+                          keySignatureCount: staffKeySig.count,
+                          preferFlats: staffKeySig.preferFlats,
+                        );
+                        if (hit != null) {
+                          _playGeneralStaffNote(
+                            displayToSourceNote[hit.midi] ?? hit.midi,
+                          );
+                        }
+                      },
                       child: CustomPaint(
                         key: _tabIndex == 2
                             ? ValueKey<String>(

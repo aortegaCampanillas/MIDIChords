@@ -6,7 +6,7 @@
       {
         "date": "2026-07-18",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["desktop", "web", "mobile"],
         "es": "Generación de acordes: nuevo botón de ayuda junto a Reproducir con la fórmula, una explicación teórica y la descripción de la posición fundamental o inversión seleccionada para cada variante. El selector agrupa las 52 variantes por familias (Tríadas, Séptimas, Sextas, Add, Dominantes alterados y Extensiones) sin eliminar ninguna.",
         "en": "Chord generation: new help button next to Play with the formula, a theory explanation and a description of the selected root position or inversion for every variant. The selector groups all 52 variants into families (Triads, Sevenths, Sixths, Add, Altered dominants and Extensions) without removing any."
       },

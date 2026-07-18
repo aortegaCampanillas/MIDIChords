@@ -16,6 +16,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'circle_of_fifths.dart';
+import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
 
@@ -1043,6 +1044,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _changelogDontShow = false;
 
   List<Map<String, dynamic>> _chordPatterns = <Map<String, dynamic>>[];
+  Map<String, dynamic> _chordTheoryCatalog = <String, dynamic>{};
   List<Map<String, dynamic>> _scalePatterns = <Map<String, dynamic>>[];
 
   int _chordRootPc = 0;
@@ -1457,6 +1459,17 @@ class _HomeScreenState extends State<HomeScreen>
               'Define el tipo de acorde, como mayor, menor, disminuido o sus variaciones.',
           bodyEn:
               'Defines the chord type, such as major, minor, diminished, or its variations.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'generation_variant_theory',
+          titleEs: 'Teoría de la variante',
+          titleEn: 'Variant theory',
+          bodyEs:
+              'Abre la fórmula, la explicación teórica y la descripción de la inversión seleccionada.',
+          bodyEn:
+              'Opens the formula, theory explanation, and description of the selected inversion.',
           side: _HelpCalloutSide.left,
           highlightPadding: 2,
         ),
@@ -2269,6 +2282,121 @@ class _HomeScreenState extends State<HomeScreen>
   };
 
   String _ui(String es, String en) => _language == 'en' ? en : es;
+
+  Widget _buildChordVariantTheoryButton() {
+    return _helpAnchor(
+      'generation_variant_theory',
+      Tooltip(
+        message: _ui('Ayuda de la variante', 'Variant help'),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: OutlinedButton(
+            onPressed: _showChordVariantHelpDialog,
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: const Color(0xFFF2BF2F),
+              side: const BorderSide(color: _border),
+              shape: const CircleBorder(),
+            ),
+            child: const Text(
+              '?',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showChordVariantHelpDialog() async {
+    if (_chordTheoryCatalog.isEmpty) {
+      await _loadChordTheoryCatalog();
+    }
+    if (!mounted) return;
+    final help = chordVariantHelpContent(
+      catalog: _chordTheoryCatalog,
+      suffix: _chordSuffix,
+      inversion: _chordInversion,
+      language: _language,
+    );
+    final names = _language == 'en'
+        ? _kChordSuffixNamesEn
+        : _kChordSuffixNamesEs;
+    final variant =
+        names[_chordSuffix] ?? (_chordSuffix.isEmpty ? 'maj' : _chordSuffix);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _panelA,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: _border),
+        ),
+        title: Text(
+          '${_ui('Teoría', 'Theory')}: $variant',
+          style: const TextStyle(color: _text, fontWeight: FontWeight.w800),
+        ),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 620,
+            maxHeight: math.max(
+              180.0,
+              MediaQuery.of(dialogContext).size.height - 190,
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _surfaceDark,
+                    border: Border.all(color: _border),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    child: Text(
+                      '${_ui('Fórmula', 'Formula')}: ${help.formula}',
+                      style: const TextStyle(
+                        color: Color(0xFFF2BF2F),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  help.theory,
+                  style: const TextStyle(color: _text, height: 1.45),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(color: _border, height: 1),
+                ),
+                Text(
+                  help.inversion,
+                  style: const TextStyle(color: _text, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(_ui('Cerrar', 'Close')),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _modeLabel(int index) {
     switch (index) {
       case 0:
@@ -2741,7 +2869,7 @@ class _HomeScreenState extends State<HomeScreen>
     _stopHeldChord();
     _stopHeldInputs();
     _stopHeldMidiInputs();
-    unawaited(_disableMidiInput());
+    unawaited(_disableMidiInput(notify: false));
     _midiDataSub?.cancel();
     _midiSetupSub?.cancel();
     for (final t in _forbiddenFlashTimers.values) {
@@ -3638,6 +3766,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadMeta() async {
     try {
       await _loadGuitarChordCache();
+      await _loadChordTheoryCatalog();
       final chordPatterns = _chordPatternsForUi();
       final scalePatterns = _scalePatternsLocal(_language);
       setState(() {
@@ -3674,6 +3803,17 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (err) {
       _detectionOutputController.text =
           '${_ui('Error cargando meta', 'Error loading metadata')}: $err';
+    }
+  }
+
+  Future<void> _loadChordTheoryCatalog() async {
+    if (_chordTheoryCatalog.isNotEmpty) return;
+    final raw = await rootBundle.loadString('assets/chord_variant_theory.json');
+    final decoded = jsonDecode(raw);
+    if (decoded is Map) {
+      _chordTheoryCatalog = decoded.map(
+        (key, value) => MapEntry<String, dynamic>(key.toString(), value),
+      );
     }
   }
 
@@ -3919,7 +4059,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (mounted) setState(() {});
   }
 
-  Future<void> _disableMidiInput() async {
+  Future<void> _disableMidiInput({bool notify = true}) async {
     _midiInputEnabled = false;
     _midiError = '';
     // El botón "Salida MIDI/Audio" solo es visible con MIDI activado; si se
@@ -3937,8 +4077,8 @@ class _HomeScreenState extends State<HomeScreen>
     _scaleMidiHeldNotes.clear();
     _stopHeldMidiInputs();
     _cancelMidiScreenActivityExtension();
-    if (mounted) setState(() {});
-    if (_tabIndex == 0 && !_requestInFlight) {
+    if (notify && mounted) setState(() {});
+    if (notify && _tabIndex == 0 && !_requestInFlight) {
       unawaited(_callDetect());
     }
   }
@@ -9584,6 +9724,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
+                        _buildChordVariantTheoryButton(),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _helpAnchor(
                             'generation_tonic',
@@ -9621,18 +9763,11 @@ class _HomeScreenState extends State<HomeScreen>
                               decoration: InputDecoration(
                                 labelText: _ui('Variante', 'Variant'),
                               ),
-                              items: _chordPatterns
-                                  .map(
-                                    (p) => DropdownMenuItem<String>(
-                                      value: (p['suffix'] as String? ?? ''),
-                                      child: Text(
-                                        (p['suffix'] as String? ?? '').isEmpty
-                                            ? 'maj'
-                                            : (p['suffix'] as String? ?? ''),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
+                              items: buildChordVariantDropdownItems(
+                                catalog: _chordTheoryCatalog,
+                                patterns: _chordPatterns,
+                                language: _language,
+                              ),
                               onChanged: (value) {
                                 if (value == null) {
                                   return;
@@ -9737,18 +9872,11 @@ class _HomeScreenState extends State<HomeScreen>
                           decoration: InputDecoration(
                             labelText: _ui('Variante', 'Variant'),
                           ),
-                          items: _chordPatterns
-                              .map(
-                                (p) => DropdownMenuItem<String>(
-                                  value: (p['suffix'] as String? ?? ''),
-                                  child: Text(
-                                    (p['suffix'] as String? ?? '').isEmpty
-                                        ? 'maj'
-                                        : (p['suffix'] as String? ?? ''),
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                          items: buildChordVariantDropdownItems(
+                            catalog: _chordTheoryCatalog,
+                            patterns: _chordPatterns,
+                            language: _language,
+                          ),
                           onChanged: (value) {
                             if (value == null) {
                               return;
@@ -9823,42 +9951,49 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: _helpAnchor(
-                    'generation_play_button',
-                    _holdPlayButton(
-                      enabled:
-                          _generatedChordJson != null &&
-                          _extractMidiList(_generatedChordJson!, <String>[
-                            'notes_midi',
-                          ]).isNotEmpty,
-                      active: _generationPlayPressed,
-                      label: null,
-                      onDown: () async {
-                        final notes = <int>[
-                          if (_generatedChordJson != null)
-                            ...(_instrumentView == 'guitar'
-                                ? _selectedChordGuitarNotes()
-                                : _extractMidiList(
-                                    _generatedChordJson!,
-                                    <String>['notes_midi'],
-                                  )),
-                        ]..sort();
-                        if (notes.isEmpty) return;
-                        setState(() => _generationPlayPressed = true);
-                        await _startHeldChord(
-                          notes,
-                          instrument: _instrumentView == 'guitar'
-                              ? 'guitar'
-                              : 'piano',
-                        );
-                      },
-                      onUp: () {
-                        _stopHeldChord();
-                        if (mounted) {
-                          setState(() => _generationPlayPressed = false);
-                        }
-                      },
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _helpAnchor(
+                        'generation_play_button',
+                        _holdPlayButton(
+                          enabled:
+                              _generatedChordJson != null &&
+                              _extractMidiList(_generatedChordJson!, <String>[
+                                'notes_midi',
+                              ]).isNotEmpty,
+                          active: _generationPlayPressed,
+                          label: null,
+                          onDown: () async {
+                            final notes = <int>[
+                              if (_generatedChordJson != null)
+                                ...(_instrumentView == 'guitar'
+                                    ? _selectedChordGuitarNotes()
+                                    : _extractMidiList(
+                                        _generatedChordJson!,
+                                        <String>['notes_midi'],
+                                      )),
+                            ]..sort();
+                            if (notes.isEmpty) return;
+                            setState(() => _generationPlayPressed = true);
+                            await _startHeldChord(
+                              notes,
+                              instrument: _instrumentView == 'guitar'
+                                  ? 'guitar'
+                                  : 'piano',
+                            );
+                          },
+                          onUp: () {
+                            _stopHeldChord();
+                            if (mounted) {
+                              setState(() => _generationPlayPressed = false);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChordVariantTheoryButton(),
+                    ],
                   ),
                 ),
               ],

@@ -151,6 +151,7 @@ const {
   bindImmediatePress: bindImmediatePressControl,
   bindModalControls,
   bindKeyboardUiEvents,
+  bindAudioUnlockEvents,
 } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
@@ -5281,8 +5282,10 @@ function bindAudioUnlockGestures() {
     if (state.metronomeCtx && state.metronomeCtx.state === "running") return;
     void unlockAudioFromUserGesture();
   };
-  document.addEventListener("pointerdown", unlock, { passive: true });
-  document.addEventListener("keydown", unlock);
+  bindAudioUnlockEvents(uiLifecycle, {
+    documentTarget: document,
+    onUnlock: unlock,
+  });
 }
 
 function ensureAudioBus(ctx) {

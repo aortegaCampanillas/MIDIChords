@@ -153,11 +153,19 @@
     lifecycle.listen(windowTarget, "blur", () => options.onShiftChange?.(false));
   }
 
+  function bindAudioUnlockEvents(lifecycle, options) {
+    lifecycle.listen(options.documentTarget, "pointerdown", options.onUnlock, {
+      passive: true,
+    });
+    lifecycle.listen(options.documentTarget, "keydown", options.onUnlock);
+  }
+
   global.MidiChordsUiLifecycle = Object.freeze({
     createUiLifecycle,
     bindGlobalUiEvents,
     bindImmediatePress,
     bindModalControls,
     bindKeyboardUiEvents,
+    bindAudioUnlockEvents,
   });
 })(globalThis);

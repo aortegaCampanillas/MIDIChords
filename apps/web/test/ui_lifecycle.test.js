@@ -9,6 +9,7 @@ const {
   bindImmediatePress,
   bindModalControls,
   bindKeyboardUiEvents,
+  bindAudioUnlockEvents,
 } = globalThis.MidiChordsUiLifecycle;
 
 class FakeTarget {
@@ -203,4 +204,22 @@ test("keyboard controls route Escape and keep Shift state balanced", () => {
   lifecycle.unmount();
   documentTarget.dispatch("keydown", { key: "Escape" });
   assert.deepEqual(calls, ["escape", "down", "up", "up"]);
+});
+
+test("audio unlock gestures share lifecycle cleanup", () => {
+  const lifecycle = createUiLifecycle(new FakeClock());
+  const documentTarget = new FakeTarget();
+  let calls = 0;
+  bindAudioUnlockEvents(lifecycle, {
+    documentTarget,
+    onUnlock: () => { calls += 1; },
+  });
+
+  documentTarget.dispatch("pointerdown");
+  documentTarget.dispatch("keydown");
+  assert.equal(calls, 2);
+  lifecycle.unmount();
+  documentTarget.dispatch("pointerdown");
+  assert.equal(calls, 2);
+  assert.equal(documentTarget.listeners.size, 0);
 });

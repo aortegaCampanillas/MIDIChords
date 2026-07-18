@@ -50,6 +50,10 @@ detecta cejillas completas y parciales a partir de trastes y dedos, sin DOM ni
 estado global. Las pruebas fijan límites de cuerdas sonantes, runs contiguos y
 casos inválidos; el renderer adapta el resultado a `Set` para dibujarlo.
 
+La misma frontera calcula ahora layout del mástil, centros de traste, espejo para
+zurdos, escalado cliente→canvas y hit-testing circular. `renderGuitar` conserva
+dimensiones reales del elemento, dibujo, estado de notas y callbacks de entrada.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

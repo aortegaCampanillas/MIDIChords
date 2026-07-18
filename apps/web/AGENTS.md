@@ -50,7 +50,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/playback_highlight.js` coordina las notas resaltadas durante ▶, su temporizador y el repintado inyectado. Piano compara MIDI exacto y guitarra pitch class para cubrir posturas en otras octavas; probar inicio, sustitución y limpieza en `test/playback_highlight.test.js`.
 
-`static/guitar_geometry.js` detecta cejillas completas y parciales a partir de las matrices de trastes y dedos. No accede al canvas ni al estado de la SPA; `renderGuitar()` convierte sus índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
+`static/guitar_geometry.js` detecta cejillas, calcula layout/centros del mástil, refleja la orientación zurda, escala puntos cliente al canvas y resuelve hit-testing circular. No accede al DOM ni al estado de la SPA; `renderGuitar()` aporta dimensiones, convierte índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
 
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 

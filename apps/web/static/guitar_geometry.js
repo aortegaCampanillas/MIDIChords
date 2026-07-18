@@ -69,5 +69,46 @@
     };
   }
 
-  global.MidiChordsGuitarGeometry = Object.freeze({ findBarreSegments });
+  function calculateFretboardLayout({ width, height, frets, stringCount, leftHanded }) {
+    const boardPad = 20;
+    const nutMargin = 72;
+    const stringBand = Math.max(116, Math.min(148, Number(height) * 0.56));
+    const top = Math.round((Number(height) - stringBand) / 2);
+    const bottom = Math.round(top + stringBand);
+    const nutX = leftHanded ? Number(width) - nutMargin : nutMargin;
+    const boardEdgeX = leftHanded ? boardPad : Number(width) - boardPad;
+    const step = Math.abs(boardEdgeX - nutX) / Number(frets);
+    const dir = leftHanded ? -1 : 1;
+    const openX = nutX - dir * (step * 0.5);
+    const yGap = (bottom - top) / (Number(stringCount) - 1);
+    return { boardPad, nutMargin, stringBand, top, bottom, nutX, boardEdgeX, step, dir, openX, yGap };
+  }
+
+  function fretCenterX(layout, fret) {
+    return Number(fret) <= 0
+      ? (layout.openX + layout.nutX) / 2
+      : layout.nutX + layout.dir * (Number(fret) - 0.5) * layout.step;
+  }
+
+  function scaleClientPoint(clientX, clientY, rect, canvasWidth, canvasHeight) {
+    return {
+      x: ((Number(clientX) - rect.left) / rect.width) * Number(canvasWidth),
+      y: ((Number(clientY) - rect.top) / rect.height) * Number(canvasHeight),
+    };
+  }
+
+  function findCircularHitRegion(regions, x, y) {
+    if (!Array.isArray(regions)) return null;
+    return regions.find((region) => (
+      ((Number(x) - region.x) ** 2) + ((Number(y) - region.y) ** 2) <= (region.r ** 2)
+    )) || null;
+  }
+
+  global.MidiChordsGuitarGeometry = Object.freeze({
+    findBarreSegments,
+    calculateFretboardLayout,
+    fretCenterX,
+    scaleClientPoint,
+    findCircularHitRegion,
+  });
 })(globalThis);

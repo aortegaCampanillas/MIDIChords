@@ -153,7 +153,13 @@ const {
   bindKeyboardUiEvents,
   bindAudioUnlockEvents,
 } = globalThis.MidiChordsUiLifecycle;
-const { findBarreSegments } = globalThis.MidiChordsGuitarGeometry;
+const {
+  findBarreSegments,
+  calculateFretboardLayout,
+  fretCenterX: guitarFretCenterX,
+  scaleClientPoint,
+  findCircularHitRegion,
+} = globalThis.MidiChordsGuitarGeometry;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
 const {
@@ -2785,18 +2791,15 @@ function renderGuitar() {
   ctx.fillStyle = "#f9f9f7";
   ctx.fillRect(0, 0, width, height);
 
-  const boardPad = 20;
-  const nutMargin = 72;
-  const stringBand = Math.max(116, Math.min(148, height * 0.56));
-  const top = Math.round((height - stringBand) / 2);
-  const bottom = Math.round(top + stringBand);
-  const nutX = leftHanded ? width - nutMargin : nutMargin;
-  const boardEdgeX = leftHanded ? boardPad : width - boardPad;
-  const step = Math.abs(boardEdgeX - nutX) / frets;
-  const dir = leftHanded ? -1 : 1;
-  const openX = nutX - dir * (step * 0.5);
-  const yGap = (bottom - top) / (tuning.length - 1);
-  const fretCenterX = (fret) => (fret <= 0 ? (openX + nutX) / 2 : nutX + dir * (fret - 0.5) * step);
+  const layout = calculateFretboardLayout({
+    width,
+    height,
+    frets,
+    stringCount: tuning.length,
+    leftHanded,
+  });
+  const { top, bottom, nutX, boardEdgeX, step, dir, openX, yGap } = layout;
+  const fretCenterX = (fret) => guitarFretCenterX(layout, fret);
 
   ctx.fillStyle = "#34363c";
   ctx.strokeStyle = "#4a4f58";
@@ -3061,9 +3064,14 @@ function renderGuitar() {
   const triggerGuitarPress = (event) => {
     const rect = canvas.getBoundingClientRect();
     const point = event.touches && event.touches.length ? event.touches[0] : event;
-    const x = ((point.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((point.clientY - rect.top) / rect.height) * canvas.height;
-    return state.guitarHitRegions.find((h) => ((x - h.x) ** 2) + ((y - h.y) ** 2) <= (h.r ** 2)) || null;
+    const scaled = scaleClientPoint(
+      point.clientX,
+      point.clientY,
+      rect,
+      canvas.width,
+      canvas.height,
+    );
+    return findCircularHitRegion(state.guitarHitRegions, scaled.x, scaled.y);
   };
   canvas.onmousedown = (event) => {
     if (Number(event.button) !== 0) return;

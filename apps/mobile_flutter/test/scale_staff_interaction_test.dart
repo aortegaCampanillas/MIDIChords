@@ -1,0 +1,86 @@
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:midichords/scale_staff_interaction.dart';
+
+void main() {
+  test('finds treble and bass notes at their painted positions', () {
+    const size = Size(800, 320);
+    const right = <int>[60, 62, 64];
+    const left = <int>[48, 50, 52];
+    final regions = buildScaleStaffHitRegions(
+      size: size,
+      rightHandNotes: right,
+      leftHandNotes: left,
+      keySignatureCount: 0,
+    );
+    final treble = regions.firstWhere((region) => region.midi == 62);
+    final bass = regions.firstWhere((region) => region.midi == 50);
+
+    expect(
+      scaleStaffHitAt(
+        position: treble.center,
+        size: size,
+        rightHandNotes: right,
+        leftHandNotes: left,
+        keySignatureCount: 0,
+      )?.midi,
+      62,
+    );
+    expect(
+      scaleStaffHitAt(
+        position: bass.center,
+        size: size,
+        rightHandNotes: right,
+        leftHandNotes: left,
+        keySignatureCount: 0,
+      )?.isLeftHand,
+      isTrue,
+    );
+  });
+
+  test('accounts for the key signature and ignores empty space', () {
+    const size = Size(800, 320);
+    final plain = buildScaleStaffHitRegions(
+      size: size,
+      rightHandNotes: const <int>[66],
+      leftHandNotes: const <int>[],
+      keySignatureCount: 0,
+    ).single;
+    final signed = buildScaleStaffHitRegions(
+      size: size,
+      rightHandNotes: const <int>[66],
+      leftHandNotes: const <int>[],
+      keySignatureCount: 3,
+    ).single;
+
+    expect(signed.center.dx, greaterThan(plain.center.dx));
+    expect(
+      scaleStaffHitAt(
+        position: Offset.zero,
+        size: size,
+        rightHandNotes: const <int>[66],
+        leftHandNotes: const <int>[],
+        keySignatureCount: 3,
+      ),
+      isNull,
+    );
+  });
+
+  test('staff tap updates the selection and triggers scale playback', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final handler = source
+        .split('void _playScaleStaffNote(ScaleStaffHitRegion hit)')
+        .last
+        .split('Future<void> _stepScaleLoop()')
+        .first;
+
+    expect(handler, contains('_scaleCurrentNote = hit.midi;'));
+    expect(handler, contains('_scaleCurrentIsLeft = hit.isLeftHand;'));
+    expect(
+      handler,
+      contains('_handleInstrumentNote(hit.midi, pressed: false)'),
+    );
+  });
+}

@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (escalas / pentagrama)**: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.
+
 - **Escritorio (escalas / piano)**: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.
 
 - **Escritorio (escalas / piano)**: una nota retenida en audio tras soltar la tecla vuelve a producir un ataque al pulsar de nuevo esa misma tecla; ya no se reactiva únicamente el resaltado sin que suene.

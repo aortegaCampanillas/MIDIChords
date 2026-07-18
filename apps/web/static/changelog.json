@@ -6,6 +6,13 @@
       {
         "date": "2026-07-18",
         "publish": true,
+        "platforms": ["mobile"],
+        "es": "Escalas: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.",
+        "en": "Scales: staff notes respond to taps again, play their sound, and temporarily reflect the selection on the piano or guitar."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
         "platforms": ["desktop"],
         "es": "Escalas: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.",
         "en": "Scales: pressing a latched note a second time now highlights the new attack on the piano as well as playing it."

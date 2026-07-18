@@ -20,6 +20,7 @@ import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
 import 'key_signature_highlight.dart';
+import 'scale_staff_interaction.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1126,6 +1127,7 @@ class _HomeScreenState extends State<HomeScreen>
       false; // false = play 2 notes, true = play reference melody
   Timer? _intervalMelodyPlaybackTimer;
   Timer? _scaleLoopTimer;
+  Timer? _scaleStaffHighlightTimer;
   int? _scaleCurrentNote;
   bool? _scaleCurrentIsLeft;
   int? _scaleInputRawNote;
@@ -2893,6 +2895,7 @@ class _HomeScreenState extends State<HomeScreen>
     _metroTimer?.cancel();
     _metroAnimTimer?.cancel();
     _scaleLoopTimer?.cancel();
+    _scaleStaffHighlightTimer?.cancel();
     _helpBannerTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
@@ -6404,6 +6407,31 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  void _playScaleStaffNote(ScaleStaffHitRegion hit) {
+    if (_tabIndex != 3 || _generatedScaleJson == null) return;
+    if (_scaleLoopRunning) {
+      _stopScaleLoop();
+    }
+    _scaleStaffHighlightTimer?.cancel();
+    setState(() {
+      _scaleCurrentNote = hit.midi;
+      _scaleCurrentIsLeft = hit.isLeftHand;
+      _scaleInputRawNote = null;
+    });
+    unawaited(_handleInstrumentNote(hit.midi, pressed: false));
+    _scaleStaffHighlightTimer = Timer(const Duration(milliseconds: 720), () {
+      _scaleStaffHighlightTimer = null;
+      if (!mounted || _scaleLoopRunning || _scaleCurrentNote != hit.midi) {
+        return;
+      }
+      setState(() {
+        _scaleCurrentNote = null;
+        _scaleCurrentIsLeft = null;
+        _scaleInputRawNote = null;
+      });
+    });
+  }
+
   Future<void> _stepScaleLoop() async {
     if (!_scaleLoopRunning) {
       return;
@@ -7916,43 +7944,68 @@ class _HomeScreenState extends State<HomeScreen>
                     },
                   ),
                 ),
-                _ => CustomPaint(
-                  key: _tabIndex == 2
-                      ? ValueKey<String>(
-                          'circle_staff_${_circleTonicPc}_${_circleKeyMode}_${_circleChordRootPc}_${staffKeySig.count}_${staffKeySig.preferFlats}',
-                        )
-                      : null,
-                  painter: _MiniStaffPainter(
-                    notes: displayNotes,
-                    extras: displayExtras,
-                    detectionActiveNotes: displayDetectionActiveNotes,
-                    generationRhNotes: displayGenerationRhNotes,
-                    generationLhNotes: displayGenerationLhNotes,
-                    generationPlayingNotes: displayGenerationPlayingNotes,
-                    generationGuitarMode:
-                        (_tabIndex == 1 || _tabIndex == 2) &&
-                        _instrumentView == 'guitar',
-                    scaleRhNotes: displayScaleRhNotes,
-                    scaleLhNotes: displayScaleLhNotes,
-                    scaleCurrentNote: displayScaleCurrentNote,
-                    scaleCurrentIsLeft: _tabIndex == 3
-                        ? _scaleCurrentIsLeft
-                        : null,
-                    scaleGuitarMode:
-                        _tabIndex == 3 && _instrumentView == 'guitar',
-                    keySignatureCount: staffKeySig.count,
-                    keySignaturePreferFlats: staffKeySig.preferFlats,
-                    activeKeySignatureIndex: activeScaleKeySigIndex,
-                    intervalMelodyMode: imelMode,
-                    intervalMelodyNotes: imelNotes,
-                    intervalMelodyDurations: imelDurations,
-                    intervalPlayingIdx: _tabIndex == 5
-                        ? _intervalPlayingIdx
-                        : null,
-                    intervalBeatsPerBar: imelBeatsPerBar,
-                    intervalAnacrusis: imelAnacrusis,
-                  ),
-                  child: const SizedBox.expand(),
+                _ => LayoutBuilder(
+                  builder: (context, constraints) {
+                    final panelSize = Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    );
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: _tabIndex == 3
+                          ? (details) {
+                              final hit = scaleStaffHitAt(
+                                position: details.localPosition,
+                                size: panelSize,
+                                rightHandNotes: displayScaleRhNotes,
+                                leftHandNotes: displayScaleLhNotes,
+                                keySignatureCount: staffKeySig.count,
+                              );
+                              if (hit != null) {
+                                _playScaleStaffNote(hit);
+                              }
+                            }
+                          : null,
+                      child: CustomPaint(
+                        key: _tabIndex == 2
+                            ? ValueKey<String>(
+                                'circle_staff_${_circleTonicPc}_${_circleKeyMode}_${_circleChordRootPc}_${staffKeySig.count}_${staffKeySig.preferFlats}',
+                              )
+                            : null,
+                        painter: _MiniStaffPainter(
+                          notes: displayNotes,
+                          extras: displayExtras,
+                          detectionActiveNotes: displayDetectionActiveNotes,
+                          generationRhNotes: displayGenerationRhNotes,
+                          generationLhNotes: displayGenerationLhNotes,
+                          generationPlayingNotes: displayGenerationPlayingNotes,
+                          generationGuitarMode:
+                              (_tabIndex == 1 || _tabIndex == 2) &&
+                              _instrumentView == 'guitar',
+                          scaleRhNotes: displayScaleRhNotes,
+                          scaleLhNotes: displayScaleLhNotes,
+                          scaleCurrentNote: displayScaleCurrentNote,
+                          scaleCurrentIsLeft: _tabIndex == 3
+                              ? _scaleCurrentIsLeft
+                              : null,
+                          scaleGuitarMode:
+                              _tabIndex == 3 && _instrumentView == 'guitar',
+                          keySignatureCount: staffKeySig.count,
+                          keySignaturePreferFlats: staffKeySig.preferFlats,
+                          activeKeySignatureIndex: activeScaleKeySigIndex,
+                          intervalMelodyMode: imelMode,
+                          intervalMelodyNotes: imelNotes,
+                          intervalMelodyDurations: imelDurations,
+                          intervalPlayingIdx: _tabIndex == 5
+                              ? _intervalPlayingIdx
+                              : null,
+                          intervalBeatsPerBar: imelBeatsPerBar,
+                          intervalAnacrusis: imelAnacrusis,
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    );
+                  },
                 ),
               },
             ),

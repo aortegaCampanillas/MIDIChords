@@ -14,6 +14,15 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 ACCIDENTAL_SYMBOLS = {"natural": "♮", "sharp": "♯", "flat": "♭"}
+MODAL_SCALE_DEGREES = {
+    "Ionian": "I",
+    "Dorian": "II",
+    "Phrygian": "III",
+    "Lydian": "IV",
+    "Mixolydian": "V",
+    "Aeolian": "VI",
+    "Locrian": "VII",
+}
 
 
 class ScalesMixin:
@@ -512,7 +521,9 @@ class ScalesMixin:
     def _scale_type_display_label(self, pattern_name: str) -> str:
         alias = self._scale_type_aliases().get(pattern_name)
         localized = self.scale_name(pattern_name)
-        return f"{alias} ({localized})" if alias else localized
+        label = f"{alias} ({localized})" if alias else localized
+        degree = MODAL_SCALE_DEGREES.get(pattern_name)
+        return f"{label} ({degree})" if degree else label
 
     def _update_scale_type_combo(self) -> None:
         if not hasattr(self, "scale_type_combo"):

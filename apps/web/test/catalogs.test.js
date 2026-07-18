@@ -69,6 +69,7 @@ test("scale theory normalizes notes, octaves, aliases, and labels", () => {
   const {
     SCALE_BASIC_NAMES,
     scaleAliases,
+    scaleDisplayLabel,
     scaleBaseNotes,
     scaleNotesForOctaves,
     scaleLabelWithoutOctave,
@@ -78,6 +79,10 @@ test("scale theory normalizes notes, octaves, aliases, and labels", () => {
   assert.ok(SCALE_BASIC_NAMES.has("Ionian"));
   assert.equal(scaleAliases("es").Aeolian, "Menor Natural");
   assert.equal(scaleAliases("en")["Super Locrian"], "Altered");
+  assert.equal(scaleDisplayLabel("Ionian", "Jónica", "es"), "Mayor (Jónica) (I)");
+  assert.equal(scaleDisplayLabel("Dorian", "Dórica", "es"), "Dórica (II)");
+  assert.equal(scaleDisplayLabel("Locrian", "Locrian", "en"), "Locrian (VII)");
+  assert.equal(scaleDisplayLabel("Chromatic", "Cromática", "es"), "Cromática");
   assert.deepEqual(scaleBaseNotes([67, 60, 64, 60]), [60, 64, 67]);
   assert.deepEqual(scaleBaseNotes([60, 64, 67], 72), [72, 76, 79]);
   assert.deepEqual(scaleBaseNotes([60, 64, 67], 73), [60, 64, 67]);

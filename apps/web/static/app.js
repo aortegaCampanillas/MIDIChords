@@ -2145,6 +2145,7 @@ function getActiveMidiForMode() {
 const {
   SCALE_BASIC_NAMES,
   scaleAliases,
+  scaleDisplayLabel,
   scaleBaseNotes,
   scaleNotesForOctaves,
   scaleLabelWithoutOctave,
@@ -5133,7 +5134,6 @@ function repopulateScaleTypeSelect(prevValue) {
   const scaleType = el("scaleType");
   if (!scaleType) return;
   const prev = prevValue != null ? prevValue : (scaleType.value || "Ionian");
-  const scaleAliases = getScaleAliases();
   const visiblePatterns = state.scaleFilterMode === "basic"
     ? state.scalePatterns.filter((p) => SCALE_BASIC_NAMES.has(p.name))
     : state.scalePatterns;
@@ -5141,8 +5141,7 @@ function repopulateScaleTypeSelect(prevValue) {
   visiblePatterns.forEach((p) => {
     const opt = document.createElement("option");
     opt.value = p.name;
-    const alias = scaleAliases[p.name];
-    opt.textContent = alias ? `${alias} (${p.localized_name})` : p.localized_name;
+    opt.textContent = scaleDisplayLabel(p.name, p.localized_name, state.language);
     scaleType.appendChild(opt);
   });
   if (visiblePatterns.length > 0) {

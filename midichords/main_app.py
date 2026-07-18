@@ -1633,7 +1633,7 @@ class MidiChordAnalyzerApp(
         """Elige la primera fuente disponible que suele tener símbolos de clave (𝄞 𝄢)."""
         from PySide6.QtGui import QFontDatabase
 
-        available = {f.lower(): f for f in QFontDatabase().families()}
+        available = {f.lower(): f for f in QFontDatabase.families()}
         for candidate in CLEF_FONT_FAMILIES:
             if candidate.lower() in available:
                 self._clef_font_family = available[candidate.lower()]

@@ -8,11 +8,27 @@
     "Blues Pentatonic", "Minor Blues",
     "Chromatic", "Whole Tone (WT)",
   ]);
+  const MODAL_SCALE_DEGREES = Object.freeze({
+    Ionian: "I",
+    Dorian: "II",
+    Phrygian: "III",
+    Lydian: "IV",
+    Mixolydian: "V",
+    Aeolian: "VI",
+    Locrian: "VII",
+  });
 
   function scaleAliases(language) {
     return language === "en"
       ? { Ionian: "Major", Aeolian: "Natural Minor", "Super Locrian": "Altered" }
       : { Ionian: "Mayor", Aeolian: "Menor Natural", "Super Locrian": "Alterada" };
+  }
+
+  function scaleDisplayLabel(patternName, localizedName, language) {
+    const alias = scaleAliases(language)[patternName];
+    const label = alias ? `${alias} (${localizedName})` : String(localizedName);
+    const degree = MODAL_SCALE_DEGREES[patternName];
+    return degree ? `${label} (${degree})` : label;
   }
 
   function scaleBaseNotes(notesMidi, guitarStartNote = null) {
@@ -66,7 +82,9 @@
 
   global.MidiChordsScaleTheory = Object.freeze({
     SCALE_BASIC_NAMES,
+    MODAL_SCALE_DEGREES,
     scaleAliases,
+    scaleDisplayLabel,
     scaleBaseNotes,
     scaleNotesForOctaves,
     scaleLabelWithoutOctave,

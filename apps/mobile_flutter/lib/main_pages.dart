@@ -684,9 +684,12 @@ extension _HomeScreenPages on _HomeScreenState {
                                               (p['name'] as String? ??
                                               'Ionian'),
                                           child: Text(
-                                            (p['localized_name'] as String? ??
-                                                p['name'] as String? ??
-                                                'Ionian'),
+                                            scaleDisplayName(
+                                              p['name'] as String? ?? 'Ionian',
+                                              p['localized_name'] as String? ??
+                                                  p['name'] as String? ??
+                                                  'Ionian',
+                                            ),
                                             overflow: TextOverflow.ellipsis,
                                             maxLines: 1,
                                           ),
@@ -699,10 +702,14 @@ extension _HomeScreenPages on _HomeScreenState {
                                             (p) => Align(
                                               alignment: Alignment.centerLeft,
                                               child: Text(
-                                                (p['localized_name']
-                                                        as String? ??
-                                                    p['name'] as String? ??
-                                                    'Ionian'),
+                                                scaleDisplayName(
+                                                  p['name'] as String? ??
+                                                      'Ionian',
+                                                  p['localized_name']
+                                                          as String? ??
+                                                      p['name'] as String? ??
+                                                      'Ionian',
+                                                ),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 1,
                                               ),

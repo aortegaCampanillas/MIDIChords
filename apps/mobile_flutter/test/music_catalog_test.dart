@@ -53,4 +53,20 @@ void main() {
     expect(inversionNamesEs.first, isEmpty);
     expect(inversionNamesEn.first, isEmpty);
   });
+
+  test('modal scale display names include their roman degree', () {
+    expect(modalScaleDegrees.values, <String>[
+      'I',
+      'II',
+      'III',
+      'IV',
+      'V',
+      'VI',
+      'VII',
+    ]);
+    expect(scaleDisplayName('Ionian', 'Jónica'), 'Jónica (I)');
+    expect(scaleDisplayName('Dorian', 'Dórica'), 'Dórica (II)');
+    expect(scaleDisplayName('Locrian', 'Locrian'), 'Locrian (VII)');
+    expect(scaleDisplayName('Chromatic', 'Cromática'), 'Cromática');
+  });
 }

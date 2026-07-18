@@ -9,7 +9,7 @@ from PySide6.QtGui import QFont, QFontDatabase, QFontMetricsF
 def families(_root: Any = None) -> list[str]:
     # Tk returns a list of family names; order is not critical for this app.
     try:
-        return list(QFontDatabase().families())
+        return list(QFontDatabase.families())
     except Exception:
         return ["Helvetica"]
 
@@ -42,4 +42,3 @@ class _NoopNamedFont:
 
 def nametofont(_name: str) -> _NoopNamedFont:
     return _NoopNamedFont()
-

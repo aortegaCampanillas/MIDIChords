@@ -652,3 +652,18 @@ const Map<String, String> scaleNameEs = <String, String>{
   'Purvi Raga': 'Raga Purvi',
   'In Sen': 'In Sen',
 };
+
+const Map<String, String> modalScaleDegrees = <String, String>{
+  'Ionian': 'I',
+  'Dorian': 'II',
+  'Phrygian': 'III',
+  'Lydian': 'IV',
+  'Mixolydian': 'V',
+  'Aeolian': 'VI',
+  'Locrian': 'VII',
+};
+
+String scaleDisplayName(String patternName, String localizedName) {
+  final degree = modalScaleDegrees[patternName];
+  return degree == null ? localizedName : '$localizedName ($degree)';
+}

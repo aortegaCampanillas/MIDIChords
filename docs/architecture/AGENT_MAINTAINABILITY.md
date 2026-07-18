@@ -12,6 +12,7 @@ Completada. El contrato del backlog de escritorio queda establecido:
 - El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
 - `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central, las raíces de cada modo y los selectores de tipo, tónica y alteración de escalas, cubiertos por ese smoke test.
 - El selector de tónica y alteración de Generación también vive en el builder; el contrato fija sus padres, modo de solo lectura y altura del desplegable antes y después de la extracción.
+- Los selectores de variante e inversión de Generación comparten ahora una especificación declarativa en el mismo builder; el smoke contract fijó previamente sus atributos públicos, padres, modo de solo lectura y altura visible.
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 
@@ -110,7 +111,7 @@ plan o continuar con el fallback sintetizado.
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 7.360 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puertos de audio |
 | Web `app.js` | 8.902 líneas | 6.982 líneas | textos, teoría, notación, ayudas, MIDI/audio, ciclo de vida y canvas/geometría de instrumentos |
-| Escritorio `ui_mixin.py` | 4.012 líneas | 3.869 líneas | builders Qt para estructura principal y selectores de generación/escalas, bajo smoke contract |
+| Escritorio `ui_mixin.py` | 4.012 líneas | 3.829 líneas | builders Qt para estructura principal y selectores de generación/escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
@@ -137,6 +138,13 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 | Escritorio `ui_mixin.py` | otros controles internos de modo aún se construyen en métodos extensos | ampliar el smoke contract con el bloque y sus señales públicas antes de cada builder adicional |
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.
+
+La fase contract-first posterior aplicó este criterio al siguiente bloque Qt: el
+contrato de variante/inversión se amplió y pasó en un commit independiente antes
+de trasladar su construcción. La extracción conserva callbacks y atributos
+públicos, y reduce el contexto de `_build_ui()` sin introducir otra capa de
+estado. Este orden —contrato observable primero, builder después— queda como
+plantilla obligatoria para los candidatos restantes de la tabla.
 
 ## Harness de digitaciones de escalas
 

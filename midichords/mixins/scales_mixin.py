@@ -25,7 +25,7 @@ MODAL_SCALE_DEGREES = {
 }
 MODAL_SCALE_NAMES = tuple(MODAL_SCALE_DEGREES)
 SCALE_FAMILY_GROUPS = (
-    ("greek", MODAL_SCALE_NAMES),
+    ("greek_modes", MODAL_SCALE_NAMES),
     ("minor", ("Harmonic Minor", "Melodic Minor", "Romanian Minor", "Hawaiian")),
     (
         "altered_modes",
@@ -60,13 +60,13 @@ SCALE_FAMILY_GROUPS = (
 )
 SCALE_FAMILY_LABELS = {
     "es": {
-        "greek": "Modos griegos", "minor": "Escalas menores",
+        "greek_modes": "Modos griegos", "minor": "Escalas menores",
         "altered_modes": "Modos alterados", "pentatonic_blues": "Pentatónicas y blues",
         "bebop": "Bebop", "symmetric_synthetic": "Simétricas y sintéticas",
         "world": "Tradicionales del mundo",
     },
     "en": {
-        "greek": "Greek modes", "minor": "Minor scales",
+        "greek_modes": "Greek modes", "minor": "Minor scales",
         "altered_modes": "Altered modes", "pentatonic_blues": "Pentatonic & blues",
         "bebop": "Bebop", "symmetric_synthetic": "Symmetric & synthetic",
         "world": "World traditions",

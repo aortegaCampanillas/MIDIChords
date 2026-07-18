@@ -10,7 +10,7 @@ List<DropdownMenuItem<String>> buildScaleDropdownItems({
     for (final pattern in patterns) pattern['name'] as String? ?? '': pattern,
   };
   const labels = <String, Map<String, String>>{
-    'greek': <String, String>{'es': 'Modos griegos', 'en': 'Greek modes'},
+    'greek_modes': <String, String>{'es': 'Modos griegos', 'en': 'Greek modes'},
     'minor': <String, String>{'es': 'Escalas menores', 'en': 'Minor scales'},
     'altered_modes': <String, String>{
       'es': 'Modos alterados',

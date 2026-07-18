@@ -665,7 +665,7 @@ const Map<String, String> modalScaleDegrees = <String, String>{
 
 const List<Map<String, Object>> scaleFamilyGroups = <Map<String, Object>>[
   <String, Object>{
-    'key': 'greek',
+    'key': 'greek_modes',
     'names': <String>[
       'Ionian',
       'Dorian',

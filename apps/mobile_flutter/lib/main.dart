@@ -1624,6 +1624,12 @@ class _HomeScreenState extends State<HomeScreen>
     return <int>{};
   }
 
+  void _selectChordGuitarVariant(int variant) {
+    if (variant == _chordGuitarVariant) return;
+    setState(() => _chordGuitarVariant = variant);
+    unawaited(_playChordPreviewFromSelection());
+  }
+
   Set<int> _staffNotesForCurrentTab() {
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
@@ -5948,9 +5954,8 @@ class _HomeScreenState extends State<HomeScreen>
                                 children: <Widget>[
                                   OutlinedButton(
                                     onPressed: safeVariant > 0
-                                        ? () => setState(
-                                            () => _chordGuitarVariant =
-                                                safeVariant - 1,
+                                        ? () => _selectChordGuitarVariant(
+                                            safeVariant - 1,
                                           )
                                         : null,
                                     child: const Icon(Icons.chevron_left),
@@ -5959,9 +5964,8 @@ class _HomeScreenState extends State<HomeScreen>
                                   OutlinedButton(
                                     onPressed:
                                         safeVariant < chordVoicings.length - 1
-                                        ? () => setState(
-                                            () => _chordGuitarVariant =
-                                                safeVariant + 1,
+                                        ? () => _selectChordGuitarVariant(
+                                            safeVariant + 1,
                                           )
                                         : null,
                                     child: const Icon(Icons.chevron_right),
@@ -6102,9 +6106,7 @@ class _HomeScreenState extends State<HomeScreen>
                 children: <Widget>[
                   OutlinedButton(
                     onPressed: chordVoicings.length > 1 && safeVariant > 0
-                        ? () => setState(
-                            () => _chordGuitarVariant = safeVariant - 1,
-                          )
+                        ? () => _selectChordGuitarVariant(safeVariant - 1)
                         : null,
                     child: const Icon(Icons.chevron_left),
                   ),
@@ -6126,9 +6128,7 @@ class _HomeScreenState extends State<HomeScreen>
                     onPressed:
                         chordVoicings.length > 1 &&
                             safeVariant < chordVoicings.length - 1
-                        ? () => setState(
-                            () => _chordGuitarVariant = safeVariant + 1,
-                          )
+                        ? () => _selectChordGuitarVariant(safeVariant + 1)
                         : null,
                     child: const Icon(Icons.chevron_right),
                   ),

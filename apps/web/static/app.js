@@ -2012,10 +2012,13 @@ function renderGuitarVariationButtons() {
     if (idx === state.guitarSelectedVariationIdx) btn.classList.add("active");
     btn.textContent = String(idx + 1);
     btn.addEventListener("click", () => {
+      if (idx === state.guitarSelectedVariationIdx) return;
       state.guitarSelectedVariationIdx = idx;
       renderGuitarVariationButtons();
       renderInstrument();
       renderStaff();
+      const notes = getGenerationBaseNotes();
+      if (notes.length) playChordMidi(notes, { instrument: "guitar" });
     });
     bar.appendChild(btn);
   });

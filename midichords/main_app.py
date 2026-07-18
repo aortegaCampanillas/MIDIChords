@@ -1188,11 +1188,14 @@ class MidiChordAnalyzerApp(
     def _select_guitar_variation(self, idx: int) -> None:
         if idx < 0 or idx >= len(self.guitar_variations):
             return
+        if idx == self.guitar_selected_variation_idx:
+            return
         self.guitar_selected_variation_idx = idx
         self.guitar_selected_variation_notes = set(self.guitar_variations[idx]["notes"])
         self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_staff()
+        self._preview_generated_chord_short()
 
     def _on_guitar_canvas_press(self, event: tk.Event) -> None:
         if self.generation_tab_active and self.instrument_view == "guitar":

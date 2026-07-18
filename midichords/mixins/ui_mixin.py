@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 from midichords.ui.desktop_ui_builders import (
+    build_generation_action_row,
     build_generation_choice_selectors,
     build_generation_root_selector,
     build_main_panel_shell,
@@ -773,33 +774,7 @@ class UiMixin:
         build_generation_root_selector(self)
         build_generation_choice_selectors(self)
 
-        self.generated_chord_row = tk.Frame(
-            self.tab_generation_frame,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-        )
-        self.generated_chord_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 3))
-
-        self.generation_play_btn = PlayTransportButton(
-            self.generated_chord_row,
-            command=lambda: None,
-            width=58,
-            height=34,
-        )
-        self.generation_play_btn.pack(side=tk.LEFT)
-        self.generation_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
-        self.generation_variant_help_btn = GrayRoundedButton(
-            self.generated_chord_row,
-            text="?",
-            command=self.open_generation_variant_help_dialog,
-            font_family=self.ui_font_family,
-            width=34,
-            height=34,
-            radius=17,
-            font_size=18,
-        )
-        self.generation_variant_help_btn.pack(side=tk.LEFT, padx=(8, 0))
+        build_generation_action_row(self)
         self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
 
         self.generation_result_canvas = tk.Canvas(

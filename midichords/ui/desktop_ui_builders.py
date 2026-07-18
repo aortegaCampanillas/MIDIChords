@@ -6,7 +6,7 @@ import midichords.qt.tk_compat as tk
 import midichords.qt.ttk_compat as ttk
 from PySide6.QtWidgets import QHBoxLayout
 
-from midichords.ui.widgets_qt import GrayRoundedButton, RoundedPanel
+from midichords.ui.widgets_qt import GrayRoundedButton, PlayTransportButton, RoundedPanel
 
 
 def build_generation_root_selector(app: object) -> tk.Frame:
@@ -101,6 +101,39 @@ def build_generation_choice_selectors(app: object) -> None:
         if max_visible_items is not None and hasattr(combo, "setMaxVisibleItems"):
             combo.setMaxVisibleItems(max_visible_items)
         setattr(app, f"{prefix}_combo", combo)
+
+
+def build_generation_action_row(app: object) -> tk.Frame:
+    """Build the local Play and theory-help controls for chord generation."""
+    row = tk.Frame(
+        app.tab_generation_frame,
+        bg=app.color_surface_alt,
+        bd=0,
+        highlightthickness=0,
+    )
+    row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 3))
+    app.generated_chord_row = row
+
+    app.generation_play_btn = PlayTransportButton(
+        row,
+        command=lambda: None,
+        width=58,
+        height=34,
+    )
+    app.generation_play_btn.pack(side=tk.LEFT)
+    app.generation_play_btn.bind("<ButtonPress-1>", app._on_generation_play_press)
+    app.generation_variant_help_btn = GrayRoundedButton(
+        row,
+        text="?",
+        command=app.open_generation_variant_help_dialog,
+        font_family=app.ui_font_family,
+        width=34,
+        height=34,
+        radius=17,
+        font_size=18,
+    )
+    app.generation_variant_help_btn.pack(side=tk.LEFT, padx=(8, 0))
+    return row
 
 
 def build_scale_tonic_selector(app: object) -> tk.Frame:

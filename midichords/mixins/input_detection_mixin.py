@@ -236,19 +236,19 @@ class InputDetectionMixin:
         play_midi_input = self._should_play_midi_input_locally()
         if self.current_mode == "interval_detection":
             # interval_notes is the displayed pair (kept after key-up so both
-            # notes stay visible for comparison); it has no key-state. Sound
-            # follows the key instead: a note only sounds while its key is
-            # actually held, same as every other mode.
+            # notes stay visible for comparison). El sonido sigue el mismo
+            # patrón que Detección de Acordes: la nota sigue sonando aunque
+            # se suelte la tecla, hasta que cambia el par (una nota nueva
+            # entra y desplaza la más antigua) — así ambos modos comparten
+            # el mismo release/decay percibido al soltar.
             next_active = set(self.interval_notes)
-            held_notes = set(self.midi_held_notes) | set(self.mouse_held_notes)
             if play_midi_input:
-                next_sounding = set(next_active) & held_notes
+                next_sounding = set(next_active)
             else:
-                # Keep mouse-triggered notes audible even if MIDI sound is muted.
                 next_sounding = {
                     int(note)
                     for note in next_active
-                    if note in held_notes and note not in self.interval_notes_from_midi
+                    if note not in self.interval_notes_from_midi
                 }
             return next_active, next_sounding
         elif self.current_mode == "detection":

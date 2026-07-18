@@ -42,6 +42,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/audio_samples.js` contiene el catálogo de samples y las operaciones puras de selección de raíz, transposición y normalización de buffers. Desbloqueo por gesto, `AudioContext`, descarga, caché, nodos y voces retenidas permanecen en `app.js`; probar la matemática de audio con buffers y contextos falsos en `test/audio_samples.test.js`.
 
+`static/audio_sample_loader.js` encapsula descarga, decodificación y caché mediante dependencias inyectables. El gesto, la creación del `AudioContext`, los nodos y las voces retenidas permanecen en `app.js`; probar concurrencia, normalización selectiva y fallos parciales en `test/audio_sample_loader.test.js`.
+
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 
 Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.

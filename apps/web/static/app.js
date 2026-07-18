@@ -144,8 +144,6 @@ const state = {
   midiScreenWakeLockWanted: false,
   heldMidiInputVoices: new Map(),
   heldMidiChordNotes: new Set(),
-  audioSampleCache: {},
-  audioSampleLoadPromise: null,
 };
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
@@ -175,6 +173,14 @@ const {
   samplePlaybackRate,
   normalizeAudioBuffer,
 } = globalThis.MidiChordsAudioSamples;
+
+const { createAudioSampleLoader } = globalThis.MidiChordsAudioSampleLoader;
+const audioSampleLoader = createAudioSampleLoader({
+  getContext: ensureAudioCtx,
+  sampleUrls: allAudioSampleUrls(),
+  metronomeUrl: METRONOME_SAMPLE_URL,
+  normalizeBuffer: normalizeAudioBuffer,
+});
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
   { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
@@ -5397,37 +5403,12 @@ function ensureMetronomeNoiseBuffer(ctx) {
   return buffer;
 }
 
-async function decodeSampleBuffer(ctx, url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`sample fetch failed: ${url} (${response.status})`);
-  const bytes = await response.arrayBuffer();
-  return await ctx.decodeAudioData(bytes.slice(0));
-}
-
-async function preloadAudioSamples() {
-  const ctx = ensureAudioCtx();
-  if (state.audioSampleLoadPromise) return state.audioSampleLoadPromise;
-  state.audioSampleLoadPromise = (async () => {
-    const out = {};
-    await Promise.all(allAudioSampleUrls().map(async (url) => {
-      try {
-        const decoded = await decodeSampleBuffer(ctx, url);
-        out[url] = url === METRONOME_SAMPLE_URL
-          ? normalizeAudioBuffer(ctx, decoded, { targetPeak: 0.98, extraGain: 1.8 })
-          : decoded;
-      } catch (err) {
-        console.warn("Sample load failed:", url, err);
-      }
-    }));
-    state.audioSampleCache = out;
-    return out;
-  })();
-  return state.audioSampleLoadPromise;
+function preloadAudioSamples() {
+  return audioSampleLoader.preload();
 }
 
 function sampleBuffer(url) {
-  if (!state.audioSampleCache || typeof state.audioSampleCache !== "object") return null;
-  return state.audioSampleCache[url] || null;
+  return audioSampleLoader.get(url);
 }
 
 function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, instrument = "piano") {

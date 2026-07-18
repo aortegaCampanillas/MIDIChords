@@ -15,7 +15,7 @@ El flujo real de despliegue es:
    - `apps/web/static/`
    - `apps/web/worker/_worker.js` copiado como `_worker.js`
 
-   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) aplica ese paso; en el repo siguen existiendo los nombres estables de los scripts y `static/style.css` para desarrollo local.
+   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) descubre automáticamente los JS/CSS enlazados desde `app.html` y aplica ese paso; en el repo siguen existiendo sus nombres estables para desarrollo local.
 2. desplegar ese bundle al proyecto de Pages configurado en GitHub:
    - variable: `CLOUDFLARE_PAGES_PROJECT`
    - valor actual: `midichords`
@@ -235,6 +235,8 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; los tres se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 Las pruebas JavaScript sin dependencias externas están en **`test/`** y se ejecutan con `node --test`; `python scripts/check.py web` incluye esta suite, la comprobación de sintaxis y la construcción del bundle.
+
+El perfil web y el chequeo de salud de producción validan automáticamente todos los scripts y hojas CSS locales enlazados por `app.html`; no mantienen una lista paralela de nombres de assets.
 
 ### Detección de intervalos (`interval_detection`)
 

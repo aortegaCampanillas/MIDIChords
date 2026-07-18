@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: el build, la comprobación de sintaxis y el chequeo de salud descubren ahora automáticamente todos los JS/CSS locales enlazados desde `app.html`; añadir otro módulo ya no requiere mantener listas paralelas de assets en varios scripts Python.
+
 - **Web (mantenimiento)**: extraída la configuración de ayuda contextual por modo a un módulo declarativo; la suite JavaScript comprueba que todos los callouts tengan selector y texto disponible en español e inglés, y el bundle y la salud de producción validan el nuevo asset.
 
 - **Web (mantenimiento)**: añadida una suite JavaScript nativa, sin dependencias npm, que ejecuta los catálogos extraídos y comprueba paridad ES/EN, cobertura única de las 52 variantes, textos de inversiones e inmutabilidad de sus puntos de entrada dentro del perfil web de CI.

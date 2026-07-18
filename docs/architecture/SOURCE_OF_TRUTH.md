@@ -14,7 +14,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Acordes de guitarra | `assets/guitar_chord_cache.json` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |
 | Samples compartidos | `assets/` | Copias necesarias para web y bundle Flutter | `tests/test_shared_assets_cross_platform.py` |
-| Build web publicable | Fuentes bajo `apps/web/` | `apps/web/pages-dist/` generado y no versionado | `scripts/build_web_pages_dist.py` |
+| Build web publicable | Fuentes bajo `apps/web/`; `app.html` declara JS/CSS y su orden | `apps/web/pages-dist/` generado y no versionado | `scripts/build_web_pages_dist.py` descubre y versiona automáticamente los assets enlazados |
 
 ## Reglas de cambio
 

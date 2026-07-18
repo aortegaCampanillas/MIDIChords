@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import socket
 import subprocess
@@ -150,82 +151,45 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
             shutil.copy(p, pages_dist / extra)
 
     static_dir = pages_dist / "static"
-    app_src = static_dir / "app.js"
-    chord_help_src = static_dir / "chord_help.js"
-    help_callouts_src = static_dir / "help_callouts.js"
-    ui_texts_src = static_dir / "ui_texts.js"
-    css_src = static_dir / "style.css"
-    if (
-        not app_src.is_file()
-        or not chord_help_src.is_file()
-        or not help_callouts_src.is_file()
-        or not ui_texts_src.is_file()
-        or not css_src.is_file()
-    ):
-        raise SystemExit(
-            "[pages-dist] Faltan scripts de la SPA o static/style.css antes del fingerprint"
-        )
-
-    app_h = hashlib.sha256(app_src.read_bytes()).hexdigest()[:12]
-    chord_help_h = hashlib.sha256(chord_help_src.read_bytes()).hexdigest()[:12]
-    help_callouts_h = hashlib.sha256(help_callouts_src.read_bytes()).hexdigest()[:12]
-    ui_texts_h = hashlib.sha256(ui_texts_src.read_bytes()).hexdigest()[:12]
-    css_h = hashlib.sha256(css_src.read_bytes()).hexdigest()[:12]
-    app_name = f"app.{app_h}.js"
-    chord_help_name = f"chord_help.{chord_help_h}.js"
-    help_callouts_name = f"help_callouts.{help_callouts_h}.js"
-    ui_texts_name = f"ui_texts.{ui_texts_h}.js"
-    css_name = f"style.{css_h}.css"
-    app_src.rename(static_dir / app_name)
-    chord_help_src.rename(static_dir / chord_help_name)
-    help_callouts_src.rename(static_dir / help_callouts_name)
-    ui_texts_src.rename(static_dir / ui_texts_name)
-    css_src.rename(static_dir / css_name)
-
     app_path = pages_dist / "app.html"
     html = app_path.read_text(encoding="utf-8")
-    required_assets = (
-        "/static/app.js",
-        "/static/chord_help.js",
-        "/static/help_callouts.js",
-        "/static/ui_texts.js",
-        "/static/style.css",
+    asset_urls = tuple(
+        dict.fromkeys(
+            re.findall(
+                r'(?:src|href)="(/static/[^"?#]+\.(?:js|css))"',
+                html,
+            )
+        )
     )
-    if any(asset not in html for asset in required_assets):
-        raise SystemExit("[pages-dist] app.html debe enlazar todos los estáticos de la SPA")
-    html = html.replace('href="/static/style.css"', f'href="/static/{css_name}"')
-    html = html.replace(
-        'src="/static/chord_help.js"',
-        f'src="/static/{chord_help_name}"',
-    )
-    html = html.replace(
-        'src="/static/help_callouts.js"',
-        f'src="/static/{help_callouts_name}"',
-    )
-    html = html.replace(
-        'src="/static/ui_texts.js"',
-        f'src="/static/{ui_texts_name}"',
-    )
-    html = html.replace('src="/static/app.js"', f'src="/static/{app_name}"')
+    if not asset_urls:
+        raise SystemExit("[pages-dist] app.html no enlaza ningún JS/CSS bajo /static/")
+
+    fingerprinted_paths: list[Path] = []
+    for asset_url in asset_urls:
+        relative = Path(asset_url.removeprefix("/static/"))
+        source = static_dir / relative
+        if not source.is_file():
+            raise SystemExit(f"[pages-dist] Falta el estático enlazado: {asset_url}")
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+        fingerprinted = source.with_name(f"{source.stem}.{digest}{source.suffix}")
+        source.rename(fingerprinted)
+        fingerprinted_url = f"/static/{fingerprinted.relative_to(static_dir).as_posix()}"
+        html = html.replace(f'"{asset_url}"', f'"{fingerprinted_url}"')
+        fingerprinted_paths.append(fingerprinted)
+
     app_path.write_text(html, encoding="utf-8")
     print(
         "[pages-dist] Fingerprint estáticos: "
-        f"/static/{css_name}, /static/{ui_texts_name}, "
-        f"/static/{chord_help_name}, /static/{help_callouts_name}, "
-        f"/static/{app_name}"
+        + ", ".join(
+            f"/static/{path.relative_to(static_dir).as_posix()}"
+            for path in fingerprinted_paths
+        )
     )
 
     for name in ("index.html", "app.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
-    fingerprinted_assets = (
-        app_name,
-        chord_help_name,
-        help_callouts_name,
-        ui_texts_name,
-        css_name,
-    )
-    if any(not (static_dir / name).is_file() for name in fingerprinted_assets):
+    if any(not path.is_file() for path in fingerprinted_paths):
         raise SystemExit("[pages-dist] Faltan ficheros renombrados tras fingerprint")
 
     return pages_dist

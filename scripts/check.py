@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -47,22 +48,15 @@ def check_web() -> None:
     if node is None:
         raise SystemExit("ERROR: el perfil web requiere Node.js en PATH.")
 
-    _run(
-        "Sintaxis de la SPA web",
-        (node, "--check", "apps/web/static/app.js"),
+    app_html = (PROJECT_ROOT / "apps/web/app.html").read_text(encoding="utf-8")
+    script_paths = tuple(
+        dict.fromkeys(re.findall(r'src="(/static/[^"?#]+\.js)"', app_html))
     )
-    _run(
-        "Sintaxis del catálogo de ayuda web",
-        (node, "--check", "apps/web/static/chord_help.js"),
-    )
-    _run(
-        "Sintaxis de los textos de interfaz web",
-        (node, "--check", "apps/web/static/ui_texts.js"),
-    )
-    _run(
-        "Sintaxis de la ayuda contextual web",
-        (node, "--check", "apps/web/static/help_callouts.js"),
-    )
+    if not script_paths:
+        raise SystemExit("ERROR: apps/web/app.html no enlaza scripts bajo /static/.")
+    for script_path in script_paths:
+        local_path = f"apps/web{script_path}"
+        _run(f"Sintaxis web: {Path(script_path).name}", (node, "--check", local_path))
     _run(
         "Sintaxis del Cloudflare Worker",
         (node, "--check", "apps/web/worker/_worker.js"),

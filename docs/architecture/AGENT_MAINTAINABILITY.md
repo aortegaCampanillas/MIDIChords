@@ -10,13 +10,15 @@ Completada. El contrato del backlog de escritorio queda establecido:
 
 - `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
 - El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
-- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central y las raíces de cada modo, cubiertos por ese smoke test.
+- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central, las raíces de cada modo y el selector agrupado de escalas, cubiertos por ese smoke test.
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 
 El contrato web queda establecido en `ui_lifecycle.js`: aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles podrán migrarse por bloques bajo el mismo contrato.
 
-La separación del renderer ha comenzado por geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios de los grupos barrados. Sus pruebas fijan tanto la dirección coherente como el paralelismo de las barras de semicorchea sin depender del canvas.
+La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
+
+Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.
 
 En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de vida: encapsula `WakelockPlus` y la ventana temporal renovable de actividad MIDI. El widget conserva únicamente la decisión de cuándo renovar o cancelar; las pruebas usan un puerto falso y reloj controlado para fijar renovación, expiración y desmontaje idempotente.
 
@@ -29,7 +31,7 @@ En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 7.523 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias y ciclos de vida MIDI |
-| Web `app.js` | 8.902 líneas | 7.187 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de barras |
+| Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.

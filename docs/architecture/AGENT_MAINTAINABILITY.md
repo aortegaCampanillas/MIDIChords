@@ -62,6 +62,12 @@ grabador fija fondo, tabla, cejuela, trastes, etiquetas y espejo zurdo, de modo
 que nuevas extracciones visuales pueden ampliar operaciones observables antes de
 mover lógica.
 
+La siguiente capa extraída dibuja las seis cuerdas, su doble trazo y sus nombres.
+El contexto grabador fijó primero el orden de operaciones, la restauración de
+alineación y la simetría zurda/diestra; después `renderGuitar()` pasó a consumir
+esa frontera. Marcadores, cejillas dinámicas, regiones de impacto y eventos
+continúan deliberadamente en la SPA.
+
 `staff_geometry.js` incorpora la adaptación de octavas entre teclado y partitura:
 selección de la nota visible más cercana, normalización de notas actuales,
 reproducidas y sostenidas, y emparejado RH/LH por grado. `renderStaff` conserva
@@ -110,8 +116,8 @@ plan o continuar con el fallback sintetizado.
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 7.360 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puertos de audio |
-| Web `app.js` | 8.902 líneas | 6.982 líneas | textos, teoría, notación, ayudas, MIDI/audio, ciclo de vida y canvas/geometría de instrumentos |
-| Escritorio `ui_mixin.py` | 4.012 líneas | 3.829 líneas | builders Qt para estructura principal y selectores de generación/escalas, bajo smoke contract |
+| Web `app.js` | 8.902 líneas | 6.958 líneas | textos, teoría, notación, ayudas, MIDI/audio, ciclo de vida y canvas/geometría de instrumentos |
+| Escritorio `ui_mixin.py` | 4.012 líneas | 3.804 líneas | builders Qt para estructura principal y selectores/acciones de generación y escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
@@ -145,6 +151,10 @@ de trasladar su construcción. La extracción conserva callbacks y atributos
 públicos, y reduce el contexto de `_build_ui()` sin introducir otra capa de
 estado. Este orden —contrato observable primero, builder después— queda como
 plantilla obligatoria para los candidatos restantes de la tabla.
+
+El mismo ciclo se aplicó después a la fila Play/Ayuda de Generación: el contrato
+fija su jerarquía, el builder posee solo construcción y enlaces locales, y el
+`bind_all` de liberación permanece en el mixin como coordinación transversal.
 
 ## Harness de digitaciones de escalas
 

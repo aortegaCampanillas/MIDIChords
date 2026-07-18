@@ -145,7 +145,8 @@ const state = {
   heldMidiChordNotes: new Set(),
 };
 
-const uiLifecycle = globalThis.MidiChordsUiLifecycle.createUiLifecycle(window);
+const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
+const uiLifecycle = createUiLifecycle(window);
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
@@ -7082,19 +7083,26 @@ function bindEvents() {
     if (panelTuner) panelTuner.classList.add("hidden");
   }
 
-  uiLifecycle.listen(window, "resize", () => {
-    if (activeModeSupportsStaff()) renderStaff();
-    if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
-    if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
-    if (state.help.active) refreshHelpOverlay();
-  });
-  uiLifecycle.listen(window, "scroll", () => {
-    if (state.help.active) refreshHelpOverlay();
-  }, true);
-  uiLifecycle.listen(window, "blur", () => {
-    stopHeldChord();
-    stopAllHeldInputNotes();
-    if (state.help.active) setHelpActive(false);
+  bindGlobalUiEvents(uiLifecycle, {
+    windowTarget: window,
+    documentTarget: document,
+    onResize: () => {
+      if (activeModeSupportsStaff()) renderStaff();
+      if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
+      if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
+      if (state.help.active) refreshHelpOverlay();
+    },
+    onScroll: () => {
+      if (state.help.active) refreshHelpOverlay();
+    },
+    onBlur: () => {
+      stopHeldChord();
+      stopAllHeldInputNotes();
+      if (state.help.active) setHelpActive(false);
+    },
+    onVisible: () => {
+      if (state.midiScreenWakeLockWanted) void acquireMidiScreenWakeLock();
+    },
   });
 
   el("metroToggle").addEventListener("click", toggleMetronome);
@@ -7104,12 +7112,6 @@ function bindEvents() {
   const feedbackForm = el("feedbackForm");
   if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
 
-  uiLifecycle.listen(document, "visibilitychange", () => {
-    if (document.visibilityState === "visible" && state.midiScreenWakeLockWanted) {
-      void acquireMidiScreenWakeLock();
-    }
-  });
-  uiLifecycle.listen(window, "pagehide", () => uiLifecycle.unmount());
 }
 
 async function main() {

@@ -14,7 +14,7 @@ En curso. El primer prerrequisito del backlog de escritorio ya existe:
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 
-El prerrequisito web también está en curso: `ui_lifecycle.js` aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. Los listeners globales de `window` y `document` ya usan esta frontera; los listeners de controles se migrarán por bloques antes de separar `bindEvents`.
+El prerrequisito web también está en curso: `ui_lifecycle.js` aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles se migrarán por bloques antes de separar el resto.
 
 ## Resultado de esta fase
 

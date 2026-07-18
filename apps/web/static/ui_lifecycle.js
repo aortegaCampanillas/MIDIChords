@@ -49,5 +49,20 @@
     return Object.freeze({ listen, later, cancel, unmount, isMounted: () => mounted });
   }
 
-  global.MidiChordsUiLifecycle = Object.freeze({ createUiLifecycle });
+  function bindGlobalUiEvents(lifecycle, options) {
+    const windowTarget = options.windowTarget;
+    const documentTarget = options.documentTarget;
+    lifecycle.listen(windowTarget, "resize", options.onResize);
+    lifecycle.listen(windowTarget, "scroll", options.onScroll, true);
+    lifecycle.listen(windowTarget, "blur", options.onBlur);
+    lifecycle.listen(documentTarget, "visibilitychange", () => {
+      if (documentTarget.visibilityState === "visible") options.onVisible();
+    });
+    lifecycle.listen(windowTarget, "pagehide", () => lifecycle.unmount());
+  }
+
+  global.MidiChordsUiLifecycle = Object.freeze({
+    createUiLifecycle,
+    bindGlobalUiEvents,
+  });
 })(globalThis);

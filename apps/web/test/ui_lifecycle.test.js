@@ -3,7 +3,7 @@ const test = require("node:test");
 
 require("../static/ui_lifecycle.js");
 
-const { createUiLifecycle } = globalThis.MidiChordsUiLifecycle;
+const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
 
 class FakeTarget {
   constructor() { this.listeners = new Map(); }
@@ -52,4 +52,32 @@ test("lifecycle clock runs mounted timers and cancels timers on unmount", () => 
   lifecycle.unmount();
   clock.flush();
   assert.equal(calls, 1);
+});
+
+test("global UI events dispatch callbacks and pagehide unmounts all listeners", () => {
+  const windowTarget = new FakeTarget();
+  const documentTarget = new FakeTarget();
+  documentTarget.visibilityState = "hidden";
+  const lifecycle = createUiLifecycle(new FakeClock());
+  const calls = [];
+  bindGlobalUiEvents(lifecycle, {
+    windowTarget,
+    documentTarget,
+    onResize: () => calls.push("resize"),
+    onScroll: () => calls.push("scroll"),
+    onBlur: () => calls.push("blur"),
+    onVisible: () => calls.push("visible"),
+  });
+
+  windowTarget.dispatch("resize");
+  windowTarget.dispatch("scroll");
+  windowTarget.dispatch("blur");
+  documentTarget.dispatch("visibilitychange");
+  documentTarget.visibilityState = "visible";
+  documentTarget.dispatch("visibilitychange");
+  windowTarget.dispatch("pagehide");
+
+  assert.deepEqual(calls, ["resize", "scroll", "blur", "visible"]);
+  assert.equal(windowTarget.listeners.size, 0);
+  assert.equal(documentTarget.listeners.size, 0);
 });

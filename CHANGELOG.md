@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (piano / scroll por modo)**: Generación, Círculo y Escalas solo se centran en su primera apertura de la sesión; al cambiar de modo o alternar con la guitarra se guarda y restaura el último desplazamiento propio de cada modo.
+
 - **Móvil (generación / guitarra)**: al tocar una nota del acorde en el pentagrama, la posición correspondiente vuelve a resaltarse temporalmente en el diapasón, igual que ya ocurría en el piano.
 
 - **Móvil (generación / piano)**: al entrar en Generación de acordes o volver desde la guitarra, el teclado se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior hacia la mano izquierda.

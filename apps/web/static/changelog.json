@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "Piano: Generación, Círculo y Escalas solo se centran en su primera apertura; después cada modo recupera su último desplazamiento, también al alternar con la guitarra.",
+        "en": "Piano: Generation, Circle, and Scales center only on their first opening; afterwards each mode restores its last scroll position, including after switching to guitar."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Generación: al tocar una nota del acorde en el pentagrama, su posición vuelve a resaltarse temporalmente en el diapasón de guitarra.",
         "en": "Generation: tapping a chord note on the staff now temporarily highlights its position on the guitar fretboard again."
       },

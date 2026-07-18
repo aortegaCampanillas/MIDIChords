@@ -1182,7 +1182,9 @@ class _HomeScreenState extends State<HomeScreen>
   DateTime _dragLastSwitchAt = DateTime.fromMillisecondsSinceEpoch(0);
   final ScrollController _pianoScrollController = ScrollController();
   final ScrollController _scaleControlsScrollController = ScrollController();
+  final PianoScrollMemory _pianoScrollMemory = PianoScrollMemory();
   bool _needsPianoScrollSync = false;
+  double? _pendingPianoScrollOffset;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
@@ -5564,6 +5566,19 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  void _rememberPianoScrollForMode(int tabIndex) {
+    if (_instrumentView != 'piano' || !_pianoScrollController.hasClients) {
+      return;
+    }
+    _pianoScrollMemory.remember(tabIndex, _pianoScrollController.offset);
+  }
+
+  void _requestPianoScrollForMode(int tabIndex) {
+    if (!modeUsesCenteredTheoryPiano(tabIndex)) return;
+    _pendingPianoScrollOffset = _pianoScrollMemory.offsetFor(tabIndex);
+    _needsPianoScrollSync = true;
+  }
+
   void _syncPianoScrollToMiddleC(
     double viewportW,
     double whiteW,
@@ -5571,6 +5586,8 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     if (!_needsPianoScrollSync) return;
     _needsPianoScrollSync = false;
+    final requestedOffset = _pendingPianoScrollOffset;
+    _pendingPianoScrollOffset = null;
 
     void attempt(int retriesLeft, double lastMaxExt) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -5607,7 +5624,8 @@ class _HomeScreenState extends State<HomeScreen>
             ? cIdx
             : math.max(0, whiteMidi.indexWhere((m) => m >= anchorMidi));
         final keyCenterX = wIdx * whiteW + whiteW / 2;
-        final target = (keyCenterX - viewportW / 2).clamp(0.0, maxExt);
+        final centeredTarget = keyCenterX - viewportW / 2;
+        final target = (requestedOffset ?? centeredTarget).clamp(0.0, maxExt);
         _pianoScrollController.jumpTo(target);
       });
     }
@@ -7401,15 +7419,14 @@ class _HomeScreenState extends State<HomeScreen>
                       onChanged: (value) {
                         if (value == null) return;
                         if (!_kEnableMobileTuner && value == 6) return;
+                        _rememberPianoScrollForMode(_tabIndex);
                         setState(() {
                           _tabIndex = value;
                           _setHelpMode(false);
                           if (value == 0) {
                             _instrumentView = 'piano';
                           }
-                          if (modeUsesCenteredTheoryPiano(value)) {
-                            _needsPianoScrollSync = true;
-                          }
+                          _requestPianoScrollForMode(value);
                         });
                         if (value != 3) {
                           _stopScaleLoop();
@@ -8651,12 +8668,12 @@ class _HomeScreenState extends State<HomeScreen>
         foregroundColor: active ? const Color(0xFF1A222D) : _text,
       ),
       onPressed: () {
+        final instrumentChanging = _instrumentView != key;
+        if (instrumentChanging && _instrumentView == 'piano') {
+          _rememberPianoScrollForMode(_tabIndex);
+        }
         setState(() {
-          final switchingToCenteredPiano =
-              key == 'piano' &&
-              _instrumentView != key &&
-              modeUsesCenteredTheoryPiano(_tabIndex);
-          if (_instrumentView != key && (_tabIndex == 1 || _tabIndex == 2)) {
+          if (instrumentChanging && (_tabIndex == 1 || _tabIndex == 2)) {
             _generationInputStaffNotes.clear();
             _clearGenerationNoteHighlight();
             _stopHeldChord();
@@ -8664,8 +8681,8 @@ class _HomeScreenState extends State<HomeScreen>
             _generationPlayPressed = false;
           }
           _instrumentView = key;
-          if (switchingToCenteredPiano) {
-            _needsPianoScrollSync = true;
+          if (instrumentChanging && key == 'piano') {
+            _requestPianoScrollForMode(_tabIndex);
           }
           if (_tabIndex == 3) {
             // _scaleRhNotes() fuerza 1 octava en guitarra; al volver a

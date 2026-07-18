@@ -153,6 +153,7 @@ const {
   bindKeyboardUiEvents,
   bindAudioUnlockEvents,
 } = globalThis.MidiChordsUiLifecycle;
+const { findBarreSegments } = globalThis.MidiChordsGuitarGeometry;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
 const {
@@ -2838,65 +2839,15 @@ function renderGuitar() {
   ctx.textAlign = "start";
   ctx.textBaseline = "alphabetic";
 
-  const barreSegments = [];
-  const barreCovered = new Set();
+  let barreSegments = [];
+  let barreCovered = new Set();
   if (generationVariationMode && displayFrets.length >= 6 && displayFingers.length >= 6) {
-    const soundedIdxs = [];
-    for (let i = 0; i < displayFrets.length; i += 1) {
-      if (Number(displayFrets[i]) >= 0) soundedIdxs.push(i);
-    }
-    const minSounded = soundedIdxs.length ? Math.min(...soundedIdxs) : 0;
-    const maxSounded = soundedIdxs.length ? Math.max(...soundedIdxs) : 0;
-    const uniqueFrets = Array.from(new Set(displayFrets.filter((f) => Number(f) > 0))).sort((a, b) => a - b);
-
-    uniqueFrets.forEach((fretValue) => {
-      const idxsByFinger = new Map();
-      for (let i = 0; i < displayFrets.length; i += 1) {
-        if (Number(displayFrets[i]) !== Number(fretValue)) continue;
-        const finger = Number(displayFingers[i]);
-        if (!Number.isFinite(finger) || finger <= 0) continue;
-        const arr = idxsByFinger.get(finger) || [];
-        arr.push(i);
-        idxsByFinger.set(finger, arr);
-      }
-
-      idxsByFinger.forEach((idxs, finger) => {
-        if (!Array.isArray(idxs) || idxs.length < 2) return;
-
-        // Full barre: first and last sounding strings are covered at same fret and same finger.
-        if (idxs[0] === minSounded && idxs[idxs.length - 1] === maxSounded) {
-          const covered = new Set(idxs);
-          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: idxs[0], end: idxs[idxs.length - 1], covered });
-          idxs.forEach((idx) => barreCovered.add(idx));
-          return;
-        }
-
-        // Partial barre(s): contiguous runs with at least 2 strings, same fret and same finger.
-        let runStart = idxs[0];
-        let runPrev = idxs[0];
-        for (let j = 1; j < idxs.length; j += 1) {
-          const idx = idxs[j];
-          if (idx === runPrev + 1) {
-            runPrev = idx;
-            continue;
-          }
-          if ((runPrev - runStart + 1) >= 2) {
-            const covered = new Set();
-            for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-            barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
-            for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
-          }
-          runStart = idx;
-          runPrev = idx;
-        }
-        if ((runPrev - runStart + 1) >= 2) {
-          const covered = new Set();
-          for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
-          for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
-        }
-      });
-    });
+    const barreGeometry = findBarreSegments(displayFrets, displayFingers);
+    barreSegments = barreGeometry.segments.map((segment) => ({
+      ...segment,
+      covered: new Set(segment.covered),
+    }));
+    barreCovered = new Set(barreGeometry.coveredIndexes);
   }
 
   state.guitarHitRegions = [];

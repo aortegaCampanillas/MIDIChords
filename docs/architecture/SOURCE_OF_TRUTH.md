@@ -21,6 +21,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Voces de audio web | `apps/web/static/audio_voice.js` (envolventes y liberación) | `apps/web/static/app.js` crea bus/fuentes y conserva mapas de notas retenidas | `apps/web/test/audio_voice.test.js` |
 | Matemática del afinador web | `apps/web/static/tuner_math.js` | `apps/web/static/app.js` aporta micrófono, suavizado, cuerda objetivo y UI | `apps/web/test/tuner_math.test.js` |
 | Resaltado de reproducción web | `apps/web/static/playback_highlight.js` | `apps/web/static/app.js` aporta renderers, modo e instrumento actual | `apps/web/test/playback_highlight.test.js` |
+| Geometría de guitarra web | `apps/web/static/guitar_geometry.js` | `renderGuitar()` adapta cejillas e índices cubiertos al canvas interactivo | `apps/web/test/guitar_geometry.test.js` |
 | Ayuda contextual de la web | `apps/web/static/help_callouts.js` | La SPA selecciona los callouts según el modo activo | `apps/web/test/catalogs.test.js` |
 | Acordes de guitarra | `assets/guitar_chord_cache.json`; AutoChords es la referencia externa para los tipos mapeados en `scripts/sync_guitar_chord_reference.py` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` y `tests/test_guitar_chord_reference_sync.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |

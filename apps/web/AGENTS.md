@@ -50,6 +50,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/playback_highlight.js` coordina las notas resaltadas durante ▶, su temporizador y el repintado inyectado. Piano compara MIDI exacto y guitarra pitch class para cubrir posturas en otras octavas; probar inicio, sustitución y limpieza en `test/playback_highlight.test.js`.
 
+`static/guitar_geometry.js` detecta cejillas completas y parciales a partir de las matrices de trastes y dedos. No accede al canvas ni al estado de la SPA; `renderGuitar()` convierte sus índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
+
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 
 Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.

@@ -87,11 +87,16 @@ doble liberación concurrente, absorbe fallos durante la limpieza y no retiene
 reproductores ya cerrados; la pantalla conserva la creación y configuración de
 cada fuente de audio.
 
+La selección de samples queda fuera del widget en `sample_tone_plan.dart`: los
+bancos, rangos, desempate por cercanía y velocidad temperada forman un plan puro
+cubierto con pruebas. `main.dart` se limita a configurar el reproductor con ese
+plan o continuar con el fallback sintetizado.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
-| Flutter `main.dart` | 13.774 líneas | 7.410 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y ciclo de vida de audio |
+| Flutter `main.dart` | 13.774 líneas | 7.370 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y ciclo de vida de audio |
 | Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
 | Escritorio `ui_mixin.py` | 4.012 líneas | 3.905 líneas | builders Qt para estructura principal y selectores de escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |

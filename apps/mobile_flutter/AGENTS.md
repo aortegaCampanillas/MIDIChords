@@ -14,6 +14,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 - `lib/tuner_capture_session.dart` posee el ciclo de vida de `FlutterAudioCapture` detrás de un puerto inyectable. `main.dart` conserva DSP y estado visual; probar inicialización, errores, reintentos y cierre sin micrófono en `test/tuner_capture_session_test.dart`.
 - `lib/native_audio_bridge.dart` concentra las llamadas al canal nativo para tonos, acordes y metrónomo en Android/iOS. Normaliza sus argumentos detrás de `NativeAudioPort`; `main.dart` conserva el enrutado por plataforma, los fallbacks y el estado visual.
 - `lib/transient_player_lifecycle.dart` posee las suscripciones de finalización y la liberación idempotente de los `AudioPlayer` transitorios. Registrar ahí cada reproductor que deba cerrarse al completar y usar el mismo controlador para cierres manuales o globales.
+- `lib/sample_tone_plan.dart` es la fuente de los bancos de samples móviles y decide de forma pura el asset cercano, rango reproducible y velocidad de transposición. La pantalla solo ejecuta el plan o usa su fallback sintetizado.
 - Los módulos ya extraídos en `lib/` son preferibles como destino para lógica pura y componentes acotados.
 - La app mantiene implementaciones locales de generación/detección musical para funcionar sin depender de la API web.
 

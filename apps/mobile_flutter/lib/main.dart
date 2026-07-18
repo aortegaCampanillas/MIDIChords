@@ -29,6 +29,7 @@ import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
 import 'scale_dropdown.dart';
 import 'scale_staff_interaction.dart';
+import 'sample_tone_plan.dart';
 import 'staff_beam_geometry.dart';
 import 'tuner_capture_session.dart';
 import 'transient_player_lifecycle.dart';
@@ -46,25 +47,6 @@ void main() {
   runApp(const MidiChordsMobileApp());
 }
 
-const Map<int, String> _kGrandPianoSamples = <int, String>{
-  48: 'samples/grand_piano/C3.mp3',
-  52: 'samples/grand_piano/E3.mp3',
-  55: 'samples/grand_piano/G3.mp3',
-  60: 'samples/grand_piano/C4.mp3',
-  64: 'samples/grand_piano/E4.mp3',
-  67: 'samples/grand_piano/G4.mp3',
-  72: 'samples/grand_piano/C5.mp3',
-};
-
-const Map<int, String> _kGuitarNylonSamples = <int, String>{
-  40: 'samples/guitar_nylon/E2.mp3',
-  45: 'samples/guitar_nylon/A2.mp3',
-  50: 'samples/guitar_nylon/D3.mp3',
-  52: 'samples/guitar_nylon/E3.mp3',
-  55: 'samples/guitar_nylon/G3.mp3',
-  59: 'samples/guitar_nylon/B3.mp3',
-  64: 'samples/guitar_nylon/E4.mp3',
-};
 const String _kMetronomeSample = 'metronome.mp3';
 const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
 const bool _kEnableMobileTuner = false;
@@ -2495,30 +2477,8 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_samplePlaybackAvailable) {
       return null;
     }
-    final bank = instrument == 'guitar'
-        ? _kGuitarNylonSamples
-        : _kGrandPianoSamples;
-    if (bank.isEmpty) {
-      return null;
-    }
-    // Keep metronome click notes and out-of-range tones on synthesis fallback.
-    final safe = _safeMidi(midi);
-    if (instrument == 'piano' && (safe < 48 || safe > 84)) {
-      return null;
-    }
-    if (instrument == 'guitar' && (safe < 40 || safe > 76)) {
-      return null;
-    }
-    final sampleMidi = bank.keys.reduce(
-      (a, b) => (a - safe).abs() <= (b - safe).abs() ? a : b,
-    );
-    final assetPath = bank[sampleMidi];
-    if (assetPath == null) {
-      return null;
-    }
-    final semitones = safe - sampleMidi;
-    final targetRate = math.pow(2.0, semitones / 12.0).toDouble();
-    final clampedRate = targetRate.clamp(0.5, 2.0);
+    final plan = planSampleTone(midi: midi, instrument: instrument);
+    if (plan == null) return null;
     final player = AudioPlayer();
     player.positionUpdater = null;
     try {
@@ -2527,10 +2487,10 @@ class _HomeScreenState extends State<HomeScreen>
         useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
       );
       await player.setReleaseMode(ReleaseMode.release);
-      await player.setSource(AssetSource(assetPath));
-      if ((clampedRate - 1.0).abs() > 0.001) {
+      await player.setSource(AssetSource(plan.assetPath));
+      if ((plan.playbackRate - 1.0).abs() > 0.001) {
         try {
-          await player.setPlaybackRate(clampedRate);
+          await player.setPlaybackRate(plan.playbackRate);
         } catch (_) {
           // Keep sample playback even if transposition is unsupported.
         }

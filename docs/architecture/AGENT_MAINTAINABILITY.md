@@ -10,7 +10,7 @@ Completada. El contrato del backlog de escritorio queda establecido:
 
 - `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
 - El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
-- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central, las raíces de cada modo y el selector agrupado de escalas, cubiertos por ese smoke test.
+- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central, las raíces de cada modo y los selectores de tipo, tónica y alteración de escalas, cubiertos por ese smoke test.
 
 Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
 
@@ -26,12 +26,15 @@ En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de
 
 `midi_input_lifecycle.dart` posee las dos suscripciones del plugin MIDI y transforma los paquetes en listas de bytes antes de entregarlos al estado. Su contrato evita registros duplicados y garantiza que datos y eventos de conexión se cancelan juntos durante el desmontaje.
 
+`midi_output_controller.dart` encapsula los mensajes de salida detrás de un puerto mínimo. Conserva la caché de Program Change fuera del widget, normaliza bytes, reintenta un cambio de timbre fallido y fuerza su reenvío después de desconectar la sesión; las pruebas no necesitan hardware ni el plugin activo.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
-| Flutter `main.dart` | 13.774 líneas | 7.523 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias y ciclos de vida MIDI |
+| Flutter `main.dart` | 13.774 líneas | 7.516 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias y entrada/salida MIDI |
 | Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
+| Escritorio `ui_mixin.py` | 4.012 líneas | 3.905 líneas | builders Qt para estructura principal y selectores de escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
@@ -46,7 +49,7 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 
 | Área | Acoplamiento observado | Prerrequisito antes de separar |
 |---|---|---|
-| Flutter `main.dart` | audio, salida MIDI y afinador aún comparten plugins y estado visual | puertos específicos de sesión/player y pruebas de integración del widget antes de moverlos |
+| Flutter `main.dart` | audio y afinador aún comparten plugins y estado visual | puertos específicos de sesión/player y pruebas de integración del widget antes de moverlos |
 | Web `app.js` | `renderStaff`, `renderGuitar` y eventos de controles conservan DOM/canvas y estado global | ampliar el fixture con el canvas o control concreto antes de cada extracción |
 | Escritorio `ui_mixin.py` | los controles internos de cada modo aún se construyen en métodos extensos | ampliar el smoke contract con sus señales públicas antes de nuevos builders |
 

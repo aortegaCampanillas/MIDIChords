@@ -158,16 +158,28 @@ fija su jerarquía, el builder posee solo construcción y enlaces locales, y el
 
 ## Harness de digitaciones de escalas
 
-Los tests de digitación comparten ahora `tests/scale_fingering_test_support.py`
+Los tests de digitación comparten ahora `tests/support/scale_fingering.py`
 para cargar fixtures, extender patrones y validar mano, dirección y número de
 octavas. Las escalas agrupables usan un único contrato parametrizado; mayor,
 menor natural, menor armónica, menor melódica, cromática y las familias
 sintéticas conservan tests específicos para sus reglas teóricas.
 
 Los patrones jónicos y de menor armónica que se reutilizan entre contratos están
-en módulos `*_spec.py`, no se importan desde otros módulos `test_*`. Los fixtures
+en `tests/support/`, no se importan desde otros módulos `test_*`. Los fixtures
 JSON continúan siendo íntegros y cada combinación anterior de tonalidad, mano,
 una/dos octavas y ascenso/descenso sigue validándose.
+
+## Coherencia de directorios auxiliares
+
+La raíz de `tests/` contiene únicamente módulos `test_*`, el paquete `support/`
+y `fixtures/`. Los patrones y el harness reutilizables de digitación viven en
+`tests/support/`, evitando que pytest o un agente los confunda con casos o con
+código de producto.
+
+Los comandos ejecutables permanecen en `scripts/` como interfaz estable. Los
+entitlements y la plantilla de entorno de macOS, que son configuración de
+empaquetado y no comandos, viven en `packaging/macos/`. Un contrato comprueba
+ambas fronteras para impedir que la mezcla reaparezca.
 
 ## Paridad musical offline
 

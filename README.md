@@ -246,7 +246,7 @@ Requisitos previos:
 - Provisioning profile de macOS App Store para tu `Bundle ID`
 - Python adecuado para empaquetar (el script de MAS aún comprueba `tkinter`/Tcl por compatibilidad con el entorno de build; la **UI de la app es Qt/PySide6**). Evita Homebrew `python@3.14` + `Tk 9.0` si el chequeo del script falla.
 
-**Atajo:** con credenciales en `signing/local/mas.env` (plantilla `scripts/mas-env.example`):
+**Atajo:** con credenciales en `signing/local/mas.env` (plantilla `packaging/macos/mas-env.example`):
 
 ```bash
 ./scripts/build_mas_store.sh
@@ -273,8 +273,8 @@ Salida esperada:
 
 Notas:
 
-- Entitlements base en `scripts/entitlements.mas.plist`.
-- El script genera un archivo temporal: `scripts/entitlements.mas.generated.plist`.
+- Entitlements base en `packaging/macos/entitlements.mas.plist`.
+- El script genera un archivo temporal: `packaging/macos/entitlements.mas.generated.plist`.
 - Si no necesitas red o acceso a archivos seleccionados por usuario, omite `--allow-network` y/o `--allow-file-access`.
 - El script también configura automáticamente claves requeridas por App Store:
   - `LSApplicationCategoryType` (por defecto: `public.app-category.music`)

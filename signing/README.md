@@ -36,7 +36,7 @@ These files are ignored by git via:
 
 ### Flujo recomendado: `signing/local/mas.env` + `build_mas_store.sh`
 
-1. `cp scripts/mas-env.example signing/local/mas.env`
+1. `cp packaging/macos/mas-env.example signing/local/mas.env`
 2. Edita `mas.env` (identidades, `MAS_BUNDLE_ID`, ruta del `.provisionprofile`, **versión** y **build** nuevos tras un rechazo).
 3. Desde la raíz del repo:
 

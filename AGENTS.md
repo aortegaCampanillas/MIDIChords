@@ -28,9 +28,9 @@ La implementación Python reutilizable está en **`midichords`** y alimenta el e
 │   ├── main_app.py       # Ventana Qt principal (MidiChordAnalyzerApp)
 │   └── mixins/           # Modos y subsistemas de la UI de escritorio
 ├── assets/               # Imágenes, samples de audio compartidos
-├── tests/                # Tests unitarios (Python unittest)
+├── tests/                # Tests Python; fixtures/ y helpers en support/
 ├── scripts/              # Build, firma, notarización, utilidades
-├── packaging/            # Flatpak, Microsoft Store, etc.
+├── packaging/            # Flatpak, Microsoft Store y configuración macOS
 ├── launch.py             # Punto de entrada unificado (desktop, web, mobile)
 ├── app.py                # Alias histórico para desktop
 └── requirements.txt     # Dependencias Python

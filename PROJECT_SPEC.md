@@ -50,9 +50,9 @@ La app existe en tres formas: **escritorio** (Python/PySide6), **web** (frontend
 │   ├── ui/                # Widgets y componentes visuales Qt
 │   └── main_app.py        # Ventana Qt principal
 ├── assets/                # Imágenes, samples de audio (piano, guitarra)
-├── tests/                 # Tests unitarios Python
+├── tests/                 # Tests unitarios, fixtures y soporte de tests
 ├── scripts/               # Build, firma, notarización
-├── packaging/             # Flatpak, Microsoft Store, etc.
+├── packaging/             # Flatpak, Microsoft Store y configuración macOS
 ├── launch.py              # Entrada unificada: desktop | web | mobile
 ├── app.py                 # Alias a desktop (opcional)
 ├── requirements.txt

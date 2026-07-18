@@ -51,3 +51,29 @@ def test_historical_plans_and_retired_modules_do_not_return_to_active_roots() ->
 
     assert (ROOT / "docs" / "ROADMAP.md").is_file()
     assert (ROOT / "docs" / "archive" / "README.md").is_file()
+
+
+def test_support_and_packaging_metadata_stay_in_their_scoped_directories() -> None:
+    misplaced_test_support = (
+        "tests/scale_fingering_test_support.py",
+        "tests/scale_fingering_ionian_spec.py",
+        "tests/scale_fingering_harmonic_minor_spec.py",
+    )
+    misplaced_macos_metadata = (
+        "scripts/entitlements.developerid.plist",
+        "scripts/entitlements.mas.plist",
+        "scripts/mas-env.example",
+    )
+    for relative in (*misplaced_test_support, *misplaced_macos_metadata):
+        assert not (ROOT / relative).exists(), relative
+
+    required = (
+        "tests/support/scale_fingering.py",
+        "tests/support/ionian_fingering.py",
+        "tests/support/harmonic_minor_fingering.py",
+        "packaging/macos/entitlements.developerid.plist",
+        "packaging/macos/entitlements.mas.plist",
+        "packaging/macos/mas-env.example",
+    )
+    for relative in required:
+        assert (ROOT / relative).is_file(), relative

@@ -9,7 +9,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   cat >&2 <<EOF
 No se encuentra: $ENV_FILE
 
-1) cp scripts/mas-env.example signing/local/mas.env
+1) cp packaging/macos/mas-env.example signing/local/mas.env
 2) Edita signing/local/mas.env (identidades, bundle id, perfil, versión, build)
 3) Vuelve a ejecutar: ./scripts/build_mas_store.sh
 

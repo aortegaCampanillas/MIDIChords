@@ -221,7 +221,7 @@ find "$APP_PATH/Contents/Frameworks/PySide6" -maxdepth 1 -type f \
      -o -name "qmlformat" -o -name "qmllint" -o -name "qmlls" -o -name "qsb" \
      -o -name "svgtoqml" \) -delete 2>/dev/null || true
 
-ENTITLEMENTS_PLIST="$ROOT_DIR/scripts/entitlements.developerid.plist"
+ENTITLEMENTS_PLIST="$ROOT_DIR/packaging/macos/entitlements.developerid.plist"
 
 # Sign all Mach-O binaries inside Frameworks/ (deepest first, no entitlements for libs)
 while IFS= read -r f; do

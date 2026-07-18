@@ -3,9 +3,62 @@ from __future__ import annotations
 from typing import Optional
 
 import midichords.qt.tk_compat as tk
+import midichords.qt.ttk_compat as ttk
 from PySide6.QtWidgets import QHBoxLayout
 
-from midichords.ui.widgets_qt import RoundedPanel
+from midichords.ui.widgets_qt import GrayRoundedButton, RoundedPanel
+
+
+def build_scale_type_selector(app: object) -> tk.Frame:
+    """Build the grouped scale selector row and return its layout parent."""
+    app.scale_type_selector_label = tk.Label(
+        app.tab_scale_frame,
+        text="",
+        bg=app.color_surface_alt,
+        fg=app.color_text,
+        font=(app.ui_font_family, 14),
+    )
+    app.scale_type_selector_label.grid(
+        row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8)
+    )
+    row = tk.Frame(
+        app.tab_scale_frame,
+        bg=app.color_surface_alt,
+        bd=0,
+        highlightthickness=0,
+    )
+    row.grid(row=2, column=1, sticky="w", pady=(0, 5))
+    app.scale_type_var = tk.StringVar(value=app.scale_pattern_name)
+    app.scale_type_combo = ttk.Combobox(
+        row,
+        textvariable=app.scale_type_var,
+        state="readonly",
+        values=["-"],
+        font=(app.ui_font_family, 15),
+        height=20,
+    )
+    app.scale_type_combo.grid(row=0, column=0, sticky="ew")
+    app.scale_type_combo.bind("<<ComboboxSelected>>", app._on_scale_type_combo_changed)
+    app._qt_apply_dark_combobox_style(app.scale_type_combo)
+    if not hasattr(app, "scale_filter_mode"):
+        app.scale_filter_mode = "basic"
+    app.scale_inline_filter_btn = GrayRoundedButton(
+        row,
+        text="",
+        command=app._toggle_scale_filter_mode,
+        font_family=app.ui_font_family,
+        width=76,
+        height=34,
+        radius=12,
+        font_size=12,
+        text_color="#e6edf7",
+        selected_text_color="#1a222d",
+        selected_fill_color="#f3bf2f",
+        selected_outline_color="#c9961f",
+    )
+    app.scale_inline_filter_btn.grid(row=0, column=1, sticky="e", padx=(6, 0))
+    app.scale_inline_filter_btn.set_selected(app.scale_filter_mode == "basic")
+    return row
 
 
 def build_top_bar(app: object, container: tk.Widget) -> None:

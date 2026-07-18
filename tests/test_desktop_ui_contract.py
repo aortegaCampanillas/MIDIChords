@@ -46,6 +46,9 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.tab_generation_frame.parent() is window.chord_panel
         assert window.scale_tonic_combo.maxVisibleItems() == 15
         assert window.scale_type_combo.maxVisibleItems() == 20
+        assert window.scale_type_combo.parent() is not window.tab_scale_frame
+        assert window.scale_type_combo.parent().parent() is window.tab_scale_frame
+        assert window.scale_inline_filter_btn.parent() is window.scale_type_combo.parent()
 
         window._apply_mode("circle_fifths")
         qt_app.processEvents()

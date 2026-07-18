@@ -7,7 +7,11 @@ import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
-from midichords.ui.desktop_ui_builders import build_main_panel_shell, build_top_bar
+from midichords.ui.desktop_ui_builders import (
+    build_main_panel_shell,
+    build_scale_type_selector,
+    build_top_bar,
+)
 
 from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import Qt, QPoint, QObject, QEvent
@@ -1280,46 +1284,7 @@ class UiMixin:
         )
         self._qt_apply_dark_combobox_style(self.scale_tonic_accidental_combo)
 
-        self.scale_type_selector_label = tk.Label(
-            self.tab_scale_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        scale_type_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        scale_type_row.grid(row=2, column=1, sticky="w", pady=(0, 5))
-        self.scale_type_var = tk.StringVar(value=self.scale_pattern_name)
-        self.scale_type_combo = ttk.Combobox(
-            scale_type_row,
-            textvariable=self.scale_type_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-            height=20,
-        )
-        self.scale_type_combo.grid(row=0, column=0, sticky="ew")
-        self.scale_type_combo.bind("<<ComboboxSelected>>", self._on_scale_type_combo_changed)
-        self._qt_apply_dark_combobox_style(self.scale_type_combo)
-        if not hasattr(self, "scale_filter_mode"):
-            self.scale_filter_mode = "basic"
-        self.scale_inline_filter_btn = GrayRoundedButton(
-            scale_type_row,
-            text="",
-            command=self._toggle_scale_filter_mode,
-            font_family=self.ui_font_family,
-            width=76,
-            height=34,
-            radius=12,
-            font_size=12,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
-            selected_fill_color="#f3bf2f",
-            selected_outline_color="#c9961f",
-        )
-        self.scale_inline_filter_btn.grid(row=0, column=1, sticky="e", padx=(6, 0))
-        self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
+        scale_type_row = build_scale_type_selector(self)
 
         # Etiqueta "Volumen" + porcentaje: en la misma fila que "Escala" (a
         # la derecha del botón "Básicas"), alineada verticalmente con el

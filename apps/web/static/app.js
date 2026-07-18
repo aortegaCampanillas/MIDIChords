@@ -6858,7 +6858,7 @@ function bindEvents() {
   };
   syncMeterDisplay();
 
-  el("bpm").addEventListener("input", (e) => {
+  listen(el("bpm"), "input", (e) => {
     const v = String(e.target.value || "120");
     refreshMetronomeTempoInfo();
     if (el("scaleBpm")) {
@@ -6866,41 +6866,41 @@ function bindEvents() {
       el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;
     }
   });
-  el("metroVolume").addEventListener("input", () => {
+  listen(el("metroVolume"), "input", () => {
     refreshMetronomeVolumeInfo();
   });
   const scaleMetroVolume = el("scaleMetroVolume");
   if (scaleMetroVolume) {
-    scaleMetroVolume.addEventListener("input", () => {
+    listen(scaleMetroVolume, "input", () => {
       refreshMetronomeVolumeInfo();
     });
   }
 
-  el("metroBpmMinus").addEventListener("click", () => {
+  listen(el("metroBpmMinus"), "click", () => {
     const bpm = Math.max(1, Math.min(300, Number(el("bpm").value) || 120) - 1);
     el("bpm").value = String(bpm);
     el("bpm").dispatchEvent(new Event("input"));
   });
-  el("metroBpmPlus").addEventListener("click", () => {
+  listen(el("metroBpmPlus"), "click", () => {
     const bpm = Math.max(1, Math.min(300, Number(el("bpm").value) || 120) + 1);
     el("bpm").value = String(bpm);
     el("bpm").dispatchEvent(new Event("input"));
   });
 
-  el("metroMeter").addEventListener("input", syncMeterDisplay);
-  el("metroMeterMinus").addEventListener("click", () => {
+  listen(el("metroMeter"), "input", syncMeterDisplay);
+  listen(el("metroMeterMinus"), "click", () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4) - 1);
     el("metroMeter").value = String(meter);
     syncMeterDisplay();
   });
-  el("metroMeterPlus").addEventListener("click", () => {
+  listen(el("metroMeterPlus"), "click", () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4) + 1);
     el("metroMeter").value = String(meter);
     syncMeterDisplay();
   });
 
   document.querySelectorAll(".metro-figure").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    listen(btn, "click", () => {
       state.clicksPerBeat = Math.max(1, Math.min(16, Number(btn.dataset.clicks) || 1));
       renderMetronomeFigures();
       renderMetronomeDots();
@@ -6909,11 +6909,11 @@ function bindEvents() {
   });
   renderMetronomeFigures();
 
-  el("metroBarAccent").addEventListener("change", (e) => {
+  listen(el("metroBarAccent"), "change", (e) => {
     state.metronomeBarAccentEnabled = !!e.target.checked;
     if (state.mode === "metronome") renderStaff();
   });
-  el("metroTimerEnabled").addEventListener("change", (e) => {
+  listen(el("metroTimerEnabled"), "change", (e) => {
     state.metronomeTimerEnabled = !!e.target.checked;
     if (!state.metronomeRunning) {
       state.metronomeTimerRemaining = (Number(el("metroTimerMinutes").value) * 60) + Number(el("metroTimerSeconds").value);
@@ -6930,14 +6930,14 @@ function bindEvents() {
     }
     if (state.mode === "metronome") renderStaff();
   };
-  el("metroTimerMinutes").addEventListener("change", syncTimerInputs);
-  el("metroTimerSeconds").addEventListener("change", syncTimerInputs);
+  listen(el("metroTimerMinutes"), "change", syncTimerInputs);
+  listen(el("metroTimerSeconds"), "change", syncTimerInputs);
   syncTimerInputs();
 
   if (TUNER_FEATURE_ENABLED) {
     const tunerTuning = el("tunerTuning");
     if (tunerTuning) {
-      tunerTuning.addEventListener("change", (e) => {
+      listen(tunerTuning, "change", (e) => {
         const key = String(e.target.value || "standard_e");
         state.tuner.tuningKey = TUNER_TUNINGS.some((t) => t.key === key) ? key : "standard_e";
         state.tuner.currentStringIdx = null;
@@ -6948,7 +6948,7 @@ function bindEvents() {
     }
     const tunerInput = el("tunerInput");
     if (tunerInput) {
-      tunerInput.addEventListener("change", async (e) => {
+      listen(tunerInput, "change", async (e) => {
         state.tuner.inputDeviceId = String(e.target.value || "");
         if (state.tuner.running) {
           await toggleTuner();
@@ -6961,12 +6961,12 @@ function bindEvents() {
       el("tunerGain").value = String(state.tuner.inputGain);
       updateTunerGainValue();
     };
-    el("tunerGain").addEventListener("input", syncTunerGain);
-    el("tunerGainMinus").addEventListener("click", () => {
+    listen(el("tunerGain"), "input", syncTunerGain);
+    listen(el("tunerGainMinus"), "click", () => {
       el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) - 1)));
       syncTunerGain();
     });
-    el("tunerGainPlus").addEventListener("click", () => {
+    listen(el("tunerGainPlus"), "click", () => {
       el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) + 1)));
       syncTunerGain();
     });
@@ -6976,8 +6976,8 @@ function bindEvents() {
       clampTunerRange(el("tunerRangeMin").value, el("tunerRangeMax").value);
       if (state.mode === "tuner") renderStaff();
     };
-    el("tunerRangeMin").addEventListener("change", syncTunerRange);
-    el("tunerRangeMax").addEventListener("change", syncTunerRange);
+    listen(el("tunerRangeMin"), "change", syncTunerRange);
+    listen(el("tunerRangeMax"), "change", syncTunerRange);
     syncTunerRange();
   } else {
     const panelTuner = el("panelTuner");
@@ -7006,12 +7006,12 @@ function bindEvents() {
     },
   });
 
-  el("metroToggle").addEventListener("click", toggleMetronome);
+  listen(el("metroToggle"), "click", toggleMetronome);
   if (TUNER_FEATURE_ENABLED) {
-    el("tunerToggle").addEventListener("click", toggleTuner);
+    listen(el("tunerToggle"), "click", toggleTuner);
   }
   const feedbackForm = el("feedbackForm");
-  if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
+  if (feedbackForm) listen(feedbackForm, "submit", submitFeedbackForm);
 
 }
 

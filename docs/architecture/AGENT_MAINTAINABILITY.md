@@ -41,6 +41,10 @@ escalas han migrado también al registro común. Sus callbacks y estado permanec
 en `app.js`, pero la propiedad y retirada de eventos ya no se gestiona de forma
 ad hoc en cada control.
 
+La migración de `bindEvents` queda completada con metrónomo, temporizador,
+afinador y feedback. `test_web_ui_lifecycle_contract.py` fija la frontera: ese
+bloque no puede volver a registrar listeners directos fuera de `uiLifecycle`.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

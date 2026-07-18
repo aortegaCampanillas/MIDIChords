@@ -6983,7 +6983,7 @@ class _HomeScreenState extends State<HomeScreen>
         ? physicalTuning.reversed
               .toList() // 1 -> 6 (arriba -> abajo)
         : physicalTuning;
-    const fretCount = 14;
+    const fretCount = 16; // cuerda al aire (0) + trastes 1..15
     const fretW = 78.0;
     const openFretW = fretW / 2;
     const stringGap = 25.0;

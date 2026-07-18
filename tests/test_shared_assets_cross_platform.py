@@ -61,6 +61,40 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
                         self.assertLessEqual(len(notes), 6)
                         self.assertEqual(expected_pcs, {note % 12 for note in notes})
 
+    def test_add2_exposes_the_three_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[-1, 3, 2, 0, 3, -1], [-1, 3, 5, 7, 5, 3], [-1, -1, 10, 9, 8, 10]],
+            1: [[-1, 4, 3, 1, 4, -1], [-1, 4, 6, 8, 6, 4], [-1, -1, 11, 10, 9, 11]],
+            2: [[-1, 5, 4, 2, 5, -1], [-1, 5, 7, 9, 7, 5], [-1, -1, 12, 11, 10, 12]],
+            3: [[-1, 6, 5, 3, 6, -1], [-1, 6, 8, 10, 8, 6], [-1, -1, 13, 12, 11, 13]],
+            4: [[-1, -1, 2, 1, 0, 2], [-1, 7, 6, 4, 7, -1], [-1, 7, 9, 11, 9, 7]],
+            5: [[-1, 8, 7, 5, 8, -1], [-1, 8, 10, 12, 10, 8], [-1, -1, 3, 2, 1, 3]],
+            6: [[-1, 9, 8, 6, 9, -1], [-1, 9, 11, 13, 11, 9], [-1, -1, 4, 3, 2, 4]],
+            7: [[-1, 10, 9, 7, 10, -1], [-1, 10, 12, 14, 12, 10], [-1, -1, 5, 4, 3, 5]],
+            8: [[-1, 11, 10, 8, 11, -1], [-1, 11, 13, 15, 13, 11], [-1, -1, 6, 5, 4, 6]],
+            9: [[-1, 0, 2, 4, 2, 0], [-1, 12, 11, 9, 12, -1], [-1, -1, 7, 6, 5, 7]],
+            10: [[-1, 13, 12, 10, 13, -1], [-1, 1, 3, 5, 3, 1], [-1, -1, 8, 7, 6, 8]],
+            11: [[-1, 14, 13, 11, 14, -1], [-1, 2, 4, 6, 4, 2], [-1, -1, 9, 8, 7, 9]],
+        }
+        standard_fingers = [[0, 3, 2, 1, 4, 0], [0, 1, 2, 4, 3, 1], [0, 0, 3, 2, 1, 4]]
+        expected_fingers = {root_pc: standard_fingers for root_pc in range(12)}
+        expected_fingers[0] = [[0, 2, 1, 0, 3, 0], standard_fingers[1], standard_fingers[2]]
+        expected_fingers[4] = [[0, 0, 2, 1, 0, 3], standard_fingers[0], standard_fingers[1]]
+        expected_fingers[9] = [[0, 0, 1, 4, 2, 0], standard_fingers[0], standard_fingers[2]]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                self.assertEqual(
+                    frets,
+                    [variation["frets"] for variation in cache[f"{root_pc}|add2"]],
+                )
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in cache[f"{root_pc}|add2"]],
+                )
+
     def test_shared_guitar_sample_bank_is_complete_and_identical(self):
         relative_dir = Path("samples/guitar_nylon")
         expected_names = {path.name for path in (DESKTOP_ASSETS / relative_dir).glob("*.mp3")}

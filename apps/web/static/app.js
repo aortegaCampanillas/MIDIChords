@@ -2754,7 +2754,7 @@ function renderGuitar() {
   const rightNames = ["E", "B", "G", "D", "A", "E"];
   const tuning = state.guitarHandedness === "left" ? [...rightTuning].reverse() : rightTuning;
   const stringNames = state.guitarHandedness === "left" ? [...rightNames].reverse() : rightNames;
-  const frets = 14;
+  const frets = 15;
   const activeMidi = getActiveMidiForMode();
   const activePcs = getActivePcsForMode();
   const extraMidi = getExtraMidiForMode();

@@ -127,6 +127,38 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
                     [variation["fingers"] for variation in variations],
                 )
 
+    def test_minor_add2_exposes_the_two_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[-1, 3, 1, 0, 3, -1], [-1, -1, 10, 8, 8, 10]],
+            1: [[-1, 4, 2, 1, 4, -1], [-1, -1, 11, 9, 9, 11]],
+            2: [[-1, 5, 3, 2, 5, -1], [-1, -1, 12, 10, 10, 12]],
+            3: [[-1, 6, 4, 3, 6, -1], [-1, -1, 13, 11, 11, 13]],
+            4: [[-1, -1, 2, 0, 0, 2], [-1, 7, 5, 4, 7, -1]],
+            5: [[-1, 8, 6, 5, 8, -1], [-1, -1, 3, 1, 1, 3]],
+            6: [[-1, 9, 7, 6, 9, -1], [-1, -1, 4, 2, 2, 4]],
+            7: [[-1, 10, 8, 7, 10, -1], [-1, -1, 5, 3, 3, 5]],
+            8: [[-1, 11, 9, 8, 11, -1], [-1, -1, 6, 4, 4, 6]],
+            9: [[-1, 12, 10, 9, 12, -1], [-1, -1, 7, 5, 5, 7]],
+            10: [[-1, 13, 11, 10, 13, -1], [-1, -1, 8, 6, 6, 8]],
+            11: [[-1, 14, 12, 11, 14, -1], [-1, -1, 9, 7, 7, 9]],
+        }
+        a_fingers = [0, 3, 2, 1, 4, 0]
+        d_fingers = [0, 0, 3, 1, 1, 4]
+        expected_fingers = {root_pc: [a_fingers, d_fingers] for root_pc in range(12)}
+        expected_fingers[0] = [[0, 3, 1, 0, 4, 0], d_fingers]
+        expected_fingers[4] = [[0, 0, 2, 0, 0, 3], a_fingers]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                variations = cache[f"{root_pc}|madd2"]
+                self.assertEqual(frets, [variation["frets"] for variation in variations])
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in variations],
+                )
+
     def test_shared_guitar_sample_bank_is_complete_and_identical(self):
         relative_dir = Path("samples/guitar_nylon")
         expected_names = {path.name for path in (DESKTOP_ASSETS / relative_dir).glob("*.mp3")}

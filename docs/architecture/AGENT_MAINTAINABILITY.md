@@ -27,6 +27,11 @@ posee los listeners de apertura, cierre y fondo, mientras `app.js` conserva las
 acciones concretas de ayuda, feedback y descargas. El fixture comprueba que un
 clic en el contenido no cierre el diálogo y que el desmontaje sea completo.
 
+Los eventos globales de teclado están igualmente encapsulados: Escape se enruta
+a la política de cierre de `app.js`, mientras el módulo normaliza pulsación,
+repetición, liberación y pérdida de foco de Mayús. El estado específico de
+detección permanece en la SPA y se limpia también si el foco cambia.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

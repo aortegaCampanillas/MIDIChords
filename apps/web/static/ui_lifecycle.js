@@ -137,10 +137,27 @@
     }
   }
 
+  function bindKeyboardUiEvents(lifecycle, options) {
+    const documentTarget = options.documentTarget;
+    const windowTarget = options.windowTarget;
+    lifecycle.listen(documentTarget, "keydown", (event) => {
+      if (event.key === "Escape") {
+        options.onEscape?.();
+        return;
+      }
+      if (event.key === "Shift" && !event.repeat) options.onShiftChange?.(true);
+    });
+    lifecycle.listen(documentTarget, "keyup", (event) => {
+      if (event.key === "Shift") options.onShiftChange?.(false);
+    });
+    lifecycle.listen(windowTarget, "blur", () => options.onShiftChange?.(false));
+  }
+
   global.MidiChordsUiLifecycle = Object.freeze({
     createUiLifecycle,
     bindGlobalUiEvents,
     bindImmediatePress,
     bindModalControls,
+    bindKeyboardUiEvents,
   });
 })(globalThis);

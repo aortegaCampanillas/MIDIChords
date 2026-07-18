@@ -150,6 +150,7 @@ const {
   bindGlobalUiEvents,
   bindImmediatePress: bindImmediatePressControl,
   bindModalControls,
+  bindKeyboardUiEvents,
 } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
@@ -6717,38 +6718,28 @@ function bindEvents() {
     });
   }
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !el("chordVariantHelpModal")?.classList.contains("hidden")) {
-      hideChordVariantHelpModal();
-      return;
-    }
-    if (event.key === "Escape" && !el("downloadsModal")?.classList.contains("hidden")) {
-      hideDownloadsModal();
-      return;
-    }
-    if (event.key === "Escape" && !el("feedbackModal")?.classList.contains("hidden")) {
-      hideFeedbackModal();
-      return;
-    }
-    if (event.key === "Escape" && state.help.active) {
-      setHelpActive(false);
-      return;
-    }
-    if (event.key !== "Shift") return;
-    if (event.repeat) return;
-    state.shiftPressed = true;
-    if (state.mode !== "detection") return;
-    state.detectionShiftPressed = true;
-  });
-  document.addEventListener("keyup", (event) => {
-    if (event.key !== "Shift") return;
-    state.shiftPressed = false;
-    if (state.mode !== "detection") return;
-    state.detectionShiftPressed = false;
-  });
-  window.addEventListener("blur", () => {
-    state.shiftPressed = false;
-    state.detectionShiftPressed = false;
+  bindKeyboardUiEvents(uiLifecycle, {
+    documentTarget: document,
+    windowTarget: window,
+    onEscape: () => {
+      if (!el("chordVariantHelpModal")?.classList.contains("hidden")) {
+        hideChordVariantHelpModal();
+        return;
+      }
+      if (!el("downloadsModal")?.classList.contains("hidden")) {
+        hideDownloadsModal();
+        return;
+      }
+      if (!el("feedbackModal")?.classList.contains("hidden")) {
+        hideFeedbackModal();
+        return;
+      }
+      if (state.help.active) setHelpActive(false);
+    },
+    onShiftChange: (pressed) => {
+      state.shiftPressed = pressed;
+      state.detectionShiftPressed = pressed && state.mode === "detection";
+    },
   });
 
   el("genRootLetter").addEventListener("change", (e) => {

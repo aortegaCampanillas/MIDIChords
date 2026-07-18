@@ -8,6 +8,7 @@ const {
   bindGlobalUiEvents,
   bindImmediatePress,
   bindModalControls,
+  bindKeyboardUiEvents,
 } = globalThis.MidiChordsUiLifecycle;
 
 class FakeTarget {
@@ -178,4 +179,28 @@ test("modal controls open, close, and dismiss only from the backdrop", () => {
   assert.equal(modal.listeners.size, 0);
   assert.equal(openButton.listeners.size, 0);
   assert.equal(closeButton.listeners.size, 0);
+});
+
+test("keyboard controls route Escape and keep Shift state balanced", () => {
+  const lifecycle = createUiLifecycle(new FakeClock());
+  const documentTarget = new FakeTarget();
+  const windowTarget = new FakeTarget();
+  const calls = [];
+  bindKeyboardUiEvents(lifecycle, {
+    documentTarget,
+    windowTarget,
+    onEscape: () => calls.push("escape"),
+    onShiftChange: (pressed) => calls.push(pressed ? "down" : "up"),
+  });
+
+  documentTarget.dispatch("keydown", { key: "Escape" });
+  documentTarget.dispatch("keydown", { key: "Shift", repeat: false });
+  documentTarget.dispatch("keydown", { key: "Shift", repeat: true });
+  documentTarget.dispatch("keyup", { key: "Shift" });
+  windowTarget.dispatch("blur");
+  assert.deepEqual(calls, ["escape", "down", "up", "up"]);
+
+  lifecycle.unmount();
+  documentTarget.dispatch("keydown", { key: "Escape" });
+  assert.deepEqual(calls, ["escape", "down", "up", "up"]);
 });

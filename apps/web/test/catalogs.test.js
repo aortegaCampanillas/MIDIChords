@@ -90,6 +90,7 @@ test("key signatures choose the shortest spelling and modal relative major", () 
     keySignatureCountForTonic,
     chordSymbolPreferFlat,
     applyFlatKeySignatureTie,
+    keySignatureIndexForMidi,
     isMinorSuffix,
     scalePrefersMinor,
   } = globalThis.MidiChordsKeySignature;
@@ -111,6 +112,10 @@ test("key signatures choose the shortest spelling and modal relative major", () 
   assert.equal(isMinorSuffix("maj7"), false);
   assert.equal(scalePrefersMinor("Dorian"), true);
   assert.equal(scalePrefersMinor("Mixolydian"), false);
+  assert.equal(keySignatureIndexForMidi(66, { count: 3, preferFlats: false }), 0);
+  assert.equal(keySignatureIndexForMidi(68, { count: 3, preferFlats: false }), 2);
+  assert.equal(keySignatureIndexForMidi(70, { count: 3, preferFlats: true }), 0);
+  assert.equal(keySignatureIndexForMidi(66, { count: 2, preferFlats: true }), -1);
 });
 
 test("piano fingering resolves documented scales without synthetic fallbacks", () => {

@@ -18,3 +18,17 @@ int keySignatureIndexForScaleNote({
   final index = order.indexOf(naturalPc);
   return index >= 0 && index < signatureCount ? index : -1;
 }
+
+int keySignatureIndexForMidi({
+  required int midi,
+  required int signatureCount,
+  required bool preferFlats,
+}) {
+  if (signatureCount <= 0) return -1;
+  final pc = ((midi % 12) + 12) % 12;
+  const sharpPcOrder = <int>[6, 1, 8, 3, 10, 5, 0];
+  const flatPcOrder = <int>[10, 3, 8, 1, 6, 11, 4];
+  final order = preferFlats ? flatPcOrder : sharpPcOrder;
+  final index = order.indexOf(pc);
+  return index >= 0 && index < signatureCount ? index : -1;
+}

@@ -717,9 +717,15 @@ class InputDetectionMixin:
         chord_notes = set(notes if notes is not None else self._current_detection_notes())
         chord, _extras = self._detect_chord_with_extras(chord_notes)
         return chord
+    def _guitar_variations_should_refresh(self) -> bool:
+        return getattr(self, "instrument_view", "piano") == "guitar"
     def update_music_views(self) -> None:
         self._refresh_scale_preview()
-        self._refresh_guitar_variations()
+        # Computing uncached guitar fingerings can be comparatively expensive.
+        # Keep piano/root changes immediate and defer that work until the user
+        # actually opens the guitar view.
+        if self._guitar_variations_should_refresh():
+            self._refresh_guitar_variations()
         active_set = self._current_detection_notes()
         if active_set:
             self.detection_last_playable_notes = set(active_set)

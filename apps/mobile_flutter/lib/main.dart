@@ -4090,6 +4090,22 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  int _activeChordKeySignatureIndex(
+    ({int count, bool preferFlats}) signature,
+    Iterable<int> activeNotes,
+  ) {
+    if (_tabIndex != 1 && _tabIndex != 2) return -1;
+    for (final midi in activeNotes) {
+      final index = keySignatureIndexForMidi(
+        midi: midi,
+        signatureCount: signature.count,
+        preferFlats: signature.preferFlats,
+      );
+      if (index >= 0) return index;
+    }
+    return -1;
+  }
+
   /// pc de cada letra natural (Do..Si) para el combo de tónica dividido en
   /// nota + alteración, y qué alteraciones son reales para cada una (sin
   /// enarmonías inventadas como Fb/Cb/E#/B#, que no existen en _pcLabelCanonical).
@@ -5332,7 +5348,12 @@ class _HomeScreenState extends State<HomeScreen>
         ? staffMidi(_scaleCurrentNote!)
         : null;
     final staffKeySig = _staffKeySignatureForCurrentTab();
-    final activeScaleKeySigIndex = _activeScaleKeySignatureIndex(staffKeySig);
+    final activeKeySigIndex = _tabIndex == 3
+        ? _activeScaleKeySignatureIndex(staffKeySig)
+        : _activeChordKeySignatureIndex(
+            staffKeySig,
+            displayGenerationPlayingNotes,
+          );
     final imelMode = _tabIndex == 5 && _intervalMelodyMode;
     final imelSemitones = _tabIndex == 5 ? _getIntervalSemitones() : null;
     final imelMelody = imelSemitones != null
@@ -5565,7 +5586,7 @@ class _HomeScreenState extends State<HomeScreen>
                               _tabIndex == 3 && _instrumentView == 'guitar',
                           keySignatureCount: staffKeySig.count,
                           keySignaturePreferFlats: staffKeySig.preferFlats,
-                          activeKeySignatureIndex: activeScaleKeySigIndex,
+                          activeKeySignatureIndex: activeKeySigIndex,
                           intervalMelodyMode: imelMode,
                           intervalMelodyNotes: imelNotes,
                           intervalMelodyDurations: imelDurations,

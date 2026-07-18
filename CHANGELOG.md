@@ -16,6 +16,14 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Escritorio (rendimiento)**: el selector principal cierra antes de aplicar el cambio de modo, se evitan actualizaciones visuales duplicadas y las digitaciones de guitarra se calculan solo al mostrar la guitarra; cambiar de tónica y reproducir acordes desde el piano deja de quedar bloqueado por ese cálculo.
+
+- **Escritorio (integración)**: definida explícitamente la identidad interna de producto en Qt para que títulos y menús propios no hereden el nombre del intérprete.
+
+- **Escritorio (partitura)**: las barras secundarias parciales de semicorchea siguen ahora la pendiente de la barra principal en lugar de dibujarse siempre horizontales.
+
+- **Partitura / interacción**: al pulsar notas alteradas en Generación de acordes o Círculo de quintas, el símbolo correspondiente de la armadura se resalta junto con la nota en escritorio, web y móvil, igual que en Escalas.
+
 - **Móvil (mantenimiento)**: separado el catálogo contextual, las anclas, la selección y la geometría del tour de ayuda a una extensión privada `part`, reduciendo en más de mil líneas el contexto de `main.dart` y conservando estado, callbacks y animación existentes.
 
 - **Web (mantenimiento)**: trasladados al módulo del círculo de quintas el hit-testing de sectores/anillos, la selección diatónica y la geometría del acorde resaltado; modo y tónica son ahora entradas explícitas y las pruebas cubren clics interiores, exteriores, fuera del anillo y bandas mayor/menor/disminuida.
@@ -65,6 +73,8 @@ Historial de versiones publicadas de MIDIChords.
 - **Mantenimiento / CI**: añadido un comando unificado de verificación con perfiles para Python, web y Flutter, junto con un workflow de GitHub Actions que ejecuta tests, análisis estático, sintaxis JavaScript y build web en cada pull request; saneados además los avisos previos del analyzer de Flutter para que el nuevo control parta en verde.
 
 ### Corregido
+
+- **Web (generación / círculo de quintas)**: el botón ▶ vuelve a resaltar durante la reproducción las teclas exactas del piano y las posiciones del acorde sobre la guitarra; instrumento y pentagrama se repintan al iniciar, sustituir y limpiar el resaltado tanto con audio como con MIDI out.
 
 - **Móvil (piano / scroll por modo)**: Generación, Círculo y Escalas solo se centran en su primera apertura de la sesión; al cambiar de modo o alternar con la guitarra se guarda y restaura el último desplazamiento propio de cada modo.
 

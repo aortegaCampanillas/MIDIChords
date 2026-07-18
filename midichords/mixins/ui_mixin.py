@@ -3567,7 +3567,22 @@ class UiMixin:
         if mode_key not in self._available_mode_keys():
             mode_key = "detection"
         self.mode_var.set(self._mode_label(mode_key))
-        self._on_mode_combo_changed(None)
+        self._schedule_mode_change()
+
+    def _schedule_mode_change(self) -> None:
+        """Let Qt close/repaint the selector before running the heavy transition."""
+        pending = getattr(self, "_mode_change_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except Exception:
+                pass
+
+        def apply_change() -> None:
+            self._mode_change_after_id = None
+            self._on_mode_combo_changed(None)
+
+        self._mode_change_after_id = self.after(0, apply_change)
     def _open_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
@@ -3792,7 +3807,7 @@ class UiMixin:
             mode_key = "detection"
         self.mode_var.set(self._mode_label(mode_key))
         self._close_mode_selector_overlay()
-        self._on_mode_combo_changed(None)
+        self._schedule_mode_change()
     def _on_mode_combo_changed(self, _event: tk.Event) -> None:
         self._close_mode_selector_overlay()
         self._close_scale_tonic_overlay()
@@ -3921,7 +3936,6 @@ class UiMixin:
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
-            self.update_music_views()
         elif self.metronome_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
@@ -3982,7 +3996,6 @@ class UiMixin:
             if hasattr(self, '_clear_interval_notes'):
                 self._clear_interval_notes()
             self.active_notes = set()
-            self.update_music_views()
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()

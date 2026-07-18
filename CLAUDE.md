@@ -32,6 +32,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Web: descarga y caché de samples | `apps/web/static/audio_sample_loader.js` |
 | Web: envolventes y liberación de voces | `apps/web/static/audio_voice.js` |
 | Web: autocorrelación y frecuencia/MIDI | `apps/web/static/tuner_math.js` |
+| Web: resaltado durante reproducción | `apps/web/static/playback_highlight.js` |
 | Web: textos generales ES/EN | `apps/web/static/ui_texts.js` |
 | Web: nombres, alteraciones y armaduras | `apps/web/static/music_notation.js` |
 | Web: ayuda teórica de acordes | `apps/web/static/chord_help.js` |

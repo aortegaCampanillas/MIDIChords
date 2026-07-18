@@ -57,7 +57,6 @@ const state = {
   },
   scaleCurrentClearTimer: null,
   generationCurrentClearTimer: null,
-  generationPlayClearTimer: null,
   intervalPreviewClearTimer: null,
   metronomeRunning: false,
   metronomeTimer: null,
@@ -181,11 +180,24 @@ const {
   releaseAudioVoice,
 } = globalThis.MidiChordsAudioVoice;
 const { autoCorrelate, freqToMidi, midiToFreq } = globalThis.MidiChordsTunerMath;
+const {
+  isChordPlaybackMode,
+  isPlaybackNoteActive,
+  createPlaybackHighlighter,
+} = globalThis.MidiChordsPlaybackHighlight;
 const audioSampleLoader = createAudioSampleLoader({
   getContext: ensureAudioCtx,
   sampleUrls: allAudioSampleUrls(),
   metronomeUrl: METRONOME_SAMPLE_URL,
   normalizeBuffer: normalizeAudioBuffer,
+});
+const generationPlaybackHighlight = createPlaybackHighlighter({
+  onChange: (notes) => { state.generationPlayingNotes = notes; },
+  render: () => {
+    if (!isChordGenerationLikeMode()) return;
+    renderInstrument();
+    renderStaff();
+  },
 });
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
@@ -214,7 +226,7 @@ function el(id) {
 }
 
 function isChordGenerationLikeMode() {
-  return state.mode === "generation" || state.mode === "circle_fifths";
+  return isChordPlaybackMode(state.mode);
 }
 
 /** #/♭: leer el <select> visible primero (state puede desincronizarse si no hubo evento change). */
@@ -1805,10 +1817,6 @@ function setMode(mode) {
     state.generationCurrentClearTimer = null;
   }
   state.generationCurrentNote = null;
-  if (state.generationPlayClearTimer != null) {
-    clearTimeout(state.generationPlayClearTimer);
-    state.generationPlayClearTimer = null;
-  }
   if (state.intervalPreviewClearTimer != null) {
     clearTimeout(state.intervalPreviewClearTimer);
     state.intervalPreviewClearTimer = null;
@@ -1816,7 +1824,6 @@ function setMode(mode) {
   state.intervalPlayGeneration++;
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
-  state.generationPlayingNotes.clear();
   state.generationMidiHeldNotes.clear();
   state.generationMidiForbiddenNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
@@ -2552,6 +2559,7 @@ function renderPiano() {
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
       if (
         (generationCurrentMidi != null && Number(midi) === generationCurrentMidi)
+        || isPlaybackNoteActive(midi, state.generationPlayingNotes)
         || state.generationMidiHeldNotes.has(midi)
       ) key.classList.add("active");
     } else if (state.mode === "detection") {
@@ -2746,6 +2754,9 @@ function renderGuitar() {
   const chordRootPc = state.generatedChord ? Number(state.generatedChord.root_pc) : null;
   const tonicPc = state.generatedScale ? Number(state.generatedScale.tonic_pc) : null;
   const generationCurrentMidi = isChordGenerationLikeMode() ? Number(state.generationCurrentNote) : null;
+  const generationPlayingPcs = isChordGenerationLikeMode()
+    ? state.generationPlayingNotes
+    : new Set();
   const drawnPcs = state.mode === "detection" ? null : activePcs;
   const generationVariationMode = isChordGenerationLikeMode() && state.instrument === "guitar" && state.guitarSelectedVariationIdx != null
     && state.guitarSelectedVariationIdx >= 0 && state.guitarSelectedVariationIdx < state.guitarVariations.length;
@@ -2929,8 +2940,10 @@ function renderGuitar() {
         const cx = fretCenterX(fret);
         const isRoot = chordRootPc !== null && pc === chordRootPc;
         const isCurrentGeneration = isChordGenerationLikeMode()
-          && generationCurrentMidi != null
-          && Number(note) === Number(generationCurrentMidi);
+          && (
+            (generationCurrentMidi != null && Number(note) === Number(generationCurrentMidi))
+            || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+          );
         const finger = Number(displayFingers[i] || 0);
         const coveredByBarre = fret > 0 && barreCovered.has(i);
         state.guitarHitRegions.push({ note, x: cx, y, r: 12, tonic: false });
@@ -2960,8 +2973,10 @@ function renderGuitar() {
         && state.scaleCurrentNote != null
         && Number(note) === Number(state.scaleCurrentNote);
       const isCurrentGeneration = isChordGenerationLikeMode()
-        && generationCurrentMidi != null
-        && Number(note) === generationCurrentMidi;
+        && (
+          (generationCurrentMidi != null && Number(note) === generationCurrentMidi)
+          || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+        );
 
       if (detectionMode && !inSet) {
         ctx.fillStyle = "#e5e7eb";
@@ -3030,8 +3045,10 @@ function renderGuitar() {
       const y = top + (stringIdx * yGap);
       const isRoot = chordRootPc !== null && pc === chordRootPc;
       const isCurrentGeneration = isChordGenerationLikeMode()
-        && generationCurrentMidi != null
-        && Number(note) === Number(generationCurrentMidi);
+        && (
+          (generationCurrentMidi != null && Number(note) === Number(generationCurrentMidi))
+          || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+        );
       ctx.fillStyle = isCurrentGeneration ? "#2faeff" : (isRoot ? "#b35f00" : "#f4a742");
       ctx.strokeStyle = isCurrentGeneration ? "#4fd4ff" : "#2e2e2e";
       ctx.lineWidth = 1.2;
@@ -3337,6 +3354,7 @@ const {
   chordSymbolPreferFlat,
   keySignatureCountForTonic,
   applyFlatKeySignatureTie,
+  keySignatureIndexForMidi,
   isMinorSuffix,
   scalePrefersMinor,
 } = globalThis.MidiChordsKeySignature;
@@ -3488,6 +3506,19 @@ function activeScaleKeySignatureIndex(sig) {
   if (state.mode !== "scales" || state.scaleCurrentNote == null) return -1;
   const label = scaleLabelForMidi(state.scaleCurrentNote);
   return keySignatureIndexForScaleNote(label, state.scaleCurrentNote, sig);
+}
+
+function activeChordKeySignatureIndex(sig) {
+  if (!isChordGenerationLikeMode()) return -1;
+  const candidates = [];
+  if (state.generationCurrentNote != null) candidates.push(state.generationCurrentNote);
+  candidates.push(...Array.from(state.generationPlayingNotes || []));
+  candidates.push(...Array.from(state.generationMidiHeldNotes || []));
+  for (const midi of candidates) {
+    const index = keySignatureIndexForMidi(midi, sig);
+    if (index >= 0) return index;
+  }
+  return -1;
 }
 
 function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef, activeIndex = -1) {
@@ -4277,7 +4308,9 @@ function renderStaff() {
   drawBassClef(ctx, 108, bassTop + gap * 2.25);
 
   const staffCtx = getStaffContext();
-  const activeKeySignatureIndex = activeScaleKeySignatureIndex(staffCtx.signature);
+  const activeKeySignatureIndex = state.mode === "scales"
+    ? activeScaleKeySignatureIndex(staffCtx.signature)
+    : activeChordKeySignatureIndex(staffCtx.signature);
   const startX = drawGrandKeySignature(
     ctx,
     trebleTop,
@@ -5428,12 +5461,8 @@ function playChordMidi(notes, options = {}) {
   const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
     .filter((midi) => Number.isFinite(midi));
   if (isChordGenerationLikeMode()) {
-    if (state.generationPlayClearTimer != null) {
-      clearTimeout(state.generationPlayClearTimer);
-      state.generationPlayClearTimer = null;
-    }
-    state.generationPlayingNotes = new Set(normalizedNotes);
-    renderStaff();
+    const clearMs = instrument === "guitar" ? 1700 : 1500;
+    generationPlaybackHighlight.showFor(normalizedNotes, clearMs);
   }
   const t = ctx.currentTime + 0.005;
   if (instrument === "guitar") {
@@ -5442,26 +5471,11 @@ function playChordMidi(notes, options = {}) {
   } else {
     normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.65, "piano"));
   }
-  if (isChordGenerationLikeMode() && normalizedNotes.length) {
-    const clearMs = instrument === "guitar" ? 1700 : 1500;
-    state.generationPlayClearTimer = setTimeout(() => {
-      state.generationPlayingNotes.clear();
-      state.generationPlayClearTimer = null;
-      if (isChordGenerationLikeMode()) renderStaff();
-    }, clearMs);
-  }
 }
 
 function stopHeldChord() {
   stopAllHeldMidiOutputNotes();
-  if (state.generationPlayClearTimer != null) {
-    clearTimeout(state.generationPlayClearTimer);
-    state.generationPlayClearTimer = null;
-  }
-  if (state.generationPlayingNotes.size) {
-    state.generationPlayingNotes.clear();
-    if (isChordGenerationLikeMode()) renderStaff();
-  }
+  generationPlaybackHighlight.clear();
   if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
@@ -5648,8 +5662,7 @@ function startHeldChord(notes, instrument = "piano") {
     .filter((midi) => Number.isFinite(midi));
   normalizedNotes.forEach((midi) => startHeldVoice(midi, instrument));
   if (isChordGenerationLikeMode() && normalizedNotes.length) {
-    state.generationPlayingNotes = new Set(normalizedNotes);
-    renderStaff();
+    generationPlaybackHighlight.show(normalizedNotes);
   }
 }
 

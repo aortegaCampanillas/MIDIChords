@@ -45,6 +45,16 @@ function applyFlatKeySignatureTie(sig, tonicPc, isMinor, preferFlat) {
   return sig;
 }
 
+function keySignatureIndexForMidi(midi, sig) {
+  if (!sig || !Number(sig.count) || !Number.isFinite(Number(midi))) return -1;
+  const pc = ((Number(midi) % 12) + 12) % 12;
+  const order = sig.preferFlats
+    ? [10, 3, 8, 1, 6, 11, 4]
+    : [6, 1, 8, 3, 10, 5, 0];
+  const index = order.indexOf(pc);
+  return index >= 0 && index < Number(sig.count) ? index : -1;
+}
+
 function isMinorSuffix(suffix) {
   return String(suffix || "").startsWith("m") && !String(suffix || "").startsWith("maj");
 }
@@ -94,6 +104,7 @@ global.MidiChordsKeySignature = Object.freeze({
   chordSymbolPreferFlat,
   keySignatureCountForTonic,
   applyFlatKeySignatureTie,
+  keySignatureIndexForMidi,
   isMinorSuffix,
   scalePrefersMinor,
 });

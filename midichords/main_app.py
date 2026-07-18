@@ -669,7 +669,8 @@ class MidiChordAnalyzerApp(
         self._refresh_instrument_toggle_styles()
         self._refresh_handedness_toggle_styles()
         self._refresh_generation_selection_buttons()
-        self._refresh_guitar_variations()
+        if self.instrument_view == "guitar":
+            self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()
         if getattr(self, "_help_active", False):
@@ -1086,17 +1087,17 @@ class MidiChordAnalyzerApp(
         return None
 
     def _refresh_guitar_variations(self) -> None:
-        for btn in self.guitar_variation_buttons:
-            btn.destroy()
-        self.guitar_variation_buttons.clear()
-
         root, pattern = self._resolve_guitar_chord_context()
         if root is None or pattern is None:
+            for btn in self.guitar_variation_buttons:
+                btn.destroy()
+            self.guitar_variation_buttons.clear()
             self.guitar_variations_all = []
             self.guitar_variations = []
             self.guitar_selected_variation_idx = None
             self.guitar_selected_variation_notes = set()
             self._last_guitar_chord_key = None
+            self._last_guitar_variation_render_signature = None
             return
 
         chord_key = (root, pattern.suffix)
@@ -1124,8 +1125,12 @@ class MidiChordAnalyzerApp(
         self.guitar_variations = displayed_variations
 
         if not self.guitar_variations:
+            for btn in self.guitar_variation_buttons:
+                btn.destroy()
+            self.guitar_variation_buttons.clear()
             self.guitar_selected_variation_notes = set()
             self.guitar_selected_variation_idx = None
+            self._last_guitar_variation_render_signature = None
             return
 
         selected_idx: Optional[int] = None
@@ -1138,6 +1143,26 @@ class MidiChordAnalyzerApp(
             selected_idx = 0
         self.guitar_selected_variation_idx = selected_idx
         self.guitar_selected_variation_notes = set(self.guitar_variations[self.guitar_selected_variation_idx]["notes"])
+
+        render_signature = (
+            chord_key,
+            int(self.generation_inversion) if self.generation_tab_active else None,
+            self.guitar_selected_variation_idx,
+            tuple(
+                (
+                    tuple(int(fret) for fret in variation.get("frets", [])),
+                    tuple(int(finger) for finger in variation.get("fingers", [])),
+                )
+                for variation in self.guitar_variations
+            ),
+        )
+        if render_signature == getattr(self, "_last_guitar_variation_render_signature", None):
+            return
+
+        for btn in self.guitar_variation_buttons:
+            btn.destroy()
+        self.guitar_variation_buttons.clear()
+        self._last_guitar_variation_render_signature = render_signature
 
         for idx in range(len(self.guitar_variations)):
             selected = idx == self.guitar_selected_variation_idx
@@ -1751,6 +1776,14 @@ def _argv_for_qt_and_verbose_env(argv: list[str]) -> list[str]:
     return out
 
 
+def _configure_qt_application_identity(qt_app: QApplication) -> None:
+    """Expose the product identity instead of the Python launcher identity."""
+    qt_app.setApplicationName("MIDIChords")
+    qt_app.setApplicationDisplayName("MIDIChords")
+    qt_app.setOrganizationName("MIDIChords")
+    qt_app.setOrganizationDomain("midichords.app")
+
+
 def main() -> None:
     from PySide6.QtWidgets import QApplication
 
@@ -1769,7 +1802,11 @@ def main() -> None:
             pass
 
     qt_argv = _argv_for_qt_and_verbose_env(list(sys.argv))
+    # Set the static Qt identity before QApplication creates the native macOS
+    # application; setting only the window title is too late for Cmd-Tab.
+    _configure_qt_application_identity(QApplication)  # type: ignore[arg-type]
     qt_app = QApplication.instance() or QApplication(qt_argv)
+    _configure_qt_application_identity(qt_app)
     # En macOS el Cmd-Tab a veces usa el icono de QApplication (no el de la ventana),
     # así que lo fijamos antes de crear/show la UI.
     try:

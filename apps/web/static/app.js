@@ -166,27 +166,15 @@ const {
   noteLabelFromPc,
 } = globalThis.MidiChordsMusicNotation;
 
-const PIANO_SAMPLE_URLS = {
-  48: "/static/samples/grand_piano/C3.mp3",
-  52: "/static/samples/grand_piano/E3.mp3",
-  55: "/static/samples/grand_piano/G3.mp3",
-  60: "/static/samples/grand_piano/C4.mp3",
-  64: "/static/samples/grand_piano/E4.mp3",
-  67: "/static/samples/grand_piano/G4.mp3",
-  72: "/static/samples/grand_piano/C5.mp3",
-};
-
-const GUITAR_SAMPLE_URLS = {
-  40: "/static/samples/guitar_nylon/E2.mp3",
-  45: "/static/samples/guitar_nylon/A2.mp3",
-  50: "/static/samples/guitar_nylon/D3.mp3",
-  52: "/static/samples/guitar_nylon/E3.mp3",
-  55: "/static/samples/guitar_nylon/G3.mp3",
-  59: "/static/samples/guitar_nylon/B3.mp3",
-  64: "/static/samples/guitar_nylon/E4.mp3",
-};
-
-const METRONOME_SAMPLE_URL = "/static/metronome.mp3";
+const {
+  PIANO_SAMPLE_URLS,
+  GUITAR_SAMPLE_URLS,
+  METRONOME_SAMPLE_URL,
+  allAudioSampleUrls,
+  nearestSampleRoot,
+  samplePlaybackRate,
+  normalizeAudioBuffer,
+} = globalThis.MidiChordsAudioSamples;
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
   { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
@@ -5409,15 +5397,6 @@ function ensureMetronomeNoiseBuffer(ctx) {
   return buffer;
 }
 
-function nearestSampleRoot(note, sampleMap) {
-  const midi = Number(note);
-  const roots = Object.keys(sampleMap || {}).map((k) => Number(k)).filter((n) => Number.isFinite(n));
-  if (!roots.length) return null;
-  return roots.reduce((best, cur) => (
-    best == null || Math.abs(cur - midi) < Math.abs(best - midi) ? cur : best
-  ), null);
-}
-
 async function decodeSampleBuffer(ctx, url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`sample fetch failed: ${url} (${response.status})`);
@@ -5425,44 +5404,12 @@ async function decodeSampleBuffer(ctx, url) {
   return await ctx.decodeAudioData(bytes.slice(0));
 }
 
-function normalizeAudioBuffer(ctx, buffer, { targetPeak = 0.98, extraGain = 1.0 } = {}) {
-  if (!buffer) return buffer;
-  const channels = buffer.numberOfChannels || 1;
-  const length = buffer.length || 0;
-  if (!length) return buffer;
-  let peak = 0;
-  for (let ch = 0; ch < channels; ch += 1) {
-    const data = buffer.getChannelData(ch);
-    for (let i = 0; i < data.length; i += 1) {
-      const v = Math.abs(data[i]);
-      if (v > peak) peak = v;
-    }
-  }
-  const safePeak = Math.max(1e-6, peak);
-  const gain = Math.max(0, (targetPeak / safePeak) * Math.max(0, Number(extraGain) || 1));
-  const out = ctx.createBuffer(channels, length, buffer.sampleRate);
-  for (let ch = 0; ch < channels; ch += 1) {
-    const src = buffer.getChannelData(ch);
-    const dst = out.getChannelData(ch);
-    for (let i = 0; i < src.length; i += 1) {
-      const v = src[i] * gain;
-      dst[i] = Math.max(-1, Math.min(1, v));
-    }
-  }
-  return out;
-}
-
 async function preloadAudioSamples() {
   const ctx = ensureAudioCtx();
   if (state.audioSampleLoadPromise) return state.audioSampleLoadPromise;
   state.audioSampleLoadPromise = (async () => {
-    const urls = new Set([
-      METRONOME_SAMPLE_URL,
-      ...Object.values(PIANO_SAMPLE_URLS),
-      ...Object.values(GUITAR_SAMPLE_URLS),
-    ]);
     const out = {};
-    await Promise.all(Array.from(urls).map(async (url) => {
+    await Promise.all(allAudioSampleUrls().map(async (url) => {
       try {
         const decoded = await decodeSampleBuffer(ctx, url);
         out[url] = url === METRONOME_SAMPLE_URL
@@ -5498,7 +5445,7 @@ function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, 
   const t = startTime == null ? ctx.currentTime : Number(startTime);
   const src = ctx.createBufferSource();
   src.buffer = buffer;
-  src.playbackRate.setValueAtTime(2 ** ((Number(midi) - Number(root)) / 12), t);
+  src.playbackRate.setValueAtTime(samplePlaybackRate(midi, root), t);
 
   const gain = ctx.createGain();
   const baseDur = Math.max(0.16, Number(durationSeconds) || 0.46);

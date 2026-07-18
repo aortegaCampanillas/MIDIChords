@@ -232,7 +232,7 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura y los catálogos se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura y los catálogos se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI, samples de audio y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, ciclo de vida Web Audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 Las pruebas JavaScript sin dependencias externas están en **`test/*.test.js`** y se ejecutan con `node --test`; `python scripts/check.py web` las descubre e incluye junto con la comprobación de sintaxis y la construcción del bundle.
 

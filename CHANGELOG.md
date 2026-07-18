@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (mantenimiento)**: separados los constructores de las páginas de Detección, Generación, Círculo de quintas, Escalas, Intervalos, Metrónomo y Afinador en una extensión privada dedicada, reduciendo el contexto de `main.dart` sin duplicar el estado de la pantalla.
+
 - **Móvil (mantenimiento)**: extraído a un módulo puro y probado el cálculo de tamaños, proporción y scroll del teclado de piano, separándolo de la construcción de widgets en `main.dart`.
 
 - **Móvil (mantenimiento)**: movidos los painters privados de pentagrama, metrónomo y afinador desde `main.dart` a un `part` dedicado, conservando sus símbolos y comportamiento mientras se reduce el tamaño de la pantalla principal.

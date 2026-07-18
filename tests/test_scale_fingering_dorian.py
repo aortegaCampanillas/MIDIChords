@@ -2,11 +2,13 @@
 
 LH is identical to Harmonic Minor. RH differs for D (pc=2) and C (pc=0).
 """
-import json
-import os
 import pytest
 
-FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "scale_fingering_dorian.json")
+from tests.scale_fingering_test_support import (
+    HAND_OCTAVE_CASES,
+    assert_grouped_fingering_case,
+    load_fingering_fixture,
+)
 
 DORIAN_RH = {
     2: [1,2,3,1,2,3,4,5], 9: [1,2,3,1,2,3,4,5], 4: [1,2,3,1,2,3,4,5],
@@ -28,63 +30,19 @@ KEY_TO_PC = {
 }
 
 
-def extend_pattern(pattern8, n):
-    if n <= 8:
-        return pattern8[:n]
-    ob = 1 if pattern8[0] == 1 else pattern8[7]
-    period = pattern8[:7]
-    fingers = []
-    for i in range(n - 1):
-        fingers.append(ob if (i > 0 and i % 7 == 0) else period[i % 7])
-    fingers.append(pattern8[7])
-    return fingers
-
-
-@pytest.fixture(scope="module")
-def fixture_data():
-    with open(FIXTURE) as f:
-        return json.load(f)
-
-
 DORIAN_KEYS = ["D","A","E","B","F#","C#","G","C","F","Bb","Eb","Ab"]
+FIXTURE_DATA = load_fingering_fixture("scale_fingering_dorian.json")
 
 
-def _get(fixture_data, key):
-    for g in ("group1", "group2", "group3"):
-        if key in fixture_data[g]["keys"]:
-            return fixture_data[g]["rightHand"], fixture_data[g]["leftHand"]
-    raise KeyError(key)
-
-
+@pytest.mark.parametrize("hand,octaves", HAND_OCTAVE_CASES)
 @pytest.mark.parametrize("key", DORIAN_KEYS)
-def test_dorian_rh_1oct(key, fixture_data):
-    rh, _ = _get(fixture_data, key)
-    pc = KEY_TO_PC[key]
-    assert extend_pattern(DORIAN_RH[pc], 8) == rh["1OctAsc"]
-    assert list(reversed(extend_pattern(DORIAN_RH[pc], 8))) == rh["1OctDesc"]
-
-
-@pytest.mark.parametrize("key", DORIAN_KEYS)
-def test_dorian_lh_1oct(key, fixture_data):
-    _, lh = _get(fixture_data, key)
-    pc = KEY_TO_PC[key]
-    assert extend_pattern(DORIAN_LH[pc], 8) == lh["1OctAsc"]
-    assert list(reversed(extend_pattern(DORIAN_LH[pc], 8))) == lh["1OctDesc"]
-
-
-@pytest.mark.parametrize("key", DORIAN_KEYS)
-def test_dorian_rh_2oct(key, fixture_data):
-    rh, _ = _get(fixture_data, key)
-    pc = KEY_TO_PC[key]
-    n = len(rh["2OctAsc_app"])
-    assert extend_pattern(DORIAN_RH[pc], n) == rh["2OctAsc_app"]
-    assert list(reversed(extend_pattern(DORIAN_RH[pc], n))) == rh["2OctDesc_app"]
-
-
-@pytest.mark.parametrize("key", DORIAN_KEYS)
-def test_dorian_lh_2oct(key, fixture_data):
-    _, lh = _get(fixture_data, key)
-    pc = KEY_TO_PC[key]
-    n = len(lh["2OctAsc_app"])
-    assert extend_pattern(DORIAN_LH[pc], n) == lh["2OctAsc_app"]
-    assert list(reversed(extend_pattern(DORIAN_LH[pc], n))) == lh["2OctDesc_app"]
+def test_dorian_fingering(key, hand, octaves):
+    assert_grouped_fingering_case(
+        fixture=FIXTURE_DATA,
+        key=key,
+        pitch_class_by_key=KEY_TO_PC,
+        right_patterns=DORIAN_RH,
+        left_patterns=DORIAN_LH,
+        hand=hand,
+        octaves=octaves,
+    )

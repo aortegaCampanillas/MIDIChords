@@ -18,6 +18,7 @@ class LandingParser(HTMLParser):
         super().__init__()
         self.h1_count = 0
         self.images: list[dict[str, str | None]] = []
+        self.screenshot_buttons = 0
         self.links: list[dict[str, str | None]] = []
         self.meta: dict[tuple[str, str], str | None] = {}
 
@@ -27,6 +28,8 @@ class LandingParser(HTMLParser):
             self.h1_count += 1
         elif tag == "img":
             self.images.append(attributes)
+        elif tag == "button" and "screenshot-item" in (attributes.get("class") or "").split():
+            self.screenshot_buttons += 1
         elif tag == "link":
             self.links.append(attributes)
         elif tag == "meta":
@@ -47,13 +50,16 @@ def _structured_data(html: str) -> dict:
     return json.loads(match.group(1))
 
 
-def check_page(filename: str, product_name: str) -> None:
+def check_page(filename: str, product_name: str, minimum_screenshots: int) -> None:
     path = WEB_ROOT / filename
     html = path.read_text(encoding="utf-8")
     parser = LandingParser()
     parser.feed(html)
 
     assert parser.h1_count == 1, f"{filename}: se esperaba un único h1"
+    assert parser.screenshot_buttons >= minimum_screenshots, (
+        f"{filename}: faltan capturas navegables en la galería"
+    )
     assert any(link.get("rel") == "canonical" for link in parser.links)
     for meta_type, key in (
         ("name", "description"),
@@ -83,8 +89,8 @@ def check_page(filename: str, product_name: str) -> None:
 
 
 def main() -> None:
-    check_page("index.html", "FreeMIDIChords")
-    check_page("fp30x.html", "PianoPilot")
+    check_page("index.html", "FreeMIDIChords", minimum_screenshots=5)
+    check_page("fp30x.html", "PianoPilot", minimum_screenshots=3)
     print("[landings] Estructura, metadatos y recursos validados.")
 
 

@@ -295,7 +295,7 @@
     .screenshots-inner { max-width: 1140px; margin: 0 auto; }
     .screenshots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px; margin-top: 48px;
     }
     .screenshot-item {
@@ -306,7 +306,10 @@
       transition: transform .2s, border-color .2s;
     }
     .screenshot-item:hover { transform: translateY(-3px); border-color: var(--accent); }
-    .screenshot-item img { width: 100%; display: block; }
+    .screenshot-item img {
+      width: 100%; aspect-ratio: 16 / 10; object-fit: contain;
+      display: block; background: #101722;
+    }
     .screenshot-cap {
       background: var(--surface2); padding: 10px 14px;
       font-size: .8rem; color: var(--muted); font-weight: 500;
@@ -374,6 +377,7 @@
       .nav-cta { padding-inline: 12px; }
       .cta-band { padding: 40px 24px; }
       .support-grid { grid-template-columns: 1fr; }
+      .screenshots-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 900px) {
       .hero { padding-top: 58px; }
@@ -544,6 +548,10 @@
         <img src="/static/screenshots/scales.png" width="1280" height="800" alt="Scales" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
       </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/circle-of-fifths.webp')">
+        <img src="/static/screenshots/circle-of-fifths.webp" width="1400" height="1050" alt="Interactive circle of fifths" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap5">Circle of Fifths</div>
+      </button>
     </div>
   </div>
 </div>
@@ -684,6 +692,7 @@ const TRANSLATIONS = {
     ss_cap2:  "Chord Generation",
     ss_cap3:  "Guitar Chords",
     ss_cap4:  "Scales",
+    ss_cap5:  "Circle of Fifths",
     sup_donate_title:   "Support the project",
     sup_donate_text:    "This project is designed to stay free and ad-free forever. Your support helps cover development, maintenance, infrastructure, and support time.",
     sup_donate_btn:     "Donate",
@@ -760,6 +769,7 @@ const TRANSLATIONS = {
     ss_cap2:  "Generaci\u00f3n de acordes",
     ss_cap3:  "Acordes de guitarra",
     ss_cap4:  "Escalas",
+    ss_cap5:  "C\u00edrculo de quintas",
     sup_donate_title:   "Apoya el proyecto",
     sup_donate_text:    "Este proyecto est\u00e1 pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y soporte.",
     sup_donate_btn:     "Donar",

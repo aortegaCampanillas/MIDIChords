@@ -76,11 +76,16 @@ instancia de `FlutterAudioCapture`, valida inicialización, evita arranques
 duplicados, expone la frecuencia real y garantiza parada tras errores y cierre
 idempotente. El widget conserva análisis DSP, suavizado y presentación.
 
+`native_audio_bridge.dart` delimita también el canal de reproducción nativa:
+tonos, acordes y clics de metrónomo comparten normalización y manejo de fallos
+detrás de un puerto inyectable. El widget conserva la selección de plataforma,
+los fallbacks con samples y la sincronización entre sonido y estado visual.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
-| Flutter `main.dart` | 13.774 líneas | 7.516 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias y entrada/salida MIDI |
+| Flutter `main.dart` | 13.774 líneas | 7.412 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puentes de audio |
 | Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
 | Escritorio `ui_mixin.py` | 4.012 líneas | 3.905 líneas | builders Qt para estructura principal y selectores de escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |

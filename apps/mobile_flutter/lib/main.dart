@@ -23,6 +23,7 @@ import 'music_service.dart';
 import 'midi_activity_guard.dart';
 import 'midi_input_lifecycle.dart';
 import 'midi_output_controller.dart';
+import 'native_audio_bridge.dart';
 import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
@@ -371,6 +372,7 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, List<Map<String, dynamic>>> _guitarChordCacheByKey =
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
+  final NativeAudioBridge _nativeAudioBridge = NativeAudioBridge.plugin();
   final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
   late final MidiOutputController _midiOutputController;
@@ -2229,7 +2231,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (Platform.isAndroid) {
       final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
-      final ok = await _playAndroidSynthTone(
+      final ok = await _nativeAudioBridge.playTone(
+        platform: 'android',
         midi: _safeMidi(midi),
         instrument: instrument,
         durationMs: (durationSeconds.clamp(0.1, 2.2) * 1000).round(),
@@ -2246,7 +2249,8 @@ class _HomeScreenState extends State<HomeScreen>
       // Atenuamos un poco para evitar clipping percibido.
       final instrumentAttenuation = instrument == 'piano' ? 0.72 : 0.82;
       final targetVolume = (baseVolume * instrumentAttenuation).clamp(0.0, 1.0);
-      final ok = await _playIosSynthTone(
+      final ok = await _nativeAudioBridge.playTone(
+        platform: 'ios',
         midi: _safeMidi(midi),
         instrument: instrument,
         durationMs: (durationSeconds.clamp(0.05, 2.2) * 1000).round(),
@@ -2340,7 +2344,8 @@ class _HomeScreenState extends State<HomeScreen>
     if (gain <= 0.0) return null;
     final level = bar ? 2 : (accent ? 1 : 0);
     if (Platform.isAndroid) {
-      final ok = await _playAndroidMetronomeClick(
+      final ok = await _nativeAudioBridge.playMetronomeClick(
+        platform: 'android',
         level: level,
         volume: gain.clamp(0.0, 1.0),
       );
@@ -2351,12 +2356,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (Platform.isIOS) {
       try {
-        final ok =
-            await _kPlatformChannel.invokeMethod<bool>(
-              'playIosMetronomeClick',
-              {'level': level, 'volume': gain.clamp(0.0, 1.0)},
-            ) ??
-            false;
+        final ok = await _nativeAudioBridge.playMetronomeClick(
+          platform: 'ios',
+          level: level,
+          volume: gain,
+        );
         if (ok) {
           return null;
         }
@@ -2440,7 +2444,8 @@ class _HomeScreenState extends State<HomeScreen>
     if (Platform.isAndroid) {
       final overlay = level >= 2 ? 0.52 : 0.34;
       unawaited(
-        _playAndroidMetronomeClick(
+        _nativeAudioBridge.playMetronomeClick(
+          platform: 'android',
           level: level,
           volume: (overlay * gain).clamp(0.0, 1.0),
         ),
@@ -2559,112 +2564,6 @@ class _HomeScreenState extends State<HomeScreen>
         await player.dispose();
       } catch (_) {}
       return null;
-    }
-  }
-
-  Future<bool> _playAndroidSynthTone({
-    required int midi,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playAndroidSynthTone', <String, dynamic>{
-                'midi': midi,
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(80, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('Android synth tone unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playAndroidSynthChord({
-    required List<int> notes,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    if (notes.isEmpty) return false;
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playAndroidSynthChord', <String, dynamic>{
-                'notes': notes.map(_safeMidi).toList(growable: false),
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(80, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('Android synth chord unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playAndroidMetronomeClick({
-    required int level,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel.invokeMethod<bool>(
-            'playAndroidMetronomeClick',
-            <String, dynamic>{
-              'level': level.clamp(0, 2),
-              'durationMs': 55,
-              'volume': volume.clamp(0.0, 1.0),
-            },
-          ) ??
-          false;
-    } catch (err) {
-      debugPrint('Android metronome click unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playIosSynthTone({
-    required int midi,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playIosSynthTone', <String, dynamic>{
-                'midi': midi,
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(40, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('iOS synth tone unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playIosSynthChord({
-    required List<int> notes,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    if (notes.isEmpty) return false;
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playIosSynthChord', <String, dynamic>{
-                'notes': notes.map(_safeMidi).toList(growable: false),
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(40, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('iOS synth chord unavailable: $err');
-      return false;
     }
   }
 
@@ -3182,7 +3081,8 @@ class _HomeScreenState extends State<HomeScreen>
       // más empezar. El temporizador de _scheduleHeldChordPlaybackAutoClear
       // ya se encarga de limpiarlo cuando el acorde termina de sonar.
       unawaited(
-        _playAndroidSynthChord(
+        _nativeAudioBridge.playChord(
+          platform: 'android',
           notes: chordNotes,
           instrument: instrument,
           durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
@@ -3201,7 +3101,8 @@ class _HomeScreenState extends State<HomeScreen>
       // termina de sonar de verdad.
       if (chordNotes.length > 1) {
         unawaited(
-          _playIosSynthChord(
+          _nativeAudioBridge.playChord(
+            platform: 'ios',
             notes: chordNotes,
             instrument: instrument,
             durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
@@ -3210,7 +3111,8 @@ class _HomeScreenState extends State<HomeScreen>
         );
       } else {
         unawaited(
-          _playIosSynthTone(
+          _nativeAudioBridge.playTone(
+            platform: 'ios',
             midi: chordNotes.first,
             instrument: instrument,
             durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),

@@ -12,6 +12,7 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Mantenimiento / agentes**: cerrada la fase estructural con resultados cuantitativos, criterios verificables y un backlog explícito para ciclos de vida Flutter, renderers/eventos web y construcción Qt; cada bloque pendiente indica las pruebas de integración necesarias antes de dividirlo.
 - **Mantenimiento / agentes**: completada la continuación de contratos de integración: smoke contract y builders Qt, ciclo de vida y geometría de partitura web, y adaptadores probados para actividad, preferencias y suscripciones MIDI en Flutter.
+- **Mantenimiento / tests**: consolidados los contratos de digitación de escalas en un harness parametrizado común, eliminando tablas y extensores duplicados sin perder fixtures, tonalidades, manos, direcciones ni casos de una y dos octavas.
 - **Escritorio (mantenimiento)**: actualizada la consulta de familias tipográficas a la API estática vigente de Qt, eliminando avisos de deprecación durante el arranque y el smoke contract.
 - **Escalas**: los siete modos diatónicos muestran su grado en números romanos tanto en el selector como en el campo de nombre de la escala generada: Jónico (I), Dórico (II), Frigio (III), Lidio (IV), Mixolidio (V), Eólico (VI) y Locrio (VII).
 - **Escalas**: el selector agrupa el catálogo por familias teóricas: Modos griegos, Escalas menores, Modos alterados, Pentatónicas y blues, Bebop, Simétricas y sintéticas y Tradicionales del mundo; las cabeceras no son seleccionables y cada escala aparece una sola vez.

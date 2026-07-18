@@ -6,11 +6,9 @@ estado actual de una función sin comprobar antes el código y sus tests.
 
 ## Mantenibilidad
 
-1. Consolidar los tests repetidos de digitaciones de escalas mediante un harness
-   parametrizado, conservando todos los fixtures y casos actuales.
-2. Añadir contratos offline compartidos para comparar teoría musical entre
+1. Añadir contratos offline compartidos para comparar teoría musical entre
    Python, Worker y Flutter sin depender de producción.
-3. Continuar extracciones funcionales solo después de ampliar el contrato del
+2. Continuar extracciones funcionales solo después de ampliar el contrato del
    widget, canvas o ciclo de vida afectado. Los límites actuales están descritos
    en [`architecture/AGENT_MAINTAINABILITY.md`](architecture/AGENT_MAINTAINABILITY.md).
 

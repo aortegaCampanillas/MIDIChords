@@ -70,11 +70,17 @@ def assert_grouped_fingering_case(
     hand_data = right_data if hand == "rightHand" else left_data
     patterns = right_patterns if hand == "rightHand" else left_patterns
     pitch_class = pitch_class_by_key[key]
+    assert_hand_fingering_data(
+        pattern=patterns[pitch_class], hand_data=hand_data, octaves=octaves
+    )
+
+
+def assert_hand_fingering_data(
+    *, pattern: list[int], hand_data: dict[str, list[int]], octaves: str
+) -> None:
     asc_field = "1OctAsc" if octaves == "1Oct" else "2OctAsc_app"
     desc_field = "1OctDesc" if octaves == "1Oct" else "2OctDesc_app"
     expected_ascending = hand_data[asc_field]
-    actual_ascending = extend_fingering_pattern(
-        patterns[pitch_class], len(expected_ascending)
-    )
+    actual_ascending = extend_fingering_pattern(pattern, len(expected_ascending))
     assert actual_ascending == expected_ascending
     assert list(reversed(actual_ascending)) == hand_data[desc_field]

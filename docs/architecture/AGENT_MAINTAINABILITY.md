@@ -138,6 +138,19 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.
 
+## Harness de digitaciones de escalas
+
+Los tests de digitación comparten ahora `tests/scale_fingering_test_support.py`
+para cargar fixtures, extender patrones y validar mano, dirección y número de
+octavas. Las escalas agrupables usan un único contrato parametrizado; mayor,
+menor natural, menor armónica, menor melódica, cromática y las familias
+sintéticas conservan tests específicos para sus reglas teóricas.
+
+Los patrones jónicos y de menor armónica que se reutilizan entre contratos están
+en módulos `*_spec.py`, no se importan desde otros módulos `test_*`. Los fixtures
+JSON continúan siendo íntegros y cada combinación anterior de tonalidad, mano,
+una/dos octavas y ascenso/descenso sigue validándose.
+
 ## Auditoría funcional posterior: guitarra
 
 La revisión de digitaciones se ejecuta por familias mediante

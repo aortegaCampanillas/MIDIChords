@@ -52,10 +52,10 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 
 | Archivo | Líneas | Contenido |
 |---------|--------|-----------|
-| `apps/mobile_flutter/lib/main.dart` | ~7520 | Estado, servicios de plataforma y composición transversal de la UI móvil |
-| `apps/web/static/app.js` | ~7170 | Estado, modos, renderers y ciclos de vida de audio/MIDI de la SPA |
-| `midichords/mixins/ui_mixin.py` | ~4300 | Construcción de paneles y modos Qt |
-| `midichords/mixins/render_mixin.py` | ~2100 | Dibujo de instrumentos y pentagrama |
+| `apps/mobile_flutter/lib/main.dart` | ~7360 | Estado y composición transversal de la UI móvil |
+| `apps/web/static/app.js` | ~6980 | Estado, modos, renderers y ciclos de vida de audio/MIDI de la SPA |
+| `midichords/mixins/ui_mixin.py` | ~3870 | Construcción de paneles y modos Qt |
+| `midichords/mixins/render_mixin.py` | ~2180 | Dibujo de instrumentos y pentagrama |
 | `midichords/main_app.py` | ~1800 | Ventana principal y estado transversal |
 | `apps/mobile_flutter/lib/main_painters.dart` | ~1650 | Painters privados compartidos como `part` de `main.dart` |
 | `apps/mobile_flutter/lib/main_pages.dart` | ~2100 | Constructores de páginas por modo como extensión privada de la pantalla |

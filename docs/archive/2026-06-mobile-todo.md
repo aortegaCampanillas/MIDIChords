@@ -1,5 +1,8 @@
 # TODO Mobile (Flutter/Dart)
 
+> Documento histórico de junio de 2026. Las integraciones descritas pueden estar
+> ya implementadas. Consultar [`../ROADMAP.md`](../ROADMAP.md).
+
 ## Current Status
 - **Progress:** 9/11 features (81.8%) + New: Interval Detection Mode
 - **Infrastructure:** ✅ Complete for existing features
@@ -281,4 +284,3 @@ if (_tabIndex == 1 || _tabIndex == 2) {
 - MIDI output device selection UI not yet designed (optional; defaults to first available)
 - Chord fingerings infrastructure exists but not fully documented (scale fingerings prioritized)
 - Staff painter may need refactoring for MIDI highlighting layer priority
-

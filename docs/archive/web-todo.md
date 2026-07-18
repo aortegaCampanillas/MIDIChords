@@ -1,3 +1,8 @@
+# TODO web histórico
+
+> Lista archivada. Los asuntos todavía no confirmados se han trasladado a la
+> sección de validación de [`../ROADMAP.md`](../ROADMAP.md).
+
 ## Alta prioridad
 - [ ] En detección de acordes a la derecha del acorde poner el nombre sin simplificar
 - [ ] Las digitaciones de escalas menores y minor blues están mal

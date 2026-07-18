@@ -1,5 +1,8 @@
 # TODO Desktop (Python/Tkinter)
 
+> Documento histórico de junio de 2026. No representa el estado actual de la
+> aplicación Qt. Consultar [`../ROADMAP.md`](../ROADMAP.md).
+
 ## Current Status
 - **Progress:** 9/11 features (81.8%)
 - **Infrastructure:** ✅ Complete

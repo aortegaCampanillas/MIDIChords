@@ -1,5 +1,8 @@
 # MIDIChords Integration Roadmap
 
+> Documento histórico de junio de 2026; gran parte de estas integraciones ya
+> existe. El backlog vigente está en [`../ROADMAP.md`](../ROADMAP.md).
+
 ## Overview
 
 Este documento detalla las integraciones pendientes para completar las características implementadas en el plan de sincronización cross-platform.

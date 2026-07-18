@@ -1,5 +1,8 @@
 # MIDIChords Cross-Platform Synchronization: Completion Summary
 
+> Documento histórico de junio de 2026. Para el estado actual, consultar
+> [`../ROADMAP.md`](../ROADMAP.md) y los tests del repositorio.
+
 **Date:** 2026-06-08
 **Status:** ✅ PLAN COMPLETED - Maximum viable parity achieved
 
@@ -98,7 +101,7 @@ Implementación exitosa de sincronización cross-platform para MIDIChords, lleva
   - Identificación de features pendientes por plataforma
 
 ### 4. Documentación
-- **`INTEGRATION_ROADMAP.md`** (142 líneas)
+- **Roadmap de integración de junio de 2026** (archivado junto a este documento)
   - Detalle de integraciones pendientes
   - Ubicaciones específicas de código
   - Estimaciones de esfuerzo
@@ -209,6 +212,6 @@ flutter run
 - 8 features implementados completamente en ambas plataformas
 - 2 features web-only fuera del scope (arquitectura web específica)
 - Infraestructura lista para completar integraciones de UI (3-4h adicionales)
-- Documentación clara (INTEGRATION_ROADMAP.md) para trabajos futuros
+- Documentación de integración conservada como contexto histórico
 
 **Próximo paso recomendado:** Ejecutar integraciones de UI de piano fingerings en desktop (rápido, alto impacto visual).

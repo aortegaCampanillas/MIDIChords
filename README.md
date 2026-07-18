@@ -10,7 +10,7 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 - `midichords`: implementación Python de teoría musical, audio y escritorio; web y Flutter mantienen implementaciones equivalentes donde no pueden reutilizar Python
 - `assets`: recursos gráficos y muestras de audio compartidas
 
-Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDIChords/CHANGELOG.md)
+Historial de versiones publicadas: [CHANGELOG.md](CHANGELOG.md)
 
 ## Descargas
 
@@ -144,10 +144,8 @@ Para ejecutar en emulador Android:
 # 1) Listar emuladores disponibles
 flutter emulators
 
-# 2) Arrancar Medium_Tablet con el SDK que contiene su system image
-ANDROID_SDK_ROOT=/Users/aortega/.buildozer/android/platform/android-sdk \
-ANDROID_HOME=/Users/aortega/.buildozer/android/platform/android-sdk \
-/Users/aortega/.buildozer/android/platform/android-sdk/emulator/emulator -avd Medium_Tablet
+# 2) Arrancar el AVD configurado en el SDK local
+flutter emulators --launch Medium_Tablet
 
 # 3) Confirmar device id activo (ej: emulator-5554)
 flutter devices
@@ -156,10 +154,8 @@ flutter devices
 python launch.py mobile -d emulator-5554
 ```
 
-Nota: en esta máquina `Medium_Tablet` usa la imagen en
-`/Users/aortega/.buildozer/android/platform/android-sdk/system-images/...`.
-Si se intenta arrancar con `/Users/aortega/Library/Android/sdk`, puede fallar
-con error de `Broken AVD system path`.
+Si aparece `Broken AVD system path`, comprobar que `ANDROID_SDK_ROOT` apunta al
+SDK que contiene la imagen usada al crear el AVD.
 
 Si ya tienes un único dispositivo Android activo, también funciona:
 
@@ -327,10 +323,10 @@ Flujo recomendado para este proyecto:
 5. Pulsa **Deliver**.
 6. Espera a que Transporter muestre la entrega como enviada; luego revisa App Store Connect hasta que la build aparezca en procesamiento o lista en TestFlight.
 
-Ruta local típica del archivo:
+Ruta típica desde la raíz del repositorio:
 
 ```text
-/Users/aortega/desarrollo/MIDIChords/MIDIChords-macos-appstore.pkg
+MIDIChords-macos-appstore.pkg
 ```
 
 Notas:

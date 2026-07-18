@@ -7,7 +7,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz y se aplican al escritorio 
 - La aplicación de escritorio vigente usa **PySide6/Qt**.
 - `midichords/main_app.py` crea `MidiChordAnalyzerApp`, que combina los mixins con `QtSchedulerMixin` y `QMainWindow`.
 - `midichords/qt/tk_compat.py`, `ttk_compat.py` y `tkfont_compat.py` adaptan parte de la API histórica de Tk sobre Qt. Un import llamado `tk` no implica que se esté ejecutando Tkinter.
-- Los widgets activos suelen proceder de `midichords/ui/widgets_qt.py`. Comprobar consumidores antes de editar `widgets.py`.
+- Los widgets personalizados activos proceden de `midichords/ui/widgets_qt.py`;
+  los builders estables están en `midichords/ui/desktop_ui_builders.py`.
 
 ## Límites de responsabilidad
 

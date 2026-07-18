@@ -82,9 +82,10 @@ Para **añadir o cambiar comportamiento** en un modo concreto, localizar el mixi
 
 La app de escritorio se lanza siempre desde `apps/desktop/main.py` → `midichords.main_app.main()`.
 
-### `midichords/ui/widgets.py`
+### `midichords/ui/widgets_qt.py`
 
-La UI activa utiliza `midichords/ui/widgets_qt.py`. `widgets.py` conserva widgets históricos/compatibles y no debe asumirse como la implementación principal sin comprobar sus consumidores.
+Contiene los widgets personalizados activos de la aplicación Qt. La antigua
+implementación Tk se retiró al confirmar que no tenía consumidores.
 
 ## Versión de Python (escritorio)
 
@@ -132,7 +133,7 @@ Los perfiles son también la interfaz usada por `.github/workflows/quality.yml`.
 | Cómo se detecta el acorde desde notas activas | `midichords/mixins/input_detection_mixin.py` y `music_theory.analyze_chord_notes` |
 | Reproducción de notas (piano/guitarra) | `midichords/core/audio_engine.py` |
 | Entrada MIDI | `midichords/mixins/midi_io_mixin.py` |
-| UI de escritorio (paneles, botones, teclado, pentagrama) | `midichords/main_app.py`, `midichords/ui/widgets.py`, `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
+| UI de escritorio (paneles, botones, teclado, pentagrama) | `midichords/main_app.py`, `midichords/ui/widgets_qt.py`, `midichords/ui/desktop_ui_builders.py`, `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
 | Lanzar desktop / web / mobile | `launch.py` |
 | Web: modo círculo de quintas (canvas, tonalidad, Mayús+clic diatónico) | `apps/web/static/app.js` (`renderCircleFifths`, `circleChordRootPcFromClick`, `runGenerateChordCircle`) |
 | Tests unitarios | `tests/` (importan `midichords.*`) |
@@ -180,6 +181,7 @@ Bundle ID: `com.FPAlanTuring.FreeMIDIChords` · Team ID: `977G5A733H`
 - **CONTRIBUTING.md**: ramas, estilo, cómo hacer PRs.
 - **PROJECT_SPEC.md**: especificación para regenerar el proyecto.
 - **`docs/architecture/AGENT_MAINTAINABILITY.md`**: resultado de la refactorización para agentes, límites actuales y siguientes candidatos seguros.
+- **`docs/ROADMAP.md`**: único backlog documental vigente; `docs/archive/` es solo contexto histórico.
 
 ---
 

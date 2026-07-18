@@ -115,6 +115,13 @@ plan o continuar con el fallback sintetizado.
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
 
+La auditoría posterior de higiene deja un único backlog vivo en
+`docs/ROADMAP.md` y mueve los planes cerrados a `docs/archive/`. También retira
+la implementación Tk de widgets, una utilidad antigua del círculo Python y un
+lector Flutter de changelog sin consumidores. `test_documentation_contract.py`
+evita que vuelvan rutas personales, enlaces Markdown rotos en las guías vivas o
+planes históricos a la raíz activa.
+
 ## Criterio usado
 
 Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Después se aislaron la salida MIDI, la descarga/caché de samples y la liberación de voces mediante dependencias inyectables, además de la matemática de audio mediante buffers y nodos falsos. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.

@@ -118,9 +118,12 @@ La clase principal combina los mixins de modos y subsistemas con `QtSchedulerMix
 - Función `main()`: crea `QApplication`, construye la instancia y ejecuta el event loop de Qt.
 - La app de escritorio se lanza desde `apps/desktop/main.py` importando y llamando a `main()` de `midichords.main_app`.
 
-### 4.4 `midichords/ui/widgets.py`
+### 4.4 `midichords/ui/`
 
-La UI activa utiliza los widgets de `midichords/ui/widgets_qt.py`. `widgets.py` conserva componentes históricos/compatibles; antes de modificarlo se deben comprobar sus consumidores.
+`widgets_qt.py` contiene los controles personalizados activos y
+`desktop_ui_builders.py` las fronteras de construcción cubiertas por el smoke
+contract de escritorio. La compatibilidad con la antigua API Tk vive en
+`midichords/qt/`, sobre PySide6.
 
 ---
 
@@ -128,7 +131,7 @@ La UI activa utiliza los widgets de `midichords/ui/widgets_qt.py`. `widgets.py` 
 
 ### 5.1 Escritorio
 
-- **Entrada**: `python launch.py desktop` o `python app.py` (o `apps/desktop/main.py` con cwd/raíz). `launch.py` importa y ejecuta la función que arranca la app Tk.
+- **Entrada**: `python launch.py desktop` o `python app.py` (o `apps/desktop/main.py` con cwd/raíz). `launch.py` importa y ejecuta la función que arranca la app Qt.
 - **Comportamiento**: ventana Qt principal con selector de modo (Detección, Intervalos, Generación, Círculo de quintas, Escalas, Metrónomo y Afinación cuando está habilitada); soporte de piano, guitarra, pentagrama, MIDI, audio y configuración persistente.
 
 ### 5.2 Web

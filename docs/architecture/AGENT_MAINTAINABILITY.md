@@ -68,6 +68,9 @@ También están sincronizados los power chords y los suspendidos `sus2` y `sus4`
 `sus2sus4` permanece explícitamente como tipo propio.
 La familia de sextas compartida (`6`, `6add9`, `m6`) está asimismo sincronizada;
 `m6add9` se conserva como tipo propio.
+Las séptimas dominantes simples (`7`, `7sus4`, `7#5`, `7b5`, `7#9`, `7b9`)
+están sincronizadas; las cuatro combinaciones de quinta y novena alteradas siguen
+siendo tipos propios.
 
 ## Criterio de cierre
 

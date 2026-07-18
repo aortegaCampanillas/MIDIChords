@@ -71,6 +71,8 @@ La familia de sextas compartida (`6`, `6add9`, `m6`) está asimismo sincronizada
 Las séptimas dominantes simples (`7`, `7sus4`, `7#5`, `7b5`, `7#9`, `7b9`)
 están sincronizadas; las cuatro combinaciones de quinta y novena alteradas siguen
 siendo tipos propios.
+Las extensiones dominantes compartidas (`9`, `9#5`, `9b5`, `11`, `13`, `13b9`,
+`13#11`) están sincronizadas; `11b9` se conserva como tipo propio.
 
 ## Criterio de cierre
 

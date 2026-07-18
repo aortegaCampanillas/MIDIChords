@@ -39,6 +39,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Generación de acordes (guitarra)**: completada la auditoría de la familia de notas añadidas; `madd9` corrige trastes y dedos en las ocho tónicas que todavía divergían, mientras `add2`, `add4`, `madd2`, `madd4` y `add9` conservan sus posiciones ya verificadas.
 - **Generación de acordes (guitarra)**: los acordes `6`, `6add9` y `m6` usan las digitaciones actuales de referencia para todas las tónicas; `m6add9` permanece como variante propia sin equivalente exacto.
 - **Generación de acordes (guitarra)**: las séptimas dominantes `7`, `7sus4`, `7#5`, `7b5`, `7#9` y `7b9` quedan sincronizadas con la referencia en las doce tónicas; las alteraciones dobles se conservan como variantes propias.
+- **Generación de acordes (guitarra)**: las extensiones dominantes `9`, `9#5`, `9b5`, `11`, `13`, `13b9` y `13#11` quedan auditadas y sincronizadas para todas las tónicas; `11b9` se mantiene como variante propia.
 
 - **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
 

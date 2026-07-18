@@ -38,6 +38,8 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
             "tab_scale_frame",
             "tab_interval_frame",
             "tab_metronome_frame",
+            "generation_variant_combo",
+            "generation_inversion_combo",
         )
         for attribute in required_widgets:
             assert isinstance(getattr(window, attribute), QWidget), attribute
@@ -53,6 +55,11 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.generation_root_row.parent() is window.tab_generation_frame
         assert window.generation_root_combo.isEditable() is False
         assert window.generation_root_accidental_combo.isEditable() is False
+        assert window.generation_variant_combo.parent() is window.tab_generation_frame
+        assert window.generation_variant_combo.isEditable() is False
+        assert window.generation_variant_combo.maxVisibleItems() == 16
+        assert window.generation_inversion_combo.parent() is window.tab_generation_frame
+        assert window.generation_inversion_combo.isEditable() is False
         assert window.scale_tonic_combo.maxVisibleItems() == 15
         assert window.scale_tonic_combo.parent() is window.scale_tonic_row
         assert window.scale_tonic_accidental_combo.parent() is window.scale_tonic_row

@@ -55,6 +55,16 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.
 
+## Auditoría funcional posterior: guitarra
+
+La revisión de digitaciones se ejecuta por familias mediante
+`scripts/sync_guitar_chord_reference.py`. La utilidad fija el mapeo entre sufijos
+internos y el catálogo público actual, y deja explícitos los tipos propios sin
+equivalente exacto. Ya están verificadas las familias de notas añadidas (`add2`,
+`add4`, `madd2`, `madd4`, `add9`) y las tríadas básicas (mayor, menor,
+disminuida y aumentada). Las siguientes familias se revisarán con la misma
+utilidad, sin sustituir tipos propios por acordes solo aproximadamente iguales.
+
 ## Criterio de cierre
 
 - Las fuentes de verdad y copias están inventariadas.

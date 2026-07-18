@@ -22,7 +22,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Matemática del afinador web | `apps/web/static/tuner_math.js` | `apps/web/static/app.js` aporta micrófono, suavizado, cuerda objetivo y UI | `apps/web/test/tuner_math.test.js` |
 | Resaltado de reproducción web | `apps/web/static/playback_highlight.js` | `apps/web/static/app.js` aporta renderers, modo e instrumento actual | `apps/web/test/playback_highlight.test.js` |
 | Ayuda contextual de la web | `apps/web/static/help_callouts.js` | La SPA selecciona los callouts según el modo activo | `apps/web/test/catalogs.test.js` |
-| Acordes de guitarra | `assets/guitar_chord_cache.json` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` |
+| Acordes de guitarra | `assets/guitar_chord_cache.json`; AutoChords es la referencia externa para los tipos mapeados en `scripts/sync_guitar_chord_reference.py` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` y `tests/test_guitar_chord_reference_sync.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |
 | Samples compartidos | `assets/` | Copias necesarias para web y bundle Flutter | `tests/test_shared_assets_cross_platform.py` |
 | Build web publicable | Fuentes bajo `apps/web/`; `app.html` declara JS/CSS y su orden | `apps/web/pages-dist/` generado y no versionado | `scripts/build_web_pages_dist.py` descubre y versiona automáticamente los assets enlazados |
@@ -34,6 +34,25 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 3. No editar `apps/web/pages-dist/`: se regenera.
 4. Si una copia de assets es necesaria para el bundle, mantenerla idéntica y ejecutar los tests de assets.
 5. Un cambio de algoritmo musical debe añadir casos que puedan reutilizar Python, JavaScript y Dart, aunque la infraestructura común todavía sea parcial.
+
+## Auditoría de digitaciones de guitarra
+
+`scripts/sync_guitar_chord_reference.py` compara trastes y dedos con los metadatos
+SVG públicos de AutoChords. El mapeo separa los tipos con equivalente exacto de
+los tipos propios de MIDIChords; estos últimos nunca deben asociarse por mera
+similitud de nombre o de algunas notas.
+
+```bash
+# Auditar todos los tipos con correspondencia exacta (no modifica archivos)
+python scripts/sync_guitar_chord_reference.py
+
+# Sincronizar una familia concreta en las tres copias del asset
+python scripts/sync_guitar_chord_reference.py --sync "" m dim aug
+```
+
+La sincronización de una familia debe acompañarse de la suite local completa. La
+red solo se usa al ejecutar esta utilidad de mantenimiento; las aplicaciones y
+el CI consumen la caché versionada y continúan siendo reproducibles sin red.
 
 ## Verificación reproducible
 

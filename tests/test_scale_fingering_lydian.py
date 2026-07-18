@@ -4,7 +4,7 @@ LH identical to Harmonic Minor. RH differs for G#(8), D#(3), A(9), G(7)."""
 
 import pytest
 
-from tests.scale_fingering_test_support import (
+from tests.support.scale_fingering import (
     HAND_OCTAVE_CASES,
     assert_grouped_fingering_case,
     load_fingering_fixture,

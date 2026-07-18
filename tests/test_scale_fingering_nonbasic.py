@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.scale_fingering_test_support import (
+from tests.support.scale_fingering import (
     assert_hand_fingering_data,
     load_fingering_fixture,
 )

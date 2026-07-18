@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-FIXTURES_DIR = Path(__file__).with_name("fixtures")
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 HAND_OCTAVE_CASES = (
     ("rightHand", "1Oct"),
     ("leftHand", "1Oct"),

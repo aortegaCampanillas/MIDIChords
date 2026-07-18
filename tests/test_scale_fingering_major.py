@@ -2,8 +2,8 @@
 
 import pytest
 
-from tests.scale_fingering_ionian_spec import ionian_pattern, resolve_major_entry
-from tests.scale_fingering_test_support import (
+from tests.support.ionian_fingering import ionian_pattern, resolve_major_entry
+from tests.support.scale_fingering import (
     HAND_OCTAVE_CASES,
     assert_hand_fingering_data,
     load_fingering_fixture,

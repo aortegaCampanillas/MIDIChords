@@ -77,6 +77,28 @@ def _reference_add2_voicings(
     return shapes
 
 
+def _reference_add4_voicings(
+    root_pc: int,
+) -> tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]:
+    """Return the two root-position shapes published by AutoChords."""
+
+    e_position = (root_pc + 8) % 12
+    e_shape = (
+        e_position,
+        e_position,
+        e_position + 2,
+        e_position + 1,
+        e_position,
+        e_position,
+    )
+    a_position = (root_pc + 3) % 12
+    a_shape = (-1, a_position, a_position, a_position + 2, a_position + 2, a_position)
+    e_fingers = (0, 0, 2, 1, 0, 0) if root_pc == 4 else (1, 1, 3, 2, 1, 1)
+    a_fingers = (0, 0, 0, 2, 3, 0) if root_pc == 9 else (0, 1, 1, 3, 4, 1)
+    shapes = ((e_shape, e_fingers), (a_shape, a_fingers))
+    return (shapes[1], shapes[0]) if root_pc == 9 else shapes
+
+
 def _voicings(root_pc: int, intervals: tuple[int, ...]) -> list[dict[str, object]]:
     required_pcs = {(root_pc + interval) % 12 for interval in intervals}
     candidates: list[tuple[tuple[int, ...], tuple[int, ...], list[int]]] = []
@@ -148,6 +170,12 @@ def main() -> None:
             _entry(frets, fingers, index)
             for index, (frets, fingers) in enumerate(
                 _reference_add2_voicings(root_pc), start=1
+            )
+        ]
+        by_key[f"{root_pc}|add4"] = [
+            _entry(frets, fingers, index)
+            for index, (frets, fingers) in enumerate(
+                _reference_add4_voicings(root_pc), start=1
             )
         ]
     site_types = set(cache.get("site_types", []))

@@ -31,6 +31,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Generación de acordes (guitarra)**: al cambiar de digitación se reproduce inmediatamente el nuevo voicing, manteniendo sincronizados sonido, mástil y pentagrama.
 - **Generación de acordes (guitarra)**: cambiar el tipo de acorde desde el selector reinicia siempre la digitación a la primera variante del nuevo acorde.
 - **Generación de acordes (guitarra)**: cada tónica add2 ofrece las tres digitaciones de referencia verificadas; los mástiles llegan ahora hasta el traste 15 para mostrar también las posiciones más altas.
+- **Generación de acordes (guitarra)**: cada tónica add4 ofrece sus dos digitaciones de referencia verificadas, incluidas las posiciones abiertas especiales de Mi y La.
 
 - **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
 

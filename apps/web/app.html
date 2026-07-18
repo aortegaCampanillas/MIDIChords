@@ -151,6 +151,7 @@
                 </div>
                 <div class="controls-inline">
                   <button id="genPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir">▶</button>
+                  <button id="genVariantHelp" class="icon-help-btn" type="button" aria-label="Ayuda de la variante" title="Ayuda de la variante">?</button>
                 </div>
                 <div class="result-block">
                   <div id="genFieldChord"><span id="labelGenChord" class="label">Acorde:</span> <strong id="genChordName">-</strong><span id="genChordDesc" class="chord-desc"></span></div>
@@ -407,6 +408,18 @@
             <span id="feedbackStatus" class="muted" aria-live="polite"></span>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div id="chordVariantHelpModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="chordVariantHelpTitle">
+      <div class="modal-card chord-variant-help-card">
+        <h3 id="chordVariantHelpTitle">Teoría del acorde</h3>
+        <p id="chordVariantHelpFormula" class="chord-variant-help-formula"></p>
+        <p id="chordVariantHelpText"></p>
+        <p id="chordVariantHelpInversionText" class="chord-variant-help-inversion"></p>
+        <div class="controls-inline chord-variant-help-actions">
+          <button id="chordVariantHelpCloseBtn" type="button" class="ghost">Cerrar</button>
+        </div>
       </div>
     </div>
 

@@ -98,6 +98,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Web (generación de acordes)**: nuevo botón **?** a la derecha de **play** que abre una ayuda teórica específica para la variante seleccionada. El diálogo muestra su fórmula interválica y una explicación en español o inglés para las 52 variantes disponibles; un segundo párrafo dinámico describe la posición fundamental o inversión seleccionada, identificando correctamente el grado que queda en el bajo incluso en acordes suspendidos, alterados y extendidos. Se cierra con el botón, al pulsar fuera o con **Escape**. El selector organiza todas las variantes mediante cabeceras no seleccionables siguiendo la clasificación de AutoChords (**Tríadas, Séptimas, Sextas, Add y Extensiones**) y añade **Dominantes alterados** y **Extensiones alteradas** para clasificar las 20 variantes propias que no aparecen en esa página sin perder ninguna.
+
 - **Repo / comunicación**: nuevo documento **`COMPETITIONS.md`** para centralizar candidaturas, borradores y materiales de premios/concursos de FreeMIDIChords.
 
 - **Web**: nuevo modo **Detección de intervalos** en la SPA (`apps/web/static/app.js`, `app.html`, `style.css`) con captura de las dos últimas notas desde teclado o MIDI, nombre del intervalo, semitonos, reproducción ascendente/descendente y modo **Recordar** con melodías mnemotécnicas dibujadas y reproducidas en el pentagrama. La landing (`apps/web/index.html`) y la documentación (`apps/web/README.md`) reflejan la nueva funcionalidad.

@@ -516,6 +516,60 @@ a.btn-link:hover {
   justify-content: center;
 }
 
+.icon-help-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #62738c;
+  background: #26364a;
+  color: #f2bf2f;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.icon-help-btn:hover,
+.icon-help-btn:focus-visible {
+  border-color: #f2bf2f;
+  background: #31445d;
+}
+
+.chord-variant-help-card {
+  width: min(620px, 96vw);
+}
+
+.modal-card .chord-variant-help-formula {
+  display: inline-block;
+  margin: 2px 0 14px;
+  padding: 6px 10px;
+  border: 1px solid #62738c;
+  border-radius: 8px;
+  background: #17273a;
+  color: #f2bf2f;
+  font-weight: 700;
+}
+
+#chordVariantHelpText {
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.modal-card .chord-variant-help-inversion {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #56627a;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.chord-variant-help-actions {
+  justify-content: flex-end;
+}
+
 .icon-play-btn.active {
   background: #ffd060;
   color: #0f1b28;
@@ -1154,6 +1208,18 @@ a.btn-link:hover {
 .row select.accidental-select {
   flex: 0 0 auto;
   width: 4.5em;
+}
+
+#genVariant optgroup {
+  background: #17273a;
+  color: #f2bf2f;
+  font-style: normal;
+  font-weight: 700;
+}
+
+#genVariant optgroup option {
+  color: var(--text);
+  font-weight: 400;
 }
 
 #panelMetronome .row {

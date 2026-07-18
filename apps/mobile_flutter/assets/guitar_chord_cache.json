@@ -95183,31 +95183,32 @@
     "0|5": [
       {
         "frets": [
+          8,
+          10,
+          10,
           -1,
           -1,
-          -1,
-          0,
-          1,
           -1
         ],
         "fingers": [
-          0,
-          0,
-          0,
-          0,
           1,
+          2,
+          3,
+          0,
+          0,
           0
         ],
         "notes": [
+          48,
           55,
           60
         ],
         "string_notes": [
-          null,
-          null,
-          null,
+          48,
           55,
           60,
+          null,
+          null,
           null
         ],
         "variation": 1
@@ -95217,312 +95218,63 @@
           -1,
           3,
           5,
-          -1,
+          5,
           -1,
           -1
         ],
         "fingers": [
           0,
           1,
+          2,
           3,
-          0,
           0,
           0
         ],
         "notes": [
           48,
-          55
+          55,
+          60
         ],
         "string_notes": [
           null,
           48,
           55,
-          null,
+          60,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          3,
-          5,
-          5,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          48,
-          55,
-          60
-        ],
-        "string_notes": [
-          null,
-          48,
-          55,
-          60,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          5,
-          5,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          55,
-          60
-        ],
-        "string_notes": [
-          null,
-          null,
-          55,
-          60,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          8,
-          10,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          48,
-          55
-        ],
-        "string_notes": [
-          48,
-          55,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          8,
-          10,
-          10,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          48,
-          55,
-          60
-        ],
-        "string_notes": [
-          48,
-          55,
-          60,
-          null,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          10,
-          10,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          55,
-          60
-        ],
-        "string_notes": [
-          null,
-          55,
-          60,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          10,
-          12,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          60,
-          67
-        ],
-        "string_notes": [
-          null,
-          null,
-          60,
-          67,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          10,
-          12,
-          13,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          60,
-          67,
-          72
-        ],
-        "string_notes": [
-          null,
-          null,
-          60,
-          67,
-          72,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          12,
-          13,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          67,
-          72
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          67,
-          72,
-          null
-        ],
-        "variation": 10
       }
     ],
     "1|5": [
       {
         "frets": [
+          9,
+          11,
+          11,
           -1,
           -1,
-          -1,
-          1,
-          2,
           -1
         ],
         "fingers": [
-          0,
-          0,
-          0,
           1,
           2,
+          3,
+          0,
+          0,
           0
         ],
         "notes": [
+          49,
           56,
           61
         ],
         "string_notes": [
-          null,
-          null,
-          null,
+          49,
           56,
           61,
+          null,
+          null,
           null
         ],
         "variation": 1
@@ -95532,300 +95284,50 @@
           -1,
           4,
           6,
-          -1,
+          6,
           -1,
           -1
         ],
         "fingers": [
           0,
           1,
+          2,
           3,
-          0,
           0,
           0
         ],
         "notes": [
           49,
-          56
+          56,
+          61
         ],
         "string_notes": [
           null,
           49,
           56,
-          null,
+          61,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          4,
-          6,
-          6,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          49,
-          56,
-          61
-        ],
-        "string_notes": [
-          null,
-          49,
-          56,
-          61,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          6,
-          6,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          56,
-          61
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          61,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          9,
-          11,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          49,
-          56
-        ],
-        "string_notes": [
-          49,
-          56,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          9,
-          11,
-          11,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          49,
-          56,
-          61
-        ],
-        "string_notes": [
-          49,
-          56,
-          61,
-          null,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          11,
-          11,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          56,
-          61
-        ],
-        "string_notes": [
-          null,
-          56,
-          61,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          11,
-          13,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          61,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          61,
-          68,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          11,
-          13,
-          14,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          61,
-          68,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          61,
-          68,
-          73,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          13,
-          14,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          68,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          68,
-          73,
-          null
-        ],
-        "variation": 10
       }
     ],
     "2|5": [
       {
         "frets": [
+          10,
+          12,
+          12,
           -1,
           -1,
-          0,
-          2,
-          3,
           -1
         ],
         "fingers": [
-          0,
-          0,
-          0,
           1,
           2,
+          3,
+          0,
+          0,
           0
         ],
         "notes": [
@@ -95834,11 +95336,11 @@
           62
         ],
         "string_notes": [
-          null,
-          null,
           50,
           57,
           62,
+          null,
+          null,
           null
         ],
         "variation": 1
@@ -95846,301 +95348,52 @@
       {
         "frets": [
           -1,
-          -1,
-          0,
-          2,
+          5,
+          7,
+          7,
           -1,
           -1
         ],
         "fingers": [
           0,
-          0,
-          0,
           1,
+          2,
+          3,
           0,
           0
         ],
         "notes": [
           50,
-          57
+          57,
+          62
         ],
         "string_notes": [
           null,
-          null,
           50,
           57,
+          62,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          0,
-          0,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          45,
-          50
-        ],
-        "string_notes": [
-          null,
-          45,
-          50,
-          null,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          5,
-          7,
-          7,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          50,
-          57,
-          62
-        ],
-        "string_notes": [
-          null,
-          50,
-          57,
-          62,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          5,
-          7,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          50,
-          57
-        ],
-        "string_notes": [
-          null,
-          50,
-          57,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          7,
-          7,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          57,
-          62
-        ],
-        "string_notes": [
-          null,
-          null,
-          57,
-          62,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          10,
-          12,
-          12,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          50,
-          57,
-          62
-        ],
-        "string_notes": [
-          50,
-          57,
-          62,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          10,
-          12,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          50,
-          57
-        ],
-        "string_notes": [
-          50,
-          57,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          12,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          57,
-          62
-        ],
-        "string_notes": [
-          null,
-          57,
-          62,
-          null,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          12,
-          14,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          62,
-          69
-        ],
-        "string_notes": [
-          null,
-          null,
-          62,
-          69,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "3|5": [
       {
         "frets": [
+          11,
+          13,
+          13,
           -1,
           -1,
-          1,
-          3,
-          4,
           -1
         ],
         "fingers": [
-          0,
-          0,
           1,
+          2,
           3,
-          4,
+          0,
+          0,
           0
         ],
         "notes": [
@@ -96149,11 +95402,11 @@
           63
         ],
         "string_notes": [
-          null,
-          null,
           51,
           58,
           63,
+          null,
+          null,
           null
         ],
         "variation": 1
@@ -96161,283 +95414,34 @@
       {
         "frets": [
           -1,
-          -1,
-          1,
-          3,
+          6,
+          8,
+          8,
           -1,
           -1
         ],
         "fingers": [
           0,
-          0,
           1,
+          2,
           3,
           0,
           0
         ],
         "notes": [
           51,
-          58
+          58,
+          63
         ],
         "string_notes": [
           null,
-          null,
           51,
           58,
+          63,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          1,
-          1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          46,
-          51
-        ],
-        "string_notes": [
-          null,
-          46,
-          51,
-          null,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          6,
-          8,
-          8,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          51,
-          58,
-          63
-        ],
-        "string_notes": [
-          null,
-          51,
-          58,
-          63,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          6,
-          8,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          51,
-          58
-        ],
-        "string_notes": [
-          null,
-          51,
-          58,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          8,
-          8,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          58,
-          63
-        ],
-        "string_notes": [
-          null,
-          null,
-          58,
-          63,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          11,
-          13,
-          13,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          51,
-          58,
-          63
-        ],
-        "string_notes": [
-          51,
-          58,
-          63,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          11,
-          13,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          51,
-          58
-        ],
-        "string_notes": [
-          51,
-          58,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          13,
-          13,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          58,
-          63
-        ],
-        "string_notes": [
-          null,
-          58,
-          63,
-          null,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          13,
-          15,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          63,
-          70
-        ],
-        "string_notes": [
-          null,
-          null,
-          63,
-          70,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "4|5": [
@@ -96445,27 +95449,28 @@
         "frets": [
           0,
           2,
-          -1,
+          2,
           -1,
           -1,
           -1
         ],
         "fingers": [
           0,
-          1,
-          0,
+          2,
+          3,
           0,
           0,
           0
         ],
         "notes": [
           40,
-          47
+          47,
+          52
         ],
         "string_notes": [
           40,
           47,
-          null,
+          52,
           null,
           null,
           null
@@ -96474,285 +95479,35 @@
       },
       {
         "frets": [
-          0,
-          2,
-          2,
           -1,
+          7,
+          9,
+          9,
           -1,
           -1
         ],
         "fingers": [
           0,
+          1,
           2,
           3,
-          0,
           0,
           0
         ],
         "notes": [
-          40,
-          47,
-          52
+          52,
+          59,
+          64
         ],
         "string_notes": [
-          40,
-          47,
-          52,
           null,
+          52,
+          59,
+          64,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          2,
-          4,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          59
-        ],
-        "string_notes": [
-          null,
-          null,
-          52,
-          59,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          2,
-          2,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          47,
-          52
-        ],
-        "string_notes": [
-          null,
-          47,
-          52,
-          null,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          7,
-          9,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          59
-        ],
-        "string_notes": [
-          null,
-          52,
-          59,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          7,
-          9,
-          9,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          59,
-          64
-        ],
-        "string_notes": [
-          null,
-          52,
-          59,
-          64,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          9,
-          9,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          59,
-          64
-        ],
-        "string_notes": [
-          null,
-          null,
-          59,
-          64,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          12,
-          14,
-          14,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          59,
-          64
-        ],
-        "string_notes": [
-          52,
-          59,
-          64,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          12,
-          14,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          59
-        ],
-        "string_notes": [
-          52,
-          59,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          14,
-          14,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          59,
-          64
-        ],
-        "string_notes": [
-          null,
-          59,
-          64,
-          null,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "5|5": [
@@ -96760,27 +95515,28 @@
         "frets": [
           1,
           3,
-          -1,
+          3,
           -1,
           -1,
           -1
         ],
         "fingers": [
           1,
+          2,
           3,
-          0,
           0,
           0,
           0
         ],
         "notes": [
           41,
-          48
+          48,
+          53
         ],
         "string_notes": [
           41,
           48,
-          null,
+          53,
           null,
           null,
           null
@@ -96789,286 +95545,35 @@
       },
       {
         "frets": [
-          1,
-          3,
-          3,
           -1,
+          8,
+          10,
+          10,
           -1,
           -1
         ],
         "fingers": [
-          1,
-          3,
-          3,
           0,
+          1,
+          2,
+          3,
           0,
           0
         ],
         "notes": [
-          41,
-          48,
-          53
+          53,
+          60,
+          65
         ],
         "string_notes": [
-          41,
-          48,
-          53,
           null,
+          53,
+          60,
+          65,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          3,
-          5,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          60
-        ],
-        "string_notes": [
-          null,
-          null,
-          53,
-          60,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          3,
-          5,
-          6,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          53,
-          60,
-          65
-        ],
-        "string_notes": [
-          null,
-          null,
-          53,
-          60,
-          65,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          3,
-          3,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          48,
-          53
-        ],
-        "string_notes": [
-          null,
-          48,
-          53,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          8,
-          10,
-          10,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          60,
-          65
-        ],
-        "string_notes": [
-          null,
-          53,
-          60,
-          65,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          8,
-          10,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          60
-        ],
-        "string_notes": [
-          null,
-          53,
-          60,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          10,
-          10,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          60,
-          65
-        ],
-        "string_notes": [
-          null,
-          null,
-          60,
-          65,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          13,
-          15,
-          15,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          60,
-          65
-        ],
-        "string_notes": [
-          53,
-          60,
-          65,
-          null,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          13,
-          15,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          60
-        ],
-        "string_notes": [
-          53,
-          60,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "6|5": [
@@ -97076,27 +95581,28 @@
         "frets": [
           2,
           4,
-          -1,
+          4,
           -1,
           -1,
           -1
         ],
         "fingers": [
           1,
+          2,
           3,
-          0,
           0,
           0,
           0
         ],
         "notes": [
           42,
-          49
+          49,
+          54
         ],
         "string_notes": [
           42,
           49,
-          null,
+          54,
           null,
           null,
           null
@@ -97105,314 +95611,65 @@
       },
       {
         "frets": [
-          2,
-          4,
-          4,
           -1,
+          9,
+          11,
+          11,
           -1,
           -1
         ],
         "fingers": [
-          1,
-          3,
-          3,
           0,
+          1,
+          2,
+          3,
           0,
           0
         ],
         "notes": [
-          42,
-          49,
-          54
+          54,
+          61,
+          66
         ],
         "string_notes": [
-          42,
-          49,
-          54,
           null,
+          54,
+          61,
+          66,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          4,
-          4,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          49,
-          54
-        ],
-        "string_notes": [
-          null,
-          49,
-          54,
-          null,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          4,
-          6,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          54,
-          61
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          61,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          4,
-          6,
-          7,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          54,
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          61,
-          66,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          6,
-          7,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          61,
-          66,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          9,
-          11,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          54,
-          61
-        ],
-        "string_notes": [
-          null,
-          54,
-          61,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          9,
-          11,
-          11,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          54,
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          54,
-          61,
-          66,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          11,
-          11,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          61,
-          66,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          11,
-          14,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          4,
-          0
-        ],
-        "notes": [
-          66,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          66,
-          73,
-          null
-        ],
-        "variation": 10
       }
     ],
     "7|5": [
       {
         "frets": [
+          3,
+          5,
+          5,
           -1,
-          -1,
-          0,
-          0,
           -1,
           -1
         ],
         "fingers": [
-          0,
-          0,
-          0,
+          1,
+          2,
+          3,
           0,
           0,
           0
         ],
         "notes": [
+          43,
           50,
           55
         ],
         "string_notes": [
-          null,
-          null,
+          43,
           50,
           55,
+          null,
           null,
           null
         ],
@@ -97420,314 +95677,65 @@
       },
       {
         "frets": [
-          3,
-          5,
           -1,
-          -1,
+          10,
+          12,
+          12,
           -1,
           -1
         ],
         "fingers": [
+          0,
           1,
+          2,
           3,
-          0,
-          0,
           0,
           0
         ],
         "notes": [
-          43,
-          50
+          55,
+          62,
+          67
         ],
         "string_notes": [
-          43,
-          50,
           null,
-          null,
+          55,
+          62,
+          67,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          3,
-          5,
-          5,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          43,
-          50,
-          55
-        ],
-        "string_notes": [
-          43,
-          50,
-          55,
-          null,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          5,
-          5,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          50,
-          55
-        ],
-        "string_notes": [
-          null,
-          50,
-          55,
-          null,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          5,
-          7,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          55,
-          62
-        ],
-        "string_notes": [
-          null,
-          null,
-          55,
-          62,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          5,
-          7,
-          8,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          55,
-          62,
-          67
-        ],
-        "string_notes": [
-          null,
-          null,
-          55,
-          62,
-          67,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          7,
-          8,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          62,
-          67
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          62,
-          67,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          10,
-          12,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          55,
-          62
-        ],
-        "string_notes": [
-          null,
-          55,
-          62,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          10,
-          12,
-          12,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          55,
-          62,
-          67
-        ],
-        "string_notes": [
-          null,
-          55,
-          62,
-          67,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          12,
-          12,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          62,
-          67
-        ],
-        "string_notes": [
-          null,
-          null,
-          62,
-          67,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "8|5": [
       {
         "frets": [
+          4,
+          6,
+          6,
           -1,
-          -1,
-          1,
-          1,
           -1,
           -1
         ],
         "fingers": [
-          0,
-          0,
+          1,
           2,
           3,
+          0,
           0,
           0
         ],
         "notes": [
+          44,
           51,
           56
         ],
         "string_notes": [
-          null,
-          null,
+          44,
           51,
           56,
+          null,
           null,
           null
         ],
@@ -97735,285 +95743,35 @@
       },
       {
         "frets": [
-          4,
-          6,
           -1,
-          -1,
+          11,
+          13,
+          13,
           -1,
           -1
         ],
         "fingers": [
+          0,
           1,
+          2,
           3,
-          0,
-          0,
           0,
           0
         ],
         "notes": [
-          44,
-          51
+          56,
+          63,
+          68
         ],
         "string_notes": [
-          44,
-          51,
           null,
-          null,
+          56,
+          63,
+          68,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          4,
-          6,
-          6,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          44,
-          51,
-          56
-        ],
-        "string_notes": [
-          44,
-          51,
-          56,
-          null,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          6,
-          6,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          51,
-          56
-        ],
-        "string_notes": [
-          null,
-          51,
-          56,
-          null,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          6,
-          8,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          56,
-          63
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          63,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          6,
-          8,
-          9,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          56,
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          63,
-          68,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          8,
-          9,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          63,
-          68,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          11,
-          13,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          56,
-          63
-        ],
-        "string_notes": [
-          null,
-          56,
-          63,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          11,
-          13,
-          13,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          56,
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          56,
-          63,
-          68,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          13,
-          13,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          63,
-          68,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "9|5": [
@@ -98051,301 +95809,52 @@
       },
       {
         "frets": [
-          -1,
-          0,
-          2,
+          5,
+          7,
+          7,
           -1,
           -1,
           -1
         ],
         "fingers": [
-          0,
-          0,
           1,
+          2,
+          3,
           0,
           0,
           0
         ],
         "notes": [
           45,
-          52
+          52,
+          57
         ],
         "string_notes": [
-          null,
           45,
           52,
+          57,
           null,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          2,
-          2,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          57
-        ],
-        "string_notes": [
-          null,
-          null,
-          52,
-          57,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          5,
-          7,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          45,
-          52
-        ],
-        "string_notes": [
-          45,
-          52,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          5,
-          7,
-          7,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          45,
-          52,
-          57
-        ],
-        "string_notes": [
-          45,
-          52,
-          57,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          7,
-          7,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          52,
-          57
-        ],
-        "string_notes": [
-          null,
-          52,
-          57,
-          null,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          7,
-          9,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          57,
-          64
-        ],
-        "string_notes": [
-          null,
-          null,
-          57,
-          64,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          14,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          57,
-          64
-        ],
-        "string_notes": [
-          null,
-          57,
-          64,
-          null,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          14,
-          14,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          57,
-          64,
-          69
-        ],
-        "string_notes": [
-          null,
-          57,
-          64,
-          69,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          14,
-          14,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          64,
-          69
-        ],
-        "string_notes": [
-          null,
-          null,
-          64,
-          69,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "10|5": [
       {
         "frets": [
+          6,
+          8,
+          8,
           -1,
-          1,
-          3,
-          3,
           -1,
           -1
         ],
         "fingers": [
-          0,
           1,
+          2,
           3,
-          3,
+          0,
           0,
           0
         ],
@@ -98355,10 +95864,10 @@
           58
         ],
         "string_notes": [
-          null,
           46,
           53,
           58,
+          null,
           null,
           null
         ],
@@ -98369,299 +95878,49 @@
           -1,
           1,
           3,
-          -1,
+          3,
           -1,
           -1
         ],
         "fingers": [
           0,
           1,
+          2,
           3,
-          0,
           0,
           0
         ],
         "notes": [
           46,
-          53
+          53,
+          58
         ],
         "string_notes": [
           null,
           46,
           53,
-          null,
+          58,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          3,
-          3,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          58
-        ],
-        "string_notes": [
-          null,
-          null,
-          53,
-          58,
-          null,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          6,
-          8,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          46,
-          53
-        ],
-        "string_notes": [
-          46,
-          53,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          6,
-          8,
-          8,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          46,
-          53,
-          58
-        ],
-        "string_notes": [
-          46,
-          53,
-          58,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          8,
-          8,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          53,
-          58
-        ],
-        "string_notes": [
-          null,
-          53,
-          58,
-          null,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          8,
-          10,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          58,
-          65
-        ],
-        "string_notes": [
-          null,
-          null,
-          58,
-          65,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          8,
-          10,
-          11,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          58,
-          65,
-          70
-        ],
-        "string_notes": [
-          null,
-          null,
-          58,
-          65,
-          70,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          13,
-          15,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          58,
-          65
-        ],
-        "string_notes": [
-          null,
-          58,
-          65,
-          null,
-          null,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          13,
-          15,
-          15,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          58,
-          65,
-          70
-        ],
-        "string_notes": [
-          null,
-          58,
-          65,
-          70,
-          null,
-          null
-        ],
-        "variation": 10
       }
     ],
     "11|5": [
       {
         "frets": [
+          7,
+          9,
+          9,
           -1,
-          2,
-          4,
-          4,
           -1,
           -1
         ],
         "fingers": [
-          0,
           1,
+          2,
           3,
-          3,
+          0,
           0,
           0
         ],
@@ -98671,10 +95930,10 @@
           59
         ],
         "string_notes": [
-          null,
           47,
           54,
           59,
+          null,
           null,
           null
         ],
@@ -98685,281 +95944,32 @@
           -1,
           2,
           4,
-          -1,
+          4,
           -1,
           -1
         ],
         "fingers": [
           0,
           1,
+          2,
           3,
-          0,
           0,
           0
         ],
         "notes": [
           47,
-          54
+          54,
+          59
         ],
         "string_notes": [
           null,
           47,
           54,
-          null,
+          59,
           null,
           null
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          4,
-          7,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          4,
-          0
-        ],
-        "notes": [
-          59,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          59,
-          66,
-          null
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          4,
-          4,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          2,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          54,
-          59
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          59,
-          null,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          7,
-          9,
-          9,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          47,
-          54,
-          59
-        ],
-        "string_notes": [
-          47,
-          54,
-          59,
-          null,
-          null,
-          null
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          7,
-          9,
-          -1,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          1,
-          3,
-          0,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          47,
-          54
-        ],
-        "string_notes": [
-          47,
-          54,
-          null,
-          null,
-          null,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          9,
-          9,
-          -1,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          2,
-          3,
-          0,
-          0,
-          0
-        ],
-        "notes": [
-          54,
-          59
-        ],
-        "string_notes": [
-          null,
-          54,
-          59,
-          null,
-          null,
-          null
-        ],
-        "variation": 7
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          9,
-          11,
-          -1,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          0,
-          0
-        ],
-        "notes": [
-          59,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          59,
-          66,
-          null,
-          null
-        ],
-        "variation": 8
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          9,
-          11,
-          12,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          0
-        ],
-        "notes": [
-          59,
-          66,
-          71
-        ],
-        "string_notes": [
-          null,
-          null,
-          59,
-          66,
-          71,
-          null
-        ],
-        "variation": 9
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          -1,
-          11,
-          12,
-          -1
-        ],
-        "fingers": [
-          0,
-          0,
-          0,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          66,
-          71
-        ],
-        "string_notes": [
-          null,
-          null,
-          null,
-          66,
-          71,
-          null
-        ],
-        "variation": 10
       }
     ],
     "0|-5": [
@@ -102828,6 +99838,73 @@
         "frets": [
           -1,
           3,
+          0,
+          0,
+          3,
+          3
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          0,
+          3,
+          4
+        ],
+        "notes": [
+          48,
+          50,
+          55,
+          62,
+          67
+        ],
+        "string_notes": [
+          null,
+          48,
+          50,
+          55,
+          62,
+          67
+        ],
+        "variation": 1
+      },
+      {
+        "frets": [
+          8,
+          -1,
+          5,
+          7,
+          8,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          48,
+          55,
+          62,
+          67
+        ],
+        "string_notes": [
+          48,
+          null,
+          55,
+          62,
+          67,
+          null
+        ],
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          3,
           5,
           5,
           3,
@@ -102856,7 +99933,7 @@
           62,
           67
         ],
-        "variation": 1
+        "variation": 3
       },
       {
         "frets": [
@@ -102889,10 +99966,43 @@
           72,
           74
         ],
-        "variation": 2
+        "variation": 4
       }
     ],
     "1|sus2": [
+      {
+        "frets": [
+          9,
+          -1,
+          6,
+          8,
+          9,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          49,
+          56,
+          63,
+          68
+        ],
+        "string_notes": [
+          49,
+          null,
+          56,
+          63,
+          68,
+          null
+        ],
+        "variation": 1
+      },
       {
         "frets": [
           -1,
@@ -102925,7 +100035,40 @@
           63,
           68
         ],
-        "variation": 1
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          4,
+          -1,
+          1,
+          4,
+          4
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          49,
+          56,
+          63,
+          68
+        ],
+        "string_notes": [
+          null,
+          49,
+          null,
+          56,
+          63,
+          68
+        ],
+        "variation": 3
       },
       {
         "frets": [
@@ -102958,7 +100101,7 @@
           73,
           75
         ],
-        "variation": 2
+        "variation": 4
       }
     ],
     "2|sus2": [
@@ -102975,8 +100118,8 @@
           0,
           0,
           0,
-          1,
           2,
+          3,
           0
         ],
         "notes": [
@@ -102994,6 +100137,39 @@
           64
         ],
         "variation": 1
+      },
+      {
+        "frets": [
+          10,
+          -1,
+          7,
+          9,
+          10,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          50,
+          57,
+          64,
+          69
+        ],
+        "string_notes": [
+          50,
+          null,
+          57,
+          64,
+          69,
+          null
+        ],
+        "variation": 2
       },
       {
         "frets": [
@@ -103027,73 +100203,73 @@
           64,
           69
         ],
-        "variation": 2
+        "variation": 3
       },
       {
         "frets": [
           -1,
+          5,
           -1,
-          12,
-          14,
-          15,
-          12
+          2,
+          5,
+          5
         ],
         "fingers": [
           0,
+          2,
           0,
           1,
           3,
-          4,
-          1
+          4
         ],
         "notes": [
-          62,
-          69,
-          74,
-          76
+          50,
+          57,
+          64,
+          69
         ],
         "string_notes": [
           null,
+          50,
           null,
-          62,
-          69,
-          74,
-          76
+          57,
+          64,
+          69
         ],
-        "variation": 3
+        "variation": 4
       }
     ],
     "3|sus2": [
       {
         "frets": [
+          11,
           -1,
-          -1,
-          1,
-          3,
-          4,
-          1
+          8,
+          10,
+          11,
+          -1
         ],
         "fingers": [
-          0,
+          3,
           0,
           1,
-          3,
+          2,
           4,
-          1
+          0
         ],
         "notes": [
           51,
           58,
-          63,
-          65
+          65,
+          70
         ],
         "string_notes": [
-          null,
-          null,
           51,
+          null,
           58,
-          63,
-          65
+          65,
+          70,
+          null
         ],
         "variation": 1
       },
@@ -103130,17 +100306,48 @@
           70
         ],
         "variation": 2
-      }
-    ],
-    "4|sus2": [
+      },
+      {
+        "frets": [
+          -1,
+          6,
+          -1,
+          3,
+          6,
+          6
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          51,
+          58,
+          65,
+          70
+        ],
+        "string_notes": [
+          null,
+          51,
+          null,
+          58,
+          65,
+          70
+        ],
+        "variation": 3
+      },
       {
         "frets": [
           -1,
           -1,
-          2,
+          1,
+          3,
           4,
-          5,
-          2
+          1
         ],
         "fingers": [
           0,
@@ -103151,18 +100358,53 @@
           1
         ],
         "notes": [
-          52,
-          59,
-          64,
-          66
+          51,
+          58,
+          63,
+          65
         ],
         "string_notes": [
           null,
           null,
+          51,
+          58,
+          63,
+          65
+        ],
+        "variation": 4
+      }
+    ],
+    "4|sus2": [
+      {
+        "frets": [
+          12,
+          -1,
+          9,
+          11,
+          12,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
           52,
           59,
-          64,
-          66
+          66,
+          71
+        ],
+        "string_notes": [
+          52,
+          null,
+          59,
+          66,
+          71,
+          null
         ],
         "variation": 1
       },
@@ -103199,17 +100441,48 @@
           71
         ],
         "variation": 2
-      }
-    ],
-    "5|sus2": [
+      },
+      {
+        "frets": [
+          -1,
+          7,
+          -1,
+          4,
+          7,
+          7
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          52,
+          59,
+          66,
+          71
+        ],
+        "string_notes": [
+          null,
+          52,
+          null,
+          59,
+          66,
+          71
+        ],
+        "variation": 3
+      },
       {
         "frets": [
           -1,
           -1,
-          3,
+          2,
+          4,
           5,
-          6,
-          3
+          2
         ],
         "fingers": [
           0,
@@ -103220,18 +100493,53 @@
           1
         ],
         "notes": [
-          53,
-          60,
-          65,
-          67
+          52,
+          59,
+          64,
+          66
         ],
         "string_notes": [
           null,
           null,
+          52,
+          59,
+          64,
+          66
+        ],
+        "variation": 4
+      }
+    ],
+    "5|sus2": [
+      {
+        "frets": [
+          13,
+          -1,
+          10,
+          12,
+          13,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
           53,
           60,
-          65,
-          67
+          67,
+          72
+        ],
+        "string_notes": [
+          53,
+          null,
+          60,
+          67,
+          72,
+          null
         ],
         "variation": 1
       },
@@ -103268,17 +100576,48 @@
           72
         ],
         "variation": 2
-      }
-    ],
-    "6|sus2": [
+      },
+      {
+        "frets": [
+          -1,
+          8,
+          -1,
+          5,
+          8,
+          8
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          53,
+          60,
+          67,
+          72
+        ],
+        "string_notes": [
+          null,
+          53,
+          null,
+          60,
+          67,
+          72
+        ],
+        "variation": 3
+      },
       {
         "frets": [
           -1,
           -1,
-          4,
+          3,
+          5,
           6,
-          7,
-          4
+          3
         ],
         "fingers": [
           0,
@@ -103289,18 +100628,53 @@
           1
         ],
         "notes": [
-          54,
-          61,
-          66,
-          68
+          53,
+          60,
+          65,
+          67
         ],
         "string_notes": [
           null,
           null,
+          53,
+          60,
+          65,
+          67
+        ],
+        "variation": 4
+      }
+    ],
+    "6|sus2": [
+      {
+        "frets": [
+          14,
+          -1,
+          11,
+          13,
+          14,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
           54,
           61,
-          66,
-          68
+          68,
+          73
+        ],
+        "string_notes": [
+          54,
+          null,
+          61,
+          68,
+          73,
+          null
         ],
         "variation": 1
       },
@@ -103337,17 +100711,48 @@
           73
         ],
         "variation": 2
-      }
-    ],
-    "7|sus2": [
+      },
+      {
+        "frets": [
+          -1,
+          9,
+          -1,
+          6,
+          9,
+          9
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          54,
+          61,
+          68,
+          73
+        ],
+        "string_notes": [
+          null,
+          54,
+          null,
+          61,
+          68,
+          73
+        ],
+        "variation": 3
+      },
       {
         "frets": [
           -1,
           -1,
-          5,
+          4,
+          6,
           7,
-          8,
-          5
+          4
         ],
         "fingers": [
           0,
@@ -103358,18 +100763,55 @@
           1
         ],
         "notes": [
-          55,
-          62,
-          67,
-          69
+          54,
+          61,
+          66,
+          68
         ],
         "string_notes": [
           null,
           null,
-          55,
+          54,
+          61,
+          66,
+          68
+        ],
+        "variation": 4
+      }
+    ],
+    "7|sus2": [
+      {
+        "frets": [
+          3,
+          0,
+          0,
+          2,
+          3,
+          3
+        ],
+        "fingers": [
+          2,
+          0,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          43,
+          45,
+          50,
+          57,
           62,
-          67,
-          69
+          67
+        ],
+        "string_notes": [
+          43,
+          45,
+          50,
+          57,
+          62,
+          67
         ],
         "variation": 1
       },
@@ -103406,17 +100848,48 @@
           74
         ],
         "variation": 2
-      }
-    ],
-    "8|sus2": [
+      },
+      {
+        "frets": [
+          -1,
+          10,
+          -1,
+          7,
+          10,
+          10
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          55,
+          62,
+          69,
+          74
+        ],
+        "string_notes": [
+          null,
+          55,
+          null,
+          62,
+          69,
+          74
+        ],
+        "variation": 3
+      },
       {
         "frets": [
           -1,
           -1,
-          6,
+          5,
+          7,
           8,
-          9,
-          6
+          5
         ],
         "fingers": [
           0,
@@ -103427,18 +100900,53 @@
           1
         ],
         "notes": [
-          56,
-          63,
-          68,
-          70
+          55,
+          62,
+          67,
+          69
         ],
         "string_notes": [
           null,
           null,
-          56,
+          55,
+          62,
+          67,
+          69
+        ],
+        "variation": 4
+      }
+    ],
+    "8|sus2": [
+      {
+        "frets": [
+          4,
+          -1,
+          1,
+          3,
+          4,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          44,
+          51,
+          58,
+          63
+        ],
+        "string_notes": [
+          44,
+          null,
+          51,
+          58,
           63,
-          68,
-          70
+          null
         ],
         "variation": 1
       },
@@ -103475,6 +100983,72 @@
           75
         ],
         "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          11,
+          -1,
+          8,
+          11,
+          11
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          56,
+          63,
+          70,
+          75
+        ],
+        "string_notes": [
+          null,
+          56,
+          null,
+          63,
+          70,
+          75
+        ],
+        "variation": 3
+      },
+      {
+        "frets": [
+          -1,
+          -1,
+          6,
+          8,
+          9,
+          6
+        ],
+        "fingers": [
+          0,
+          0,
+          1,
+          3,
+          4,
+          1
+        ],
+        "notes": [
+          56,
+          63,
+          68,
+          70
+        ],
+        "string_notes": [
+          null,
+          null,
+          56,
+          63,
+          68,
+          70
+        ],
+        "variation": 4
       }
     ],
     "9|sus2": [
@@ -103514,6 +101088,72 @@
       },
       {
         "frets": [
+          5,
+          -1,
+          2,
+          4,
+          5,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          45,
+          52,
+          59,
+          64
+        ],
+        "string_notes": [
+          45,
+          null,
+          52,
+          59,
+          64,
+          null
+        ],
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          12,
+          -1,
+          9,
+          12,
+          12
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          57,
+          64,
+          71,
+          76
+        ],
+        "string_notes": [
+          null,
+          57,
+          null,
+          64,
+          71,
+          76
+        ],
+        "variation": 3
+      },
+      {
+        "frets": [
           -1,
           -1,
           7,
@@ -103543,46 +101183,45 @@
           69,
           71
         ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          14,
-          14,
-          12,
-          12
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          57,
-          64,
-          69,
-          71,
-          76
-        ],
-        "string_notes": [
-          null,
-          57,
-          64,
-          69,
-          71,
-          76
-        ],
-        "variation": 3
+        "variation": 4
       }
     ],
     "10|sus2": [
       {
         "frets": [
+          6,
+          -1,
+          3,
+          5,
+          6,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          46,
+          53,
+          60,
+          65
+        ],
+        "string_notes": [
+          46,
+          null,
+          53,
+          60,
+          65,
+          null
+        ],
+        "variation": 1
+      },
+      {
+        "frets": [
           -1,
           1,
           3,
@@ -103613,7 +101252,40 @@
           60,
           65
         ],
-        "variation": 1
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          13,
+          -1,
+          10,
+          13,
+          13
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          58,
+          65,
+          72,
+          77
+        ],
+        "string_notes": [
+          null,
+          58,
+          null,
+          65,
+          72,
+          77
+        ],
+        "variation": 3
       },
       {
         "frets": [
@@ -103646,44 +101318,43 @@
           70,
           72
         ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          13,
-          15,
-          15,
-          13,
-          13
-        ],
-        "fingers": [
-          0,
-          1,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          58,
-          65,
-          70,
-          72,
-          77
-        ],
-        "string_notes": [
-          null,
-          58,
-          65,
-          70,
-          72,
-          77
-        ],
-        "variation": 3
+        "variation": 4
       }
     ],
     "11|sus2": [
+      {
+        "frets": [
+          7,
+          -1,
+          4,
+          6,
+          7,
+          -1
+        ],
+        "fingers": [
+          3,
+          0,
+          1,
+          2,
+          4,
+          0
+        ],
+        "notes": [
+          47,
+          54,
+          61,
+          66
+        ],
+        "string_notes": [
+          47,
+          null,
+          54,
+          61,
+          66,
+          null
+        ],
+        "variation": 1
+      },
       {
         "frets": [
           -1,
@@ -103716,7 +101387,40 @@
           61,
           66
         ],
-        "variation": 1
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          14,
+          -1,
+          11,
+          14,
+          14
+        ],
+        "fingers": [
+          0,
+          2,
+          0,
+          1,
+          3,
+          4
+        ],
+        "notes": [
+          59,
+          66,
+          73,
+          78
+        ],
+        "string_notes": [
+          null,
+          59,
+          null,
+          66,
+          73,
+          78
+        ],
+        "variation": 3
       },
       {
         "frets": [
@@ -103749,40 +101453,42 @@
           71,
           73
         ],
-        "variation": 2
+        "variation": 4
       }
     ],
     "0|sus4": [
       {
         "frets": [
-          -1,
-          3,
-          3,
-          0,
-          1,
-          -1
+          8,
+          10,
+          10,
+          10,
+          8,
+          8
         ],
         "fingers": [
-          0,
+          1,
+          2,
           3,
           4,
-          0,
           1,
-          0
+          1
         ],
         "notes": [
           48,
-          53,
-          55,
-          60
-        ],
-        "string_notes": [
-          null,
-          48,
-          53,
           55,
           60,
-          null
+          65,
+          67,
+          72
+        ],
+        "string_notes": [
+          48,
+          55,
+          60,
+          65,
+          67,
+          72
         ],
         "variation": 1
       },
@@ -103824,107 +101530,6 @@
         "frets": [
           -1,
           -1,
-          5,
-          5,
-          6,
-          8
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          1,
-          2,
-          4
-        ],
-        "notes": [
-          55,
-          60,
-          65,
-          72
-        ],
-        "string_notes": [
-          null,
-          null,
-          55,
-          60,
-          65,
-          72
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          8,
-          10,
-          10,
-          10,
-          8,
-          8
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          48,
-          55,
-          60,
-          65,
-          67,
-          72
-        ],
-        "string_notes": [
-          48,
-          55,
-          60,
-          65,
-          67,
-          72
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          10,
-          10,
-          8,
-          8
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          60,
-          65,
-          67,
-          72
-        ],
-        "string_notes": [
-          null,
-          null,
-          60,
-          65,
-          67,
-          72
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
           10,
           12,
           13,
@@ -103934,8 +101539,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -103952,40 +101557,42 @@
           72,
           77
         ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "1|sus4": [
       {
         "frets": [
-          -1,
-          4,
-          4,
-          1,
-          2,
-          -1
+          9,
+          11,
+          11,
+          11,
+          9,
+          9
         ],
         "fingers": [
-          0,
+          1,
+          2,
           3,
           4,
           1,
-          2,
-          0
+          1
         ],
         "notes": [
           49,
-          54,
-          56,
-          61
-        ],
-        "string_notes": [
-          null,
-          49,
-          54,
           56,
           61,
-          null
+          66,
+          68,
+          73
+        ],
+        "string_notes": [
+          49,
+          56,
+          61,
+          66,
+          68,
+          73
         ],
         "variation": 1
       },
@@ -104027,107 +101634,6 @@
         "frets": [
           -1,
           -1,
-          6,
-          6,
-          7,
-          9
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          1,
-          2,
-          4
-        ],
-        "notes": [
-          56,
-          61,
-          66,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          61,
-          66,
-          73
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          9,
-          11,
-          11,
-          11,
-          9,
-          9
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          49,
-          56,
-          61,
-          66,
-          68,
-          73
-        ],
-        "string_notes": [
-          49,
-          56,
-          61,
-          66,
-          68,
-          73
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          11,
-          11,
-          9,
-          9
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          61,
-          66,
-          68,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          61,
-          66,
-          68,
-          73
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
           11,
           13,
           14,
@@ -104137,8 +101643,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -104155,7 +101661,7 @@
           73,
           78
         ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "2|sus4": [
@@ -104173,8 +101679,8 @@
           0,
           0,
           1,
-          2,
-          3
+          3,
+          4
         ],
         "notes": [
           50,
@@ -104194,34 +101700,36 @@
       },
       {
         "frets": [
-          -1,
-          5,
-          5,
-          2,
-          3,
-          -1
+          10,
+          12,
+          12,
+          12,
+          10,
+          10
         ],
         "fingers": [
-          0,
+          1,
+          2,
           3,
           4,
           1,
-          2,
-          0
+          1
         ],
         "notes": [
           50,
-          55,
-          57,
-          62
-        ],
-        "string_notes": [
-          null,
-          50,
-          55,
           57,
           62,
-          null
+          67,
+          69,
+          74
+        ],
+        "string_notes": [
+          50,
+          57,
+          62,
+          67,
+          69,
+          74
         ],
         "variation": 2
       },
@@ -104258,208 +101766,43 @@
           69
         ],
         "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          7,
-          7,
-          8,
-          10
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          1,
-          2,
-          4
-        ],
-        "notes": [
-          57,
-          62,
-          67,
-          74
-        ],
-        "string_notes": [
-          null,
-          null,
-          57,
-          62,
-          67,
-          74
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          10,
-          12,
-          12,
-          12,
-          10,
-          10
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          50,
-          57,
-          62,
-          67,
-          69,
-          74
-        ],
-        "string_notes": [
-          50,
-          57,
-          62,
-          67,
-          69,
-          74
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          12,
-          12,
-          10,
-          10
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          62,
-          67,
-          69,
-          74
-        ],
-        "string_notes": [
-          null,
-          null,
-          62,
-          67,
-          69,
-          74
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          12,
-          14,
-          15,
-          15
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          62,
-          69,
-          74,
-          79
-        ],
-        "string_notes": [
-          null,
-          null,
-          62,
-          69,
-          74,
-          79
-        ],
-        "variation": 7
       }
     ],
     "3|sus4": [
       {
         "frets": [
-          -1,
-          -1,
-          1,
-          3,
-          4,
-          4
+          11,
+          13,
+          13,
+          13,
+          11,
+          11
         ],
         "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          51,
-          58,
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          51,
-          58,
-          63,
-          68
-        ],
-        "variation": 1
-      },
-      {
-        "frets": [
-          -1,
-          6,
-          6,
-          3,
-          4,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
           1,
           2,
-          0
+          3,
+          4,
+          1,
+          1
         ],
         "notes": [
           51,
-          56,
-          58,
-          63
-        ],
-        "string_notes": [
-          null,
-          51,
-          56,
           58,
           63,
-          null
+          68,
+          70,
+          75
         ],
-        "variation": 2
+        "string_notes": [
+          51,
+          58,
+          63,
+          68,
+          70,
+          75
+        ],
+        "variation": 1
       },
       {
         "frets": [
@@ -104493,108 +101836,40 @@
           68,
           70
         ],
-        "variation": 3
+        "variation": 2
       },
       {
         "frets": [
           -1,
           -1,
-          8,
-          8,
-          9,
-          11
+          1,
+          3,
+          4,
+          4
         ],
         "fingers": [
           0,
           0,
           1,
-          1,
           2,
+          3,
           4
         ],
         "notes": [
-          58,
-          63,
-          68,
-          75
-        ],
-        "string_notes": [
-          null,
-          null,
-          58,
-          63,
-          68,
-          75
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          11,
-          13,
-          13,
-          13,
-          11,
-          11
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
           51,
           58,
           63,
-          68,
-          70,
-          75
+          68
         ],
         "string_notes": [
+          null,
+          null,
           51,
           58,
           63,
-          68,
-          70,
-          75
+          68
         ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          13,
-          13,
-          11,
-          11
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          63,
-          68,
-          70,
-          75
-        ],
-        "string_notes": [
-          null,
-          null,
-          63,
-          68,
-          70,
-          75
-        ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "4|sus4": [
@@ -104609,9 +101884,9 @@
         ],
         "fingers": [
           0,
-          1,
-          1,
-          1,
+          2,
+          3,
+          4,
           0,
           0
         ],
@@ -104632,72 +101907,6 @@
           64
         ],
         "variation": 1
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          2,
-          4,
-          5,
-          5
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          52,
-          59,
-          64,
-          69
-        ],
-        "string_notes": [
-          null,
-          null,
-          52,
-          59,
-          64,
-          69
-        ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          7,
-          7,
-          4,
-          5,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          52,
-          57,
-          59,
-          64
-        ],
-        "string_notes": [
-          null,
-          52,
-          57,
-          59,
-          64,
-          null
-        ],
-        "variation": 3
       },
       {
         "frets": [
@@ -104731,108 +101940,40 @@
           69,
           71
         ],
-        "variation": 4
+        "variation": 2
       },
       {
         "frets": [
           -1,
           -1,
-          9,
-          9,
-          10,
-          12
+          2,
+          4,
+          5,
+          5
         ],
         "fingers": [
           0,
           0,
           1,
-          1,
           2,
+          3,
           4
         ],
         "notes": [
-          59,
-          64,
-          69,
-          76
-        ],
-        "string_notes": [
-          null,
-          null,
-          59,
-          64,
-          69,
-          76
-        ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          12,
-          14,
-          14,
-          14,
-          12,
-          12
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
           52,
           59,
           64,
-          69,
-          71,
-          76
+          69
         ],
         "string_notes": [
+          null,
+          null,
           52,
           59,
           64,
-          69,
-          71,
-          76
+          69
         ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          14,
-          14,
-          12,
-          12
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          64,
-          69,
-          71,
-          76
-        ],
-        "string_notes": [
-          null,
-          null,
-          64,
-          69,
-          71,
-          76
-        ],
-        "variation": 7
+        "variation": 3
       }
     ],
     "5|sus4": [
@@ -104874,105 +102015,6 @@
       {
         "frets": [
           -1,
-          -1,
-          3,
-          3,
-          1,
-          1
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          53,
-          58,
-          60,
-          65
-        ],
-        "string_notes": [
-          null,
-          null,
-          53,
-          58,
-          60,
-          65
-        ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          3,
-          5,
-          6,
-          6
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          53,
-          60,
-          65,
-          70
-        ],
-        "string_notes": [
-          null,
-          null,
-          53,
-          60,
-          65,
-          70
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          8,
-          8,
-          5,
-          6,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          53,
-          58,
-          60,
-          65
-        ],
-        "string_notes": [
-          null,
-          53,
-          58,
-          60,
-          65,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
           8,
           10,
           10,
@@ -105002,75 +102044,40 @@
           70,
           72
         ],
-        "variation": 5
+        "variation": 2
       },
       {
         "frets": [
           -1,
           -1,
-          10,
-          10,
-          11,
-          13
+          3,
+          5,
+          6,
+          6
         ],
         "fingers": [
           0,
           0,
-          1,
-          1,
-          2,
-          4
-        ],
-        "notes": [
-          60,
-          65,
-          70,
-          77
-        ],
-        "string_notes": [
-          null,
-          null,
-          60,
-          65,
-          70,
-          77
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          13,
-          15,
-          15,
-          15,
-          13,
-          13
-        ],
-        "fingers": [
           1,
           2,
           3,
-          4,
-          1,
-          1
+          4
         ],
         "notes": [
           53,
           60,
           65,
-          70,
-          72,
-          77
+          70
         ],
         "string_notes": [
+          null,
+          null,
           53,
           60,
           65,
-          70,
-          72,
-          77
+          70
         ],
-        "variation": 7
+        "variation": 3
       }
     ],
     "6|sus4": [
@@ -105112,105 +102119,6 @@
       {
         "frets": [
           -1,
-          -1,
-          4,
-          4,
-          2,
-          2
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          54,
-          59,
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          59,
-          61,
-          66
-        ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          4,
-          6,
-          7,
-          7
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          54,
-          61,
-          66,
-          71
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          61,
-          66,
-          71
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          9,
-          9,
-          6,
-          7,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          54,
-          59,
-          61,
-          66
-        ],
-        "string_notes": [
-          null,
-          54,
-          59,
-          61,
-          66,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
           9,
           11,
           11,
@@ -105240,40 +102148,40 @@
           71,
           73
         ],
-        "variation": 5
+        "variation": 2
       },
       {
         "frets": [
           -1,
           -1,
-          11,
-          11,
-          12,
-          14
+          4,
+          6,
+          7,
+          7
         ],
         "fingers": [
           0,
           0,
           1,
-          1,
           2,
+          3,
           4
         ],
         "notes": [
+          54,
           61,
           66,
-          71,
-          78
+          71
         ],
         "string_notes": [
           null,
           null,
+          54,
           61,
           66,
-          71,
-          78
+          71
         ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "7|sus4": [
@@ -105315,33 +102223,34 @@
       {
         "frets": [
           -1,
-          -1,
-          5,
-          5,
-          3,
-          3
+          10,
+          12,
+          12,
+          13,
+          10
         ],
         "fingers": [
           0,
-          0,
+          1,
+          2,
           3,
           4,
-          1,
           1
         ],
         "notes": [
           55,
-          60,
           62,
-          67
+          67,
+          72,
+          74
         ],
         "string_notes": [
           null,
-          null,
           55,
-          60,
           62,
-          67
+          67,
+          72,
+          74
         ],
         "variation": 2
       },
@@ -105358,8 +102267,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -105377,242 +102286,43 @@
           72
         ],
         "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          10,
-          10,
-          7,
-          8,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          55,
-          60,
-          62,
-          67
-        ],
-        "string_notes": [
-          null,
-          55,
-          60,
-          62,
-          67,
-          null
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          10,
-          12,
-          12,
-          13,
-          10
-        ],
-        "fingers": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          1
-        ],
-        "notes": [
-          55,
-          62,
-          67,
-          72,
-          74
-        ],
-        "string_notes": [
-          null,
-          55,
-          62,
-          67,
-          72,
-          74
-        ],
-        "variation": 5
       }
     ],
     "8|sus4": [
       {
         "frets": [
-          -1,
-          -1,
-          1,
-          1,
-          2,
+          4,
+          6,
+          6,
+          6,
+          4,
           4
         ],
         "fingers": [
-          0,
-          0,
-          1,
           1,
           2,
-          4
+          3,
+          4,
+          1,
+          1
         ],
         "notes": [
+          44,
           51,
           56,
           61,
+          63,
           68
         ],
         "string_notes": [
-          null,
-          null,
+          44,
           51,
           56,
           61,
+          63,
           68
         ],
         "variation": 1
-      },
-      {
-        "frets": [
-          4,
-          6,
-          6,
-          6,
-          4,
-          4
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          44,
-          51,
-          56,
-          61,
-          63,
-          68
-        ],
-        "string_notes": [
-          44,
-          51,
-          56,
-          61,
-          63,
-          68
-        ],
-        "variation": 2
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          6,
-          6,
-          4,
-          4
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          56,
-          61,
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          61,
-          63,
-          68
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          6,
-          8,
-          9,
-          9
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          3,
-          4,
-          4
-        ],
-        "notes": [
-          56,
-          63,
-          68,
-          73
-        ],
-        "string_notes": [
-          null,
-          null,
-          56,
-          63,
-          68,
-          73
-        ],
-        "variation": 4
-      },
-      {
-        "frets": [
-          -1,
-          11,
-          11,
-          8,
-          9,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          56,
-          61,
-          63,
-          68
-        ],
-        "string_notes": [
-          null,
-          56,
-          61,
-          63,
-          68,
-          null
-        ],
-        "variation": 5
       },
       {
         "frets": [
@@ -105646,7 +102356,40 @@
           73,
           75
         ],
-        "variation": 6
+        "variation": 2
+      },
+      {
+        "frets": [
+          -1,
+          -1,
+          6,
+          8,
+          9,
+          9
+        ],
+        "fingers": [
+          0,
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "notes": [
+          56,
+          63,
+          68,
+          73
+        ],
+        "string_notes": [
+          null,
+          null,
+          56,
+          63,
+          68,
+          73
+        ],
+        "variation": 3
       }
     ],
     "9|sus4": [
@@ -105662,8 +102405,8 @@
         "fingers": [
           0,
           0,
-          1,
           2,
+          3,
           4,
           0
         ],
@@ -105686,104 +102429,38 @@
       },
       {
         "frets": [
-          -1,
-          -1,
-          2,
-          2,
-          3,
+          5,
+          7,
+          7,
+          7,
+          5,
           5
         ],
         "fingers": [
-          0,
-          0,
-          1,
           1,
           2,
-          4
+          3,
+          4,
+          1,
+          1
         ],
         "notes": [
+          45,
           52,
           57,
           62,
+          64,
           69
         ],
         "string_notes": [
-          null,
-          null,
+          45,
           52,
           57,
           62,
+          64,
           69
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          5,
-          7,
-          7,
-          7,
-          5,
-          5
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          45,
-          52,
-          57,
-          62,
-          64,
-          69
-        ],
-        "string_notes": [
-          45,
-          52,
-          57,
-          62,
-          64,
-          69
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          7,
-          7,
-          5,
-          5
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          57,
-          62,
-          64,
-          69
-        ],
-        "string_notes": [
-          null,
-          null,
-          57,
-          62,
-          64,
-          69
-        ],
-        "variation": 4
       },
       {
         "frets": [
@@ -105798,8 +102475,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -105816,92 +102493,25 @@
           69,
           74
         ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          12,
-          9,
-          10,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          57,
-          62,
-          64,
-          69
-        ],
-        "string_notes": [
-          null,
-          57,
-          62,
-          64,
-          69,
-          null
-        ],
-        "variation": 6
-      },
-      {
-        "frets": [
-          -1,
-          12,
-          14,
-          14,
-          15,
-          12
-        ],
-        "fingers": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          1
-        ],
-        "notes": [
-          57,
-          64,
-          69,
-          74,
-          76
-        ],
-        "string_notes": [
-          null,
-          57,
-          64,
-          69,
-          74,
-          76
-        ],
-        "variation": 7
+        "variation": 3
       }
     ],
     "10|sus4": [
       {
         "frets": [
-          -1,
-          1,
-          3,
-          3,
-          4,
-          1
+          6,
+          8,
+          8,
+          8,
+          6,
+          6
         ],
         "fingers": [
-          0,
           1,
           2,
           3,
           4,
+          1,
           1
         ],
         "notes": [
@@ -105909,118 +102519,52 @@
           53,
           58,
           63,
-          65
+          65,
+          70
         ],
         "string_notes": [
-          null,
           46,
           53,
           58,
           63,
-          65
+          65,
+          70
         ],
         "variation": 1
       },
       {
         "frets": [
           -1,
-          -1,
+          1,
           3,
           3,
           4,
-          6
+          1
         ],
         "fingers": [
           0,
-          0,
-          1,
           1,
           2,
-          4
+          3,
+          4,
+          1
         ],
         "notes": [
+          46,
           53,
           58,
           63,
-          70
+          65
         ],
         "string_notes": [
           null,
-          null,
+          46,
           53,
           58,
           63,
-          70
+          65
         ],
         "variation": 2
-      },
-      {
-        "frets": [
-          6,
-          8,
-          8,
-          8,
-          6,
-          6
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          46,
-          53,
-          58,
-          63,
-          65,
-          70
-        ],
-        "string_notes": [
-          46,
-          53,
-          58,
-          63,
-          65,
-          70
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          8,
-          8,
-          6,
-          6
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          58,
-          63,
-          65,
-          70
-        ],
-        "string_notes": [
-          null,
-          null,
-          58,
-          63,
-          65,
-          70
-        ],
-        "variation": 4
       },
       {
         "frets": [
@@ -106035,8 +102579,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -106053,43 +102597,45 @@
           70,
           75
         ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          13,
-          13,
-          10,
-          11,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          58,
-          63,
-          65,
-          70
-        ],
-        "string_notes": [
-          null,
-          58,
-          63,
-          65,
-          70,
-          null
-        ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "11|sus4": [
+      {
+        "frets": [
+          7,
+          9,
+          9,
+          9,
+          7,
+          7
+        ],
+        "fingers": [
+          1,
+          2,
+          3,
+          4,
+          1,
+          1
+        ],
+        "notes": [
+          47,
+          54,
+          59,
+          64,
+          66,
+          71
+        ],
+        "string_notes": [
+          47,
+          54,
+          59,
+          64,
+          66,
+          71
+        ],
+        "variation": 1
+      },
       {
         "frets": [
           -1,
@@ -106122,108 +102668,7 @@
           64,
           66
         ],
-        "variation": 1
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          4,
-          4,
-          5,
-          7
-        ],
-        "fingers": [
-          0,
-          0,
-          1,
-          1,
-          2,
-          4
-        ],
-        "notes": [
-          54,
-          59,
-          64,
-          71
-        ],
-        "string_notes": [
-          null,
-          null,
-          54,
-          59,
-          64,
-          71
-        ],
         "variation": 2
-      },
-      {
-        "frets": [
-          7,
-          9,
-          9,
-          9,
-          7,
-          7
-        ],
-        "fingers": [
-          1,
-          2,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          47,
-          54,
-          59,
-          64,
-          66,
-          71
-        ],
-        "string_notes": [
-          47,
-          54,
-          59,
-          64,
-          66,
-          71
-        ],
-        "variation": 3
-      },
-      {
-        "frets": [
-          -1,
-          -1,
-          9,
-          9,
-          7,
-          7
-        ],
-        "fingers": [
-          0,
-          0,
-          3,
-          4,
-          1,
-          1
-        ],
-        "notes": [
-          59,
-          64,
-          66,
-          71
-        ],
-        "string_notes": [
-          null,
-          null,
-          59,
-          64,
-          66,
-          71
-        ],
-        "variation": 4
       },
       {
         "frets": [
@@ -106238,8 +102683,8 @@
           0,
           0,
           1,
+          2,
           3,
-          4,
           4
         ],
         "notes": [
@@ -106256,40 +102701,7 @@
           71,
           76
         ],
-        "variation": 5
-      },
-      {
-        "frets": [
-          -1,
-          14,
-          14,
-          11,
-          12,
-          -1
-        ],
-        "fingers": [
-          0,
-          3,
-          4,
-          1,
-          2,
-          0
-        ],
-        "notes": [
-          59,
-          64,
-          66,
-          71
-        ],
-        "string_notes": [
-          null,
-          59,
-          64,
-          66,
-          71,
-          null
-        ],
-        "variation": 6
+        "variation": 3
       }
     ],
     "0|sus2sus4": [

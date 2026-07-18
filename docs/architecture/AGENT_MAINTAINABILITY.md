@@ -64,6 +64,8 @@ equivalente exacto. Ya están verificadas las familias de notas añadidas (`add2
 `add4`, `madd2`, `madd4`, `add9`) y las tríadas básicas (mayor, menor,
 disminuida y aumentada). Las siguientes familias se revisarán con la misma
 utilidad, sin sustituir tipos propios por acordes solo aproximadamente iguales.
+También están sincronizados los power chords y los suspendidos `sus2` y `sus4`;
+`sus2sus4` permanece explícitamente como tipo propio.
 
 ## Criterio de cierre
 

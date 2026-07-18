@@ -34,4 +34,4 @@ Desde la raíz:
 python scripts/check.py web
 ```
 
-El perfil comprueba la sintaxis de la SPA y del Worker con Node, y construye `pages-dist/`. No hay todavía una suite JavaScript dedicada; los cambios de lógica deben acompañarse de tests cuando se introduzca esa infraestructura.
+El perfil comprueba la sintaxis de la SPA y del Worker, ejecuta las pruebas nativas de Node en `test/` y construye `pages-dist/`. Añadir casos JavaScript directos cuando se extraiga lógica ejecutable; mantener los tests Python para contratos y paridad multiplataforma.

@@ -64,6 +64,10 @@ def check_web() -> None:
         (node, "--check", "apps/web/worker/_worker.js"),
     )
     _run(
+        "Tests JavaScript de la web",
+        (node, "--test", "apps/web/test/catalogs.test.js"),
+    )
+    _run(
         "Bundle estático de Cloudflare Pages",
         (sys.executable, "scripts/build_web_pages_dist.py"),
     )

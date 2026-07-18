@@ -234,6 +234,8 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`** y la ayuda teórica de acordes en **`static/chord_help.js`**; ambos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
+Las pruebas JavaScript sin dependencias externas están en **`test/`** y se ejecutan con `node --test`; `python scripts/check.py web` incluye esta suite, la comprobación de sintaxis y la construcción del bundle.
+
 ### Detección de intervalos (`interval_detection`)
 
 - **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "interval_detection"`, panel `#panelIntervalDetection`, funciones `intervalAddNote`, `getIntervalSemitones`, `getIntervalMelodyNotes`, `playIntervalNoteSequence`, `refreshIntervalResult`, `refreshIntervalButtonsState`.

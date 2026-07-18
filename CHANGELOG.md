@@ -38,6 +38,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Móvil (mantenimiento)**: centralizadas las claves, valores predeterminados, validación y persistencia de preferencias en un repositorio con puerto sustituible; las pruebas cubren carga inválida, guardado completo y eliminación de opciones obsoletas.
 
+- **Móvil (mantenimiento)**: extraída la propiedad de las suscripciones MIDI de datos y cambios de conexión a un ciclo de vida dedicado; el estado recibe bytes independientes del plugin y las pruebas fijan alta única, reenvío y cancelación idempotente.
+
 - **Web (partitura / mantenimiento)**: extraídas y probadas la elección de plica común y la geometría de barras primarias y secundarias; los grupos barrados conservan una dirección coherente y las barras de semicorchea permanecen paralelas.
 
 - **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.

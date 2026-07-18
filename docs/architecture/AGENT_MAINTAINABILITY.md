@@ -22,6 +22,8 @@ En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de
 
 `app_preferences.dart` aplica el mismo patrón a configuración persistente: el estado intercambia una instantánea tipada y el repositorio concentra claves, defaults y validación sobre un puerto reemplazable. Así se pueden probar migraciones y valores corruptos sin inicializar el plugin de preferencias.
 
+`midi_input_lifecycle.dart` posee las dos suscripciones del plugin MIDI y transforma los paquetes en listas de bytes antes de entregarlos al estado. Su contrato evita registros duplicados y garantiza que datos y eventos de conexión se cancelan juntos durante el desmontaje.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

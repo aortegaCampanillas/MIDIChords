@@ -22,6 +22,7 @@ import 'key_signature_highlight.dart';
 import 'music_catalog.dart';
 import 'music_service.dart';
 import 'midi_activity_guard.dart';
+import 'midi_input_lifecycle.dart';
 import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
@@ -371,8 +372,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _audioPlaybackAvailable = true;
   final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
-  StreamSubscription<MidiPacket>? _midiDataSub;
-  StreamSubscription<dynamic>? _midiSetupSub;
+  MidiInputLifecycle? _midiInputLifecycle;
   final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
   final Set<int> _detectionMidiHeldNotes = <int>{};
   final Set<int> _detectionPlayHeldNotes = <int>{};
@@ -1105,8 +1105,7 @@ class _HomeScreenState extends State<HomeScreen>
     _stopHeldInputs();
     _stopHeldMidiInputs();
     unawaited(_disableMidiInput(notify: false));
-    _midiDataSub?.cancel();
-    _midiSetupSub?.cancel();
+    unawaited(_midiInputLifecycle?.dispose());
     for (final t in _forbiddenFlashTimers.values) {
       t.cancel();
     }
@@ -1439,17 +1438,19 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _initMidiInput() {
-    _midiDataSub = _midiCommand.onMidiDataReceived?.listen(_onMidiPacket);
-    _midiSetupSub = _midiCommand.onMidiSetupChanged?.listen((_) {
-      if (_midiInputEnabled) {
-        unawaited(_refreshMidiConnections());
-      }
-    });
+    _midiInputLifecycle = MidiInputLifecycle.fromCommand(
+      command: _midiCommand,
+      onMidiBytes: _onMidiBytes,
+      onSetupChanged: () {
+        if (_midiInputEnabled) {
+          unawaited(_refreshMidiConnections());
+        }
+      },
+    )..start();
   }
 
-  void _onMidiPacket(MidiPacket packet) {
+  void _onMidiBytes(List<int> bytes) {
     if (!_midiInputEnabled) return;
-    final bytes = packet.data;
     var hadNoteChannelMessage = false;
     for (var i = 0; i + 2 < bytes.length; i += 3) {
       final status = bytes[i] & 0xF0;

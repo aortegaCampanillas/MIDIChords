@@ -54,6 +54,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Landings (responsive)**: la navegación permanece disponible en pantallas pequeñas mediante una fila desplazable, los diálogos confinan el foco hasta cerrarse y los enlaces internos a la app web dejan de abrir pestañas nuevas de forma inesperada.
 - **Landings (capturas)**: las galerías usan dos columnas apaisadas en escritorio y una en móvil, preservan la proporción de cada captura sin deformarla y MIDIChords incorpora una vista adicional del círculo de quintas.
 - **MIDIChords (landing)**: la galería completa los siete flujos principales con capturas de detección de acordes, detección de intervalos, generación en piano y guitarra, escalas, círculo de quintas y metrónomo.
+- **MIDIChords (landing)**: sustituidas todas las imágenes antiguas y mezcladas por la serie coherente de capturas apaisadas de iPad preparada para App Store, optimizada a WebP y reutilizada también en el hero.
 - **Generación de acordes (guitarra)**: las variantes `add2`, `add4`, `madd2` y `madd4` disponen ahora de digitaciones concretas de cuatro notas; el mástil muestra solo las cuerdas de la variante seleccionada en lugar de marcar todas las posiciones posibles.
 - **Generación de acordes (guitarra)**: al cambiar de digitación se reproduce inmediatamente el nuevo voicing, manteniendo sincronizados sonido, mástil y pentagrama.
 - **Generación de acordes (guitarra)**: cambiar el tipo de acorde desde el selector reinicia siempre la digitación a la primera variante del nuevo acorde.

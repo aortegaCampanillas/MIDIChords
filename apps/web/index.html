@@ -307,7 +307,7 @@
     }
     .screenshot-item:hover { transform: translateY(-3px); border-color: var(--accent); }
     .screenshot-item img {
-      width: 100%; aspect-ratio: 16 / 10; object-fit: contain;
+      width: 100%; aspect-ratio: 4 / 3; object-fit: contain;
       display: block; background: #101722;
     }
     .screenshot-cap {
@@ -427,7 +427,7 @@
       <div class="hero-note" data-i18n="hero_note">Free, no account, no installation, and no ads.</div>
     </div>
     <div class="hero-preview" aria-hidden="true">
-      <img src="/static/screenshots/detection.png" width="1280" height="800" alt="" fetchpriority="high" />
+      <img src="/static/screenshots/detection.webp" width="1400" height="1050" alt="" fetchpriority="high" />
     </div>
   </div>
 </section>
@@ -532,24 +532,24 @@
     <span class="section-label" data-i18n="ss_label">Screenshots</span>
     <h2 class="section-title" data-i18n="ss_title">See it in action</h2>
     <div class="screenshots-grid">
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.png')">
-        <img src="/static/screenshots/detection.png" width="1280" height="800" alt="Chord detection" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.webp')">
+        <img src="/static/screenshots/detection.webp" width="1400" height="1050" alt="Chord detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap1">Chord Detection</div>
       </button>
       <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/interval-detection.webp')">
         <img src="/static/screenshots/interval-detection.webp" width="1400" height="1050" alt="Interval detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap6">Interval Detection</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.png')">
-        <img src="/static/screenshots/generation.png" width="1280" height="800" alt="Chord generation" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.webp')">
+        <img src="/static/screenshots/generation.webp" width="1400" height="1050" alt="Chord generation" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap2">Chord Generation</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.png')">
-        <img src="/static/screenshots/guitar.png" width="1280" height="800" alt="Guitar chords" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.webp')">
+        <img src="/static/screenshots/guitar.webp" width="1400" height="1050" alt="Guitar chords" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap3">Guitar Chords</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.png')">
-        <img src="/static/screenshots/scales.png" width="1280" height="800" alt="Scales" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.webp')">
+        <img src="/static/screenshots/scales.webp" width="1400" height="1050" alt="Scales" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
       </button>
       <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/circle-of-fifths.webp')">
@@ -567,7 +567,7 @@
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
-  <img id="lightbox-img" src="" width="1280" height="800" alt="Screenshot" />
+  <img id="lightbox-img" src="" width="1400" height="1050" alt="Screenshot" />
 </div>
 
 <!-- CTA BAND -->

@@ -87,6 +87,11 @@ doble liberación concurrente, absorbe fallos durante la limpieza y no retiene
 reproductores ya cerrados; la pantalla conserva la creación y configuración de
 cada fuente de audio.
 
+La creación y configuración del plugin pasa por `audio_player_port.dart`:
+`main.dart` y sus mapas de notas retenidas dependen de `AudioPlayerPort`, mientras
+el factory aplica modo, liberación y contexto y limpia construcciones parciales.
+Las fuentes y decisiones de reproducción permanecen en la pantalla.
+
 La selección de samples queda fuera del widget en `sample_tone_plan.dart`: los
 bancos, rangos, desempate por cercanía y velocidad temperada forman un plan puro
 cubierto con pruebas. `main.dart` se limita a configurar el reproductor con ese
@@ -96,7 +101,7 @@ plan o continuar con el fallback sintetizado.
 
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
-| Flutter `main.dart` | 13.774 líneas | 7.370 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y ciclo de vida de audio |
+| Flutter `main.dart` | 13.774 líneas | 7.360 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puertos de audio |
 | Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
 | Escritorio `ui_mixin.py` | 4.012 líneas | 3.905 líneas | builders Qt para estructura principal y selectores de escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
@@ -113,7 +118,7 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 
 | Área | Acoplamiento observado | Prerrequisito antes de separar |
 |---|---|---|
-| Flutter `main.dart` | audio y afinador aún comparten plugins y estado visual | puertos específicos de sesión/player y pruebas de integración del widget antes de moverlos |
+| Flutter `main.dart` | las decisiones de reproducción aún comparten estado visual con cada modo | pruebas de integración por modo antes de mover la orquestación de reproducción |
 | Web `app.js` | `renderStaff`, `renderGuitar` y eventos de controles conservan DOM/canvas y estado global | ampliar el fixture con el canvas o control concreto antes de cada extracción |
 | Escritorio `ui_mixin.py` | los controles internos de cada modo aún se construyen en métodos extensos | ampliar el smoke contract con sus señales públicas antes de nuevos builders |
 

@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'circle_of_fifths.dart';
 import 'app_preferences.dart';
+import 'audio_player_port.dart';
 import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
@@ -340,12 +341,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Limpia el resalte del acorde en pentagrama si no llega pointer-up (p. ej. iOS).
   Timer? _heldChordPlaybackEndTimer;
-  final Map<int, AudioPlayer> _heldChordPlayers = <int, AudioPlayer>{};
+  final Map<int, AudioPlayerPort> _heldChordPlayers = <int, AudioPlayerPort>{};
 
   /// Invalida reproducciones async (p. ej. `Future.wait` de samples) si hubo `_stopHeldChord` entretanto.
   int _heldChordPlayToken = 0;
-  final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
-  final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
+  final Map<int, AudioPlayerPort> _heldInputPlayers = <int, AudioPlayerPort>{};
+  final Map<int, AudioPlayerPort> _heldMidiInputPlayers =
+      <int, AudioPlayerPort>{};
 
   /// Notas actualmente sonando vía salida MIDI (sin AudioPlayer asociado).
   final Set<int> _midiOutHeldNotes = <int>{};
@@ -356,8 +358,10 @@ class _HomeScreenState extends State<HomeScreen>
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
   final NativeAudioBridge _nativeAudioBridge = NativeAudioBridge.plugin();
-  late final TransientPlayerLifecycle<AudioPlayer> _audioPlayerLifecycle =
-      TransientPlayerLifecycle<AudioPlayer>(
+  final AudioPlayerPortFactory _audioPlayerFactory =
+      AudioPlayerPortFactory.plugin();
+  late final TransientPlayerLifecycle<AudioPlayerPort> _audioPlayerLifecycle =
+      TransientPlayerLifecycle<AudioPlayerPort>(
         disposePlayer: (player) => player.dispose(),
       );
   final bool _midiInputSoundEnabled = true;
@@ -2206,7 +2210,7 @@ class _HomeScreenState extends State<HomeScreen>
     return byteData.buffer.asUint8List();
   }
 
-  Future<AudioPlayer?> _playTone({
+  Future<AudioPlayerPort?> _playTone({
     required int midi,
     required String instrument,
     double durationSeconds = 0.6,
@@ -2272,24 +2276,20 @@ class _HomeScreenState extends State<HomeScreen>
         debugPrint('Instrument sample playback unavailable: $err');
       }
     }
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        context: Platform.isAndroid
+            ? AudioContext(
+                android: const AudioContextAndroid(
+                  contentType: AndroidContentType.sonification,
+                  usageType: AndroidUsageType.assistanceSonification,
+                  audioFocus: AndroidAudioFocus.none,
+                ),
+              )
+            : null,
       );
-      await player.setReleaseMode(ReleaseMode.release);
-      if (Platform.isAndroid) {
-        await player.setAudioContext(
-          AudioContext(
-            android: const AudioContextAndroid(
-              contentType: AndroidContentType.sonification,
-              usageType: AndroidUsageType.assistanceSonification,
-              audioFocus: AndroidAudioFocus.none,
-            ),
-          ),
-        );
-      }
       final seconds = durationSeconds.clamp(0.12, 2.2);
       final wavBytes = _buildWavTone(
         midi: _safeMidi(midi),
@@ -2310,12 +2310,12 @@ class _HomeScreenState extends State<HomeScreen>
           volume: targetVolume,
         );
       }
-      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       debugPrint('Audio playback unavailable on this device/runtime: $err');
       SystemSound.play(SystemSoundType.click);
@@ -2323,7 +2323,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<AudioPlayer?> _playMetronomeClick({
+  Future<AudioPlayerPort?> _playMetronomeClick({
     bool accent = false,
     bool bar = false,
     double volumeScale = 1.0,
@@ -2366,18 +2366,16 @@ class _HomeScreenState extends State<HomeScreen>
       _ => 0.68,
     };
     if (!Platform.isIOS && _metronomeSampleAvailable) {
-      final samplePlayer = AudioPlayer();
-      samplePlayer.positionUpdater = null;
+      AudioPlayerPort? samplePlayer;
       final baseRate = switch (level) {
         2 => 1.68,
         1 => 1.24,
         _ => 0.94,
       };
       try {
-        await samplePlayer.setPlayerMode(
-          Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        samplePlayer = await _audioPlayerFactory.create(
+          mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
         );
-        await samplePlayer.setReleaseMode(ReleaseMode.release);
         if ((baseRate - 1.0).abs() > 0.001) {
           await samplePlayer.setPlaybackRate(baseRate);
         }
@@ -2388,36 +2386,31 @@ class _HomeScreenState extends State<HomeScreen>
         if (level > 0) {
           unawaited(_playMetronomeAccentTransient(level: level, gain: gain));
         }
-        _audioPlayerLifecycle.watch(
-          samplePlayer,
-          samplePlayer.onPlayerComplete,
-        );
+        _audioPlayerLifecycle.watch(samplePlayer, samplePlayer.onComplete);
         return samplePlayer;
       } catch (err) {
         _metronomeSampleAvailable = false;
         try {
-          await samplePlayer.dispose();
+          await samplePlayer?.dispose();
         } catch (_) {}
         debugPrint('Metronome sample playback unavailable: $err');
       }
     }
     final clickWav = _buildMetronomeClickWav(level: level);
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
       );
-      await player.setReleaseMode(ReleaseMode.release);
       await player.play(
         BytesSource(clickWav, mimeType: 'audio/wav'),
         volume: (baseGain * gain).clamp(0.0, 1.0),
       );
-      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
       return player;
     } catch (err) {
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       debugPrint('Metronome synthesized click unavailable: $err');
     }
@@ -2443,13 +2436,11 @@ class _HomeScreenState extends State<HomeScreen>
       );
       return;
     }
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
       );
-      await player.setReleaseMode(ReleaseMode.release);
       await player.play(
         BytesSource(
           _buildMetronomeClickWav(level: level),
@@ -2457,15 +2448,15 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         volume: ((level >= 2 ? 0.48 : 0.32) * gain).clamp(0.0, 1.0),
       );
-      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
     } catch (_) {
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
     }
   }
 
-  Future<AudioPlayer?> _playSampleTone({
+  Future<AudioPlayerPort?> _playSampleTone({
     required int midi,
     required String instrument,
     required double volume,
@@ -2479,64 +2470,63 @@ class _HomeScreenState extends State<HomeScreen>
     }
     final plan = planSampleTone(midi: midi, instrument: instrument);
     if (plan == null) return null;
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
       final useLowLatency = Platform.isAndroid;
-      await player.setPlayerMode(
-        useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        context: Platform.isAndroid
+            ? AudioContext(
+                android: const AudioContextAndroid(
+                  contentType: AndroidContentType.music,
+                  usageType: AndroidUsageType.media,
+                  audioFocus: AndroidAudioFocus.none,
+                ),
+              )
+            : null,
       );
-      await player.setReleaseMode(ReleaseMode.release);
-      await player.setSource(AssetSource(plan.assetPath));
+      final activePlayer = player;
+      await activePlayer.setSource(AssetSource(plan.assetPath));
       if ((plan.playbackRate - 1.0).abs() > 0.001) {
         try {
-          await player.setPlaybackRate(plan.playbackRate);
+          await activePlayer.setPlaybackRate(plan.playbackRate);
         } catch (_) {
           // Keep sample playback even if transposition is unsupported.
         }
       }
-      await player.setVolume(volume);
+      await activePlayer.setVolume(volume);
       if (Platform.isAndroid) {
-        await player.setAudioContext(
-          AudioContext(
-            android: const AudioContextAndroid(
-              contentType: AndroidContentType.music,
-              usageType: AndroidUsageType.media,
-              audioFocus: AndroidAudioFocus.none,
-            ),
-          ),
-        );
-        await player.resume();
+        await activePlayer.resume();
         final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
             .round()
             .clamp(220, 3200);
         Timer(Duration(milliseconds: ttlMs), () {
-          unawaited(_safeStopDispose(player));
+          unawaited(_safeStopDispose(activePlayer));
         });
-        return player;
+        return activePlayer;
       }
-      await player.resume();
+      await activePlayer.resume();
       if (useLowLatency) {
         final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
             .round()
             .clamp(220, 3200);
         Timer(Duration(milliseconds: ttlMs), () {
-          unawaited(_safeStopDispose(player));
+          unawaited(_safeStopDispose(activePlayer));
         });
       } else {
-        _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
+        _audioPlayerLifecycle.watch(activePlayer, activePlayer.onComplete);
       }
-      return player;
+      return activePlayer;
     } catch (err) {
       debugPrint('Instrument sample playback unavailable: $err');
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       return null;
     }
   }
 
-  Future<void> _safeStopDispose(AudioPlayer player) =>
+  Future<void> _safeStopDispose(AudioPlayerPort player) =>
       _audioPlayerLifecycle.dispose(player);
 
   void _showForbiddenOnPiano(int midi) {
@@ -3086,7 +3076,7 @@ class _HomeScreenState extends State<HomeScreen>
         instrument: instrument,
         durationSeconds: instrument == 'guitar' ? 1.45 : 1.35,
       );
-      return MapEntry<int, AudioPlayer?>(midi, player);
+      return MapEntry<int, AudioPlayerPort?>(midi, player);
     }).toList();
     final started = await Future.wait(starts);
     if (!mounted || playToken != _heldChordPlayToken) {

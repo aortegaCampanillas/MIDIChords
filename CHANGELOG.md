@@ -27,6 +27,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Generación de acordes (guitarra)**: las variantes `add2`, `add4`, `madd2` y `madd4` disponen ahora de digitaciones concretas de cuatro notas; el mástil muestra solo las cuerdas de la variante seleccionada en lugar de marcar todas las posiciones posibles.
+
 - **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
 
 - **Escritorio (rendimiento)**: el selector principal cierra antes de aplicar el cambio de modo, se evitan actualizaciones visuales duplicadas y las digitaciones de guitarra se calculan solo al mostrar la guitarra; cambiar de tónica y reproducir acordes desde el piano deja de quedar bloqueado por ese cálculo.

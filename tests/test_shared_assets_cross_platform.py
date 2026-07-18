@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from midichords.core.changelog import get_changelog_path
+from midichords.core.music_theory import CHORD_PATTERNS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +30,36 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
         for relative_path in ("guitar_chord_cache.json", "metronome.mp3"):
             with self.subTest(relative_path=relative_path):
                 self.assert_same_copy(relative_path)
+
+    def test_guitar_cache_covers_every_chord_pattern(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        for pattern in CHORD_PATTERNS:
+            for root_pc in range(12):
+                key = f"{root_pc}|{pattern.suffix}"
+                with self.subTest(key=key):
+                    self.assertTrue(cache.get(key), f"Faltan digitaciones para {key}")
+
+    def test_added_note_voicings_show_one_playable_shape(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        patterns = {
+            pattern.suffix: pattern.intervals
+            for pattern in CHORD_PATTERNS
+            if pattern.suffix in {"add2", "add4", "madd2", "madd4"}
+        }
+        for suffix, intervals in patterns.items():
+            for root_pc in range(12):
+                expected_pcs = {(root_pc + interval) % 12 for interval in intervals}
+                for variation in cache[f"{root_pc}|{suffix}"]:
+                    frets = variation["frets"]
+                    notes = variation["notes"]
+                    with self.subTest(suffix=suffix, root_pc=root_pc, frets=frets):
+                        self.assertEqual(6, len(frets))
+                        self.assertLessEqual(len(notes), 6)
+                        self.assertEqual(expected_pcs, {note % 12 for note in notes})
 
     def test_shared_guitar_sample_bank_is_complete_and_identical(self):
         relative_dir = Path("samples/guitar_nylon")

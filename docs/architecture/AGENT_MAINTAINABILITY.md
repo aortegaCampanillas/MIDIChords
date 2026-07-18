@@ -76,6 +76,11 @@ Las extensiones dominantes compartidas (`9`, `9#5`, `9b5`, `11`, `13`, `13b9`,
 Las extensiones mayores compartidas (`maj7`, `maj7#5`, `maj9`, `maj11`, `maj13`)
 están sincronizadas; `maj7b5`, `maj9#11` y `maj13#11` se conservan como tipos
 propios.
+Las familias menores compartidas (`m7`, `m9`, `m11`, `m13`, `mMaj7`, `mMaj9`,
+`dim7`, `m7b5`) están sincronizadas; `m7#5` se conserva como tipo propio. Con
+este bloque, los 42 tipos con equivalente exacto están auditados para las doce
+tónicas. Los 12 tipos restantes están identificados como catálogo propio y no
+forman parte de la sincronización externa.
 
 ## Criterio de cierre
 

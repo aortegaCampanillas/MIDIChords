@@ -579,6 +579,7 @@
   <p style="margin-top:8px" data-i18n="footer_disclaimer">Not affiliated with Roland Corporation.</p>
 </footer>
 
+<script src="/static/landing_common.js"></script>
 <script>
 const TRANSLATIONS = {
   en: {
@@ -723,87 +724,16 @@ const TRANSLATIONS = {
   },
 };
 
-const LS_KEY = "fmc_lang";
+const detectLang = () => MidiChordsLanding.detectLanguage();
+const toggleLang = () => MidiChordsLanding.toggleLanguage();
+const openLightbox = (src) => MidiChordsLanding.openLightbox(src);
+const closeLightbox = () => MidiChordsLanding.closeLightbox();
+const openFeedback = () => MidiChordsLanding.openFeedback();
+const closeFeedback = () => MidiChordsLanding.closeFeedback();
 
-function detectLang() {
-  const saved = localStorage.getItem(LS_KEY);
-  if (saved === "es" || saved === "en") return saved;
-  const nav = (navigator.language || "en").toLowerCase();
-  return nav.startsWith("es") ? "es" : "en";
-}
-
-function applyLang(lang) {
-  const t = TRANSLATIONS[lang];
-  document.documentElement.lang = lang;
-  document.getElementById("langBtn").textContent = lang === "en" ? "ES" : "EN";
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    const key = el.getAttribute("data-i18n");
-    if (t[key] !== undefined) el.textContent = t[key];
-  });
-  document.querySelectorAll("[data-i18n-html]").forEach(el => {
-    const key = el.getAttribute("data-i18n-html");
-    if (t[key] !== undefined) el.innerHTML = t[key];
-  });
-  document.querySelectorAll("[data-i18n-list]").forEach(el => {
-    const key = el.getAttribute("data-i18n-list");
-    if (Array.isArray(t[key])) {
-      el.innerHTML = t[key].map(item => `<li>${item}</li>`).join("");
-    }
-  });
-}
-
-function toggleLang() {
-  const next = detectLang() === "en" ? "es" : "en";
-  localStorage.setItem(LS_KEY, next);
-  applyLang(next);
-}
-
-function openLightbox(src) {
-  document.getElementById("lightbox-img").src = src;
-  document.getElementById("lightbox").classList.add("open");
-}
-function closeLightbox() {
-  document.getElementById("lightbox").classList.remove("open");
-  document.getElementById("lightbox-img").src = "";
-}
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { closeLightbox(); closeFeedback(); }
-});
-
-applyLang(detectLang());
-
-// ── FEEDBACK MODAL ──
-function openFeedback() { document.getElementById("feedbackModal").classList.remove("hidden"); }
-function closeFeedback() { document.getElementById("feedbackModal").classList.add("hidden"); }
-
-document.getElementById("feedbackForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const lang = detectLang();
-  const t = TRANSLATIONS[lang];
-  const submitBtn = document.getElementById("fbSubmit");
-  const status = document.getElementById("fbStatus");
-  const name    = document.getElementById("fbName").value.trim();
-  const email   = document.getElementById("fbEmail").value.trim();
-  const message = document.getElementById("fbMessage").value.trim();
-  if (!name || !email || !message) { status.textContent = t.fb_error; return; }
-  submitBtn.disabled = true;
-  status.textContent = t.fb_sending;
-  try {
-    const res = await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, message, mode: "fp30x", language: lang, page_url: location.href }),
-    });
-    const out = await res.json();
-    if (out?.sent) {
-      e.target.reset();
-      status.textContent = t.fb_ok;
-    } else { throw new Error(); }
-  } catch {
-    status.textContent = t.fb_error;
-  } finally {
-    submitBtn.disabled = false;
-  }
+MidiChordsLanding.init({
+  translations: TRANSLATIONS,
+  feedbackMode: "fp30x",
 });
 </script>
 </body>

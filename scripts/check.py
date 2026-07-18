@@ -48,12 +48,16 @@ def check_web() -> None:
     if node is None:
         raise SystemExit("ERROR: el perfil web requiere Node.js en PATH.")
 
-    app_html = (PROJECT_ROOT / "apps/web/app.html").read_text(encoding="utf-8")
+    web_root = PROJECT_ROOT / "apps/web"
+    source_html = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (web_root / "app.html", web_root / "index.html", web_root / "fp30x.html")
+    )
     script_paths = tuple(
-        dict.fromkeys(re.findall(r'src="(/static/[^"?#]+\.js)"', app_html))
+        dict.fromkeys(re.findall(r'src="(/static/[^"?#]+\.js)"', source_html))
     )
     if not script_paths:
-        raise SystemExit("ERROR: apps/web/app.html no enlaza scripts bajo /static/.")
+        raise SystemExit("ERROR: el HTML web no enlaza scripts bajo /static/.")
     for script_path in script_paths:
         local_path = f"apps/web{script_path}"
         _run(f"Sintaxis web: {Path(script_path).name}", (node, "--check", local_path))

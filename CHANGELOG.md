@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (escalas / piano)**: una nota retenida en audio tras soltar la tecla vuelve a producir un ataque al pulsar de nuevo esa misma tecla; ya no se reactiva únicamente el resaltado sin que suene.
+
 - **Móvil (escalas)**: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el piano, la guitarra, el pentagrama y la armadura. La liberación MIDI también limpia correctamente la selección aunque la nota mostrada esté trasladada de octava.
 
 - **Escritorio (escalas / piano)**: al soltar una tecla, deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura. La retención de audio existente hasta la siguiente pulsación ya no se confunde con el estado visual de una tecla físicamente pulsada; el pedal de sustain sí conserva el resaltado mientras corresponda.

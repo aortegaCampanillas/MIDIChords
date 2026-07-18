@@ -376,6 +376,9 @@ class InputDetectionMixin:
                 self._update_interval_display()
             return
 
+        was_physically_held = (
+            note in self.midi_held_notes or note in self.mouse_held_notes
+        )
         if source == "midi":
             self.midi_held_notes.add(note)
             self.midi_latched_notes.discard(note)
@@ -384,6 +387,15 @@ class InputDetectionMixin:
             self.midi_latched_notes.discard(note)
 
         if self.current_mode in ("scales", "metronome"):
+            if note in self.sounding_notes and not was_physically_held:
+                # La nota puede seguir sonando tras soltarla por la retención
+                # de estos modos. Una pulsación nueva de esa misma tecla debe
+                # producir otro ataque: liberar la voz anterior y quitarla del
+                # estado diferencial permite que el siguiente refresco envíe
+                # de nuevo note_on. No hacerlo deja la tecla visualmente activa
+                # pero sin sonido.
+                self.stop_note(note)
+                self.sounding_notes.discard(note)
             # Una pulsación nueva reemplaza la selección retenida anterior
             # por las notas actualmente pulsadas (soporta acordes tocados a
             # la vez); las que ya no se pulsan dejan de sonar solo cuando

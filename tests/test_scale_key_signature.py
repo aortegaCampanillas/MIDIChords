@@ -8,6 +8,7 @@ generated reference table.
 """
 import pytest
 
+from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.render_mixin import RenderMixin
 
 # pc -> canonical name preferring sharps / preferring flats
@@ -133,3 +134,53 @@ def test_scale_keyboard_visual_state_ignores_audio_latch_after_release():
 
     render.mouse_held_notes = {64}
     assert render._instrument_display_notes() == {64}
+
+
+@pytest.mark.parametrize(
+    "source,held_attribute",
+    [("mouse", "mouse_held_notes"), ("midi", "midi_held_notes")],
+)
+def test_scale_repeated_latched_note_is_retriggered(source, held_attribute):
+    input_state = InputDetectionMixin()
+    input_state.current_mode = "scales"
+    input_state.note_velocity = {}
+    input_state.sustain_latched_notes = set()
+    input_state.midi_latched_notes = set()
+    input_state.midi_held_notes = set()
+    input_state.mouse_held_notes = set()
+    input_state.held_release_notes = {60}
+    input_state.sounding_notes = {60}
+    stopped = []
+    started = []
+    input_state.stop_note = stopped.append
+    input_state.play_note = lambda note, velocity: started.append((note, velocity))
+    input_state._should_play_midi_input_locally = lambda: True
+
+    input_state._note_on_from_source(60, velocity=100, source=source)
+    _, next_sounding = input_state._compute_next_sounding_state()
+    input_state._apply_sounding_note_diff(next_sounding)
+
+    assert stopped == [60]
+    assert started == [(60, 100)]
+    assert input_state.sounding_notes == {60}
+    assert getattr(input_state, held_attribute) == {60}
+    assert input_state.held_release_notes == {60}
+
+
+def test_scale_duplicate_note_on_while_key_is_held_is_not_retriggered():
+    input_state = InputDetectionMixin()
+    input_state.current_mode = "scales"
+    input_state.note_velocity = {}
+    input_state.sustain_latched_notes = set()
+    input_state.midi_latched_notes = set()
+    input_state.midi_held_notes = set()
+    input_state.mouse_held_notes = {60}
+    input_state.held_release_notes = {60}
+    input_state.sounding_notes = {60}
+    stopped = []
+    input_state.stop_note = stopped.append
+
+    input_state._note_on_from_source(60, velocity=100, source="mouse")
+
+    assert stopped == []
+    assert input_state.sounding_notes == {60}

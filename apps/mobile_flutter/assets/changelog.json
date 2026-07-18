@@ -6,6 +6,13 @@
       {
         "date": "2026-07-18",
         "publish": true,
+        "platforms": ["desktop"],
+        "es": "Escalas: al volver a pulsar una nota retenida en audio, la misma tecla produce ahora un nuevo ataque en lugar de activar únicamente el resaltado.",
+        "en": "Scales: pressing an audio-latched note again now produces a new attack instead of only restoring its highlight."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
         "platforms": ["mobile"],
         "es": "Escalas: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el instrumento, el pentagrama y la armadura; la liberación MIDI también funciona aunque la nota mostrada esté trasladada de octava.",
         "en": "Scales: releasing a manually pressed note now clears its current selection from the instrument, staff, and key signature; MIDI release also works when the displayed note is shifted by an octave."

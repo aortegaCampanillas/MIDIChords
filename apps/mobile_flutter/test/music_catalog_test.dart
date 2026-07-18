@@ -3,7 +3,7 @@ import 'package:midichords/music_catalog.dart';
 
 void main() {
   test('chord catalog is complete and internally consistent', () {
-    expect(chordPatternDefs, hasLength(52));
+    expect(chordPatternDefs, hasLength(54));
 
     final suffixes = chordPatternDefs
         .map((pattern) => pattern['suffix']! as String)

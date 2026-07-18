@@ -19,7 +19,7 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
 
         self.assertEqual(shared, mobile)
         self.assertEqual(suffixes, set(shared["theory"]))
-        self.assertEqual(52, len(shared["theory"]))
+        self.assertEqual(54, len(shared["theory"]))
 
     def test_every_desktop_variant_and_inversion_has_help(self):
         for language in ("es", "en"):

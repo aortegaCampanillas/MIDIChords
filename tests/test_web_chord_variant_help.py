@@ -25,7 +25,7 @@ class WebChordVariantHelpTests(unittest.TestCase):
         theory_entries = re.findall(r'^  "([^"]*)": \["([^"]+)", "(.+)", "(.+)"\],$', theory_block, re.MULTILINE)
         theory_by_suffix = {suffix: (formula, es, en) for suffix, formula, es, en in theory_entries}
 
-        self.assertEqual(52, len(pattern_suffixes))
+        self.assertEqual(54, len(pattern_suffixes))
         self.assertEqual(pattern_suffixes, set(theory_by_suffix))
         for suffix, (formula, es, en) in theory_by_suffix.items():
             with self.subTest(suffix=suffix):
@@ -45,7 +45,7 @@ class WebChordVariantHelpTests(unittest.TestCase):
         ]
 
         self.assertEqual(7, len(suffix_lists))
-        self.assertEqual(52, len(grouped_suffixes))
+        self.assertEqual(54, len(grouped_suffixes))
         self.assertEqual(len(grouped_suffixes), len(set(grouped_suffixes)))
         self.assertEqual(self.chord_pattern_suffixes(), set(grouped_suffixes))
         self.assertIn('document.createElement("optgroup")', app_source)

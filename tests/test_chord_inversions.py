@@ -12,6 +12,20 @@ def _expected_bass_pc(intervals: list[int], inversion: int) -> int:
 
 
 class ChordInversionTests(unittest.TestCase):
+    def test_minor_added_second_and_fourth_use_minor_thirds(self) -> None:
+        patterns = {pattern.suffix: pattern.intervals for pattern in CHORD_PATTERNS}
+
+        self.assertEqual(patterns["madd2"], (0, 2, 3, 7))
+        self.assertEqual(patterns["madd4"], (0, 3, 5, 7))
+        self.assertEqual(
+            generate_chord(0, "madd2", language="es")["notes_midi"],
+            [60, 62, 63, 67],
+        )
+        self.assertEqual(
+            generate_chord(0, "madd4", language="es")["notes_midi"],
+            [60, 63, 65, 67],
+        )
+
     def test_generate_chord_inversions_match_expected_bass_pc(self) -> None:
         root_pc = 0  # C
         for pattern in CHORD_PATTERNS:

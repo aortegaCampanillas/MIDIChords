@@ -39,7 +39,7 @@ test("every chord theory variant belongs to exactly one selector group", () => {
     .flatMap((group) => group.suffixes)
     .sort();
 
-  assert.equal(theorySuffixes.length, 52);
+  assert.equal(theorySuffixes.length, 54);
   assert.equal(new Set(groupedSuffixes).size, groupedSuffixes.length);
   assert.deepEqual(groupedSuffixes, theorySuffixes);
 });

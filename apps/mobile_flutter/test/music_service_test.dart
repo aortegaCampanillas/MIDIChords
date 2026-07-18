@@ -27,6 +27,26 @@ void main() {
     expect(chord['description'], 'Mayor, primera inversión');
   });
 
+  test('generates minor add2 and add4 with the expected added tones', () {
+    final add2 = generateChordLocal(
+      rootPc: 0,
+      suffix: 'madd2',
+      inversion: 0,
+      language: 'es',
+      preferFlat: false,
+    );
+    final add4 = generateChordLocal(
+      rootPc: 0,
+      suffix: 'madd4',
+      inversion: 0,
+      language: 'es',
+      preferFlat: false,
+    );
+
+    expect(add2['notes_midi'], <int>[60, 62, 63, 67]);
+    expect(add4['notes_midi'], <int>[60, 63, 65, 67]);
+  });
+
   test('detects root position and inverted major chords', () {
     final root = detectChordLocal(
       notes: <int>[60, 64, 67],

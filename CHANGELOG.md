@@ -17,6 +17,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Escalas**: el selector agrupa el catálogo por familias teóricas: Modos griegos, Escalas menores, Modos alterados, Pentatónicas y blues, Bebop, Simétricas y sintéticas y Tradicionales del mundo; las cabeceras no son seleccionables y cada escala aparece una sola vez.
 - **Escritorio (escalas)**: el desplegable de Tipo respeta ahora su altura configurada de veinte filas, mostrando muchas más familias y opciones sin necesidad de desplazarse inmediatamente.
 - **Mantenimiento / escalas**: añadida una prueba de contrato que impide que la composición y el orden de las familias teóricas diverjan entre escritorio, web y Flutter.
+- **Generación de acordes**: añadidas las variantes menor con segunda añadida (`madd2`) y menor con cuarta añadida (`madd4`), con nombres bilingües, fórmulas, ayuda teórica y paridad de intervalos en las tres plataformas.
 - **Web (partitura / mantenimiento)**: extraídas a un módulo puro la conversión MIDI→posición vertical en claves de sol y fa y la geometría de líneas adicionales, con pruebas de referencias, enarmonías y notas fuera del pentagrama.
 - **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
 

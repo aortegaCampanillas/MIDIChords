@@ -1342,6 +1342,17 @@ class _HomeScreenState extends State<HomeScreen>
           highlightPadding: 2,
         ),
         _HelpStep(
+          id: 'detection_variant_theory',
+          titleEs: 'Teoría de la variante',
+          titleEn: 'Variant theory',
+          bodyEs:
+              'Abre la fórmula, la explicación teórica y la descripción de la inversión del acorde detectado.',
+          bodyEn:
+              'Opens the formula, theory explanation, and inversion description for the detected chord.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
           id: 'detection_clear_button',
           titleEs: 'Boton limpiar',
           titleEn: 'Clear button',
@@ -2283,16 +2294,30 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _ui(String es, String en) => _language == 'en' ? en : es;
 
-  Widget _buildChordVariantTheoryButton() {
+  Widget _buildChordVariantTheoryButton({
+    String helpId = 'generation_variant_theory',
+    String? suffix,
+    int? inversion,
+    bool enabled = true,
+  }) {
+    final selectedSuffix = suffix ?? _chordSuffix;
+    final selectedInversion = inversion ?? _chordInversion;
     return _helpAnchor(
-      'generation_variant_theory',
+      helpId,
       Tooltip(
         message: _ui('Ayuda de la variante', 'Variant help'),
         child: SizedBox(
           width: 40,
           height: 40,
           child: OutlinedButton(
-            onPressed: _showChordVariantHelpDialog,
+            onPressed: enabled
+                ? () => unawaited(
+                    _showChordVariantHelpDialog(
+                      suffix: selectedSuffix,
+                      inversion: selectedInversion,
+                    ),
+                  )
+                : null,
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.zero,
               foregroundColor: const Color(0xFFF2BF2F),
@@ -2309,22 +2334,24 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Future<void> _showChordVariantHelpDialog() async {
+  Future<void> _showChordVariantHelpDialog({
+    required String suffix,
+    required int inversion,
+  }) async {
     if (_chordTheoryCatalog.isEmpty) {
       await _loadChordTheoryCatalog();
     }
     if (!mounted) return;
     final help = chordVariantHelpContent(
       catalog: _chordTheoryCatalog,
-      suffix: _chordSuffix,
-      inversion: _chordInversion,
+      suffix: suffix,
+      inversion: inversion,
       language: _language,
     );
     final names = _language == 'en'
         ? _kChordSuffixNamesEn
         : _kChordSuffixNamesEs;
-    final variant =
-        names[_chordSuffix] ?? (_chordSuffix.isEmpty ? 'maj' : _chordSuffix);
+    final variant = names[suffix] ?? (suffix.isEmpty ? 'maj' : suffix);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -3610,6 +3637,16 @@ class _HomeScreenState extends State<HomeScreen>
     final intervals = List<int>.from(
       pattern['intervals'] as List<dynamic>? ?? const <dynamic>[],
     );
+    final inversionIndex = bassPc == null
+        ? 0
+        : math
+              .max(
+                0,
+                intervals.indexWhere(
+                  (interval) => _positiveMod12(root + interval) == bassPc,
+                ),
+              )
+              .toInt();
     final degreeByPc = <int, int>{};
     for (final interval in intervals) {
       final pc = _positiveMod12(root + interval);
@@ -3657,10 +3694,8 @@ class _HomeScreenState extends State<HomeScreen>
     String? description;
     if (baseDesc != null) {
       if (bassPc != null && bassPc != root && resolvedBassName != null) {
-        final bassInterval = (bassPc - root + 12) % 12;
-        final invIndex = intervals.indexOf(bassInterval);
-        if (invIndex > 0 && invIndex < inversionNames.length) {
-          description = '$baseDesc, ${inversionNames[invIndex]}';
+        if (inversionIndex > 0 && inversionIndex < inversionNames.length) {
+          description = '$baseDesc, ${inversionNames[inversionIndex]}';
         } else {
           final bassWord = language == 'es' ? 'bajo en' : 'bass on';
           description = '$baseDesc, $bassWord $resolvedBassName';
@@ -3713,6 +3748,7 @@ class _HomeScreenState extends State<HomeScreen>
           .toList(),
       'root_pc': root,
       'suffix': suffix,
+      'inversion': inversionIndex,
       if (description case final String d) 'description': d,
     };
   }
@@ -9558,6 +9594,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildDetectionPage() {
     final hasNotes = _hasDetectionNotes;
+    final detectedSuffix = _detectionResultJson?['suffix'];
+    final hasDetectedChord =
+        detectedSuffix is String && _detectionResultJson?['root_pc'] is num;
+    final detectedInversion =
+        (_detectionResultJson?['inversion'] as num?)?.toInt() ?? 0;
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
@@ -9610,6 +9651,12 @@ class _HomeScreenState extends State<HomeScreen>
                         }
                       },
                     ),
+                  ),
+                  _buildChordVariantTheoryButton(
+                    helpId: 'detection_variant_theory',
+                    suffix: detectedSuffix is String ? detectedSuffix : '',
+                    inversion: detectedInversion,
+                    enabled: hasDetectedChord,
                   ),
                   _helpAnchor(
                     'detection_clear_button',

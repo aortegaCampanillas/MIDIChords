@@ -100,6 +100,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Añadido
 
+- **Todas las plataformas (detección de acordes)**: nuevo botón **?** inmediatamente a la derecha de **Reproducir**. Cuando se reconoce un acorde, abre la misma ayuda teórica disponible en Generación, con su fórmula, explicación y la descripción de la posición fundamental o inversión detectada.
+
 - **Web, escritorio (Qt) y móvil (Flutter; generación de acordes)**: nuevo botón **?** a la derecha de **play** que abre una ayuda teórica específica para la variante seleccionada. El diálogo muestra su fórmula interválica y una explicación en español o inglés para las 52 variantes disponibles; un segundo párrafo dinámico describe la posición fundamental o inversión seleccionada, identificando correctamente el grado que queda en el bajo incluso en acordes suspendidos, alterados y extendidos. El selector organiza todas las variantes mediante cabeceras no seleccionables siguiendo la clasificación de AutoChords (**Tríadas, Séptimas, Sextas, Add y Extensiones**) y añade **Dominantes alterados** y **Extensiones alteradas** para clasificar las 20 variantes propias que no aparecen en esa página sin perder ninguna. Escritorio y móvil consumen el mismo catálogo de teoría versionado en `assets/chord_variant_theory.json` (incluido como asset Flutter) y una prueba impide que ambas copias diverjan.
 
 - **Repo / comunicación**: nuevo documento **`COMPETITIONS.md`** para centralizar candidaturas, borradores y materiales de premios/concursos de FreeMIDIChords.

@@ -52,6 +52,8 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
         self.assertIn("assets/chord_variant_theory.json", pubspec)
         self.assertIn("buildChordVariantDropdownItems", main)
         self.assertIn("_showChordVariantHelpDialog", main)
+        self.assertIn("helpId: 'detection_variant_theory'", main)
+        self.assertIn("'inversion': inversionIndex", main)
         self.assertIn("enabled: false", helper)
 
     def test_desktop_detection_reuses_variant_help_dialog(self):

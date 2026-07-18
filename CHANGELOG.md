@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (mantenimiento)**: extraído de `main.dart` el catálogo declarativo de acordes, escalas, traducciones e inversiones a un módulo puro con tests de integridad, reduciendo el contexto necesario para modificar la UI móvil.
+
 - **Mantenimiento / CI**: añadido un comando unificado de verificación con perfiles para Python, web y Flutter, junto con un workflow de GitHub Actions que ejecuta tests, análisis estático, sintaxis JavaScript y build web en cada pull request; saneados además los avisos previos del analyzer de Flutter para que el nuevo control parta en verde.
 
 ### Corregido

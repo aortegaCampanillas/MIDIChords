@@ -5,12 +5,13 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 ## Arquitectura actual
 
 - `lib/main.dart` concentra todavía gran parte del estado, lógica local, servicios y UI.
+- `lib/music_catalog.dart` contiene los datos declarativos de acordes, escalas y nombres localizados; modificarlo junto con sus tests de integridad y comprobar la paridad multiplataforma.
 - Los módulos ya extraídos en `lib/` son preferibles como destino para lógica pura y componentes acotados.
 - La app mantiene implementaciones locales de generación/detección musical para funcionar sin depender de la API web.
 
 ## Criterio para nuevas extracciones
 
-1. Extraer primero funciones puras y modelos, con tests.
+1. Extraer primero datos declarativos, funciones puras y modelos, con tests. `music_catalog.dart` es el primer ejemplo de este patrón.
 2. Después extraer servicios con ciclo de vida: audio, MIDI, preferencias y cachés.
 3. Extraer painters y widgets sin trasladar estado global innecesario.
 4. Finalmente separar páginas/controladores por modo.

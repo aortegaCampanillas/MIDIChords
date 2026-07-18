@@ -61,10 +61,13 @@ def check_web() -> None:
         "Sintaxis del Cloudflare Worker",
         (node, "--check", "apps/web/worker/_worker.js"),
     )
-    _run(
-        "Tests JavaScript de la web",
-        (node, "--test", "apps/web/test/catalogs.test.js"),
+    web_tests = tuple(
+        str(path.relative_to(PROJECT_ROOT))
+        for path in sorted((PROJECT_ROOT / "apps/web/test").glob("*.test.js"))
     )
+    if not web_tests:
+        raise SystemExit("ERROR: no se encontraron pruebas en apps/web/test/.")
+    _run("Tests JavaScript de la web", (node, "--test", *web_tests))
     _run(
         "Bundle estático de Cloudflare Pages",
         (sys.executable, "scripts/build_web_pages_dist.py"),

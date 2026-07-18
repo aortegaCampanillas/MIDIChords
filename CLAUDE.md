@@ -27,6 +27,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Web: digitaciones de piano | `apps/web/static/piano_fingering.js` |
 | Web: armaduras y relativos modales | `apps/web/static/key_signature.js` |
 | Web: normalización y etiquetas de escalas | `apps/web/static/scale_theory.js` |
+| Web: salida MIDI de bajo nivel | `apps/web/static/midi_output.js` |
 | Web: textos generales ES/EN | `apps/web/static/ui_texts.js` |
 | Web: nombres, alteraciones y armaduras | `apps/web/static/music_notation.js` |
 | Web: ayuda teórica de acordes | `apps/web/static/chord_help.js` |

@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: encapsulada la salida Web MIDI en un controlador inyectable y probado con dispositivo falso, cubriendo note on/off temporizado, notas retenidas, liberación total, velocidad, ausencia de salida y Program Change de piano/guitarra; el perfil web descubre ahora automáticamente todas las suites `*.test.js`.
+
 - **Web (mantenimiento)**: extraídos filtro, alias, normalización por octavas y correspondencia MIDI-etiqueta de escalas a un módulo puro con pruebas de deduplicación, transposición inicial y nombres localizados.
 
 - **Web (mantenimiento)**: extraída la resolución de armaduras mayores, menores y modales a un módulo puro, con pruebas para tonalidades con sostenidos/bemoles, empates enarmónicos, relativos modales y sufijos menores.

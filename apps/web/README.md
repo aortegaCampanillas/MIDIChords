@@ -232,9 +232,9 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, las tablas y conversiones de notación en **`static/music_notation.js`**, la teoría y geometría pura del círculo en **`static/circle_theory.js`**, la teoría de intervalos en **`static/interval_theory.js`**, las digitaciones documentadas en **`static/piano_fingering.js`**, las armaduras en **`static/key_signature.js`**, la normalización de escalas en **`static/scale_theory.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; estos módulos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura y los catálogos se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
-Las pruebas JavaScript sin dependencias externas están en **`test/`** y se ejecutan con `node --test`; `python scripts/check.py web` incluye esta suite, la comprobación de sintaxis y la construcción del bundle.
+Las pruebas JavaScript sin dependencias externas están en **`test/*.test.js`** y se ejecutan con `node --test`; `python scripts/check.py web` las descubre e incluye junto con la comprobación de sintaxis y la construcción del bundle.
 
 El perfil web y el chequeo de salud de producción validan automáticamente todos los scripts y hojas CSS locales enlazados por `app.html`; no mantienen una lista paralela de nombres de assets.
 

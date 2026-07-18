@@ -16,6 +16,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Digitaciones de piano web | `apps/web/static/piano_fingering.js` | La UI de escalas consume resultados puros y puede recibir vacío si no hay patrón documentado | `apps/web/test/catalogs.test.js` y tests Python de digitaciones |
 | Armaduras de la web | `apps/web/static/key_signature.js` | `getStaffContext()` adapta el estado de cada modo en `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` y tests Python de armaduras |
 | Presentación de escalas web | `apps/web/static/scale_theory.js` | Instrumento, nota inicial y reproducción se adaptan desde el estado de `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` |
+| Salida Web MIDI | `apps/web/static/midi_output.js` | `apps/web/static/app.js` aporta dispositivo, permisos, preferencia e instrumento | `apps/web/test/midi_output.test.js` |
 | Ayuda contextual de la web | `apps/web/static/help_callouts.js` | La SPA selecciona los callouts según el modo activo | `apps/web/test/catalogs.test.js` |
 | Acordes de guitarra | `assets/guitar_chord_cache.json` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |

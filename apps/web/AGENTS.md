@@ -4,7 +4,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 ## Fuentes editables
 
-- SPA: `static/app.js`, `static/ui_texts.js`, `static/music_notation.js`, `static/circle_theory.js`, `static/interval_theory.js`, `static/piano_fingering.js`, `static/key_signature.js`, `static/scale_theory.js`, `static/chord_help.js`, `static/help_callouts.js` y `static/style.css`.
+- SPA: `static/app.js`, módulos bajo `static/*.js` enlazados por `app.html` y `static/style.css`.
 - HTML público: `index.html`, `app.html` y `fp30x.html`.
 - API: `worker/_worker.js`.
 - Assets web: `static/`.
@@ -38,6 +38,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/scale_theory.js` contiene el filtro básico, alias localizados, normalización de notas/octavas y correspondencia MIDI-etiqueta. La selección del instrumento y el estado de reproducción permanecen en `app.js`.
 
+`static/midi_output.js` encapsula mensajes de salida, notas retenidas y Program Change mediante un controlador inyectable. Permisos, selección del dispositivo y entrada MIDI permanecen en `app.js`; probar el controlador con salidas falsas en `test/midi_output.test.js`.
+
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 
 Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.
@@ -50,4 +52,4 @@ Desde la raíz:
 python scripts/check.py web
 ```
 
-El perfil comprueba la sintaxis de la SPA y del Worker, ejecuta las pruebas nativas de Node en `test/` y construye `pages-dist/`. Añadir casos JavaScript directos cuando se extraiga lógica ejecutable; mantener los tests Python para contratos y paridad multiplataforma.
+El perfil comprueba la sintaxis de la SPA y del Worker, descubre y ejecuta todos los `test/*.test.js` con Node y construye `pages-dist/`. Añadir casos JavaScript directos cuando se extraiga lógica ejecutable; mantener los tests Python para contratos y paridad multiplataforma.

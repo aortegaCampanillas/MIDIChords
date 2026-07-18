@@ -143,6 +143,7 @@ const state = {
   midiScreenWakeLockTimer: null,
   midiScreenWakeLockWanted: false,
   heldMidiInputVoices: new Map(),
+  heldMidiChordNotes: new Set(),
   audioSampleCache: {},
   audioSampleLoadPromise: null,
 };
@@ -1163,30 +1164,25 @@ function getMidiOutput() {
   return state.midi.access.outputs.values().next().value || null;
 }
 
+const midiOutputController = globalThis.MidiChordsMidiOutput.createMidiOutputController({
+  getOutput: getMidiOutput,
+  heldNotes: state.heldMidiChordNotes,
+});
+
 function sendMidiNote(note, durationMs) {
-  const output = getMidiOutput();
-  if (!output) return;
-  output.send([0x90, note, 64]);
-  setTimeout(() => { try { output.send([0x80, note, 0]); } catch (_e) {} }, durationMs);
+  midiOutputController.sendNote(note, durationMs);
 }
 
 function sendMidiNoteOn(note) {
-  const output = getMidiOutput();
-  if (!output) return;
-  output.send([0x90, note, 64]);
-  if (!state.heldMidiChordNotes) state.heldMidiChordNotes = new Set();
-  state.heldMidiChordNotes.add(note);
+  midiOutputController.noteOn(note);
 }
 
 function sendMidiNoteOff(note) {
-  const output = getMidiOutput();
-  if (output) { try { output.send([0x80, note, 0]); } catch (_e) {} }
-  if (state.heldMidiChordNotes) state.heldMidiChordNotes.delete(note);
+  midiOutputController.noteOff(note);
 }
 
 function stopAllHeldMidiOutputNotes() {
-  if (!state.heldMidiChordNotes || !state.heldMidiChordNotes.size) return;
-  Array.from(state.heldMidiChordNotes).forEach((note) => sendMidiNoteOff(note));
+  midiOutputController.stopAll();
 }
 
 function loadSavedSoundOutputPref() {
@@ -2040,11 +2036,7 @@ function backToMenu() {
 
 function sendMidiProgramChange(inst) {
   if (state.soundOutput !== "midi") return;
-  const output = getMidiOutput();
-  if (!output) return;
-  // General MIDI: 0 = Acoustic Grand Piano, 24 = Acoustic Guitar (nylon)
-  const program = inst === "guitar" ? 24 : 0;
-  output.send([0xC0, program]);
+  midiOutputController.programChange(inst);
 }
 
 function setInstrument(inst) {

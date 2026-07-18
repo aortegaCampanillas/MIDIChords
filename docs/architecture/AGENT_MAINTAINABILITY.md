@@ -14,7 +14,7 @@ También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_
 
 ## Criterio usado
 
-Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.
+Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Después se aisló la salida MIDI mediante inyección del dispositivo y del temporizador. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.
 
 ## Siguientes candidatos
 

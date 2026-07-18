@@ -149,6 +149,7 @@ const {
   createUiLifecycle,
   bindGlobalUiEvents,
   bindImmediatePress: bindImmediatePressControl,
+  bindModalControls,
 } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
@@ -6519,13 +6520,12 @@ function bindEvents() {
   const detectVariantHelp = el("detectVariantHelp");
   if (detectVariantHelp) detectVariantHelp.addEventListener("click", () => showChordVariantHelpModal("detection"));
   const chordVariantHelpCloseBtn = el("chordVariantHelpCloseBtn");
-  if (chordVariantHelpCloseBtn) chordVariantHelpCloseBtn.addEventListener("click", hideChordVariantHelpModal);
   const chordVariantHelpModal = el("chordVariantHelpModal");
-  if (chordVariantHelpModal) {
-    chordVariantHelpModal.addEventListener("click", (event) => {
-      if (event.target === chordVariantHelpModal) hideChordVariantHelpModal();
-    });
-  }
+  bindModalControls(uiLifecycle, {
+    modal: chordVariantHelpModal,
+    closeButton: chordVariantHelpCloseBtn,
+    onClose: hideChordVariantHelpModal,
+  });
   const midiStartupEnableBtn = el("midiStartupEnableBtn");
   if (midiStartupEnableBtn) {
     midiStartupEnableBtn.addEventListener("click", async () => {
@@ -6541,41 +6541,25 @@ function bindEvents() {
     });
   }
   const feedbackOpenBtn = el("feedbackOpenBtn");
-  if (feedbackOpenBtn) {
-    feedbackOpenBtn.addEventListener("click", () => {
-      showFeedbackModal();
-    });
-  }
   const downloadsOpenBtn = el("downloadsOpenBtn");
-  if (downloadsOpenBtn) {
-    downloadsOpenBtn.addEventListener("click", () => {
-      showDownloadsModal();
-    });
-  }
   const feedbackCloseBtn = el("feedbackCloseBtn");
-  if (feedbackCloseBtn) {
-    feedbackCloseBtn.addEventListener("click", () => {
-      hideFeedbackModal();
-    });
-  }
   const downloadsCloseBtn = el("downloadsCloseBtn");
-  if (downloadsCloseBtn) {
-    downloadsCloseBtn.addEventListener("click", () => {
-      hideDownloadsModal();
-    });
-  }
   const feedbackModal = el("feedbackModal");
-  if (feedbackModal) {
-    feedbackModal.addEventListener("click", (event) => {
-      if (event.target === feedbackModal) hideFeedbackModal();
-    });
-  }
   const downloadsModal = el("downloadsModal");
-  if (downloadsModal) {
-    downloadsModal.addEventListener("click", (event) => {
-      if (event.target === downloadsModal) hideDownloadsModal();
-    });
-  }
+  bindModalControls(uiLifecycle, {
+    modal: feedbackModal,
+    openButton: feedbackOpenBtn,
+    closeButton: feedbackCloseBtn,
+    onOpen: showFeedbackModal,
+    onClose: hideFeedbackModal,
+  });
+  bindModalControls(uiLifecycle, {
+    modal: downloadsModal,
+    openButton: downloadsOpenBtn,
+    closeButton: downloadsCloseBtn,
+    onOpen: showDownloadsModal,
+    onClose: hideDownloadsModal,
+  });
   el("guitarHandedness").addEventListener("change", (e) => {
     state.guitarHandedness = e.target.value;
     if (state.instrument === "guitar") renderInstrument();

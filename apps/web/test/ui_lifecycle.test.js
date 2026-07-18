@@ -7,6 +7,7 @@ const {
   createUiLifecycle,
   bindGlobalUiEvents,
   bindImmediatePress,
+  bindModalControls,
 } = globalThis.MidiChordsUiLifecycle;
 
 class FakeTarget {
@@ -149,4 +150,32 @@ test("immediate keyboard click releases and clears its highlight on the lifecycl
   clock.flush();
   assert.deepEqual(calls, ["press", "release"]);
   assert.equal(classes.has("active"), false);
+});
+
+test("modal controls open, close, and dismiss only from the backdrop", () => {
+  const lifecycle = createUiLifecycle(new FakeClock());
+  const modal = new FakeTarget();
+  const openButton = new FakeTarget();
+  const closeButton = new FakeTarget();
+  const calls = [];
+  bindModalControls(lifecycle, {
+    modal,
+    openButton,
+    closeButton,
+    onOpen: () => calls.push("open"),
+    onClose: () => calls.push("close"),
+  });
+
+  openButton.dispatch("click");
+  modal.dispatch("click", { target: {} });
+  modal.dispatch("click", { target: modal });
+  closeButton.dispatch("click");
+  assert.deepEqual(calls, ["open", "close", "close"]);
+
+  lifecycle.unmount();
+  openButton.dispatch("click");
+  assert.deepEqual(calls, ["open", "close", "close"]);
+  assert.equal(modal.listeners.size, 0);
+  assert.equal(openButton.listeners.size, 0);
+  assert.equal(closeButton.listeners.size, 0);
 });

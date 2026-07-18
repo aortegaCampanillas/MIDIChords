@@ -122,9 +122,25 @@
     });
   }
 
+  function bindModalControls(lifecycle, options) {
+    const modal = options.modal;
+    if (options.openButton && typeof options.onOpen === "function") {
+      lifecycle.listen(options.openButton, "click", options.onOpen);
+    }
+    if (options.closeButton && typeof options.onClose === "function") {
+      lifecycle.listen(options.closeButton, "click", options.onClose);
+    }
+    if (modal && typeof options.onClose === "function") {
+      lifecycle.listen(modal, "click", (event) => {
+        if (event.target === modal) options.onClose();
+      });
+    }
+  }
+
   global.MidiChordsUiLifecycle = Object.freeze({
     createUiLifecycle,
     bindGlobalUiEvents,
     bindImmediatePress,
+    bindModalControls,
   });
 })(globalThis);

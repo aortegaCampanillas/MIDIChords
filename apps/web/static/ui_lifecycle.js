@@ -61,8 +61,70 @@
     lifecycle.listen(windowTarget, "pagehide", () => lifecycle.unmount());
   }
 
+  function bindImmediatePress(lifecycle, button, action, options = {}) {
+    if (!button || typeof action !== "function") return;
+    const documentTarget = options.documentTarget || global.document;
+    const highlightWhilePressed = !!options.highlightWhilePressed;
+    const onPress = typeof options.onPress === "function" ? options.onPress : null;
+    const onRelease = typeof options.onRelease === "function" ? options.onRelease : null;
+    let suppressNextClick = false;
+    let pointerPressed = false;
+
+    const setPressedVisual = (pressed) => {
+      if (!highlightWhilePressed) return;
+      button.classList.toggle("active", !!pressed);
+      if (pressed) button.classList.remove("stop-mode");
+    };
+
+    const onPointerStart = (event) => {
+      if (button.disabled) return;
+      if (event.type === "mousedown" && Number(event.button) !== 0) return;
+      event.preventDefault();
+      suppressNextClick = true;
+      pointerPressed = true;
+      setPressedVisual(true);
+      if (onPress) onPress();
+      else action();
+    };
+
+    const onPointerEnd = () => {
+      if (!pointerPressed) return;
+      pointerPressed = false;
+      setPressedVisual(false);
+      if (onRelease) onRelease();
+    };
+
+    lifecycle.listen(button, "mousedown", onPointerStart);
+    lifecycle.listen(button, "touchstart", onPointerStart, { passive: false });
+    lifecycle.listen(documentTarget, "mouseup", onPointerEnd);
+    lifecycle.listen(documentTarget, "touchend", onPointerEnd, { passive: true });
+    lifecycle.listen(documentTarget, "touchcancel", onPointerEnd, { passive: true });
+    lifecycle.listen(button, "click", (event) => {
+      if (button.disabled) {
+        event.preventDefault();
+        return;
+      }
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        event.preventDefault();
+        return;
+      }
+      if (onPress) {
+        onPress();
+        if (onRelease) lifecycle.later(onRelease, 140);
+      } else {
+        action();
+      }
+      if (highlightWhilePressed) {
+        setPressedVisual(true);
+        lifecycle.later(() => setPressedVisual(false), 140);
+      }
+    });
+  }
+
   global.MidiChordsUiLifecycle = Object.freeze({
     createUiLifecycle,
     bindGlobalUiEvents,
+    bindImmediatePress,
   });
 })(globalThis);

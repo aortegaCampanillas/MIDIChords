@@ -3,7 +3,11 @@ const test = require("node:test");
 
 require("../static/ui_lifecycle.js");
 
-const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
+const {
+  createUiLifecycle,
+  bindGlobalUiEvents,
+  bindImmediatePress,
+} = globalThis.MidiChordsUiLifecycle;
 
 class FakeTarget {
   constructor() { this.listeners = new Map(); }
@@ -11,7 +15,7 @@ class FakeTarget {
   removeEventListener(type, handler) {
     if (this.listeners.get(type) === handler) this.listeners.delete(type);
   }
-  dispatch(type) { this.listeners.get(type)?.(); }
+  dispatch(type, event = {}) { this.listeners.get(type)?.(event); }
 }
 
 class FakeClock {
@@ -80,4 +84,69 @@ test("global UI events dispatch callbacks and pagehide unmounts all listeners", 
   assert.deepEqual(calls, ["resize", "scroll", "blur", "visible"]);
   assert.equal(windowTarget.listeners.size, 0);
   assert.equal(documentTarget.listeners.size, 0);
+});
+
+test("immediate press handles pointer lifecycle without a duplicate click", () => {
+  const clock = new FakeClock();
+  const lifecycle = createUiLifecycle(clock);
+  const documentTarget = new FakeTarget();
+  const button = new FakeTarget();
+  button.disabled = false;
+  const classes = new Set(["stop-mode"]);
+  button.classList = {
+    toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); },
+    remove(name) { classes.delete(name); },
+  };
+  const calls = [];
+  bindImmediatePress(lifecycle, button, () => calls.push("action"), {
+    documentTarget,
+    highlightWhilePressed: true,
+    onPress: () => calls.push("press"),
+    onRelease: () => calls.push("release"),
+  });
+
+  let prevented = 0;
+  button.dispatch("mousedown", {
+    type: "mousedown",
+    button: 0,
+    preventDefault: () => { prevented += 1; },
+  });
+  assert.deepEqual(calls, ["press"]);
+  assert.equal(classes.has("active"), true);
+  assert.equal(classes.has("stop-mode"), false);
+
+  documentTarget.dispatch("mouseup");
+  button.dispatch("click", { preventDefault: () => { prevented += 1; } });
+  assert.deepEqual(calls, ["press", "release"]);
+  assert.equal(classes.has("active"), false);
+  assert.equal(prevented, 2);
+
+  lifecycle.unmount();
+  assert.equal(button.listeners.size, 0);
+  assert.equal(documentTarget.listeners.size, 0);
+});
+
+test("immediate keyboard click releases and clears its highlight on the lifecycle clock", () => {
+  const clock = new FakeClock();
+  const lifecycle = createUiLifecycle(clock);
+  const button = new FakeTarget();
+  const classes = new Set();
+  button.classList = {
+    toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); },
+    remove(name) { classes.delete(name); },
+  };
+  const calls = [];
+  bindImmediatePress(lifecycle, button, () => {}, {
+    documentTarget: new FakeTarget(),
+    highlightWhilePressed: true,
+    onPress: () => calls.push("press"),
+    onRelease: () => calls.push("release"),
+  });
+
+  button.dispatch("click", { preventDefault() {} });
+  assert.deepEqual(calls, ["press"]);
+  assert.equal(classes.has("active"), true);
+  clock.flush();
+  assert.deepEqual(calls, ["press", "release"]);
+  assert.equal(classes.has("active"), false);
 });

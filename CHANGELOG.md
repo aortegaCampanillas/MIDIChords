@@ -19,6 +19,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Mantenimiento / escalas**: añadida una prueba de contrato que impide que la composición y el orden de las familias teóricas diverjan entre escritorio, web y Flutter.
 - **Generación de acordes**: añadidas las variantes menor con segunda añadida (`madd2`) y menor con cuarta añadida (`madd4`), con nombres bilingües, fórmulas, ayuda teórica y paridad de intervalos en las tres plataformas.
 - **Web (partitura / mantenimiento)**: extraídas a un módulo puro la conversión MIDI→posición vertical en claves de sol y fa y la geometría de líneas adicionales, con pruebas de referencias, enarmonías y notas fuera del pentagrama.
+- **Web (mantenimiento)**: extraída al ciclo de vida probado la interacción de los botones de pulsación inmediata; ratón, táctil y teclado comparten ahora liberación, resaltado y supresión del clic duplicado, y sus listeners y temporizadores se desmontan con la página.
 - **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
 - **Móvil (mantenimiento)**: encapsulada la salida MIDI detrás de un puerto probado, incluyendo selección y caché de timbre, normalización de mensajes, reintento tras fallos y reinicio al desconectar dispositivos.
 - **Escritorio (mantenimiento)**: extraída la construcción de los selectores de tónica y alteración de Escalas a un builder Qt, manteniendo atributos, callbacks y jerarquía bajo el smoke contract.

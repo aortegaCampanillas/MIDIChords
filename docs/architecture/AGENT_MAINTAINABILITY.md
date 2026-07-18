@@ -16,6 +16,12 @@ Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de w
 
 El contrato web queda establecido en `ui_lifecycle.js`: aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles podrán migrarse por bloques bajo el mismo contrato.
 
+La primera migración de controles también está cerrada: los botones de pulsación
+inmediata (Play/Stop en varios modos) delegan ratón, touch, teclado, estado visual
+y liberación diferida en `bindImmediatePress`. El contrato comprueba la supresión
+del clic que sigue a una pulsación de puntero y el desmontaje conjunto de listeners
+del botón y del documento.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

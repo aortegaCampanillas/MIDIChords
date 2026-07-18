@@ -145,7 +145,11 @@ const state = {
   heldMidiChordNotes: new Set(),
 };
 
-const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
+const {
+  createUiLifecycle,
+  bindGlobalUiEvents,
+  bindImmediatePress: bindImmediatePressControl,
+} = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
 const {
@@ -6486,65 +6490,11 @@ async function toggleMidi() {
 function bindEvents() {
   bindAudioUnlockGestures();
 
-  const bindImmediatePress = (button, action, options = {}) => {
-    if (!button || typeof action !== "function") return;
-    const highlightWhilePressed = !!options.highlightWhilePressed;
-    const onPress = typeof options.onPress === "function" ? options.onPress : null;
-    const onRelease = typeof options.onRelease === "function" ? options.onRelease : null;
-    let suppressNextClick = false;
-    let pointerPressed = false;
-
-    const setPressedVisual = (pressed) => {
-      if (!highlightWhilePressed) return;
-      button.classList.toggle("active", !!pressed);
-      if (pressed) button.classList.remove("stop-mode");
-    };
-
-    const onPointerStart = (event) => {
-      if (button.disabled) return;
-      if (event.type === "mousedown" && Number(event.button) !== 0) return;
-      event.preventDefault();
-      suppressNextClick = true;
-      pointerPressed = true;
-      setPressedVisual(true);
-      if (onPress) onPress();
-      else action();
-    };
-
-    const onPointerEnd = () => {
-      if (!pointerPressed) return;
-      pointerPressed = false;
-      setPressedVisual(false);
-      if (onRelease) onRelease();
-    };
-
-    button.addEventListener("mousedown", onPointerStart);
-    button.addEventListener("touchstart", onPointerStart, { passive: false });
-    document.addEventListener("mouseup", onPointerEnd);
-    document.addEventListener("touchend", onPointerEnd, { passive: true });
-    document.addEventListener("touchcancel", onPointerEnd, { passive: true });
-    button.addEventListener("click", (event) => {
-      if (button.disabled) {
-        event.preventDefault();
-        return;
-      }
-      if (suppressNextClick) {
-        suppressNextClick = false;
-        event.preventDefault();
-        return;
-      }
-      if (onPress) {
-        onPress();
-        if (onRelease) setTimeout(() => onRelease(), 140);
-      } else {
-        action();
-      }
-      if (highlightWhilePressed) {
-        setPressedVisual(true);
-        setTimeout(() => setPressedVisual(false), 140);
-      }
+  const bindImmediatePress = (button, action, options = {}) =>
+    bindImmediatePressControl(uiLifecycle, button, action, {
+      ...options,
+      documentTarget: document,
     });
-  };
 
   const modeSelect = el("modeSelect");
   if (modeSelect) {

@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Optional
 
 import midichords.qt.tk_compat as tk
-from midichords.core.music_theory import CHORD_PATTERNS, ChordPattern, chord_patterns_for_ui
+from midichords.core.music_theory import (
+    CHORD_PATTERNS,
+    ChordPattern,
+    chord_description,
+    chord_patterns_for_ui,
+)
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 
@@ -447,10 +452,24 @@ class GenerationMixin:
 
         shown_suffix = pattern.suffix if pattern.suffix else ""
         chord_name = f"{self.note_name(self.generation_root_pc, with_octave=False)}{shown_suffix}"
+        bass_pc = None
+        bass_name = None
         if inversion > 0 and voiced_notes:
+            bass_pc = int(voiced_notes[0]) % 12
             bass_name = spelled_map.get(int(voiced_notes[0]), self.note_name(voiced_notes[0], with_octave=False))
             chord_name = f"{chord_name}/{bass_name}"
         self.generated_chord_var.set(chord_name)
+        if hasattr(self, "generated_chord_desc_var"):
+            language = str(self.config_data.get("language", "es"))
+            desc = chord_description(
+                suffix=str(pattern.suffix),
+                language=language,
+                bass_pc=bass_pc,
+                root=self.generation_root_pc,
+                bass_name=bass_name,
+                pattern_intervals=pattern.intervals,
+            )
+            self.generated_chord_desc_var.set(f"({desc})" if desc else "")
         if self.generated_preview_notes:
             ordered = sorted(self.generated_preview_notes)
             self.generated_notes_var.set(" - ".join(spelled_map_oct.get(int(note), self.note_name(note)) for note in ordered))

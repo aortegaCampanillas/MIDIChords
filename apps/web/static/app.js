@@ -4478,6 +4478,23 @@ function handleInstrumentNote(note, options = {}) {
       }
     }
     else showForbiddenOnPianoKey(note);
+    return;
+  }
+  if (state.mode === "metronome") {
+    // Igual que Detección/Escalas: el piano sigue siendo interactivo
+    // mientras suena el metrónomo (tocar con el dedo/ratón, no solo mostrar
+    // notas MIDI entrantes, que ya se gestionaba aparte en activeMidiLiveNotes).
+    if (pressed) {
+      state.activeMidiLiveNotes.add(Number(note));
+      if (!skipAudio) startHeldInputNote(note, "piano");
+      renderInstrument();
+    } else if (released) {
+      state.activeMidiLiveNotes.delete(Number(note));
+      if (!skipAudio) stopHeldInputNote(note);
+      renderInstrument();
+    } else if (!skipAudio) {
+      playSingle(Number(note), "piano");
+    }
   }
 }
 
@@ -6354,6 +6371,8 @@ async function runGenerateChord() {
   });
   state.generatedChord = out;
   el("genChordName").textContent = out.name || "-";
+  const genDescEl = el("genChordDesc");
+  if (genDescEl) genDescEl.textContent = out.description ? `(${out.description})` : "";
   el("genNotes").textContent = (out.notes || []).join(" - ") || "-";
   el("genIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
   await loadGuitarVariations();
@@ -6799,7 +6818,7 @@ function beginInputDrag(note, instrumentHint) {
   state.inputDragActive = true;
   state.inputDragInstrument = instrumentHint || null;
   if (state.inputDragNote != null && Number(state.inputDragNote) !== midi) {
-    if (state.mode === "detection") {
+    if (state.mode === "detection" || state.mode === "metronome") {
       handleInstrumentNote(state.inputDragNote, {
         pressed: false,
         released: true,
@@ -6819,7 +6838,7 @@ function updateInputDrag(note, instrumentHint) {
   if (!Number.isFinite(midi)) return;
   if (state.inputDragNote != null && Number(state.inputDragNote) === midi) return;
   if (state.inputDragNote != null) {
-    if (state.mode === "detection") {
+    if (state.mode === "detection" || state.mode === "metronome") {
       handleInstrumentNote(state.inputDragNote, {
         pressed: false,
         released: true,
@@ -6836,7 +6855,7 @@ function updateInputDrag(note, instrumentHint) {
 
 function endInputDrag() {
   if (state.inputDragNote != null) {
-    if (state.mode === "detection") {
+    if (state.mode === "detection" || state.mode === "metronome") {
       handleInstrumentNote(state.inputDragNote, {
         pressed: false,
         released: true,
@@ -7914,9 +7933,14 @@ function bindEvents() {
     applySeoMeta();
     renderInstrument();
     if (state.mode === "detection") await runDetection();
-    if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
-    if (state.mode === "circle_fifths" && state.generatedChord) await runGenerateChordCircle();
-    if (state.mode === "scales" && state.generatedScale) await runGenerateScale();
+    // Generación/Escalas/Círculo se refrescan siempre, no solo si el modo activo
+    // coincide: si el usuario cambia el idioma estando en otra pestaña, el texto
+    // ya generado (nombres de notas, etc.) se quedaba en el idioma anterior hasta
+    // volver a generar manualmente. runGenerateChordCircle va antes porque también
+    // escribe en state.generatedChord y no debe pisar el resultado de Generación.
+    if (state.generatedChord) await runGenerateChordCircle();
+    if (state.generatedChord) await runGenerateChord();
+    if (state.generatedScale) await runGenerateScale();
     renderStaff();
   });
 
@@ -8339,6 +8363,14 @@ async function main() {
   bindEvents();
   const accInit = el("accidental");
   if (accInit && (accInit.value === "flat" || accInit.value === "sharp")) state.accidental = accInit.value;
+  // El <select> de idioma puede llegar con "en" ya seleccionado al cargar
+  // (el navegador recuerda el valor de formularios, o el HTML lo marca por
+  // defecto según el idioma detectado del visitante) sin que state.language
+  // se haya sincronizado — solo se actualizaba en el evento "change" del
+  // select, así que la primera generación automática de acorde/escala
+  // salía siempre en español aunque la UI ya mostrara inglés.
+  const langInit = el("language");
+  if (langInit && (langInit.value === "es" || langInit.value === "en")) state.language = langInit.value;
   applyTranslations();
   syncLeftPanelHeader();
   if (el("scaleBpm") && el("bpm")) {

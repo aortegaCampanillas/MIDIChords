@@ -1302,6 +1302,15 @@ class UiMixin:
             font=(self.ui_font_family, 14, "bold"),
         )
         self.generated_chord_result_label.pack(side=tk.LEFT, padx=(4, 0))
+        self.generated_chord_desc_var = tk.StringVar(value="")
+        self.generated_chord_desc_label = tk.Label(
+            self.gen_result_chord_row,
+            textvariable=self.generated_chord_desc_var,
+            bg="#17273a",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 11),
+        )
+        self.generated_chord_desc_label.pack(side=tk.LEFT, padx=(6, 0))
 
         self.gen_result_notes_row = tk.Frame(self.generation_result_inner, bg="#17273a")
         self.gen_result_notes_row.pack(anchor="w", fill=tk.X, pady=(0, 4))

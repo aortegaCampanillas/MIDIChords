@@ -67,7 +67,7 @@ const CHORD_PATTERNS = [
 ];
 
 const COMMON_CHORD_SUFFIX_ORDER = [
-  "", "m", "7", "maj7", "m7", "sus4", "sus2", "add2", "add4", "dim", "aug", "5", "6", "m6",
+  "", "m", "7", "maj7", "m7", "add2", "add4", "sus2", "sus4", "dim", "aug", "5", "6", "m6",
   "add9", "madd9", "9", "maj9", "m9", "11", "m11", "13", "m13", "dim7", "m7b5",
 ];
 
@@ -475,9 +475,11 @@ function voicedIntervalsForInversion(intervals, inversion) {
 function analyzeChordNotes(notesSet) {
   if (!notesSet.size) return { root: null, pattern: null, bassPc: null };
   const pcs = new Set(Array.from(notesSet, (n) => Number(n) % 12));
+  const bassPc = Math.min(...Array.from(notesSet)) % 12;
   const suffixPriority = new Map(COMMON_CHORD_SUFFIX_ORDER.map((s, i) => [s, i]));
   let bestScore = -999;
   let bestComplexity = -999;
+  let bestRootIsBass = false;
   let bestPriority = 999;
   let bestRoot = null;
   let bestPattern = null;
@@ -492,20 +494,28 @@ function analyzeChordNotes(notesSet) {
       else if (extra === 0) score = 40 - missing;
       else continue;
       const complexity = -pattern.intervals.length;
+      // Distintos acordes pueden compartir exactamente las mismas notas
+      // (p. ej. Do sus2 = Do-Re-Sol y Sol sus4 = Sol-Do-Re son el mismo
+      // conjunto de pitch-classes). En ese empate exacto, la nota más
+      // grave realmente tocada (bassPc) es la señal más fuerte de cuál es
+      // la raíz percibida, y debe primar sobre la prioridad fija de
+      // sufijos (que si no, siempre elegía "sus4" sobre "sus2").
+      const rootIsBass = root === bassPc;
       const priority = suffixPriority.has(pattern.suffix) ? suffixPriority.get(pattern.suffix) : COMMON_CHORD_SUFFIX_ORDER.length;
       const better = score > bestScore
         || (score === bestScore && complexity > bestComplexity)
-        || (score === bestScore && complexity === bestComplexity && priority < bestPriority);
+        || (score === bestScore && complexity === bestComplexity && rootIsBass && !bestRootIsBass)
+        || (score === bestScore && complexity === bestComplexity && rootIsBass === bestRootIsBass && priority < bestPriority);
       if (better) {
         bestScore = score;
         bestComplexity = complexity;
+        bestRootIsBass = rootIsBass;
         bestPriority = priority;
         bestRoot = root;
         bestPattern = pattern;
       }
     }
   }
-  const bassPc = Math.min(...Array.from(notesSet)) % 12;
   return { root: bestRoot, pattern: bestPattern, bassPc };
 }
 
@@ -578,7 +588,28 @@ function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es"
   }
   const rootName = spellByDegree(rootPc, Number(rootPc) % 12, 0, language, preferFlat, rootPc, false);
   let chordName = `${rootName}${selected.suffix}`;
-  if (safeInversion > 0 && notesMidi.length) chordName = `${chordName}/${notesNoOctave[0]}`;
+  let bassName = null;
+  if (safeInversion > 0 && notesMidi.length) {
+    bassName = notesNoOctave[0];
+    chordName = `${chordName}/${bassName}`;
+  }
+
+  const suffixDesc = (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[selected.suffix] || null;
+  let description = suffixDesc;
+  if (suffixDesc && bassName) {
+    const INVERSION_NAMES = {
+      es: ["", "primera inversión", "segunda inversión", "tercera inversión"],
+      en: ["", "first inversion", "second inversion", "third inversion"],
+    };
+    const lang = INVERSION_NAMES[language] ? language : "en";
+    const invName = safeInversion > 0 && safeInversion < INVERSION_NAMES[lang].length
+      ? INVERSION_NAMES[lang][safeInversion]
+      : null;
+    description = invName
+      ? `${suffixDesc}, ${invName}`
+      : `${suffixDesc}, ${language === "es" ? "bajo en" : "bass on"} ${bassName}`;
+  }
+
   return {
     root_pc: Number(rootPc) % 12,
     suffix: selected.suffix,
@@ -588,6 +619,7 @@ function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es"
     notes,
     notes_no_octave: notesNoOctave,
     intervals: voicedIntervals,
+    description,
   };
 }
 

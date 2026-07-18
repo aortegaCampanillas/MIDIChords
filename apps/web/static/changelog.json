@@ -7,6 +7,27 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["desktop", "web", "mobile"],
+        "es": "Nuevas variantes de acorde: \"add2\" (2ª añadida, p. ej. Do-Re-Mi-Sol) y \"add4\" (4ª añadida, p. ej. Do-Mi-Fa-Sol), disponibles en Generación de acordes.",
+        "en": "New chord variants: \"add2\" (added 2nd, e.g. C-D-E-G) and \"add4\" (added 4th, e.g. C-E-F-G), available in Chord Generation."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop", "web", "mobile"],
+        "es": "Detección de acordes: cuando varios acordes comparten exactamente las mismas notas (p. ej. Do sus2 y Sol sus4 son el mismo conjunto de notas), ahora se elige el que coincide con la nota más grave realmente tocada como raíz, en vez de una prioridad fija de sufijos.",
+        "en": "Chord detection: when multiple chords share the exact same notes (e.g. C sus2 and G sus4 are the same note set), the one matching the actual lowest note played as root is now chosen, instead of a fixed suffix priority."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop", "web", "mobile"],
+        "es": "Generación de acordes: se muestra la descripción del acorde entre paréntesis junto al nombre, igual que ya ocurría en Detección de acordes.",
+        "en": "Chord generation: the chord description is now shown in parentheses next to the name, matching what Chord detection already did."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop", "web", "mobile"],
         "es": "Escalas: se corrige la armadura (número de sostenidos/bemoles) de los modos griegos (Dórico, Frigio, Lidio, Mixolidio, Locrio). Antes se calculaba como si todos los modos de sabor menor compartieran la armadura del menor natural, o como si los de sabor mayor compartieran la de su propia tónica — ahora cada modo usa la armadura de su verdadero relativo mayor (p. ej. Do Dórico muestra 2 bemoles, no 3; Fa Lidio no muestra ninguna alteración).",
         "en": "Scales: fixed the key signature (number of sharps/flats) for the Greek modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian). It previously used natural minor's key signature for all \"minor-flavored\" modes, or the tonic's own major key signature for \"major-flavored\" ones — each mode now correctly uses its true relative major's signature (e.g. C Dorian now shows 2 flats instead of 3; F Lydian shows no accidentals)."
       },

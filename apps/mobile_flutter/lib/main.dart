@@ -478,10 +478,10 @@ const List<String> _kCommonChordSuffixOrder = <String>[
   '7',
   'maj7',
   'm7',
-  'sus4',
-  'sus2',
   'add2',
   'add4',
+  'sus2',
+  'sus4',
   'dim',
   'aug',
   '5',
@@ -3221,12 +3221,14 @@ class _HomeScreenState extends State<HomeScreen>
       return const _ChordAnalysis(null, null, null);
     }
     final pcs = notes.map(_positiveMod12).toSet();
+    final bassPc = notes.reduce(math.min) % 12;
     final suffixPriority = <String, int>{
       for (int i = 0; i < _kCommonChordSuffixOrder.length; i += 1)
         _kCommonChordSuffixOrder[i]: i,
     };
     var bestScore = -999;
     var bestComplexity = -999;
+    var bestRootIsBass = false;
     var bestPriority = _kCommonChordSuffixOrder.length;
     int? bestRoot;
     Map<String, dynamic>? bestPattern;
@@ -3250,6 +3252,13 @@ class _HomeScreenState extends State<HomeScreen>
           continue;
         }
         final complexity = -intervals.length;
+        // Distintos acordes pueden compartir exactamente las mismas notas
+        // (p. ej. Do sus2 = Do-Re-Sol y Sol sus4 = Sol-Do-Re son el mismo
+        // conjunto de pitch-classes). En ese empate exacto, la nota más
+        // grave realmente tocada (bassPc) es la señal más fuerte de cuál
+        // es la raíz percibida, y debe primar sobre la prioridad fija de
+        // sufijos (que si no, siempre elegía "sus4" sobre "sus2").
+        final rootIsBass = root == bassPc;
         final suffix = pattern['suffix'] as String? ?? '';
         final priority =
             suffixPriority[suffix] ?? _kCommonChordSuffixOrder.length;
@@ -3257,17 +3266,22 @@ class _HomeScreenState extends State<HomeScreen>
             (score == bestScore && complexity > bestComplexity) ||
             (score == bestScore &&
                 complexity == bestComplexity &&
+                rootIsBass &&
+                !bestRootIsBass) ||
+            (score == bestScore &&
+                complexity == bestComplexity &&
+                rootIsBass == bestRootIsBass &&
                 priority < bestPriority);
         if (better) {
           bestScore = score;
           bestComplexity = complexity;
+          bestRootIsBass = rootIsBass;
           bestPriority = priority;
           bestRoot = root;
           bestPattern = pattern;
         }
       }
     }
-    final bassPc = notes.reduce(math.min) % 12;
     return _ChordAnalysis(bestRoot, bestPattern, bassPc);
   }
 
@@ -3342,8 +3356,25 @@ class _HomeScreenState extends State<HomeScreen>
       withOctave: false,
     );
     var chordName = '$rootName$suffix';
+    String? bassName;
     if (safeInversion > 0 && noteLabelsNoOct.isNotEmpty) {
-      chordName = '$chordName/${noteLabelsNoOct.first}';
+      bassName = noteLabelsNoOct.first;
+      chordName = '$chordName/$bassName';
+    }
+    final suffixNames =
+        language == 'es' ? _kChordSuffixNamesEs : _kChordSuffixNamesEn;
+    final inversionNames =
+        language == 'es' ? _kInversionNamesEs : _kInversionNamesEn;
+    final baseDesc = suffixNames[suffix];
+    String? description;
+    if (baseDesc != null) {
+      if (bassName != null) {
+        description = safeInversion > 0 && safeInversion < inversionNames.length
+            ? '$baseDesc, ${inversionNames[safeInversion]}'
+            : '$baseDesc, ${language == 'es' ? 'bajo en' : 'bass on'} $bassName';
+      } else {
+        description = baseDesc;
+      }
     }
     return <String, dynamic>{
       'root_pc': _positiveMod12(rootPc),
@@ -3354,6 +3385,7 @@ class _HomeScreenState extends State<HomeScreen>
       'notes': noteLabels,
       'notes_no_octave': noteLabelsNoOct,
       'intervals': voicedIntervals,
+      if (description case final String d) 'description': d,
     };
   }
 
@@ -5696,6 +5728,9 @@ class _HomeScreenState extends State<HomeScreen>
         final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
         final text = _intervalTextFromMidiList(generatedMidi).trim();
         return text.isEmpty ? '-' : text;
+      case 'description':
+        final desc = json['description'] as String?;
+        return desc?.isNotEmpty == true ? desc! : '';
       default:
         return '-';
     }
@@ -5716,11 +5751,43 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _detectionResultRow(
-              helpId: 'generation_result_chord',
-              labelEs: 'Acorde',
-              labelEn: 'Chord',
-              value: _chordResultValue('name'),
+            _helpAnchor(
+              'generation_result_chord',
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: RichText(
+                  text: TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: '${_ui('Acorde', 'Chord')}: ',
+                        style: const TextStyle(
+                          color: _muted,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          height: 1.35,
+                        ),
+                      ),
+                      TextSpan(
+                        text: _chordResultValue('name'),
+                        style: const TextStyle(
+                          color: _text,
+                          fontSize: 16,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (_chordResultValue('description').isNotEmpty)
+                        TextSpan(
+                          text: '  (${_chordResultValue('description')})',
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             ),
             _detectionResultRow(
               helpId: 'generation_result_notes',

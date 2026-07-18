@@ -6828,6 +6828,7 @@ function bindEvents() {
     runGenerateChord();
   });
   el("genVariant").addEventListener("change", () => {
+    state.guitarSelectedVariationIdx = 0;
     updateInversionMax();
     runGenerateChord();
   });

@@ -236,6 +236,7 @@ extension _HomeScreenPages on _HomeScreenState {
                                 }
                                 _updateState(() {
                                   _chordSuffix = value;
+                                  _chordGuitarVariant = 0;
                                   _recomputeMaxInversion();
                                 });
                                 if (!_requestInFlight) {
@@ -349,6 +350,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             }
                             _updateState(() {
                               _chordSuffix = value;
+                              _chordGuitarVariant = 0;
                               _recomputeMaxInversion();
                             });
                             if (!_requestInFlight) {

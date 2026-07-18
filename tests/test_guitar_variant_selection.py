@@ -1,4 +1,5 @@
 from midichords.main_app import MidiChordAnalyzerApp
+from midichords.mixins.generation_mixin import GenerationMixin
 
 
 class _GuitarVariantHarness:
@@ -42,3 +43,33 @@ def test_selecting_the_current_or_invalid_variant_is_a_noop() -> None:
     MidiChordAnalyzerApp._select_guitar_variation(app, 2)
 
     assert app.calls == []
+
+
+class _ChordVariantHarness:
+    generation_pattern_suffix = ""
+    guitar_selected_variation_idx = 3
+
+    def __init__(self) -> None:
+        self.index_seen_during_update: int | None = None
+
+    def _clamp_generation_inversion(self) -> None:
+        pass
+
+    def _refresh_generation_selection_buttons(self) -> None:
+        pass
+
+    def _update_generation_preview(self) -> None:
+        self.index_seen_during_update = self.guitar_selected_variation_idx
+
+    def _preview_generated_chord_short(self) -> None:
+        pass
+
+
+def test_changing_chord_type_resets_guitar_voicing_before_refresh() -> None:
+    app = _ChordVariantHarness()
+
+    GenerationMixin._on_generation_variant_clicked(app, "m7")
+
+    assert app.generation_pattern_suffix == "m7"
+    assert app.guitar_selected_variation_idx == 0
+    assert app.index_seen_during_update == 0

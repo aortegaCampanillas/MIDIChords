@@ -36,6 +36,7 @@
       color: var(--text);
       line-height: 1.65;
     }
+    :focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
 
     /* ── NAV ── */
     nav {
@@ -282,6 +283,8 @@
     .screenshot-item {
       border-radius: var(--radius); overflow: hidden;
       border: 1px solid var(--border); cursor: pointer;
+      background: transparent; color: inherit; padding: 0; text-align: left;
+      font: inherit;
       transition: transform .2s, border-color .2s;
     }
     .screenshot-item:hover { transform: translateY(-3px); border-color: var(--accent); }
@@ -357,6 +360,10 @@
       .hero-actions { justify-content: center; }
       .hero-preview { max-width: 720px; margin: 0 auto; transform: none; }
     }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -408,14 +415,14 @@
 
 <!-- FEATURES STRIP -->
 <div class="features-strip" id="featStrip">
-  <button class="feat-pill" data-feat="chords"    onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
-  <button class="feat-pill" data-feat="intervals" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
-  <button class="feat-pill" data-feat="generation" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
-  <button class="feat-pill" data-feat="circle"    onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
-  <button class="feat-pill" data-feat="scales"    onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
-  <button class="feat-pill" data-feat="metro"     onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
-  <button class="feat-pill" data-feat="midi"      onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
-  <button class="feat-pill" data-feat="free" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
+  <button class="feat-pill" data-feat="chords" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
+  <button class="feat-pill" data-feat="intervals" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
+  <button class="feat-pill" data-feat="generation" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
+  <button class="feat-pill" data-feat="circle" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
+  <button class="feat-pill" data-feat="scales" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
+  <button class="feat-pill" data-feat="metro" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
+  <button class="feat-pill" data-feat="midi" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
+  <button class="feat-pill" data-feat="free" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
 </div>
 
@@ -498,28 +505,28 @@
     <span class="section-label" data-i18n="ss_label">Screenshots</span>
     <h2 class="section-title" data-i18n="ss_title">See it in action</h2>
     <div class="screenshots-grid">
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.png')">
-        <img src="/static/screenshots/detection.png" alt="Chord detection" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.png')">
+        <img src="/static/screenshots/detection.png" width="1280" height="800" alt="Chord detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap1">Chord Detection</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.png')">
-        <img src="/static/screenshots/generation.png" alt="Chord generation" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.png')">
+        <img src="/static/screenshots/generation.png" width="1280" height="800" alt="Chord generation" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap2">Chord Generation</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.png')">
-        <img src="/static/screenshots/guitar.png" alt="Guitar chords" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.png')">
+        <img src="/static/screenshots/guitar.png" width="1280" height="800" alt="Guitar chords" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap3">Guitar Chords</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.png')">
-        <img src="/static/screenshots/scales.png" alt="Scales" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.png')">
+        <img src="/static/screenshots/scales.png" width="1280" height="800" alt="Scales" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
-      </div>
+      </button>
     </div>
   </div>
 </div>
 
 <!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
   <img id="lightbox-img" src="" alt="Screenshot" />
 </div>
@@ -553,9 +560,9 @@
 </section>
 
 <!-- FEEDBACK MODAL -->
-<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" onclick="if(event.target===this)closeFeedback()">
+<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle" aria-hidden="true" onclick="if(event.target===this)closeFeedback()">
   <div class="fb-card">
-    <h3 data-i18n="fb_title">Send feedback</h3>
+    <h3 id="feedbackTitle" data-i18n="fb_title">Send feedback</h3>
     <p class="fb-help" data-i18n="fb_help">Send us suggestions or bugs you've found.</p>
     <form id="feedbackForm">
       <div class="fb-row">
@@ -784,7 +791,10 @@ function toggleFeat(id) {
   if (activeFeat === id) {
     activeFeat = null;
     panel.classList.remove("open");
-    btns.forEach(b => b.classList.remove("active"));
+    btns.forEach(b => {
+      b.classList.remove("active");
+      b.setAttribute("aria-expanded", "false");
+    });
     return;
   }
 
@@ -806,7 +816,11 @@ function toggleFeat(id) {
     cta.style.display = "";
   }
 
-  btns.forEach(b => b.classList.toggle("active", b.dataset.feat === id));
+  btns.forEach(b => {
+    const selected = b.dataset.feat === id;
+    b.classList.toggle("active", selected);
+    b.setAttribute("aria-expanded", String(selected));
+  });
   panel.classList.add("open");
 
   // scroll panel into view smoothly

@@ -58,6 +58,7 @@
     lastFocusedElement = document.activeElement;
     image.src = source;
     lightbox.classList.add("open");
+    lightbox.setAttribute("aria-hidden", "false");
     lightbox.querySelector("button")?.focus();
   }
 
@@ -66,6 +67,7 @@
     const image = document.getElementById("lightbox-img");
     if (!lightbox || !image || !lightbox.classList.contains("open")) return;
     lightbox.classList.remove("open");
+    lightbox.setAttribute("aria-hidden", "true");
     image.src = "";
     lastFocusedElement?.focus?.();
   }
@@ -75,6 +77,7 @@
     if (!modal) return;
     lastFocusedElement = document.activeElement;
     modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
     modal.querySelector("input, textarea, button")?.focus();
   }
 
@@ -82,6 +85,7 @@
     const modal = document.getElementById("feedbackModal");
     if (!modal || modal.classList.contains("hidden")) return;
     modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
     lastFocusedElement?.focus?.();
   }
 

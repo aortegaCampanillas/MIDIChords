@@ -34,6 +34,7 @@
       color: var(--text);
       line-height: 1.6;
     }
+    :focus-visible { outline: 3px solid var(--orange-lt); outline-offset: 3px; }
 
     /* ── NAV ── */
     nav {
@@ -190,6 +191,8 @@
     .screenshot-item {
       border-radius: var(--radius); overflow: hidden;
       border: 1px solid var(--border); cursor: pointer;
+      background: transparent; color: inherit; padding: 0; text-align: left;
+      font: inherit;
       transition: transform .2s, border-color .2s;
     }
     .screenshot-item:hover { transform: translateY(-3px); border-color: var(--orange); }
@@ -318,6 +321,10 @@
       .hero-badges, .btn-group { justify-content: center; }
       .hero-preview { max-width: 720px; margin: 0 auto; transform: none; }
       .compatibility-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
@@ -487,24 +494,24 @@
     <span class="section-label" data-i18n="nav_screenshots">Screenshots</span>
     <h2 class="section-title" data-i18n="screenshots_title">See it in action</h2>
     <div class="screenshots-grid">
-      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/settings.webp')">
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/fp30x/settings.webp')">
         <img src="/static/fp30x/settings.webp" width="1400" height="875" alt="Piano Settings tab" loading="lazy" />
         <div class="screenshot-cap" data-i18n="cap_settings">Piano Settings</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/tones.webp')">
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/fp30x/tones.webp')">
         <img src="/static/fp30x/tones.webp" width="1400" height="875" alt="Tones tab with tone browser" loading="lazy" />
         <div class="screenshot-cap" data-i18n="cap_tones">Tone Browser</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/fp30x/metronome.webp')">
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/fp30x/metronome.webp')">
         <img src="/static/fp30x/metronome.webp" width="1400" height="875" alt="Metronome tab" loading="lazy" />
         <div class="screenshot-cap" data-i18n="cap_metro">Metronome</div>
-      </div>
+      </button>
     </div>
   </div>
 </div>
 
 <!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
   <img id="lightbox-img" src="" alt="Screenshot" />
 </div>
@@ -578,9 +585,9 @@
 </div>
 
 <!-- FEEDBACK MODAL -->
-<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" onclick="if(event.target===this)closeFeedback()">
+<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle" aria-hidden="true" onclick="if(event.target===this)closeFeedback()">
   <div class="fb-card">
-    <h3 data-i18n="fb_title">Send feedback</h3>
+    <h3 id="feedbackTitle" data-i18n="fb_title">Send feedback</h3>
     <p class="fb-help" data-i18n="fb_help">Send us suggestions or bugs you've found.</p>
     <form id="feedbackForm">
       <div class="fb-row">

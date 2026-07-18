@@ -66,6 +66,8 @@ disminuida y aumentada). Las siguientes familias se revisarán con la misma
 utilidad, sin sustituir tipos propios por acordes solo aproximadamente iguales.
 También están sincronizados los power chords y los suspendidos `sus2` y `sus4`;
 `sus2sus4` permanece explícitamente como tipo propio.
+La familia de sextas compartida (`6`, `6add9`, `m6`) está asimismo sincronizada;
+`m6add9` se conserva como tipo propio.
 
 ## Criterio de cierre
 

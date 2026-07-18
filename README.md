@@ -18,7 +18,7 @@ Historial de versiones publicadas: [CHANGELOG.md](CHANGELOG.md)
 - **macOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
 - **Windows (Microsoft Store)**: [Free MIDI Piano&Guitar Chords](https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare)
 
-> **Versión actual: 1.0.4.** iOS y macOS comparten el mismo listing en App Store Connect
+> **Versión actual: 1.0.5.** iOS y macOS comparten el mismo listing en App Store Connect
 > (`id6760035776`), así que Apple exige `CFBundleShortVersionString` estrictamente creciente
 > en ambas plataformas aunque se publiquen por separado — no puedes resubir una versión ya
 > aprobada en la otra plataforma. Windows toma la versión directamente del tag de git

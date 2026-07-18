@@ -59,6 +59,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Landings (capturas)**: eliminado el alto porcentual que hacía crecer artificialmente cada tarjeta y centraba la imagen dentro de una gran franja vacía; la proporción de la captura determina ahora directamente el alto del recuadro.
 - **Landings (capturas)**: las miniaturas sobrescriben explícitamente con `height: auto` la altura intrínseca declarada para evitar que el navegador reserve 1050 píxeles CSS y centre la captura dentro de ese espacio.
 - **Landings (SEO bilingüe)**: añadidas URLs alternas `?lang=en` y `?lang=es` con `hreflang`; cambiar de idioma conserva la variante en la URL y traduce también título, descripción, Open Graph y Twitter Cards.
+- **Web (bundle)**: el constructor de Cloudflare Pages descubre y versiona ahora los JS/CSS de todos los HTML públicos, evitando que la infraestructura compartida de las landings quede fuera del fingerprint de caché.
 - **Generación de acordes (guitarra)**: las variantes `add2`, `add4`, `madd2` y `madd4` disponen ahora de digitaciones concretas de cuatro notas; el mástil muestra solo las cuerdas de la variante seleccionada en lugar de marcar todas las posiciones posibles.
 - **Generación de acordes (guitarra)**: al cambiar de digitación se reproduce inmediatamente el nuevo voicing, manteniendo sincronizados sonido, mástil y pentagrama.
 - **Generación de acordes (guitarra)**: cambiar el tipo de acorde desde el selector reinicia siempre la digitación a la primera variante del nuevo acorde.

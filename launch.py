@@ -121,10 +121,10 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     """
     Construye apps/web/pages-dist listo para wrangler pages deploy.
 
-    Renombra los scripts de la SPA y style.css con hash de contenido y actualiza
-    app.html en el bundle, para romper cachés del edge en dominios personalizados
-    que ignoran Cache-Control en /static/*. El repo fuente conserva los nombres
-    estables para desarrollo local.
+    Renombra con hash de contenido los JS/CSS enlazados desde cualquier HTML y
+    actualiza todas sus referencias en el bundle, para romper cachés del edge en
+    dominios personalizados que ignoran Cache-Control en /static/*. El repo
+    fuente conserva los nombres estables para desarrollo local.
     """
     import shutil
 
@@ -151,18 +151,23 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
             shutil.copy(p, pages_dist / extra)
 
     static_dir = pages_dist / "static"
-    app_path = pages_dist / "app.html"
-    html = app_path.read_text(encoding="utf-8")
+    html_paths = tuple(sorted(pages_dist.glob("*.html")))
+    html_documents = {
+        path: path.read_text(encoding="utf-8")
+        for path in html_paths
+    }
     asset_urls = tuple(
         dict.fromkeys(
-            re.findall(
-                r'(?:src|href)="(/static/[^"?#]+\.(?:js|css))"',
-                html,
+            asset_url
+            for html in html_documents.values()
+            for asset_url in re.findall(
+                    r'(?:src|href)="(/static/[^"?#]+\.(?:js|css))"',
+                    html,
             )
         )
     )
     if not asset_urls:
-        raise SystemExit("[pages-dist] app.html no enlaza ningún JS/CSS bajo /static/")
+        raise SystemExit("[pages-dist] Ningún HTML enlaza JS/CSS bajo /static/")
 
     fingerprinted_paths: list[Path] = []
     for asset_url in asset_urls:
@@ -174,10 +179,14 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
         fingerprinted = source.with_name(f"{source.stem}.{digest}{source.suffix}")
         source.rename(fingerprinted)
         fingerprinted_url = f"/static/{fingerprinted.relative_to(static_dir).as_posix()}"
-        html = html.replace(f'"{asset_url}"', f'"{fingerprinted_url}"')
+        html_documents = {
+            path: html.replace(f'"{asset_url}"', f'"{fingerprinted_url}"')
+            for path, html in html_documents.items()
+        }
         fingerprinted_paths.append(fingerprinted)
 
-    app_path.write_text(html, encoding="utf-8")
+    for path, html in html_documents.items():
+        path.write_text(html, encoding="utf-8")
     print(
         "[pages-dist] Fingerprint estáticos: "
         + ", ".join(

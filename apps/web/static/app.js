@@ -175,6 +175,11 @@ const {
 } = globalThis.MidiChordsAudioSamples;
 
 const { createAudioSampleLoader } = globalThis.MidiChordsAudioSampleLoader;
+const {
+  instrumentSampleEnvelope,
+  heldVoiceReleaseTiming,
+  releaseAudioVoice,
+} = globalThis.MidiChordsAudioVoice;
 const audioSampleLoader = createAudioSampleLoader({
   getContext: ensureAudioCtx,
   sampleUrls: allAudioSampleUrls(),
@@ -5429,16 +5434,15 @@ function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, 
   src.playbackRate.setValueAtTime(samplePlaybackRate(midi, root), t);
 
   const gain = ctx.createGain();
-  const baseDur = Math.max(0.16, Number(durationSeconds) || 0.46);
-  const sustainEnd = t + (instrument === "guitar" ? (baseDur * 1.9) : (baseDur * 1.7));
-  gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(instrument === "guitar" ? 0.96 : 0.88, t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + (instrument === "guitar" ? 0.62 : 0.48));
+  const envelope = instrumentSampleEnvelope(t, durationSeconds, instrument);
+  gain.gain.setValueAtTime(0.0001, envelope.start);
+  gain.gain.exponentialRampToValueAtTime(envelope.attackPeak, envelope.attackEnd);
+  gain.gain.exponentialRampToValueAtTime(0.0001, envelope.releaseEnd);
 
   src.connect(gain);
   gain.connect(ensureAudioBus(ctx));
-  src.start(t);
-  src.stop(sustainEnd + 0.75);
+  src.start(envelope.start);
+  src.stop(envelope.sourceStop);
   return { source: src, gain };
 }
 
@@ -5566,22 +5570,13 @@ function stopHeldChord() {
   if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
+  const timing = heldVoiceReleaseTiming("piano", {
+    releaseSeconds: 0.09,
+    sourceTail: 0.11,
+    noiseTail: 0.04,
+  });
   state.heldChordVoices.forEach((voice) => {
-    try {
-      const gain = voice?.gain;
-      if (gain?.gain) {
-        const now = t;
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || 0.001), now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
-      }
-      (voice?.oscs || []).forEach((osc) => {
-        try { osc.stop(t + 0.11); } catch (_e) {}
-      });
-      if (voice?.noise) {
-        try { voice.noise.stop(t + 0.04); } catch (_e) {}
-      }
-    } catch (_e) {}
+    releaseAudioVoice(voice, t, timing);
   });
   state.heldChordVoices.clear();
 }
@@ -5598,22 +5593,7 @@ function stopHeldInputNote(midi) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
   const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
-  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
-  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
-  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
-  try {
-    if (voice.gain?.gain) {
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
-      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
-    }
-    (voice.oscs || []).forEach((osc) => {
-      try { osc.stop(t + oscTail); } catch (_e) {}
-    });
-    if (voice.noise) {
-      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
-    }
-  } catch (_e) {}
+  releaseAudioVoice(voice, t, heldVoiceReleaseTiming(instrument));
   state.heldInputVoices.delete(note);
 }
 
@@ -5652,22 +5632,7 @@ function stopHeldMidiInputNote(midi) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
   const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
-  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
-  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
-  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
-  try {
-    if (voice.gain?.gain) {
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
-      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
-    }
-    (voice.oscs || []).forEach((osc) => {
-      try { osc.stop(t + oscTail); } catch (_e) {}
-    });
-    if (voice.noise) {
-      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
-    }
-  } catch (_e) {}
+  releaseAudioVoice(voice, t, heldVoiceReleaseTiming(instrument));
   state.heldMidiInputVoices.delete(note);
 }
 

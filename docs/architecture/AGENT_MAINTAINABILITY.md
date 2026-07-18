@@ -7,21 +7,21 @@ Estado de la refactorización orientada a reducir contexto, explicitar fronteras
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 8.576 líneas | catálogo musical, servicio musical puro, painters, layout del piano y páginas por modo |
-| Web `app.js` | 8.902 líneas | 7.338 líneas | textos, notación, teoría del círculo/intervalos/escalas, digitaciones, armaduras, ayudas, salida MIDI y catálogo/caché de samples |
+| Web `app.js` | 8.902 líneas | 7.303 líneas | textos, notación, teoría del círculo/intervalos/escalas, digitaciones, armaduras, ayudas, salida MIDI y catálogo/caché/voces de samples |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
 
 ## Criterio usado
 
-Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Después se aislaron la salida MIDI y la descarga/caché de samples mediante dependencias inyectables, además de la matemática de audio mediante buffers falsos. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.
+Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Después se aislaron la salida MIDI, la descarga/caché de samples y la liberación de voces mediante dependencias inyectables, además de la matemática de audio mediante buffers y nodos falsos. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.
 
 ## Siguientes candidatos
 
 Las siguientes unidades siguen siendo grandes, pero ya requieren cambios de diseño:
 
 1. `apps/mobile_flutter/lib/main.dart`: separar audio, MIDI, preferencias y afinador por ciclo de vida. Antes conviene crear tests con adaptadores falsos para permisos, dispositivos y temporizadores.
-2. `apps/web/static/app.js`: antes de aislar más ciclo de vida Web Audio o los renderers por modo, crear adaptadores falsos para nodos, permisos y temporizadores. Descarga y caché ya tienen un cargador inyectable; deben conservarse el desbloqueo por gesto, las voces retenidas y el orden de carga.
+2. `apps/web/static/app.js`: antes de aislar más ciclo de vida Web Audio o los renderers por modo, crear adaptadores falsos para permisos y temporizadores. Descarga, caché, envolventes y liberación ya tienen límites probados; deben conservarse el desbloqueo por gesto, los mapas de voces retenidas y el orden de carga.
 3. `midichords/mixins/ui_mixin.py`: dividir construcción de paneles Qt por modo. Los nuevos módulos deben seguir usando el estado de la aplicación y el shim Qt existente, sin reintroducir Tk real.
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero sus contratos aumentaría el acoplamiento oculto y dificultaría las pruebas.

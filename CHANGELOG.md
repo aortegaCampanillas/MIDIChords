@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídas las envolventes de piano/guitarra y la liberación segura de voces retenidas a un módulo probado con nodos Web Audio falsos, eliminando dos implementaciones duplicadas y cubriendo también fuentes ya detenidas.
+
 - **Web (mantenimiento)**: encapsuladas la descarga, decodificación y caché de samples en un cargador inyectable; las pruebas verifican una sola carga concurrente, normalización exclusiva del metrónomo y conservación de resultados parciales ante fallos de red.
 
 - **Web (mantenimiento)**: extraídos el catálogo de samples y los cálculos puros de selección de raíz, transposición y normalización de buffers; la nueva suite usa `AudioContext` y buffers falsos sin alterar el desbloqueo por gesto, la caché ni el ciclo de reproducción del navegador.

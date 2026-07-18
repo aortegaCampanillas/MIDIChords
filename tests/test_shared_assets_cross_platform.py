@@ -159,6 +159,56 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
                     [variation["fingers"] for variation in variations],
                 )
 
+    def test_minor_add4_exposes_the_two_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[8, 8, 10, 8, 8, 8], [-1, 3, 3, 5, 4, 3]],
+            1: [[9, 9, 11, 9, 9, 9], [-1, 4, 4, 6, 5, 4]],
+            2: [[10, 10, 12, 10, 10, 10], [-1, 5, 5, 7, 6, 5]],
+            3: [[11, 11, 13, 11, 11, 11], [-1, 6, 6, 8, 7, 6]],
+            4: [[0, 0, 2, 0, 0, 0], [-1, 7, 7, 9, 8, 7]],
+            5: [[1, 1, 3, 1, 1, 1], [-1, 8, 8, 10, 9, 8]],
+            6: [[2, 2, 4, 2, 2, 2], [-1, 9, 9, 11, 10, 9]],
+            7: [[3, 3, 5, 3, 3, 3], [-1, 10, 10, 12, 11, 10]],
+            8: [[4, 4, 6, 4, 4, 4], [-1, 11, 11, 13, 12, 11]],
+            9: [[-1, 0, 0, 2, 1, 0], [5, 5, 7, 5, 5, 5]],
+            10: [[6, 6, 8, 6, 6, 6], [-1, 1, 1, 3, 2, 1]],
+            11: [[7, 7, 9, 7, 7, 7], [-1, 2, 2, 4, 3, 2]],
+        }
+        e_fingers = [1, 1, 3, 1, 1, 1]
+        a_fingers = [0, 1, 1, 3, 2, 1]
+        expected_fingers = {root_pc: [e_fingers, a_fingers] for root_pc in range(12)}
+        expected_fingers[4] = [[0, 0, 2, 0, 0, 0], a_fingers]
+        expected_fingers[9] = [[0, 0, 0, 2, 1, 0], e_fingers]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                variations = cache[f"{root_pc}|madd4"]
+                self.assertEqual(frets, [variation["frets"] for variation in variations])
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in variations],
+                )
+
+    def test_add9_matches_the_three_reference_add2_fingerings(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        for root_pc in range(12):
+            with self.subTest(root_pc=root_pc):
+                add2 = cache[f"{root_pc}|add2"]
+                add9 = cache[f"{root_pc}|add9"]
+                self.assertEqual(3, len(add9))
+                self.assertEqual(
+                    [variation["frets"] for variation in add2],
+                    [variation["frets"] for variation in add9],
+                )
+                self.assertEqual(
+                    [variation["fingers"] for variation in add2],
+                    [variation["fingers"] for variation in add9],
+                )
+
     def test_shared_guitar_sample_bank_is_complete_and_identical(self):
         relative_dir = Path("samples/guitar_nylon")
         expected_names = {path.name for path in (DESKTOP_ASSETS / relative_dir).glob("*.mp3")}

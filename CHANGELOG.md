@@ -33,6 +33,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Generación de acordes (guitarra)**: cada tónica add2 ofrece las tres digitaciones de referencia verificadas; los mástiles llegan ahora hasta el traste 15 para mostrar también las posiciones más altas.
 - **Generación de acordes (guitarra)**: cada tónica add4 ofrece sus dos digitaciones de referencia verificadas, incluidas las posiciones abiertas especiales de Mi y La.
 - **Generación de acordes (guitarra)**: cada tónica menor add2 ofrece sus dos digitaciones de referencia verificadas, incluida la posición abierta especial de Mi menor add2.
+- **Generación de acordes (guitarra)**: cada tónica menor add4 ofrece sus dos digitaciones de referencia y cada add9 sus tres posiciones verificadas, incluidas las digitaciones abiertas especiales.
 
 - **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
 

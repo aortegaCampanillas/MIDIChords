@@ -6,6 +6,13 @@
       {
         "date": "2026-07-18",
         "publish": true,
+        "platforms": ["mobile"],
+        "es": "Escalas: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el instrumento, el pentagrama y la armadura; la liberación MIDI también funciona aunque la nota mostrada esté trasladada de octava.",
+        "en": "Scales: releasing a manually pressed note now clears its current selection from the instrument, staff, and key signature; MIDI release also works when the displayed note is shifted by an octave."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
         "platforms": ["desktop"],
         "es": "Escalas: al soltar una tecla deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura; la retención de audio ya no mantiene activo el resaltado visual, salvo al usar el pedal de sustain.",
         "en": "Scales: releasing a key now immediately clears its highlight from the piano, staff, and key signature; audio latching no longer keeps the visual state active, except while using the sustain pedal."

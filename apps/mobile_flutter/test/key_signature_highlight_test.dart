@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:midichords/key_signature_highlight.dart';
 
@@ -76,5 +78,19 @@ void main() {
       ),
       -1,
     );
+  });
+
+  test('manual scale release clears every current-note visual state', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final releaseBlock = source
+        .split('void _endInputDrag(int pointer)')
+        .last
+        .split('void _syncPianoScrollToMiddleC')
+        .first;
+
+    expect(releaseBlock, contains('if (_tabIndex == 3 && !_scaleLoopRunning)'));
+    expect(releaseBlock, contains('_scaleCurrentNote = null;'));
+    expect(releaseBlock, contains('_scaleCurrentIsLeft = null;'));
+    expect(releaseBlock, contains('_scaleInputRawNote = null;'));
   });
 }

@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (escalas)**: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el piano, la guitarra, el pentagrama y la armadura. La liberación MIDI también limpia correctamente la selección aunque la nota mostrada esté trasladada de octava.
+
 - **Escritorio (escalas / piano)**: al soltar una tecla, deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura. La retención de audio existente hasta la siguiente pulsación ya no se confunde con el estado visual de una tecla físicamente pulsada; el pedal de sustain sí conserva el resaltado mientras corresponda.
 
 - **Escritorio (ayuda de acordes)**: el diálogo teórico ajusta ahora su altura al contenido, elimina el gran espacio vacío inferior, recupera los márgenes alrededor del contenido y coloca **Cerrar** debajo del texto, alineado en la parte inferior derecha.

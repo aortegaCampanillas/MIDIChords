@@ -5405,13 +5405,6 @@ class _HomeScreenState extends State<HomeScreen>
           _scaleCurrentIsLeft = null;
         }
         _scaleInputRawNote = _instrumentView == 'piano' ? midi : null;
-      } else if (fromMidi && _scaleCurrentNote == midi) {
-        // Al soltar en MIDI la nota que estaba marcada como "actual", no la
-        // dejamos pegada: si quedan otras notas sostenidas, el pentagrama
-        // seguirá mostrando la escala completa igualmente.
-        _scaleCurrentNote = null;
-        _scaleCurrentIsLeft = null;
-        _scaleInputRawNote = null;
       }
       if (fromMidi) {
         // Igual que en Generación: con MIDI puede haber varias notas
@@ -5421,6 +5414,20 @@ class _HomeScreenState extends State<HomeScreen>
           _scaleMidiHeldNotes.add(midi);
         } else {
           _scaleMidiHeldNotes.remove(midi);
+          final releasedCurrent =
+              _scaleCurrentNote != null &&
+              _positiveMod12(_scaleCurrentNote!) == _positiveMod12(midi);
+          if (_scaleMidiHeldNotes.isEmpty) {
+            _scaleCurrentNote = null;
+            _scaleCurrentIsLeft = null;
+            _scaleInputRawNote = null;
+          } else if (releasedCurrent) {
+            final remaining = _scaleMidiHeldNotes.last;
+            _scaleCurrentNote =
+                _scaleStaffNoteForPitch(remaining, includeBass: true) ??
+                remaining;
+            _scaleCurrentIsLeft = null;
+          }
         }
       }
       setState(() {});
@@ -5543,8 +5550,10 @@ class _HomeScreenState extends State<HomeScreen>
       _generationInputStaffNotes.clear();
       _clearGenerationPianoHighlight();
     }
-    if (_tabIndex == 3 && _scaleInputRawNote != null) {
-      setState(() => _scaleInputRawNote = null);
+    if (_tabIndex == 3 && !_scaleLoopRunning) {
+      _scaleCurrentNote = null;
+      _scaleCurrentIsLeft = null;
+      _scaleInputRawNote = null;
     }
     if (_tabIndex == 4) {
       _metronomeHeldNotes.clear();

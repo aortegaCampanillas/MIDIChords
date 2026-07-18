@@ -34,6 +34,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web (mantenimiento)**: añadido un ciclo de vida inyectable para listeners y temporizadores con DOM y reloj falsos; la coordinación global de ventana, visibilidad y desmontaje está separada de `bindEvents` y se registra y libera mediante ese contrato.
 
+- **Móvil (mantenimiento)**: aislados el bloqueo de pantalla nativo y su temporizador renovable de actividad MIDI detrás de un adaptador probado; el widget ya no coordina directamente `WakelockPlus` y se verifican cancelación, renovación y desmontaje idempotente.
+
 - **Web (partitura / mantenimiento)**: extraídas y probadas la elección de plica común y la geometría de barras primarias y secundarias; los grupos barrados conservan una dirección coherente y las barras de semicorchea permanecen paralelas.
 
 - **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.

@@ -12,7 +12,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'circle_of_fifths.dart';
@@ -22,6 +21,7 @@ import 'interval_data.dart';
 import 'key_signature_highlight.dart';
 import 'music_catalog.dart';
 import 'music_service.dart';
+import 'midi_activity_guard.dart';
 import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
@@ -384,7 +384,10 @@ class _HomeScreenState extends State<HomeScreen>
   /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
   /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).
   static const Duration _kMidiResetsIdleDuration = Duration(minutes: 3);
-  Timer? _midiIdleExtensionTimer;
+  final MidiActivityGuard _midiActivityGuard = MidiActivityGuard(
+    wakeLock: const PluginWakeLockPort(),
+    idleDuration: _kMidiResetsIdleDuration,
+  );
   String _soundOutput =
       'audio'; // 'audio' or 'midi' - controls note playback routing
 
@@ -1120,7 +1123,7 @@ class _HomeScreenState extends State<HomeScreen>
     _helpOverlayController.dispose();
     _pianoScrollController.dispose();
     _scaleControlsScrollController.dispose();
-    _cancelMidiScreenActivityExtension();
+    _midiActivityGuard.dispose();
     super.dispose();
   }
 
@@ -1428,13 +1431,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _cancelMidiScreenActivityExtension() {
-    _midiIdleExtensionTimer?.cancel();
-    _midiIdleExtensionTimer = null;
-    unawaited(() async {
-      try {
-        await WakelockPlus.disable();
-      } catch (_) {}
-    }());
+    _midiActivityGuard.cancel();
   }
 
   /// Cada nota MIDI (u off) renueva la ventana: equivale a “hubo interacción” para no
@@ -1443,23 +1440,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_midiInputEnabled || _tabIndex != 0) {
       return;
     }
-    _midiIdleExtensionTimer?.cancel();
-    unawaited(() async {
-      try {
-        await WakelockPlus.enable();
-      } catch (_) {}
-    }());
-    _midiIdleExtensionTimer = Timer(_kMidiResetsIdleDuration, () {
-      _midiIdleExtensionTimer = null;
-      if (!mounted) {
-        return;
-      }
-      unawaited(() async {
-        try {
-          await WakelockPlus.disable();
-        } catch (_) {}
-      }());
-    });
+    _midiActivityGuard.bump();
   }
 
   void _initMidiInput() {

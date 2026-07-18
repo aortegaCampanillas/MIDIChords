@@ -18,6 +18,8 @@ El prerrequisito web también está en curso: `ui_lifecycle.js` aporta registro 
 
 La separación del renderer ha comenzado por geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios de los grupos barrados. Sus pruebas fijan tanto la dirección coherente como el paralelismo de las barras de semicorchea sin depender del canvas.
 
+En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de vida: encapsula `WakelockPlus` y la ventana temporal renovable de actividad MIDI. El widget conserva únicamente la decisión de cuándo renovar o cancelar; las pruebas usan un puerto falso y reloj controlado para fijar renovación, expiración y desmontaje idempotente.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

@@ -26,6 +26,7 @@ import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
 import 'scale_staff_interaction.dart';
+import 'staff_beam_geometry.dart';
 
 part 'main_painters.dart';
 part 'main_pages.dart';

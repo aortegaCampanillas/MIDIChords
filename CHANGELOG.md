@@ -24,6 +24,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Escritorio (partitura)**: las barras secundarias parciales de semicorchea siguen ahora la pendiente de la barra principal en lugar de dibujarse siempre horizontales.
 
+- **Móvil (partitura)**: las notas de un mismo grupo de corcheas o semicorcheas comparten dirección de plica, evitando barras diagonales que atravesaban las cabezas cuando las notas quedaban a lados opuestos del centro del pentagrama.
+
 - **Partitura / interacción**: al pulsar notas alteradas en Generación de acordes o Círculo de quintas, el símbolo correspondiente de la armadura se resalta junto con la nota en escritorio, web y móvil, igual que en Escalas.
 
 - **Móvil (mantenimiento)**: separado el catálogo contextual, las anclas, la selección y la geometría del tour de ayuda a una extensión privada `part`, reduciendo en más de mil líneas el contexto de `main.dart` y conservando estado, callbacks y animación existentes.

@@ -694,6 +694,40 @@ class _MiniStaffPainter extends CustomPainter {
       beamGroups.add(List<int>.from(bgCurrent));
     }
 
+    // Todas las notas de un grupo barrado deben compartir dirección de plica.
+    // Decidirla nota a nota puede unir un extremo superior con otro inferior y
+    // producir una diagonal que atraviesa las cabezas (p. ej. Do3–La3).
+    final beamStemUpByNote = <int, bool>{};
+    for (final group in beamGroups) {
+      if (group.isEmpty) continue;
+      final firstMidi = intervalMelodyNotes[group.first];
+      if (firstMidi == null) continue;
+      final isTreble = firstMidi >= 60;
+      final staffTop = isTreble ? trebleTop : bassTop;
+      final noteYs = group
+          .map((index) => intervalMelodyNotes[index])
+          .whereType<int>()
+          .map(
+            (midi) => isTreble
+                ? _midiToTrebleY(
+                    midi.toDouble(),
+                    trebleTop,
+                    gap,
+                    keySignaturePreferFlats,
+                  )
+                : _midiToBassY(
+                    midi.toDouble(),
+                    bassTop,
+                    gap,
+                    keySignaturePreferFlats,
+                  ),
+          );
+      final stemUp = beamGroupStemUp(noteYs, staffTop + 2 * gap);
+      for (final index in group) {
+        beamStemUpByNote[index] = stemUp;
+      }
+    }
+
     // Draw notes and rests
     final stemData =
         <int, ({double x, double yEnd, bool stemUp, int flagCount})>{};
@@ -786,7 +820,7 @@ class _MiniStaffPainter extends CustomPainter {
         }
         if (hasStem) {
           final stemMid = staffTop + 2 * gap;
-          final stemUp = y > stemMid;
+          final stemUp = beamStemUpByNote[i] ?? (y > stemMid);
           final sx = stemUp ? x + nw / 2 - 1 : x - nw / 2 + 1;
           final syEnd = stemUp ? y - stemLen : y + stemLen;
           canvas.drawLine(

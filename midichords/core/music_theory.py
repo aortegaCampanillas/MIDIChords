@@ -33,6 +33,8 @@ CHORD_PATTERNS = [
     ChordPattern("sus2", (0, 2, 7)),
     ChordPattern("sus4", (0, 5, 7)),
     ChordPattern("sus2sus4", (0, 2, 5, 7)),
+    ChordPattern("add2", (0, 2, 4, 7)),
+    ChordPattern("add4", (0, 4, 5, 7)),
     ChordPattern("add9", (0, 4, 7, 14)),
     ChordPattern("madd9", (0, 3, 7, 14)),
     ChordPattern("6", (0, 4, 7, 9)),
@@ -85,6 +87,8 @@ COMMON_CHORD_SUFFIX_ORDER = (
     "m7",
     "sus4",
     "sus2",
+    "add2",
+    "add4",
     "dim",
     "aug",
     "5",
@@ -212,6 +216,8 @@ CHORD_SUFFIX_NAMES: dict[str, dict[str, str]] = {
         "sus2": "Suspendido 2ª",
         "sus4": "Suspendido 4ª",
         "sus2sus4": "Suspendido 2ª y 4ª",
+        "add2": "Mayor con 2ª añadida",
+        "add4": "Mayor con 4ª añadida",
         "add9": "Mayor con 9ª añadida",
         "madd9": "Menor con 9ª añadida",
         "6": "Mayor con 6ª",
@@ -264,6 +270,8 @@ CHORD_SUFFIX_NAMES: dict[str, dict[str, str]] = {
         "sus2": "Suspended 2nd",
         "sus4": "Suspended 4th",
         "sus2sus4": "Suspended 2nd and 4th",
+        "add2": "Major add 2nd",
+        "add4": "Major add 4th",
         "add9": "Major add 9th",
         "madd9": "Minor add 9th",
         "6": "Major 6th",
@@ -341,9 +349,11 @@ def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordP
     if not notes:
         return None, None, None
     pcs = {note % 12 for note in notes}
+    bass_pc = min(notes) % 12
     suffix_priority = {suffix: idx for idx, suffix in enumerate(COMMON_CHORD_SUFFIX_ORDER)}
     best_score = -999
     best_complexity = -999
+    best_root_is_bass = False
     best_priority = len(COMMON_CHORD_SUFFIX_ORDER)
     best_root: Optional[int] = None
     best_pattern: Optional[ChordPattern] = None
@@ -363,20 +373,39 @@ def analyze_chord_notes(notes: set[int]) -> tuple[Optional[int], Optional[ChordP
                 continue
 
             complexity = -len(pattern.intervals)
+            # Distintos acordes pueden compartir exactamente las mismas notas
+            # (p. ej. Do sus2 = Do-Re-Sol y Sol sus4 = Sol-Do-Re son el mismo
+            # conjunto de pitch-classes). En ese empate exacto, la nota más
+            # grave realmente tocada (bass_pc) es la señal más fuerte de cuál
+            # es la raíz percibida, y debe primar sobre la prioridad fija de
+            # sufijos (que si no, siempre elegía "sus4" sobre "sus2" pese a
+            # que el bajo tocado fuera la tónica del sus2).
+            root_is_bass = root == bass_pc
             priority = suffix_priority.get(pattern.suffix, len(COMMON_CHORD_SUFFIX_ORDER))
             better = (
                 score > best_score
                 or (score == best_score and complexity > best_complexity)
-                or (score == best_score and complexity == best_complexity and priority < best_priority)
+                or (
+                    score == best_score
+                    and complexity == best_complexity
+                    and root_is_bass
+                    and not best_root_is_bass
+                )
+                or (
+                    score == best_score
+                    and complexity == best_complexity
+                    and root_is_bass == best_root_is_bass
+                    and priority < best_priority
+                )
             )
             if better:
                 best_score = score
                 best_complexity = complexity
+                best_root_is_bass = root_is_bass
                 best_priority = priority
                 best_root = root
                 best_pattern = pattern
 
-    bass_pc = min(notes) % 12 if notes else None
     return best_root, best_pattern, bass_pc
 
 

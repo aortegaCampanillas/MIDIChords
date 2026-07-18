@@ -84,6 +84,15 @@ def pick_chord_help_bundle_url(urls: list[str]) -> str | None:
     return pick_static_url(urls, "chord_help.js")
 
 
+def pick_ui_texts_bundle_url(urls: list[str]) -> str | None:
+    """Textos de interfaz: versión con hash de deploy o nombre estable local."""
+    for u in urls:
+        path = urlparse(u).path.replace("\\", "/")
+        if "/static/ui_texts." in path and path.endswith(".js"):
+            return u
+    return pick_static_url(urls, "ui_texts.js")
+
+
 class AssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -303,6 +312,7 @@ def main() -> int:
 
     css_url = pick_css_bundle_url(css_urls)
     chord_help_url = pick_chord_help_bundle_url(js_urls)
+    ui_texts_url = pick_ui_texts_bundle_url(js_urls)
     js_url = pick_js_bundle_url(js_urls)
 
     if not css_url:
@@ -317,6 +327,10 @@ def main() -> int:
         failures.append(
             f"GET {app_url} → no se encontró <script src=…> a /static/chord_help…js"
         )
+    if not ui_texts_url:
+        failures.append(
+            f"GET {app_url} → no se encontró <script src=…> a /static/ui_texts…js"
+        )
 
     if css_url:
         failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
@@ -324,6 +338,8 @@ def main() -> int:
         failures.extend(validate_static_asset(js_url, kind="js", min_len=500))
     if chord_help_url:
         failures.extend(validate_static_asset(chord_help_url, kind="js", min_len=500))
+    if ui_texts_url:
+        failures.extend(validate_static_asset(ui_texts_url, kind="js", min_len=500))
 
     # --- API (worker) ---
     if not args.skip_api:

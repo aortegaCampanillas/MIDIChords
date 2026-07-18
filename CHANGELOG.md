@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: separados los textos generales de interfaz ES/EN en un catálogo dedicado con prueba de paridad de claves; el build y el chequeo de producción versionan y validan también este script antes de cargar la SPA.
+
 - **Web (mantenimiento)**: extraídos de la SPA el catálogo bilingüe de ayuda teórica, la agrupación de variantes y los textos de inversiones a un script dedicado y probado; el bundle y el chequeo de producción versionan y validan también esta nueva dependencia.
 
 - **Móvil (mantenimiento)**: separados los constructores de las páginas de Detección, Generación, Círculo de quintas, Escalas, Intervalos, Metrónomo y Afinador en una extensión privada dedicada, reduciendo el contexto de `main.dart` sin duplicar el estado de la pantalla.

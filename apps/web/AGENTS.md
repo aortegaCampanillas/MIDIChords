@@ -4,7 +4,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 ## Fuentes editables
 
-- SPA: `static/app.js`, `static/chord_help.js` y `static/style.css`.
+- SPA: `static/app.js`, `static/ui_texts.js`, `static/chord_help.js` y `static/style.css`.
 - HTML público: `index.html`, `app.html` y `fp30x.html`.
 - API: `worker/_worker.js`.
 - Assets web: `static/`.
@@ -23,6 +23,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 `static/app.js` contiene estado, API, audio, MIDI, renderers y modos. Antes de modificarlo, localizar la función concreta y sus llamadas. Las extracciones futuras deben hacerse por subsistema o modo y conservar primero el comportamiento observable.
 
 `static/chord_help.js` contiene el catálogo bilingüe, grupos de variantes y textos de inversiones de la ayuda de acordes. Se carga antes de `app.js` y publica `globalThis.MidiChordsChordHelp`; conservar ese orden y actualizar las pruebas de paridad al modificarlo.
+
+`static/ui_texts.js` contiene los textos generales ES/EN y publica `globalThis.MidiChordsUiTexts`. Cada clave debe existir en ambos idiomas; `tests/test_web_ui_texts.py` comprueba esa paridad y el orden de carga.
 
 ## Verificación
 

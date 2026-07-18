@@ -331,7 +331,12 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 600px) {
-      .nav-links { display: none; }
+      nav { height: auto; min-height: 56px; flex-wrap: wrap; padding-top: 8px; }
+      .nav-links {
+        display: flex; order: 3; width: 100%; overflow-x: auto;
+        gap: 18px; padding: 8px 0 10px; white-space: nowrap;
+      }
+      .nav-cta { padding-inline: 12px; }
       .download-grid { grid-template-columns: 1fr; }
       .support-grid { grid-template-columns: 1fr; }
     }
@@ -394,7 +399,7 @@
     <li><a href="/">FreeMIDIChords</a></li>
   </ul>
   <div class="nav-right">
-    <button class="lang-btn" id="langBtn" onclick="toggleLang()">ES</button>
+    <button class="lang-btn" id="langBtn" aria-label="Change language / Cambiar idioma" onclick="toggleLang()">ES</button>
     <a class="nav-cta" href="#download" data-i18n="nav_cta">Download free</a>
   </div>
 </nav>

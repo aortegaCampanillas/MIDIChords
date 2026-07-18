@@ -89,6 +89,30 @@
     lastFocusedElement?.focus?.();
   }
 
+  function trapDialogFocus(event) {
+    if (event.key !== "Tab") return;
+    const feedback = document.getElementById("feedbackModal");
+    const lightbox = document.getElementById("lightbox");
+    const dialog = feedback && !feedback.classList.contains("hidden")
+      ? feedback
+      : lightbox?.classList.contains("open") ? lightbox : null;
+    if (!dialog) return;
+
+    const focusable = [...dialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter((element) => !element.hidden);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   async function submitFeedback(event) {
     event.preventDefault();
     const language = detectLanguage();
@@ -133,6 +157,7 @@
     config = options;
     document.getElementById("feedbackForm")?.addEventListener("submit", submitFeedback);
     document.addEventListener("keydown", (event) => {
+      trapDialogFocus(event);
       if (event.key === "Escape") {
         closeLightbox();
         closeFeedback();

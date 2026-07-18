@@ -52,6 +52,10 @@ def check_web() -> None:
         (node, "--check", "apps/web/static/app.js"),
     )
     _run(
+        "Sintaxis del catálogo de ayuda web",
+        (node, "--check", "apps/web/static/chord_help.js"),
+    )
+    _run(
         "Sintaxis del Cloudflare Worker",
         (node, "--check", "apps/web/worker/_worker.js"),
     )

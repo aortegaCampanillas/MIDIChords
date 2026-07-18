@@ -11,11 +11,11 @@ La web se publica en Cloudflare Pages, no con un `wrangler.toml` local dentro de
 El flujo real de despliegue es:
 
 1. preparar un bundle estático temporal con:
-   - `apps/web/index.html` (en el bundle, los enlaces a **`app.js`** y **`style.css`** se reescriben a nombres con **hash de contenido**, p. ej. `/static/app.a1b2c3d4e5f6.js`, para evitar cachés del edge en el dominio personalizado)
+   - `apps/web/index.html` y `apps/web/app.html` (en el bundle, los enlaces a **`chord_help.js`**, **`app.js`** y **`style.css`** se reescriben a nombres con **hash de contenido**, p. ej. `/static/app.a1b2c3d4e5f6.js`, para evitar cachés del edge en el dominio personalizado)
    - `apps/web/static/`
    - `apps/web/worker/_worker.js` copiado como `_worker.js`
 
-   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) aplica ese paso; en el repo siguen existiendo `static/app.js` y `static/style.css` para desarrollo local.
+   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) aplica ese paso; en el repo siguen existiendo los nombres estables de los scripts y `static/style.css` para desarrollo local.
 2. desplegar ese bundle al proyecto de Pages configurado en GitHub:
    - variable: `CLOUDFLARE_PAGES_PROJECT`
    - valor actual: `midichords`
@@ -232,7 +232,7 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La ayuda teórica de acordes vive en **`static/chord_help.js`**, que se carga antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 ### Detección de intervalos (`interval_detection`)
 

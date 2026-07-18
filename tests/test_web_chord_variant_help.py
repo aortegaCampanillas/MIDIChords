@@ -5,6 +5,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_JS = PROJECT_ROOT / "apps" / "web" / "static" / "app.js"
+CHORD_HELP_JS = PROJECT_ROOT / "apps" / "web" / "static" / "chord_help.js"
 WORKER_JS = PROJECT_ROOT / "apps" / "web" / "worker" / "_worker.js"
 APP_HTML = PROJECT_ROOT / "apps" / "web" / "app.html"
 
@@ -19,8 +20,8 @@ class WebChordVariantHelpTests(unittest.TestCase):
     def test_every_generated_chord_variant_has_bilingual_theory(self):
         pattern_suffixes = self.chord_pattern_suffixes()
 
-        app_source = APP_JS.read_text(encoding="utf-8")
-        theory_block = app_source.split("const CHORD_VARIANT_THEORY = {", 1)[1].split("\n};", 1)[0]
+        chord_help_source = CHORD_HELP_JS.read_text(encoding="utf-8")
+        theory_block = chord_help_source.split("const CHORD_VARIANT_THEORY = {", 1)[1].split("\n};", 1)[0]
         theory_entries = re.findall(r'^  "([^"]*)": \["([^"]+)", "(.+)", "(.+)"\],$', theory_block, re.MULTILINE)
         theory_by_suffix = {suffix: (formula, es, en) for suffix, formula, es, en in theory_entries}
 
@@ -34,7 +35,8 @@ class WebChordVariantHelpTests(unittest.TestCase):
 
     def test_variant_groups_classify_every_chord_once(self):
         app_source = APP_JS.read_text(encoding="utf-8")
-        groups_block = app_source.split("const CHORD_VARIANT_GROUPS = [", 1)[1].split("\n];", 1)[0]
+        chord_help_source = CHORD_HELP_JS.read_text(encoding="utf-8")
+        groups_block = chord_help_source.split("const CHORD_VARIANT_GROUPS = [", 1)[1].split("\n];", 1)[0]
         suffix_lists = re.findall(r'labelKey: "[^"]+", suffixes: \[([^\]]*)\]', groups_block)
         grouped_suffixes = [
             suffix
@@ -57,6 +59,7 @@ class WebChordVariantHelpTests(unittest.TestCase):
         self.assertIn('id="chordVariantHelpInversionText"', html)
         self.assertIn('aria-modal="true"', html)
         self.assertIn('aria-labelledby="chordVariantHelpTitle"', html)
+        self.assertLess(html.index('/static/chord_help.js'), html.index('/static/app.js'))
 
         app_source = APP_JS.read_text(encoding="utf-8")
         self.assertIn('showChordVariantHelpModal("detection")', app_source)
@@ -70,7 +73,8 @@ class WebChordVariantHelpTests(unittest.TestCase):
 
     def test_help_describes_inversions_for_every_formula_degree(self):
         app_source = APP_JS.read_text(encoding="utf-8")
-        inversion_block = app_source.split("const MAJOR_CHORD_INVERSION_THEORY = [", 1)[1].split("\n];", 1)[0]
+        chord_help_source = CHORD_HELP_JS.read_text(encoding="utf-8")
+        inversion_block = chord_help_source.split("const MAJOR_CHORD_INVERSION_THEORY = [", 1)[1].split("\n];", 1)[0]
         entries = re.findall(r'^  \["(.+)", "(.+)"\],$', inversion_block, re.MULTILINE)
 
         self.assertEqual(3, len(entries))
@@ -78,16 +82,18 @@ class WebChordVariantHelpTests(unittest.TestCase):
         self.assertTrue(entries[1][0].startswith("Primera inversión:"))
         self.assertTrue(entries[2][0].startswith("Segunda inversión:"))
 
-        theory_block = app_source.split("const CHORD_VARIANT_THEORY = {", 1)[1].split("\n};", 1)[0]
+        theory_block = chord_help_source.split("const CHORD_VARIANT_THEORY = {", 1)[1].split("\n};", 1)[0]
         formulas = re.findall(r'^  "[^"]*": \["([^"]+)"', theory_block, re.MULTILINE)
         formula_degrees = {degree for formula in formulas for degree in formula.split(" - ")}
-        degree_names_block = app_source.split("const CHORD_DEGREE_NAMES = {", 1)[1].split("\n};", 1)[0]
+        degree_names_block = chord_help_source.split("const CHORD_DEGREE_NAMES = {", 1)[1].split("\n};", 1)[0]
         spanish_block = degree_names_block.split("es: {", 1)[1].split("\n  },", 1)[0]
         named_degrees = set(re.findall(r'^    "([^"]+)":', spanish_block, re.MULTILINE))
 
         self.assertEqual(formula_degrees, named_degrees)
         self.assertLessEqual(max(len(formula.split(" - ")) for formula in formulas), 7)
-        self.assertIn("function chordInversionTheory", app_source)
+        self.assertIn("function chordInversionTheory", chord_help_source)
+        self.assertIn("global.MidiChordsChordHelp", chord_help_source)
+        self.assertIn("globalThis.MidiChordsChordHelp", app_source)
         self.assertIn(": chordInversionTheory(theory[0], inversion, state.language)", app_source)
 
 

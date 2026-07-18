@@ -75,6 +75,15 @@ def pick_js_bundle_url(urls: list[str]) -> str | None:
     return pick_static_url(urls, "app.js")
 
 
+def pick_chord_help_bundle_url(urls: list[str]) -> str | None:
+    """Catálogo de acordes: versión con hash de deploy o nombre estable local."""
+    for u in urls:
+        path = urlparse(u).path.replace("\\", "/")
+        if "/static/chord_help." in path and path.endswith(".js"):
+            return u
+    return pick_static_url(urls, "chord_help.js")
+
+
 class AssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -293,6 +302,7 @@ def main() -> int:
     js_urls = [urljoin(app_url, h) for h in p.script_srcs]
 
     css_url = pick_css_bundle_url(css_urls)
+    chord_help_url = pick_chord_help_bundle_url(js_urls)
     js_url = pick_js_bundle_url(js_urls)
 
     if not css_url:
@@ -303,11 +313,17 @@ def main() -> int:
         failures.append(
             f"GET {app_url} → no se encontró <script src=…> a /static/app…js"
         )
+    if not chord_help_url:
+        failures.append(
+            f"GET {app_url} → no se encontró <script src=…> a /static/chord_help…js"
+        )
 
     if css_url:
         failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
     if js_url:
         failures.extend(validate_static_asset(js_url, kind="js", min_len=500))
+    if chord_help_url:
+        failures.extend(validate_static_asset(chord_help_url, kind="js", min_len=500))
 
     # --- API (worker) ---
     if not args.skip_api:

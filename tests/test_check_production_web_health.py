@@ -59,6 +59,7 @@ class TestAssetParser(unittest.TestCase):
         p = _mod.AssetParser()
         p.feed(
             '<link rel="stylesheet" href="/static/style.abc123def456.css"/>'
+            '<script src="/static/chord_help.fedcba987654.js"></script>'
             '<script src="/static/app.0123456789ab.js"></script>'
         )
         p.close()
@@ -71,6 +72,10 @@ class TestAssetParser(unittest.TestCase):
         self.assertEqual(
             _mod.pick_js_bundle_url(js),
             "https://example.com/static/app.0123456789ab.js",
+        )
+        self.assertEqual(
+            _mod.pick_chord_help_bundle_url(js),
+            "https://example.com/static/chord_help.fedcba987654.js",
         )
 
 

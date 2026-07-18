@@ -120,9 +120,10 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     """
     Construye apps/web/pages-dist listo para wrangler pages deploy.
 
-    Renombra app.js y style.css con hash de contenido y actualiza index.html en el bundle,
-    para romper cachés del edge en dominios personalizados que ignoran Cache-Control en /static/*.
-    El repo fuente sigue usando /static/app.js y /static/style.css (desarrollo local).
+    Renombra los scripts de la SPA y style.css con hash de contenido y actualiza
+    app.html en el bundle, para romper cachés del edge en dominios personalizados
+    que ignoran Cache-Control en /static/*. El repo fuente conserva los nombres
+    estables para desarrollo local.
     """
     import shutil
 
@@ -150,30 +151,45 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
 
     static_dir = pages_dist / "static"
     app_src = static_dir / "app.js"
+    chord_help_src = static_dir / "chord_help.js"
     css_src = static_dir / "style.css"
-    if not app_src.is_file() or not css_src.is_file():
-        raise SystemExit("[pages-dist] Faltan static/app.js o static/style.css antes del fingerprint")
+    if not app_src.is_file() or not chord_help_src.is_file() or not css_src.is_file():
+        raise SystemExit(
+            "[pages-dist] Faltan scripts de la SPA o static/style.css antes del fingerprint"
+        )
 
     app_h = hashlib.sha256(app_src.read_bytes()).hexdigest()[:12]
+    chord_help_h = hashlib.sha256(chord_help_src.read_bytes()).hexdigest()[:12]
     css_h = hashlib.sha256(css_src.read_bytes()).hexdigest()[:12]
     app_name = f"app.{app_h}.js"
+    chord_help_name = f"chord_help.{chord_help_h}.js"
     css_name = f"style.{css_h}.css"
     app_src.rename(static_dir / app_name)
+    chord_help_src.rename(static_dir / chord_help_name)
     css_src.rename(static_dir / css_name)
 
     app_path = pages_dist / "app.html"
     html = app_path.read_text(encoding="utf-8")
-    if "/static/app.js" not in html or "/static/style.css" not in html:
-        raise SystemExit("[pages-dist] app.html debe enlazar /static/app.js y /static/style.css")
+    required_assets = ("/static/app.js", "/static/chord_help.js", "/static/style.css")
+    if any(asset not in html for asset in required_assets):
+        raise SystemExit("[pages-dist] app.html debe enlazar todos los estáticos de la SPA")
     html = html.replace('href="/static/style.css"', f'href="/static/{css_name}"')
+    html = html.replace(
+        'src="/static/chord_help.js"',
+        f'src="/static/{chord_help_name}"',
+    )
     html = html.replace('src="/static/app.js"', f'src="/static/{app_name}"')
     app_path.write_text(html, encoding="utf-8")
-    print(f"[pages-dist] Fingerprint estáticos: /static/{css_name}, /static/{app_name}")
+    print(
+        "[pages-dist] Fingerprint estáticos: "
+        f"/static/{css_name}, /static/{chord_help_name}, /static/{app_name}"
+    )
 
     for name in ("index.html", "app.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
-    if not (static_dir / app_name).is_file() or not (static_dir / css_name).is_file():
+    fingerprinted_assets = (app_name, chord_help_name, css_name)
+    if any(not (static_dir / name).is_file() for name in fingerprinted_assets):
         raise SystemExit("[pages-dist] Faltan ficheros renombrados tras fingerprint")
 
     return pages_dist

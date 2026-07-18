@@ -10,7 +10,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
-- **Escritorio (ayuda de acordes)**: el diálogo teórico ajusta ahora su altura al contenido, elimina el gran espacio vacío inferior y coloca **Cerrar** debajo del texto, alineado en la parte inferior derecha.
+- **Escritorio (ayuda de acordes)**: el diálogo teórico ajusta ahora su altura al contenido, elimina el gran espacio vacío inferior, recupera los márgenes alrededor del contenido y coloca **Cerrar** debajo del texto, alineado en la parte inferior derecha.
 
 - **Móvil (Flutter, cierre/tests)**: la limpieza de MIDI durante `dispose()` ya no intenta ejecutar `setState` ni relanzar detección mientras el árbol de widgets se está desmontando. Se corrige además el import obsoleto del smoke test y se fija un viewport horizontal representativo, de modo que la suite Flutter completa vuelve a ejecutarse correctamente.
 

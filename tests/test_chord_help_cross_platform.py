@@ -78,6 +78,7 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
         self.assertNotIn('dialog.geometry("640x430")', generation)
         self.assertNotIn('close_btn.pack(side=tk.BOTTOM', generation)
         self.assertIn('close_btn.pack(anchor="e"', generation)
+        self.assertIn("padding=(20, 18, 20, 18)", generation)
         self.assertIn("dialog.setFixedSize(640, content_height)", generation)
 
 

@@ -500,8 +500,12 @@ class GenerationMixin:
         dialog.resizable(False, False)
         dialog.configure(bg=getattr(self, "color_surface_alt", "#2f3a4b"))
 
-        frame = tk.Frame(dialog, bg=getattr(self, "color_surface_alt", "#2f3a4b"))
-        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=18)
+        frame = tk.Frame(
+            dialog,
+            bg=getattr(self, "color_surface_alt", "#2f3a4b"),
+            padding=(20, 18, 20, 18),
+        )
+        frame.pack(fill=tk.BOTH, expand=True)
         tk.Label(
             frame,
             text=title,

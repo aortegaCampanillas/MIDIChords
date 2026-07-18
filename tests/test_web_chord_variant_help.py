@@ -52,10 +52,18 @@ class WebChordVariantHelpTests(unittest.TestCase):
     def test_help_button_and_accessible_modal_are_present(self):
         html = APP_HTML.read_text(encoding="utf-8")
         self.assertIn('id="genVariantHelp"', html)
+        self.assertIn('id="detectVariantHelp"', html)
         self.assertIn('id="chordVariantHelpModal"', html)
         self.assertIn('id="chordVariantHelpInversionText"', html)
         self.assertIn('aria-modal="true"', html)
         self.assertIn('aria-labelledby="chordVariantHelpTitle"', html)
+
+        app_source = APP_JS.read_text(encoding="utf-8")
+        self.assertIn('showChordVariantHelpModal("detection")', app_source)
+        self.assertIn('state.detectionResult?.suffix', app_source)
+
+        worker_source = WORKER_JS.read_text(encoding="utf-8")
+        self.assertIn("inversion: inversionIndex", worker_source)
 
     def test_help_describes_inversions_for_every_formula_degree(self):
         app_source = APP_JS.read_text(encoding="utf-8")

@@ -715,6 +715,7 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
     extras: extrasMidi.map((n) => noteName(n, language, preferFlat, true)),
     root_pc: Number(root),
     suffix: pattern.suffix,
+    inversion: inversionIndex,
     description,
   };
 }

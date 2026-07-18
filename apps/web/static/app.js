@@ -307,6 +307,7 @@ const UI_TEXTS = {
     help_staff_metronome: "Vista del metrónomo: muestra el pulso y el estado de reproducción.",
     help_detection_panel: "Panel de detección: controles y resultado del acorde actual.",
     help_detect_play: "Reproduce las notas activas del acorde detectado.",
+    help_detect_variant_theory: "Abre la explicación teórica de la variante detectada.",
     help_detect_clear: "Limpia todas las notas activas para comenzar de nuevo.",
     help_detect_result: "Resultado de la detección: nombre, notas, sobrantes e intervalos.",
     help_instrument_surface_detection: "Teclado/guitarra interactivos: pulsa para detectar acordes (también vía MIDI). Puedes mantener notas con Shift; lo que toques se refleja en el pentagrama y viceversa.",
@@ -528,6 +529,7 @@ const UI_TEXTS = {
     help_staff_metronome: "Metronome view: shows pulse and playback state.",
     help_detection_panel: "Detection panel: controls and current chord output.",
     help_detect_play: "Play the currently active detected notes.",
+    help_detect_variant_theory: "Open the theory explanation for the detected chord quality.",
     help_detect_clear: "Clear all active notes and start over.",
     help_detect_result: "Detection output: chord name, notes, extras, and intervals.",
     help_instrument_surface_detection: "Interactive keyboard/guitar: press notes to detect chords (also via MIDI). Hold Shift to sustain notes; instrument and staff stay in sync both ways.",
@@ -838,6 +840,7 @@ const HELP_CALLOUTS_DETECTION = [
   { selector: "#staffCanvas", textKey: "help_staff_detection", side: "top" },
   { selector: "#panelDetection", textKey: "help_detection_panel", side: "left" },
   { selector: "#detectPlay", textKey: "help_detect_play", side: "bottom" },
+  { selector: "#detectVariantHelp", textKey: "help_detect_variant_theory", side: "bottom" },
   { selector: "#detectClear", textKey: "help_detect_clear", side: "bottom" },
   { selector: "#detectFieldChord", textKey: "help_field_chord", side: "left" },
   { selector: "#detectFieldNotes", textKey: "help_field_notes", side: "left" },
@@ -2074,29 +2077,43 @@ function trTemplate(key, values = {}) {
   );
 }
 
-function selectedChordVariantTheory() {
+let chordVariantHelpSource = "generation";
+
+function selectedChordVariantTheory(source = chordVariantHelpSource) {
+  if (source === "detection") {
+    const result = state.detectionResult;
+    const suffix = result?.suffix;
+    return {
+      suffix,
+      theory: suffix != null ? CHORD_VARIANT_THEORY[suffix] || null : null,
+      description: result?.description || result?.name || suffix,
+      inversion: Number(result?.inversion) || 0,
+    };
+  }
   const suffix = el("genVariant")?.value ?? "";
-  return { suffix, theory: CHORD_VARIANT_THEORY[suffix] || null };
+  return {
+    suffix,
+    theory: CHORD_VARIANT_THEORY[suffix] || null,
+    description: state.generatedChord?.suffix === suffix ? state.generatedChord.description : null,
+    inversion: Math.max(0, Number(el("genInversion")?.value) || 0),
+  };
 }
 
 function refreshChordVariantHelpContent() {
-  const { suffix, theory } = selectedChordVariantTheory();
+  const { suffix, theory, description, inversion } = selectedChordVariantTheory();
   if (!theory) return false;
-  let generatedDescription = state.generatedChord?.suffix === suffix
-    ? state.generatedChord.description
-    : null;
-  if (generatedDescription && Number(state.generatedChord?.inversion || 0) > 0) {
-    generatedDescription = generatedDescription.replace(
+  let variantDescription = description;
+  if (variantDescription && inversion > 0) {
+    variantDescription = variantDescription.replace(
       /, (?:primera inversión|segunda inversión|tercera inversión|bajo en .+|first inversion|second inversion|third inversion|bass on .+)$/,
       "",
     );
   }
-  const variant = generatedDescription || el("genVariant")?.selectedOptions?.[0]?.textContent || suffix || "maj";
+  const variant = variantDescription || el("genVariant")?.selectedOptions?.[0]?.textContent || suffix || "maj";
   el("chordVariantHelpTitle").textContent = trTemplate("chord_variant_help_title", { variant });
   el("chordVariantHelpFormula").textContent = trTemplate("chord_variant_help_formula", { formula: theory[0] });
   el("chordVariantHelpText").textContent = state.language === "en" ? theory[2] : theory[1];
   const inversionText = el("chordVariantHelpInversionText");
-  const inversion = Math.max(0, Number(el("genInversion")?.value) || 0);
   const inversionTheory = suffix === ""
     ? MAJOR_CHORD_INVERSION_THEORY[inversion]?.[state.language === "en" ? 1 : 0]
     : chordInversionTheory(theory[0], inversion, state.language);
@@ -2107,7 +2124,8 @@ function refreshChordVariantHelpContent() {
   return true;
 }
 
-function showChordVariantHelpModal() {
+function showChordVariantHelpModal(source = "generation") {
+  chordVariantHelpSource = source;
   if (!refreshChordVariantHelpContent()) return;
   el("chordVariantHelpModal")?.classList.remove("hidden");
   el("chordVariantHelpCloseBtn")?.focus();
@@ -2115,7 +2133,7 @@ function showChordVariantHelpModal() {
 
 function hideChordVariantHelpModal() {
   el("chordVariantHelpModal")?.classList.add("hidden");
-  el("genVariantHelp")?.focus();
+  el(chordVariantHelpSource === "detection" ? "detectVariantHelp" : "genVariantHelp")?.focus();
 }
 
 const SEO_META = {
@@ -2577,9 +2595,13 @@ function setHelpActive(active) {
 
 function refreshDetectionButtonsState() {
   const hasNotes = (state.activeDetectionNotes?.size || 0) > 0;
+  const hasDetectedVariant = state.detectionResult?.suffix != null
+    && !!CHORD_VARIANT_THEORY[state.detectionResult.suffix];
   const playBtn = el("detectPlay");
+  const helpBtn = el("detectVariantHelp");
   const clearBtn = el("detectClear");
   if (playBtn) playBtn.disabled = !hasNotes;
+  if (helpBtn) helpBtn.disabled = !hasDetectedVariant;
   if (clearBtn) clearBtn.disabled = !hasNotes;
 }
 
@@ -2688,10 +2710,11 @@ function applyTranslations() {
   setText("downloadsCloseBtn", "close");
   setText("helpToggle", "help_button");
   const genVariantHelp = el("genVariantHelp");
-  if (genVariantHelp) {
-    genVariantHelp.setAttribute("aria-label", tr("chord_variant_help_button"));
-    genVariantHelp.setAttribute("title", tr("chord_variant_help_button"));
-  }
+  const detectVariantHelp = el("detectVariantHelp");
+  [genVariantHelp, detectVariantHelp].filter(Boolean).forEach((button) => {
+    button.setAttribute("aria-label", tr("chord_variant_help_button"));
+    button.setAttribute("title", tr("chord_variant_help_button"));
+  });
   if (!el("chordVariantHelpModal")?.classList.contains("hidden")) refreshChordVariantHelpContent();
   setText("midiStartupTitle", "midi_startup_title");
   setText("midiStartupText", "midi_startup_text");
@@ -6714,6 +6737,7 @@ async function runDetection() {
   el("detectNotes").textContent = (out.notes || []).join(" - ") || "-";
   el("detectExtras").textContent = (out.extras || []).join(" - ") || "-";
   el("detectIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
+  refreshDetectionButtonsState();
   renderInstrument();
   renderStaff();
 }
@@ -8248,7 +8272,9 @@ function bindEvents() {
     });
   }
   const genVariantHelp = el("genVariantHelp");
-  if (genVariantHelp) genVariantHelp.addEventListener("click", showChordVariantHelpModal);
+  if (genVariantHelp) genVariantHelp.addEventListener("click", () => showChordVariantHelpModal("generation"));
+  const detectVariantHelp = el("detectVariantHelp");
+  if (detectVariantHelp) detectVariantHelp.addEventListener("click", () => showChordVariantHelpModal("detection"));
   const chordVariantHelpCloseBtn = el("chordVariantHelpCloseBtn");
   if (chordVariantHelpCloseBtn) chordVariantHelpCloseBtn.addEventListener("click", hideChordVariantHelpModal);
   const chordVariantHelpModal = el("chordVariantHelpModal");

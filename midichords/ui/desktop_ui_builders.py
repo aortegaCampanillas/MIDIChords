@@ -9,6 +9,54 @@ from PySide6.QtWidgets import QHBoxLayout
 from midichords.ui.widgets_qt import GrayRoundedButton, RoundedPanel
 
 
+def build_generation_root_selector(app: object) -> tk.Frame:
+    """Build the generated chord root and accidental selectors."""
+    app.generation_root_label = tk.Label(
+        app.tab_generation_frame,
+        text="",
+        bg=app.color_surface_alt,
+        fg=app.color_text,
+        font=(app.ui_font_family, 14),
+    )
+    app.generation_root_label.grid(
+        row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8)
+    )
+    row = tk.Frame(app.tab_generation_frame, bg=app.color_surface_alt)
+    row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
+    app.generation_root_row = row
+
+    app.generation_root_var = tk.StringVar(value="-")
+    app.generation_root_combo = ttk.Combobox(
+        row,
+        textvariable=app.generation_root_var,
+        state="readonly",
+        values=["-"],
+        font=(app.ui_font_family, 15),
+        height=12,
+    )
+    app.generation_root_combo.pack(side=tk.LEFT, padx=(0, 6))
+    app.generation_root_combo.bind(
+        "<<ComboboxSelected>>", app._on_generation_root_combo_changed
+    )
+    app._qt_apply_dark_combobox_style(app.generation_root_combo)
+
+    app.generation_root_accidental_var = tk.StringVar(value="♮")
+    app.generation_root_accidental_combo = ttk.Combobox(
+        row,
+        textvariable=app.generation_root_accidental_var,
+        state="readonly",
+        values=["♮"],
+        width=3,
+        font=(app.ui_font_family, 15),
+    )
+    app.generation_root_accidental_combo.pack(side=tk.LEFT)
+    app.generation_root_accidental_combo.bind(
+        "<<ComboboxSelected>>", app._on_generation_root_accidental_combo_changed
+    )
+    app._qt_apply_dark_combobox_style(app.generation_root_accidental_combo)
+    return row
+
+
 def build_scale_tonic_selector(app: object) -> tk.Frame:
     """Build the scale tonic and accidental selectors on their stable row."""
     app.scale_tonic_selector_label = tk.Label(

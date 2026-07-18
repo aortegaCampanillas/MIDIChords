@@ -44,6 +44,15 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.staff_canvas.parent() is window.left_panel.content
         assert window.chord_panel.parent() is window.right_side_panel
         assert window.tab_generation_frame.parent() is window.chord_panel
+        assert window.generation_root_combo.maxVisibleItems() == 12
+        assert window.generation_root_combo.parent() is window.generation_root_row
+        assert (
+            window.generation_root_accidental_combo.parent()
+            is window.generation_root_row
+        )
+        assert window.generation_root_row.parent() is window.tab_generation_frame
+        assert window.generation_root_combo.isEditable() is False
+        assert window.generation_root_accidental_combo.isEditable() is False
         assert window.scale_tonic_combo.maxVisibleItems() == 15
         assert window.scale_tonic_combo.parent() is window.scale_tonic_row
         assert window.scale_tonic_accidental_combo.parent() is window.scale_tonic_row

@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 from midichords.ui.desktop_ui_builders import (
+    build_generation_root_selector,
     build_main_panel_shell,
     build_scale_tonic_selector,
     build_scale_type_selector,
@@ -768,44 +769,7 @@ class UiMixin:
         )
         self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
-        self.generation_root_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_root_row = tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt)
-        self.generation_root_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
-        self.generation_root_var = tk.StringVar(value="-")
-        self.generation_root_combo = ttk.Combobox(
-            self.generation_root_row,
-            textvariable=self.generation_root_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_root_combo.pack(side=tk.LEFT, padx=(0, 6))
-        self.generation_root_combo.bind("<<ComboboxSelected>>", self._on_generation_root_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_root_combo)
-        if hasattr(self.generation_root_combo, "setMaxVisibleItems"):
-            self.generation_root_combo.setMaxVisibleItems(12)
-
-        self.generation_root_accidental_var = tk.StringVar(value="♮")
-        self.generation_root_accidental_combo = ttk.Combobox(
-            self.generation_root_row,
-            textvariable=self.generation_root_accidental_var,
-            state="readonly",
-            values=["♮"],
-            width=3,
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_root_accidental_combo.pack(side=tk.LEFT)
-        self.generation_root_accidental_combo.bind(
-            "<<ComboboxSelected>>", self._on_generation_root_accidental_combo_changed
-        )
-        self._qt_apply_dark_combobox_style(self.generation_root_accidental_combo)
+        build_generation_root_selector(self)
 
         self.generation_variant_label = tk.Label(
             self.tab_generation_frame,

@@ -45,6 +45,9 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.chord_panel.parent() is window.right_side_panel
         assert window.tab_generation_frame.parent() is window.chord_panel
         assert window.scale_tonic_combo.maxVisibleItems() == 15
+        assert window.scale_tonic_combo.parent() is window.scale_tonic_row
+        assert window.scale_tonic_accidental_combo.parent() is window.scale_tonic_row
+        assert window.scale_tonic_row.parent() is window.tab_scale_frame
         assert window.scale_type_combo.maxVisibleItems() == 20
         assert window.scale_type_combo.parent() is not window.tab_scale_frame
         assert window.scale_type_combo.parent().parent() is window.tab_scale_frame

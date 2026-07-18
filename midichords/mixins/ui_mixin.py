@@ -9,6 +9,7 @@ from typing import Any, Optional
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 from midichords.ui.desktop_ui_builders import (
     build_main_panel_shell,
+    build_scale_tonic_selector,
     build_scale_type_selector,
     build_top_bar,
 )
@@ -1246,43 +1247,7 @@ class UiMixin:
         self.scale_bpm_value_label.grid(row=0, column=3, sticky="e")
         self._set_scale_bpm(self.scale_bpm_value, save=False)
 
-        self.scale_tonic_selector_label = tk.Label(
-            self.tab_scale_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.scale_tonic_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt)
-        self.scale_tonic_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
-        self.scale_tonic_var = tk.StringVar(value="C")
-        self.scale_tonic_combo = ttk.Combobox(
-            self.scale_tonic_row,
-            textvariable=self.scale_tonic_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-            height=15,
-        )
-        self.scale_tonic_combo.pack(side=tk.LEFT, padx=(0, 6))
-        self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
-        self._qt_apply_dark_combobox_style(self.scale_tonic_combo)
-
-        self.scale_tonic_accidental_var = tk.StringVar(value="♮")
-        self.scale_tonic_accidental_combo = ttk.Combobox(
-            self.scale_tonic_row,
-            textvariable=self.scale_tonic_accidental_var,
-            state="readonly",
-            values=["♮"],
-            width=3,
-            font=(self.ui_font_family, 15),
-        )
-        self.scale_tonic_accidental_combo.pack(side=tk.LEFT)
-        self.scale_tonic_accidental_combo.bind(
-            "<<ComboboxSelected>>", self._on_scale_tonic_accidental_combo_changed
-        )
-        self._qt_apply_dark_combobox_style(self.scale_tonic_accidental_combo)
+        build_scale_tonic_selector(self)
 
         scale_type_row = build_scale_type_selector(self)
 

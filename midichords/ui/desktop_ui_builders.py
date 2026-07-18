@@ -9,6 +9,54 @@ from PySide6.QtWidgets import QHBoxLayout
 from midichords.ui.widgets_qt import GrayRoundedButton, RoundedPanel
 
 
+def build_scale_tonic_selector(app: object) -> tk.Frame:
+    """Build the scale tonic and accidental selectors on their stable row."""
+    app.scale_tonic_selector_label = tk.Label(
+        app.tab_scale_frame,
+        text="",
+        bg=app.color_surface_alt,
+        fg=app.color_text,
+        font=(app.ui_font_family, 14),
+    )
+    app.scale_tonic_selector_label.grid(
+        row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8)
+    )
+    row = tk.Frame(app.tab_scale_frame, bg=app.color_surface_alt)
+    row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
+    app.scale_tonic_row = row
+
+    app.scale_tonic_var = tk.StringVar(value="C")
+    app.scale_tonic_combo = ttk.Combobox(
+        row,
+        textvariable=app.scale_tonic_var,
+        state="readonly",
+        values=["-"],
+        font=(app.ui_font_family, 15),
+        height=15,
+    )
+    app.scale_tonic_combo.pack(side=tk.LEFT, padx=(0, 6))
+    app.scale_tonic_combo.bind(
+        "<<ComboboxSelected>>", app._on_scale_tonic_combo_changed
+    )
+    app._qt_apply_dark_combobox_style(app.scale_tonic_combo)
+
+    app.scale_tonic_accidental_var = tk.StringVar(value="♮")
+    app.scale_tonic_accidental_combo = ttk.Combobox(
+        row,
+        textvariable=app.scale_tonic_accidental_var,
+        state="readonly",
+        values=["♮"],
+        width=3,
+        font=(app.ui_font_family, 15),
+    )
+    app.scale_tonic_accidental_combo.pack(side=tk.LEFT)
+    app.scale_tonic_accidental_combo.bind(
+        "<<ComboboxSelected>>", app._on_scale_tonic_accidental_combo_changed
+    )
+    app._qt_apply_dark_combobox_style(app.scale_tonic_accidental_combo)
+    return row
+
+
 def build_scale_type_selector(app: object) -> tk.Frame:
     """Build the grouped scale selector row and return its layout parent."""
     app.scale_type_selector_label = tk.Label(

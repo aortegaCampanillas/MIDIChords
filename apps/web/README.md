@@ -232,7 +232,7 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, las tablas y conversiones de notación en **`static/music_notation.js`**, la teoría y geometría pura del círculo en **`static/circle_theory.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; estos módulos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. Los textos generales viven en **`static/ui_texts.js`**, las tablas y conversiones de notación en **`static/music_notation.js`**, la teoría y geometría pura del círculo en **`static/circle_theory.js`**, la teoría de intervalos y melodías mnemotécnicas en **`static/interval_theory.js`**, la ayuda teórica de acordes en **`static/chord_help.js`** y la configuración de ayuda contextual por modo en **`static/help_callouts.js`**; estos módulos se cargan antes de `app.js`. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 Las pruebas JavaScript sin dependencias externas están en **`test/`** y se ejecutan con `node --test`; `python scripts/check.py web` incluye esta suite, la comprobación de sintaxis y la construcción del bundle.
 
@@ -240,7 +240,7 @@ El perfil web y el chequeo de salud de producción validan automáticamente todo
 
 ### Detección de intervalos (`interval_detection`)
 
-- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "interval_detection"`, panel `#panelIntervalDetection`, funciones `intervalAddNote`, `getIntervalSemitones`, `getIntervalMelodyNotes`, `playIntervalNoteSequence`, `refreshIntervalResult`, `refreshIntervalButtonsState`.
+- **Ubicación en código**: `apps/web/static/interval_theory.js` contiene nombres, cálculo y melodías; `apps/web/static/app.js` conserva estado `state.mode === "interval_detection"`, cola, reproducción, panel y renderizado.
 - **Funcionamiento**: registra las **últimas 2 notas** pulsadas (teclado interactivo o MIDI), ordena ascendentemente para el pentagrama y muestra nombre del intervalo, semitonos y una **canción mnemotécnica** (`INTERVAL_MELODIES`). Las notas se guardan en orden de inserción para que `shift()` descarte siempre la más antigua.
 - **Melodía mnemotécnica** (botón «Recordar»): activa `state.intervalMelodyActive`; el pentagrama pasa a mostrar la melodía completa (`getIntervalMelodyNotes()`). Las dos notas del intervalo aparecen en blanco, el resto en gris. Algunas canciones usan `jumpAt > 0` cuando el salto del intervalo ocurre en la 2.ª→3.ª nota (p. ej. «Cumpleaños feliz»); en ese caso las notas de preparación llevan ligadura. El botón ▶ toca la melodía con duraciones reales (`DURATION_BEATS`); el botón ◀ toca el intervalo en orden inverso.
 - **Duraciones**: `DURATION_BEATS` mapea `"w"/"h"/"h."/"q"/"q."/"e"/"e."/"s"/"s."` a tiempos; `playIntervalNoteSequence` calcula tiempos acumulados para respetar el ritmo y usa `state.intervalPlayingIdx` para resaltar la nota exacta en curso (no todas las del mismo pitch).

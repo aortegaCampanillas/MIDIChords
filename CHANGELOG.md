@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídos nombres, cálculo y melodías mnemotécnicas de intervalos a un módulo puro; las pruebas cubren unísono, octava, dirección, traducciones, intervalos consecutivos y alineación de silencios con duraciones.
+
 - **Web (mantenimiento)**: extraídas la teoría diatónica y la geometría pura del círculo de quintas a un módulo sin DOM ni estado, con pruebas directas de orden, armaduras, relativos, grados y tríadas mayores y menores.
 
 - **Web (mantenimiento)**: extraídas las tablas y conversiones puras de notación musical —nombres de notas, tónicas, alteraciones, armaduras y pitch classes— a un módulo con pruebas JavaScript directas.

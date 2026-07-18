@@ -4,6 +4,7 @@ const test = require("node:test");
 require("../static/ui_texts.js");
 require("../static/music_notation.js");
 require("../static/circle_theory.js");
+require("../static/interval_theory.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -49,8 +50,36 @@ test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsUiTexts));
   assert.ok(Object.isFrozen(globalThis.MidiChordsMusicNotation));
   assert.ok(Object.isFrozen(globalThis.MidiChordsCircleTheory));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsIntervalTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("interval theory identifies intervals and preserves melody timing", () => {
+  const {
+    INTERVAL_MELODIES,
+    formatIntervalsFromMidi,
+    intervalName,
+    intervalSemitones,
+    intervalMelodyNotes,
+    intervalMelodySongName,
+  } = globalThis.MidiChordsIntervalTheory;
+
+  assert.equal(Object.keys(INTERVAL_MELODIES).length, 12);
+  assert.equal(intervalSemitones([60, 60]), 0);
+  assert.equal(intervalSemitones([60, 72]), 12);
+  assert.equal(intervalSemitones([72, 60]), 12);
+  assert.equal(intervalSemitones([60, 67]), 7);
+  assert.equal(intervalName("es", 7), "Quinta justa");
+  assert.equal(intervalName("en", 3), "Minor Third");
+  assert.equal(intervalName("unknown", 3), "Tercera menor");
+  assert.equal(formatIntervalsFromMidi([67, 60, 64, 64]), "0 +4 +3");
+  assert.equal(intervalMelodySongName("es", [60, 62]), "Cumpleaños feliz");
+
+  const smoke = intervalMelodyNotes([60, 63]);
+  assert.equal(smoke.length, INTERVAL_MELODIES[3].durations.length);
+  assert.equal(smoke[3], null);
+  assert.deepEqual(intervalMelodyNotes([64]), [64]);
 });
 
 test("circle of fifths theory maps keys and diatonic triads", () => {

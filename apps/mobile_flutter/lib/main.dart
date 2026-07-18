@@ -1065,8 +1065,8 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<int> _generationInputStaffNotes = <int>{};
 
   /// MIDI de la última tecla tocada en piano (generación/círculo); coincide con web `generationCurrentNote`.
-  int? _generationPianoHighlightMidi;
-  Timer? _generationPianoHighlightTimer;
+  int? _generationNoteHighlightMidi;
+  Timer? _generationNoteHighlightTimer;
   final Set<int> _heldChordNativeNotes = <int>{};
 
   /// Limpia el resalte del acorde en pentagrama si no llega pointer-up (p. ej. iOS).
@@ -2893,7 +2893,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _heldChordPlaybackEndTimer?.cancel();
-    _generationPianoHighlightTimer?.cancel();
+    _generationNoteHighlightTimer?.cancel();
     _metroTimer?.cancel();
     _metroAnimTimer?.cancel();
     _scaleLoopTimer?.cancel();
@@ -5221,18 +5221,18 @@ class _HomeScreenState extends State<HomeScreen>
     if (mounted) setState(() {});
   }
 
-  void _bumpGenerationPianoHighlight(int midi) {
-    _generationPianoHighlightTimer?.cancel();
-    setState(() => _generationPianoHighlightMidi = midi);
-    _generationPianoHighlightTimer = Timer(
+  void _bumpGenerationNoteHighlight(int midi) {
+    _generationNoteHighlightTimer?.cancel();
+    setState(() => _generationNoteHighlightMidi = midi);
+    _generationNoteHighlightTimer = Timer(
       const Duration(milliseconds: 720),
       () {
         if (!mounted) {
           return;
         }
         setState(() {
-          _generationPianoHighlightMidi = null;
-          _generationPianoHighlightTimer = null;
+          _generationNoteHighlightMidi = null;
+          _generationNoteHighlightTimer = null;
           if (_tabIndex == 1 || _tabIndex == 2) {
             _generationInputStaffNotes.clear();
           }
@@ -5241,10 +5241,10 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _clearGenerationPianoHighlight() {
-    _generationPianoHighlightTimer?.cancel();
-    _generationPianoHighlightTimer = null;
-    _generationPianoHighlightMidi = null;
+  void _clearGenerationNoteHighlight() {
+    _generationNoteHighlightTimer?.cancel();
+    _generationNoteHighlightTimer = null;
+    _generationNoteHighlightMidi = null;
   }
 
   Future<void> _handleInstrumentNote(
@@ -5328,11 +5328,7 @@ class _HomeScreenState extends State<HomeScreen>
             ..clear()
             ..add(staffNote);
         }
-        if (_instrumentView == 'piano') {
-          _bumpGenerationPianoHighlight(midi);
-        } else if (staffNote != null) {
-          setState(() {});
-        }
+        _bumpGenerationNoteHighlight(midi);
       }
       if (fromMidi) {
         if (pressed) {
@@ -5532,7 +5528,7 @@ class _HomeScreenState extends State<HomeScreen>
       _releaseHeldInputNote(_dragCurrentNote!);
       if (_tabIndex == 1 || _tabIndex == 2) {
         _generationInputStaffNotes.clear();
-        _clearGenerationPianoHighlight();
+        _clearGenerationNoteHighlight();
       }
       if (_tabIndex == 4) {
         setState(() => _metronomeHeldNotes.remove(_dragCurrentNote));
@@ -5553,7 +5549,7 @@ class _HomeScreenState extends State<HomeScreen>
     _stopHeldInputs();
     if (_tabIndex == 1 || _tabIndex == 2) {
       _generationInputStaffNotes.clear();
-      _clearGenerationPianoHighlight();
+      _clearGenerationNoteHighlight();
     }
     if (_tabIndex == 3 && !_scaleLoopRunning) {
       _scaleCurrentNote = null;
@@ -6219,7 +6215,7 @@ class _HomeScreenState extends State<HomeScreen>
       _generatedChordJson = json;
       _chordGuitarVariant = 0;
       _generationInputStaffNotes.clear();
-      _clearGenerationPianoHighlight();
+      _clearGenerationNoteHighlight();
       final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
       _chordOutputController.text =
           '${_ui('Acorde', 'Chord')}: ${json['name']}\n'
@@ -6280,7 +6276,7 @@ class _HomeScreenState extends State<HomeScreen>
       _generatedChordJson = json;
       _chordGuitarVariant = 0;
       _generationInputStaffNotes.clear();
-      _clearGenerationPianoHighlight();
+      _clearGenerationNoteHighlight();
       final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
       _chordOutputController.text =
           '${_ui('Acorde', 'Chord')}: ${json['name']}\n'
@@ -7428,7 +7424,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _stopHeldInputs();
                         _stopHeldMidiInputs();
                         _generationInputStaffNotes.clear();
-                        _clearGenerationPianoHighlight();
+                        _clearGenerationNoteHighlight();
                         _detectionPlayPressed = false;
                         _generationPlayPressed = false;
                         if (value != 0) {
@@ -8662,7 +8658,7 @@ class _HomeScreenState extends State<HomeScreen>
               modeUsesCenteredTheoryPiano(_tabIndex);
           if (_instrumentView != key && (_tabIndex == 1 || _tabIndex == 2)) {
             _generationInputStaffNotes.clear();
-            _clearGenerationPianoHighlight();
+            _clearGenerationNoteHighlight();
             _stopHeldChord();
             _stopHeldInputs();
             _generationPlayPressed = false;
@@ -9021,7 +9017,7 @@ class _HomeScreenState extends State<HomeScreen>
                               final genKeyHi =
                                   chordGenPiano &&
                                   _generatedChordJson != null &&
-                                  (_generationPianoHighlightMidi == midi ||
+                                  (_generationNoteHighlightMidi == midi ||
                                       _generationMidiHeldNotes.contains(midi) ||
                                       _heldChordNativeNotes.contains(midi));
                               final inChordRh = chordRhSet.contains(midi);
@@ -9217,7 +9213,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 final genKeyHi =
                                     chordGenPiano &&
                                     _generatedChordJson != null &&
-                                    (_generationPianoHighlightMidi == midi ||
+                                    (_generationNoteHighlightMidi == midi ||
                                         _generationMidiHeldNotes.contains(
                                           midi,
                                         ) ||
@@ -9652,7 +9648,8 @@ class _HomeScreenState extends State<HomeScreen>
                     final isPlaying =
                         active &&
                         (chordMode
-                            ? _heldChordNativeNotes.contains(note)
+                            ? (_heldChordNativeNotes.contains(note) ||
+                                  _generationNoteHighlightMidi == note)
                             : (_tabIndex == 3 &&
                                   ((_scaleCurrentNote != null &&
                                           _scaleCurrentNote == note) ||

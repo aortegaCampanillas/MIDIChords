@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (generación / guitarra)**: al tocar una nota del acorde en el pentagrama, la posición correspondiente vuelve a resaltarse temporalmente en el diapasón, igual que ya ocurría en el piano.
+
 - **Móvil (generación / piano)**: al entrar en Generación de acordes o volver desde la guitarra, el teclado se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior hacia la mano izquierda.
 
 - **Móvil (pentagrama interactivo)**: la reproducción al tocar una nota del pentagrama se extiende de Escalas a Detección, Generación de acordes, Círculo de quintas e Intervalos; en los modos de acordes la selección se refleja también en el instrumento.

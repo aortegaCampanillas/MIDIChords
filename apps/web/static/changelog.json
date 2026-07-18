@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "Generación: al tocar una nota del acorde en el pentagrama, su posición vuelve a resaltarse temporalmente en el diapasón de guitarra.",
+        "en": "Generation: tapping a chord note on the staff now temporarily highlights its position on the guitar fretboard again."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Generación: al entrar en el modo o volver desde la guitarra, el piano se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior.",
         "en": "Generation: entering the mode or returning from guitar now recenters the piano on the right-hand C instead of keeping the previous scroll position."
       },

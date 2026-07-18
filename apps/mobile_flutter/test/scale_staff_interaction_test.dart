@@ -127,4 +127,21 @@ void main() {
     expect(handler, contains('if (_tabIndex == 1 || _tabIndex == 2)'));
     expect(handler, contains('if (_tabIndex == 5)'));
   });
+
+  test('generation staff selection highlights piano and guitar', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final instrumentHandler = source
+        .split('Future<void> _handleInstrumentNote(')
+        .last
+        .split('Future<void> _beginInputDrag(')
+        .first;
+    final guitarBuilder = source
+        .split('Widget _buildGuitarStrip(')
+        .last
+        .split('Widget _buildDetectionPage()')
+        .first;
+
+    expect(instrumentHandler, contains('_bumpGenerationNoteHighlight(midi);'));
+    expect(guitarBuilder, contains('_generationNoteHighlightMidi == note'));
+  });
 }

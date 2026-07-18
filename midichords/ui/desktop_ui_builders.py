@@ -57,6 +57,52 @@ def build_generation_root_selector(app: object) -> tk.Frame:
     return row
 
 
+def build_generation_choice_selectors(app: object) -> None:
+    """Build the chord variant and inversion selectors on their stable rows."""
+    specs = (
+        (
+            "generation_variant",
+            2,
+            (0, 5),
+            app._on_generation_variant_combo_changed,
+            16,
+        ),
+        (
+            "generation_inversion",
+            3,
+            (0, 4),
+            app._on_generation_inversion_combo_changed,
+            None,
+        ),
+    )
+    for prefix, row, pady, callback, max_visible_items in specs:
+        label = tk.Label(
+            app.tab_generation_frame,
+            text="",
+            bg=app.color_surface_alt,
+            fg=app.color_text,
+            font=(app.ui_font_family, 14),
+        )
+        label.grid(row=row, column=0, sticky="w", pady=pady, padx=(0, 8))
+        setattr(app, f"{prefix}_label", label)
+
+        variable = tk.StringVar(value="-")
+        setattr(app, f"{prefix}_var", variable)
+        combo = ttk.Combobox(
+            app.tab_generation_frame,
+            textvariable=variable,
+            state="readonly",
+            values=["-"],
+            font=(app.ui_font_family, 15),
+        )
+        combo.grid(row=row, column=1, sticky="ew", pady=pady)
+        combo.bind("<<ComboboxSelected>>", callback)
+        app._qt_apply_dark_combobox_style(combo)
+        if max_visible_items is not None and hasattr(combo, "setMaxVisibleItems"):
+            combo.setMaxVisibleItems(max_visible_items)
+        setattr(app, f"{prefix}_combo", combo)
+
+
 def build_scale_tonic_selector(app: object) -> tk.Frame:
     """Build the scale tonic and accidental selectors on their stable row."""
     app.scale_tonic_selector_label = tk.Label(

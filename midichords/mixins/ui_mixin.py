@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
 from midichords.ui.desktop_ui_builders import (
+    build_generation_choice_selectors,
     build_generation_root_selector,
     build_main_panel_shell,
     build_scale_tonic_selector,
@@ -770,48 +771,7 @@ class UiMixin:
         self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
         build_generation_root_selector(self)
-
-        self.generation_variant_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_variant_var = tk.StringVar(value="-")
-        self.generation_variant_combo = ttk.Combobox(
-            self.tab_generation_frame,
-            textvariable=self.generation_variant_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_variant_combo.grid(row=2, column=1, sticky="ew", pady=(0, 5))
-        self.generation_variant_combo.bind("<<ComboboxSelected>>", self._on_generation_variant_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_variant_combo)
-        if hasattr(self.generation_variant_combo, "setMaxVisibleItems"):
-            self.generation_variant_combo.setMaxVisibleItems(16)
-
-        self.generation_inversion_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 4), padx=(0, 8))
-        self.generation_inversion_var = tk.StringVar(value="-")
-        self.generation_inversion_combo = ttk.Combobox(
-            self.tab_generation_frame,
-            textvariable=self.generation_inversion_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_inversion_combo.grid(row=3, column=1, sticky="ew", pady=(0, 4))
-        self.generation_inversion_combo.bind("<<ComboboxSelected>>", self._on_generation_inversion_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_inversion_combo)
+        build_generation_choice_selectors(self)
 
         self.generated_chord_row = tk.Frame(
             self.tab_generation_frame,

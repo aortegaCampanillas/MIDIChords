@@ -1240,6 +1240,35 @@ class RenderMixin:
         margin_x = 72
         right_x = w - 20
         line_space = min(22, max(11, h // 24))
+        # Con muchas notas en una escala (p.ej. cromática a 2-3 octavas,
+        # hasta 37-39 notas), el hueco horizontal por nota puede quedar muy
+        # por debajo de lo que necesita una cabeza de nota + símbolo de
+        # alteración a tamaño normal, provocando solapes. Se reduce
+        # line_space (y por tanto TODO el tamaño: pentagrama, notas,
+        # alteraciones) en proporción al hueco horizontal real disponible.
+        if self.scale_tab_active and display_notes_list:
+            _sig_count_probe, _ = self._staff_signature_context(display_notes)
+            # Aproximacion del ancho de la armadura (clave + espacio + una
+            # alteracion por cada # o b de la tonalidad) al line_space
+            # todavia sin reducir, para no subestimar cuanto hueco le queda
+            # realmente a las notas cuando hay muchas alteraciones (p.ej.
+            # Do# mayor = 7).
+            estimated_left = margin_x + 60.0 + (_sig_count_probe * line_space * 0.95)
+            estimated_right = max(estimated_left + 1, right_x - 40)
+            estimated_step_x = max(
+                6.0,
+                (estimated_right - estimated_left) / max(1, len(display_notes_list) - 1),
+            )
+            # Con una cabeza de nota (~0.72*line_space de radio) mas su
+            # simbolo de alteracion (que no debe invadir esa cabeza) mas
+            # aire hasta la nota siguiente, hacen falta del orden de 70px
+            # de hueco horizontal a line_space=22 para que no se vea
+            # apelotonado; si hay menos, se reduce line_space en la misma
+            # proporcion.
+            comfortable_step_at_max = 70.0
+            if estimated_step_x < comfortable_step_at_max:
+                scale_factor = max(0.32, estimated_step_x / comfortable_step_at_max)
+                line_space = max(7, int(line_space * scale_factor))
         vertical_shift = int(2 * line_space)
         # Si la nota mas aguda a dibujar (p.ej. una escala cromatica de mas
         # de una octava) necesita varias lineas adicionales por encima del
@@ -1393,7 +1422,18 @@ class RenderMixin:
                     for idx in range(pair_count, len(treble_ordered)):
                         scale_staff_entries.append((treble_ordered[idx], idx, False))
                 ordered = [int(note) for note, _degree, _is_bass in scale_staff_entries]
-                left_x = max(margin_x + 88, signature_end_x + 34.0)
+                # El simbolo de alteracion de la primera nota se dibuja
+                # desplazado a su izquierda; sin hueco extra tras la
+                # armadura, ese simbolo queda pegado (o encima) de la
+                # ultima alteracion de la armadura, especialmente con
+                # tonalidades de muchas alteraciones (p.ej. Do# = 7 #). El
+                # hueco reservado es proporcional al tamaño real que
+                # tendra ese simbolo (~1.12x el tamaño de fuente).
+                _probe_acc_pt = self._staff_accidental_font_pt(
+                    int(line_space), prefer_flat=prefer_flat_signature
+                )
+                first_accidental_gap = max(34.0, _probe_acc_pt * 1.12 + 14.0)
+                left_x = max(margin_x + 88, signature_end_x + first_accidental_gap)
                 right_limit = max(left_x + 1, right_x - 40)
                 step_x = max(18.0, (right_limit - left_x) / max(1, len(display_notes_list) - 1))
                 base_scale_ordered = [int(n) for n in display_notes_list]
@@ -1426,8 +1466,19 @@ class RenderMixin:
                         prev_letter = scale_letter_indices[idx - 1] if idx - 1 < len(scale_letter_indices) else ((tonic_letter + idx - 1) % 7)
                         curr_letter = scale_letter_indices[idx] if idx < len(scale_letter_indices) else ((tonic_letter + idx) % 7)
                         delta = (curr_letter - prev_letter) % 7
+                        # delta=0 normalmente significa "misma letra, una
+                        # octava mas arriba" (v.g. escalas diatonicas de 7
+                        # notas, donde cada letra aparece una sola vez por
+                        # octava). En la cromatica, dos notas consecutivas
+                        # pueden compartir letra sin ser una octava real
+                        # (p.ej. Do4->Do#4, a un semitono): en ese caso se
+                        # dibujan en la MISMA linea/espacio del pentagrama
+                        # (delta=0 real), diferenciandose solo por el
+                        # simbolo de alteracion, no una octava mas arriba.
                         if delta == 0 and base_scale_ordered[idx] > base_scale_ordered[idx - 1]:
-                            delta = 7
+                            semitone_gap = base_scale_ordered[idx] - base_scale_ordered[idx - 1]
+                            if semitone_gap >= 12:
+                                delta = 7
                         scale_diatonic_indices.append(scale_diatonic_indices[-1] + delta)
                 note_degree_map: dict[int, set[int]] = {}
                 for mapped_note, mapped_degree, _mapped_is_bass in scale_staff_entries:
@@ -1654,44 +1705,9 @@ class RenderMixin:
                         ledger_y = staff_base_y - (ledger_idx - low_bound) * staff_step
                         ledger_lines_y.append(ledger_y)
 
-                # Alteraciones: misma altura que la nota natural + simbolo.
-                note_pc = note % 12
-                natural_pc_by_letter = [0, 2, 4, 5, 7, 9, 11]
-                if self.scale_tab_active:
-                    letter_idx = scale_letter_indices[degree_idx] if degree_idx < len(scale_letter_indices) else (diatonic_idx % 7)
-                else:
-                    letter_idx = diatonic_idx % 7
-                natural_base_pc = natural_pc_by_letter[letter_idx]
-                acc_note_pt = self._staff_accidental_font_pt(
-                    int(line_space), prefer_flat=prefer_flat_signature
-                )
-                nat_pt = self._staff_natural_font_pt(int(line_space))
-                acc_dx_scale = max(22, min(40, int(round(acc_note_pt * 1.12))))
-                acc_dx_nat = max(20, min(38, int(round(nat_pt * 1.12))))
-                if use_key_signature and natural_base_pc in signature_base_naturals and note_pc == natural_base_pc:
-                    accidental_x = (x - acc_dx_nat) if self.scale_tab_active else (
-                        (chord_x - acc_dx_nat - 6) if col > 0 else (x - acc_dx_nat)
-                    )
-                    canvas.create_text(
-                        accidental_x,
-                        y,
-                        text="♮",
-                        fill="#ffffff",
-                        font=("Helvetica", nat_pt, "bold"),
-                    )
-                elif note_pc not in WHITE_PCS and (not use_key_signature or note_pc not in signature_pc_set):
-                    accidental_x = (x - acc_dx_scale) if self.scale_tab_active else (
-                        (chord_x - acc_dx_scale - 6) if col > 0 else (x - acc_dx_scale)
-                    )
-                    accidental_text = "♭" if prefer_flat_signature else "#"
-                    accidental_font = ("Helvetica", acc_note_pt, "bold")
-                    canvas.create_text(
-                        accidental_x,
-                        y,
-                        text=accidental_text,
-                        fill="#ffffff",
-                        font=accidental_font,
-                    )
+                # Color de la nota: calculado antes del simbolo de
+                # alteracion para poder resaltar tambien el # / b / natural
+                # con el mismo color cuando la nota esta pulsada/sonando.
                 _dur_base = ""
                 _is_hollow = False
                 if self.scale_tab_active:
@@ -1746,6 +1762,67 @@ class RenderMixin:
                 else:
                     note_fill = ""
                     note_outline = "#d7dde7"
+                # note_outline suele ser blanco tanto resaltada como no
+                # (solo note_fill cambia de verdad, p.ej. azul/naranja al
+                # pulsar), asi que hay que usar note_fill como color
+                # distintivo del simbolo cuando la nota este resaltada.
+                accidental_color = note_fill if note_fill else "#ffffff"
+
+                # Alteraciones: misma altura que la nota natural + simbolo.
+                note_pc = note % 12
+                natural_pc_by_letter = [0, 2, 4, 5, 7, 9, 11]
+                if self.scale_tab_active:
+                    letter_idx = scale_letter_indices[degree_idx] if degree_idx < len(scale_letter_indices) else (diatonic_idx % 7)
+                else:
+                    letter_idx = diatonic_idx % 7
+                natural_base_pc = natural_pc_by_letter[letter_idx]
+                acc_note_pt = self._staff_accidental_font_pt(
+                    int(line_space), prefer_flat=prefer_flat_signature
+                )
+                nat_pt = self._staff_natural_font_pt(int(line_space))
+                if self.scale_tab_active:
+                    # En escalas con muchas notas (p.ej. cromática, 13 notas)
+                    # el hueco horizontal entre notas (step_x) puede ser mas
+                    # pequeño que el desplazamiento normal del simbolo de
+                    # alteracion. Se acota el tamaño de fuente al hueco
+                    # disponible, pero el desplazamiento (acc_dx) nunca debe
+                    # bajar de radio_de_la_nota + margen, o el simbolo cae
+                    # encima de la propia cabeza de nota en vez de a su
+                    # izquierda.
+                    max_dx = max(9, int(step_x * 0.55))
+                    acc_note_pt = max(9, min(acc_note_pt, int(max_dx / 1.12)))
+                    nat_pt = max(9, min(nat_pt, int(max_dx / 1.12)))
+                if self.scale_tab_active:
+                    min_dx_over_note = int(note_rx + 4)
+                    acc_dx_scale = max(min_dx_over_note, min(40, int(round(acc_note_pt * 1.12))))
+                    acc_dx_nat = max(min_dx_over_note, min(38, int(round(nat_pt * 1.12))))
+                else:
+                    acc_dx_scale = max(22, min(40, int(round(acc_note_pt * 1.12))))
+                    acc_dx_nat = max(20, min(38, int(round(nat_pt * 1.12))))
+                if use_key_signature and natural_base_pc in signature_base_naturals and note_pc == natural_base_pc:
+                    accidental_x = (x - acc_dx_nat) if self.scale_tab_active else (
+                        (chord_x - acc_dx_nat - 6) if col > 0 else (x - acc_dx_nat)
+                    )
+                    canvas.create_text(
+                        accidental_x,
+                        y,
+                        text="♮",
+                        fill=accidental_color,
+                        font=("Helvetica", nat_pt, "bold"),
+                    )
+                elif note_pc not in WHITE_PCS and (not use_key_signature or note_pc not in signature_pc_set):
+                    accidental_x = (x - acc_dx_scale) if self.scale_tab_active else (
+                        (chord_x - acc_dx_scale - 6) if col > 0 else (x - acc_dx_scale)
+                    )
+                    accidental_text = "♭" if prefer_flat_signature else "#"
+                    accidental_font = ("Helvetica", acc_note_pt, "bold")
+                    canvas.create_text(
+                        accidental_x,
+                        y,
+                        text=accidental_text,
+                        fill=accidental_color,
+                        font=accidental_font,
+                    )
                 # Whole notes are wider; use thicker outline for hollow long notes in melody mode
                 _oval_rx = note_rx * 1.2 if (_imel and _dur_base == "w") else note_rx
                 _oval_w = 2.5 if (_imel and _is_hollow) else 2

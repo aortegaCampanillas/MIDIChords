@@ -61,10 +61,38 @@ class ScalesMixin:
             }
         tonic_letter = tonic_letter_map.get(int(tonic_pc) % 12, 0)
 
+        # La escala cromática tiene 13 notas (12 semitonos + octava) pero
+        # solo 7 letras: asignar una letra por índice (como se hace para
+        # escalas diatónicas de 7 notas) genera dobles alteraciones
+        # (p.ej. "Fa♭♭") y desalinea la posición en el pentagrama. Se usa
+        # en su lugar la convención estándar: sostenidos ascendiendo,
+        # reutilizando cada letra natural para su semitono siguiente en
+        # vez de avanzar de letra en cada paso.
+        is_chromatic = str(pattern.name) == "Chromatic"
+        # pc -> (letter_idx, accidental) para sostenidos ascendiendo.
+        sharp_spelling = {
+            0: (0, ""), 1: (0, "#"), 2: (1, ""), 3: (1, "#"), 4: (2, ""),
+            5: (3, ""), 6: (3, "#"), 7: (4, ""), 8: (4, "#"), 9: (5, ""),
+            10: (5, "#"), 11: (6, ""),
+        }
+
         names: list[str] = []
         for idx, interval in enumerate(intervals):
             midi_note = int(root_midi + interval)
             target_pc = midi_note % 12
+            if is_chromatic:
+                # Tabla absoluta (no relativa a la tónica): "rel_pc" habría
+                # forzado a la tónica en sí a nombrarse siempre sin
+                # alteración (p.ej. "Do" en vez de "Do#" si la tónica es
+                # Do#), descuadrando también la octava de las notas
+                # siguientes.
+                letter_idx, accidental = sharp_spelling[target_pc]
+                name = f"{letter_names[letter_idx]}{accidental}"
+                if with_octave:
+                    octave = midi_note // 12 - 1
+                    name = f"{name}{octave}"
+                names.append(name)
+                continue
             letter_idx = (tonic_letter + idx) % 7
             base_pc = base_pcs[letter_idx]
             diff = (target_pc - base_pc) % 12

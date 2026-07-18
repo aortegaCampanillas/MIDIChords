@@ -65,6 +65,10 @@ def check_web() -> None:
         "Sintaxis del Cloudflare Worker",
         (node, "--check", "apps/web/worker/_worker.js"),
     )
+    _run(
+        "Fuente de verdad pública de PianoPilot",
+        (sys.executable, "scripts/check_pianopilot_landing.py"),
+    )
     web_tests = tuple(
         str(path.relative_to(PROJECT_ROOT))
         for path in sorted((PROJECT_ROOT / "apps/web/test").glob("*.test.js"))

@@ -11,6 +11,7 @@ Historial de versiones publicadas de MIDIChords.
 ### Documentado
 
 - **Landings (mantenimiento)**: MIDIChords y PianoPilot comparten ahora la infraestructura de idioma, capturas ampliables y formulario de comentarios; el perfil web descubre también los scripts enlazados exclusivamente desde las páginas públicas.
+- **PianoPilot (landing)**: añadida una fuente de verdad versionada y contrastable con el repositorio del producto; se corrigen el catálogo a 153 tonos, las promesas absolutas de control y la explicación de USB MIDI, Bluetooth MIDI y posibles controladores del sistema.
 - **Mantenimiento / agentes**: cerrada la fase estructural con resultados cuantitativos, criterios verificables y un backlog explícito para ciclos de vida Flutter, renderers/eventos web y construcción Qt; cada bloque pendiente indica las pruebas de integración necesarias antes de dividirlo.
 - **Mantenimiento / agentes**: completada la continuación de contratos de integración: smoke contract y builders Qt, ciclo de vida y geometría de partitura web, y adaptadores probados para actividad, preferencias y suscripciones MIDI en Flutter.
 - **Mantenimiento / tests**: consolidados los contratos de digitación de escalas en un harness parametrizado común, eliminando tablas y extensores duplicados sin perder fixtures, tonalidades, manos, direcciones ni casos de una y dos octavas.

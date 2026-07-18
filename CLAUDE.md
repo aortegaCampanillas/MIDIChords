@@ -22,7 +22,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Reproducción de audio | `midichords/core/audio_engine.py` |
 | Entrada MIDI | `midichords/mixins/midi_io_mixin.py` |
 | UI escritorio (paneles, teclado, pentagrama) | `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
-| Web: círculo de quintas | `apps/web/static/circle_theory.js` (teoría/geometría), `apps/web/static/app.js` (`renderCircleFifths`) |
+| Web: círculo de quintas | `apps/web/static/circle_theory.js` (teoría/geometría/hit-testing), `apps/web/static/app.js` (`renderCircleFifths`) |
 | Web: detección de intervalos | `apps/web/static/interval_theory.js` (teoría/melodías), `apps/web/static/app.js` (estado/reproducción) |
 | Web: digitaciones de piano | `apps/web/static/piano_fingering.js` |
 | Web: armaduras y relativos modales | `apps/web/static/key_signature.js` |
@@ -52,7 +52,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Archivo | Líneas | Contenido |
 |---------|--------|-----------|
 | `apps/mobile_flutter/lib/main.dart` | ~8600 | Estado, servicios de plataforma y composición transversal de la UI móvil |
-| `apps/web/static/app.js` | ~7280 | Estado, modos, renderers y ciclos de vida de audio/MIDI de la SPA |
+| `apps/web/static/app.js` | ~7170 | Estado, modos, renderers y ciclos de vida de audio/MIDI de la SPA |
 | `midichords/mixins/ui_mixin.py` | ~4300 | Construcción de paneles y modos Qt |
 | `midichords/mixins/render_mixin.py` | ~2100 | Dibujo de instrumentos y pentagrama |
 | `midichords/main_app.py` | ~1800 | Ventana principal y estado transversal |

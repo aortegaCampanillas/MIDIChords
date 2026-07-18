@@ -28,7 +28,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/music_notation.js` contiene nombres de notas, letras de tónica, alteraciones, armaduras y conversiones puras de pitch class. La UI debe consumir estas funciones en vez de duplicar normalización o tablas.
 
-`static/circle_theory.js` contiene orden de quintas, grados, tríadas diatónicas, armaduras y geometría pura del círculo. El renderizado con estado y DOM permanece en `app.js`; mantener esa frontera para que la teoría pueda probarse directamente con Node.
+`static/circle_theory.js` contiene orden de quintas, grados, tríadas diatónicas, armaduras, hit-testing y geometría pura del círculo. El renderizado con estado y DOM permanece en `app.js`; modo y tónica deben pasarse explícitamente a las funciones de interacción para que puedan probarse directamente con Node.
 
 `static/interval_theory.js` contiene nombres bilingües, cálculo de semitonos y catálogo/mapeo de melodías mnemotécnicas. La cola de notas, temporizadores y reproducción permanecen en `app.js`.
 

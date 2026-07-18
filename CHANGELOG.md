@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: trasladados al módulo del círculo de quintas el hit-testing de sectores/anillos, la selección diatónica y la geometría del acorde resaltado; modo y tónica son ahora entradas explícitas y las pruebas cubren clics interiores, exteriores, fuera del anillo y bandas mayor/menor/disminuida.
+
 - **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.
 
 - **Web (mantenimiento)**: extraídas las envolventes de piano/guitarra y la liberación segura de voces retenidas a un módulo probado con nodos Web Audio falsos, eliminando dos implementaciones duplicadas y cubriendo también fuentes ya detenidas.

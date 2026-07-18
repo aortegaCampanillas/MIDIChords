@@ -11,7 +11,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Ayuda de variantes | `assets/chord_variant_theory.json` | `apps/mobile_flutter/assets/chord_variant_theory.json`; la web mantiene su catálogo en `apps/web/static/chord_help.js` | `tests/test_chord_help_cross_platform.py` y `tests/test_web_chord_variant_help.py` |
 | Textos generales de la web | `apps/web/static/ui_texts.js` | La SPA los consume mediante `globalThis.MidiChordsUiTexts` | `tests/test_web_ui_texts.py` |
 | Notación básica de la web | `apps/web/static/music_notation.js` | Nombres de notas, alteraciones, armaduras y mapeos diatónicos de la SPA | `apps/web/test/catalogs.test.js` |
-| Teoría del círculo web | `apps/web/static/circle_theory.js` | El renderer y las interacciones con estado permanecen en `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` |
+| Teoría e interacción del círculo web | `apps/web/static/circle_theory.js` | El renderer, DOM y adaptación del estado permanecen en `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` |
 | Teoría de intervalos web | `apps/web/static/interval_theory.js` | Cola, temporizadores, reproducción y renderer permanecen en `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` |
 | Digitaciones de piano web | `apps/web/static/piano_fingering.js` | La UI de escalas consume resultados puros y puede recibir vacío si no hay patrón documentado | `apps/web/test/catalogs.test.js` y tests Python de digitaciones |
 | Armaduras de la web | `apps/web/static/key_signature.js` | `getStaffContext()` adapta el estado de cada modo en `apps/web/static/app.js` | `apps/web/test/catalogs.test.js` y tests Python de armaduras |

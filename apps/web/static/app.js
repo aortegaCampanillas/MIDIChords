@@ -269,6 +269,12 @@ const {
   circleSignatureLabelForSliceIndex,
   relativeMinorPcFromMajorPc,
   circleFifthsRadiiPx,
+  circleSliceAngles,
+  pitchClassFromCircleClick,
+  circleChordRootPcFromClick,
+  circleChordShiftClickIsDiatonic,
+  circleFifthsClickInnerMinorBand,
+  circleChordHighlightGeom,
   circleSliceIndexForPitchClass,
   chordRootPcForMajorScaleDegree,
   circlePathArc,
@@ -469,44 +475,6 @@ function strokeCircleDiatonicEnvelope(ctx, tonicPc, rSigInner, rGuideMajMin, rHo
  * Resaltado del acorde: banda superior (mayor + romanos mayores) o inferior (menor + romanos menores).
  * Lam (vi) vive en el sector de su mayor relativa (p. ej. Do), no en el sector La.
  */
-function circleChordHighlightGeom(tonicPc, chordRootPc, generatedChord) {
-  const rootFromState = ((chordRootPc % 12) + 12) % 12;
-  const rootFromApi = generatedChord != null && generatedChord.root_pc != null
-    ? (((Number(generatedChord.root_pc) % 12) + 12) % 12)
-    : null;
-  const root = rootFromApi != null ? rootFromApi : rootFromState;
-  let suffix = "";
-  if (generatedChord && generatedChord.suffix != null && generatedChord.suffix !== undefined) {
-    suffix = String(generatedChord.suffix);
-  }
-  if (suffix === "" || suffix === "undefined") {
-    if (state.circleKeyMode === "minor") {
-      const mt = ((state.circleTonicPc % 12) + 12) % 12;
-      suffix = diatonicTriadSuffixNaturalMinorKey(mt, root).suffix || "";
-    } else {
-      suffix = diatonicTriadSuffixMajorKey(tonicPc, root).suffix || "";
-    }
-  }
-  if (suffix === "m") {
-    const relMajPc = (root - 9 + 12) % 12;
-    return {
-      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
-      band: "minor",
-    };
-  }
-  if (suffix === "dim") {
-    const relMajPc = (root + 3 + 12) % 12;
-    return {
-      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
-      band: "minor",
-    };
-  }
-  return {
-    sliceIdx: circleSliceIndexForPitchClass(root),
-    band: "major",
-  };
-}
-
 /** Trapecio circular: solo contorno amarillo (sin relleno). */
 function strokeCircleChordSelectionBand(ctx, rOut, rIn, a0, a1, dpr) {
   ctx.beginPath();
@@ -523,86 +491,6 @@ function strokeCircleChordSelectionBand(ctx, rOut, rIn, a0, a1, dpr) {
   ctx.stroke();
 }
 
-const CIRCLE_SLICE_RAD = (Math.PI * 2) / 12;
-
-/** Do (índice 0) con eje en el norte (−90°); cada sector centrado en −90° + i·30°. */
-function circleSliceAngles(i) {
-  const mid = (-Math.PI / 2) + (i * CIRCLE_SLICE_RAD);
-  const half = CIRCLE_SLICE_RAD / 2;
-  return { mid, a0: mid - half, a1: mid + half };
-}
-
-function circleSliceIndexFromCanvas(cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const a = Math.atan2(dy, dx);
-  const t = (a + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
-  return Math.floor((t + CIRCLE_SLICE_RAD / 2) / CIRCLE_SLICE_RAD) % 12;
-}
-
-function pitchClassFromCircleClick(cx, cy, x, y) {
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  return CIRCLE_FIFTHS_ORDER[idx];
-}
-
-/**
- * Clic: fija tónica/tonalidad según anillo (mayor exterior / menor relativa interior).
- * Mayús+clic: raíz del acorde diatónico en la misma regla de anillo.
- */
-function circleChordRootPcFromClick(canvasW, canvasH, cx, cy, x, y, shiftKey) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
-  if (!shiftKey) {
-    if (dist < rGuideMajMin) {
-      return ((majorPc + 9) % 12 + 12) % 12;
-    }
-    return ((majorPc % 12) + 12) % 12;
-  }
-  if (dist < rGuideMajMin) {
-    return ((majorPc + 9) % 12 + 12) % 12;
-  }
-  return ((majorPc % 12) + 12) % 12;
-}
-
-/**
- * Mayús+clic: solo triadas diatónicas según banda y sector (mayor: I–IV–V / ii–iii–vi–vii°; menor natural: grados relativos).
- */
-function circleChordShiftClickIsDiatonic(tonicPc, canvasW, canvasH, cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return false;
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
-  const innerMinorBand = dist < rGuideMajMin;
-  if (state.circleKeyMode === "minor") {
-    const minorTonic = ((state.circleTonicPc % 12) + 12) % 12;
-    if (!innerMinorBand) {
-      const dU = (majorPc - minorTonic + 12) % 12;
-      return [3, 8, 10].includes(dU);
-    }
-    const rootMinor = (majorPc + 9 + 12) % 12;
-    return diatonicTriadSuffixNaturalMinorKey(minorTonic, rootMinor).interval != null;
-  }
-  const viiRootPc = chordRootPcForMajorScaleDegree(tonicPc, 11);
-  const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
-  if (!innerMinorBand) {
-    const { degree } = diatonicTriadSuffixMajorKey(tonicPc, majorPc);
-    return degree != null && circleUpperBandIsDiatonicMajorTriad(degree);
-  }
-  const rootMinor = (majorPc + 9 + 12) % 12;
-  const { degree: minorDeg } = diatonicTriadSuffixMajorKey(tonicPc, rootMinor);
-  if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) return true;
-  if (minorDeg === 11 && majorPc === viiLabelSlicePc) return true;
-  return false;
-}
-
 /** Tónica de la tonalidad mayor usada en análisis diatónico (numeración, colores, API). Si el usuario eligió modo menor, es la relativa mayor. */
 function circleMajorTonicPcForTheory() {
   const t = ((state.circleTonicPc % 12) + 12) % 12;
@@ -610,16 +498,6 @@ function circleMajorTonicPcForTheory() {
     return (t + 3 + 12) % 12;
   }
   return t;
-}
-
-/** null = fuera del anillo; true = banda menor; false = banda mayor. */
-function circleFifthsClickInnerMinorBand(canvasW, canvasH, cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
-  return dist < rGuideMajMin;
 }
 
 function scheduleCircleFifthsLayout() {
@@ -755,7 +633,13 @@ function renderCircleFifths() {
     ctx.stroke();
   }
   strokeCircleDiatonicEnvelope(ctx, tonic, rSigInner, rGuideMajMin, rHole, dpr);
-  const hl = circleChordHighlightGeom(tonic, chordRoot, state.generatedChord);
+  const hl = circleChordHighlightGeom(
+    tonic,
+    chordRoot,
+    state.generatedChord,
+    state.circleKeyMode,
+    state.circleTonicPc,
+  );
   const { a0: ha0, a1: ha1 } = circleSliceAngles(hl.sliceIdx);
   const selInset = Math.max(2.5, 3.2 * dpr);
   let rHiOut = rSigInner - selInset;
@@ -896,13 +780,23 @@ function bindCircleFifthsCanvas() {
     const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y, event.shiftKey);
+    const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y);
     if (pc == null) return;
     // Invertido respecto al gesto original (alineado con móvil): clic simple
     // elige un acorde diatónico dentro de la tonalidad actual; Mayús+clic
     // cambia de tónica/tonalidad.
     if (!event.shiftKey) {
-      if (!circleChordShiftClickIsDiatonic(circleMajorTonicPcForTheory(), canvas.width, canvas.height, cx, cy, x, y)) return;
+      if (!circleChordShiftClickIsDiatonic(
+        circleMajorTonicPcForTheory(),
+        canvas.width,
+        canvas.height,
+        cx,
+        cy,
+        x,
+        y,
+        state.circleKeyMode,
+        state.circleTonicPc,
+      )) return;
       state.circleChordRootPc = pc;
     } else {
       const band = circleFifthsClickInnerMinorBand(canvas.width, canvas.height, cx, cy, x, y);

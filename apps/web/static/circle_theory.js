@@ -191,6 +191,109 @@ function circleFifthsRadiiPx(w, h) {
   };
 }
 
+const CIRCLE_SLICE_RAD = (Math.PI * 2) / 12;
+
+/** Do (índice 0) con eje en el norte (−90°); cada sector centrado en −90° + i·30°. */
+function circleSliceAngles(index) {
+  const mid = (-Math.PI / 2) + (index * CIRCLE_SLICE_RAD);
+  const half = CIRCLE_SLICE_RAD / 2;
+  return { mid, a0: mid - half, a1: mid + half };
+}
+
+function circleSliceIndexFromCanvas(cx, cy, x, y) {
+  const angle = Math.atan2(y - cy, x - cx);
+  const normalized = (angle + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+  return Math.floor((normalized + CIRCLE_SLICE_RAD / 2) / CIRCLE_SLICE_RAD) % 12;
+}
+
+function pitchClassFromCircleClick(cx, cy, x, y) {
+  return CIRCLE_FIFTHS_ORDER[circleSliceIndexFromCanvas(cx, cy, x, y)];
+}
+
+function circleClickInfo(canvasW, canvasH, cx, cy, x, y) {
+  const distance = Math.hypot(x - cx, y - cy);
+  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
+  if (distance < rHole * 1.02 || distance > rOuter * 1.02) return null;
+  const sliceIdx = circleSliceIndexFromCanvas(cx, cy, x, y);
+  return {
+    sliceIdx,
+    majorPc: CIRCLE_FIFTHS_ORDER[sliceIdx],
+    innerMinorBand: distance < rGuideMajMin,
+  };
+}
+
+function circleChordRootPcFromClick(canvasW, canvasH, cx, cy, x, y) {
+  const click = circleClickInfo(canvasW, canvasH, cx, cy, x, y);
+  if (!click) return null;
+  return click.innerMinorBand ? relativeMinorPcFromMajorPc(click.majorPc) : click.majorPc;
+}
+
+function circleChordShiftClickIsDiatonic(
+  tonicPc,
+  canvasW,
+  canvasH,
+  cx,
+  cy,
+  x,
+  y,
+  keyMode = "major",
+  circleTonicPc = tonicPc,
+) {
+  const click = circleClickInfo(canvasW, canvasH, cx, cy, x, y);
+  if (!click) return false;
+  const { majorPc, innerMinorBand } = click;
+  if (keyMode === "minor") {
+    const minorTonic = ((Number(circleTonicPc) % 12) + 12) % 12;
+    if (!innerMinorBand) return [3, 8, 10].includes((majorPc - minorTonic + 12) % 12);
+    return diatonicTriadSuffixNaturalMinorKey(
+      minorTonic,
+      relativeMinorPcFromMajorPc(majorPc),
+    ).interval != null;
+  }
+  const viiRootPc = chordRootPcForMajorScaleDegree(tonicPc, 11);
+  const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
+  if (!innerMinorBand) {
+    const { degree } = diatonicTriadSuffixMajorKey(tonicPc, majorPc);
+    return degree != null && circleUpperBandIsDiatonicMajorTriad(degree);
+  }
+  const rootMinor = relativeMinorPcFromMajorPc(majorPc);
+  const { degree: minorDegree } = diatonicTriadSuffixMajorKey(tonicPc, rootMinor);
+  if (minorDegree != null && circleLowerBandIsDiatonicMinorTriad(minorDegree)) return true;
+  return minorDegree === 11 && majorPc === viiLabelSlicePc;
+}
+
+function circleFifthsClickInnerMinorBand(canvasW, canvasH, cx, cy, x, y) {
+  const click = circleClickInfo(canvasW, canvasH, cx, cy, x, y);
+  return click ? click.innerMinorBand : null;
+}
+
+function circleChordHighlightGeom(
+  tonicPc,
+  chordRootPc,
+  generatedChord,
+  keyMode = "major",
+  circleTonicPc = tonicPc,
+) {
+  const rootFromState = ((Number(chordRootPc) % 12) + 12) % 12;
+  const rootFromApi = generatedChord != null && generatedChord.root_pc != null
+    ? ((Number(generatedChord.root_pc) % 12) + 12) % 12
+    : null;
+  const root = rootFromApi != null ? rootFromApi : rootFromState;
+  let suffix = generatedChord?.suffix != null ? String(generatedChord.suffix) : "";
+  if (suffix === "" || suffix === "undefined") {
+    suffix = keyMode === "minor"
+      ? diatonicTriadSuffixNaturalMinorKey(circleTonicPc, root).suffix || ""
+      : diatonicTriadSuffixMajorKey(tonicPc, root).suffix || "";
+  }
+  if (suffix === "m") {
+    return { sliceIdx: circleSliceIndexForPitchClass((root - 9 + 12) % 12), band: "minor" };
+  }
+  if (suffix === "dim") {
+    return { sliceIdx: circleSliceIndexForPitchClass((root + 3) % 12), band: "minor" };
+  }
+  return { sliceIdx: circleSliceIndexForPitchClass(root), band: "major" };
+}
+
 function circleSliceIndexForPitchClass(pc) {
   const p = ((pc % 12) + 12) % 12;
   for (let i = 0; i < 12; i += 1) {
@@ -293,6 +396,13 @@ global.MidiChordsCircleTheory = Object.freeze({
   circleSignatureLabelForSliceIndex,
   relativeMinorPcFromMajorPc,
   circleFifthsRadiiPx,
+  circleSliceAngles,
+  circleSliceIndexFromCanvas,
+  pitchClassFromCircleClick,
+  circleChordRootPcFromClick,
+  circleChordShiftClickIsDiatonic,
+  circleFifthsClickInnerMinorBand,
+  circleChordHighlightGeom,
   circleSliceIndexForPitchClass,
   chordRootPcForMajorScaleDegree,
   circlePathArc,

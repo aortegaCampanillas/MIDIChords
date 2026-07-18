@@ -179,6 +179,12 @@ test("circle of fifths theory maps keys and diatonic triads", () => {
     relativeMinorPcFromMajorPc,
     circleSliceIndexForPitchClass,
     chordRootPcForMajorScaleDegree,
+    circleSliceAngles,
+    pitchClassFromCircleClick,
+    circleChordRootPcFromClick,
+    circleChordShiftClickIsDiatonic,
+    circleFifthsClickInnerMinorBand,
+    circleChordHighlightGeom,
   } = globalThis.MidiChordsCircleTheory;
 
   assert.equal(CIRCLE_FIFTHS_ORDER.length, 12);
@@ -196,6 +202,23 @@ test("circle of fifths theory maps keys and diatonic triads", () => {
   assert.equal(chordRootPcForMajorScaleDegree(0, 11), 11);
   assert.equal(circleSignatureLabelForSliceIndex(0), "0");
   assert.equal(circleSignatureLabelForSliceIndex(8), "4♭");
+  assert.ok(Math.abs(circleSliceAngles(0).mid + (Math.PI / 2)) < 1e-12);
+  assert.equal(pitchClassFromCircleClick(200, 200, 200, 40), 0);
+  assert.equal(circleChordRootPcFromClick(400, 400, 200, 200, 200, 50), 0);
+  assert.equal(circleChordRootPcFromClick(400, 400, 200, 200, 200, 130), 9);
+  assert.equal(circleChordRootPcFromClick(400, 400, 200, 200, 200, 200), null);
+  assert.equal(circleFifthsClickInnerMinorBand(400, 400, 200, 200, 200, 130), true);
+  assert.equal(circleFifthsClickInnerMinorBand(400, 400, 200, 200, 200, 50), false);
+  assert.equal(circleChordShiftClickIsDiatonic(0, 400, 400, 200, 200, 200, 50), true);
+  assert.equal(circleChordShiftClickIsDiatonic(0, 400, 400, 200, 200, 338, 120), false);
+  assert.deepEqual(circleChordHighlightGeom(0, 9, { suffix: "m" }), {
+    sliceIdx: 0,
+    band: "minor",
+  });
+  assert.deepEqual(circleChordHighlightGeom(0, 11, { suffix: "dim" }), {
+    sliceIdx: 2,
+    band: "minor",
+  });
 });
 
 test("music notation normalizes pitch classes and accidentals", () => {

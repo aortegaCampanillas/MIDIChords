@@ -19,6 +19,7 @@ import 'circle_of_fifths.dart';
 import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
+import 'key_signature_highlight.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -6494,6 +6495,18 @@ class _HomeScreenState extends State<HomeScreen>
     return out;
   }
 
+  int _activeScaleKeySignatureIndex(({int count, bool preferFlats}) signature) {
+    if (_tabIndex != 3 || _scaleCurrentNote == null) return -1;
+    final currentNote = _scaleCurrentNote!;
+    final label = _scalePcNameMap()[_positiveMod12(currentNote)];
+    return keySignatureIndexForScaleNote(
+      label: label,
+      midi: currentNote,
+      signatureCount: signature.count,
+      preferFlats: signature.preferFlats,
+    );
+  }
+
   /// pc de cada letra natural (Do..Si) para el combo de tónica dividido en
   /// nota + alteración, y qué alteraciones son reales para cada una (sin
   /// enarmonías inventadas como Fb/Cb/E#/B#, que no existen en _pcLabelCanonical).
@@ -7726,6 +7739,7 @@ class _HomeScreenState extends State<HomeScreen>
         ? staffMidi(_scaleCurrentNote!)
         : null;
     final staffKeySig = _staffKeySignatureForCurrentTab();
+    final activeScaleKeySigIndex = _activeScaleKeySignatureIndex(staffKeySig);
     final imelMode = _tabIndex == 5 && _intervalMelodyMode;
     final imelSemitones = _tabIndex == 5 ? _getIntervalSemitones() : null;
     final imelMelody = imelSemitones != null
@@ -7919,6 +7933,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _tabIndex == 3 && _instrumentView == 'guitar',
                     keySignatureCount: staffKeySig.count,
                     keySignaturePreferFlats: staffKeySig.preferFlats,
+                    activeKeySignatureIndex: activeScaleKeySigIndex,
                     intervalMelodyMode: imelMode,
                     intervalMelodyNotes: imelNotes,
                     intervalMelodyDurations: imelDurations,
@@ -11924,6 +11939,7 @@ class _MiniStaffPainter extends CustomPainter {
     this.scaleGuitarMode = false,
     this.keySignatureCount = 0,
     this.keySignaturePreferFlats = false,
+    this.activeKeySignatureIndex = -1,
     this.intervalMelodyMode = false,
     this.intervalMelodyNotes = const <int?>[],
     this.intervalMelodyDurations = const <String>[],
@@ -11984,6 +12000,7 @@ class _MiniStaffPainter extends CustomPainter {
   final bool scaleGuitarMode;
   final int keySignatureCount;
   final bool keySignaturePreferFlats;
+  final int activeKeySignatureIndex;
   final bool intervalMelodyMode;
   final List<int?> intervalMelodyNotes;
   final List<String> intervalMelodyDurations;
@@ -12069,7 +12086,19 @@ class _MiniStaffPainter extends CustomPainter {
           yTreble = _midiToTrebleY(_keySigTrebleSharpMidis[i], trebleTop, gap);
           yBass = _midiToBassY(_keySigBassSharpMidis[i], bassTop, gap);
         }
-        final accStyle = keySignaturePreferFlats ? accStyleFlat : accStyleSharp;
+        final active = i == activeKeySignatureIndex;
+        final baseStyle = keySignaturePreferFlats
+            ? accStyleFlat
+            : accStyleSharp;
+        final accStyle = active
+            ? baseStyle.copyWith(
+                color: const Color(0xFF6FE0FF),
+                fontWeight: FontWeight.bold,
+                shadows: const <Shadow>[
+                  Shadow(color: Color(0x996FE0FF), blurRadius: 7),
+                ],
+              )
+            : baseStyle;
         final tpAcc = TextPainter(
           text: TextSpan(text: sym, style: accStyle),
           textDirection: TextDirection.ltr,
@@ -12887,6 +12916,9 @@ class _MiniStaffPainter extends CustomPainter {
       return true;
     if (oldDelegate.keySignatureCount != keySignatureCount) return true;
     if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
+      return true;
+    }
+    if (oldDelegate.activeKeySignatureIndex != activeKeySignatureIndex) {
       return true;
     }
     if (oldDelegate.notes.length != notes.length) return true;

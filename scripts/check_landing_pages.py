@@ -89,7 +89,7 @@ def check_page(filename: str, product_name: str, minimum_screenshots: int) -> No
 
 
 def main() -> None:
-    check_page("index.html", "FreeMIDIChords", minimum_screenshots=5)
+    check_page("index.html", "FreeMIDIChords", minimum_screenshots=7)
     check_page("fp30x.html", "PianoPilot", minimum_screenshots=3)
     print("[landings] Estructura, metadatos y recursos validados.")
 

@@ -53,6 +53,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 Pide siempre el método o la sección concreta, no el archivo entero.
 
 Hay instrucciones específicas en `midichords/AGENTS.md`, `apps/web/AGENTS.md` y `apps/mobile_flutter/AGENTS.md`.
+El estado y los siguientes límites de la refactorización están en `docs/architecture/AGENT_MAINTAINABILITY.md`.
 
 ## Antes de cerrar un cambio
 

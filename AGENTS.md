@@ -179,6 +179,7 @@ Bundle ID: `com.FPAlanTuring.FreeMIDIChords` · Team ID: `977G5A733H`
 
 - **CONTRIBUTING.md**: ramas, estilo, cómo hacer PRs.
 - **PROJECT_SPEC.md**: especificación para regenerar el proyecto.
+- **`docs/architecture/AGENT_MAINTAINABILITY.md`**: resultado de la refactorización para agentes, límites actuales y siguientes candidatos seguros.
 
 ---
 

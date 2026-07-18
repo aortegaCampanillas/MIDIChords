@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Documentado
 
+- **Mantenimiento / agentes**: documentados los resultados cuantitativos de la separación móvil/web, los criterios usados y los siguientes candidatos que requieren pruebas de ciclo de vida antes de continuar dividiendo archivos.
+
 - **Mantenimiento / agentes**: corregida la arquitectura documentada del escritorio (Qt/PySide6 con compatibilidad de API Tk), añadidas instrucciones locales para Python, web y Flutter, y una matriz de fuentes de verdad y copias multiplataforma.
 
 ### Mejorado

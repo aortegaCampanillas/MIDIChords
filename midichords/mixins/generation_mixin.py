@@ -469,14 +469,31 @@ class GenerationMixin:
         self._open_generation_selection_overlay("inversion")
 
     def open_generation_variant_help_dialog(self) -> None:
-        language = str(self.config_data.get("language", "es"))
         pattern = self._resolve_generation_pattern()
+        self._open_chord_variant_help_dialog(
+            str(pattern.suffix), self.generation_inversion, tuple(pattern.intervals)
+        )
+
+    def open_detection_variant_help_dialog(self) -> None:
+        suffix = getattr(self, "detection_variant_help_suffix", None)
+        if suffix is None:
+            return
+        self._open_chord_variant_help_dialog(
+            str(suffix),
+            int(getattr(self, "detection_variant_help_inversion", 0)),
+            tuple(getattr(self, "detection_variant_help_intervals", ())),
+        )
+
+    def _open_chord_variant_help_dialog(
+        self, suffix: str, inversion: int, intervals: tuple[int, ...]
+    ) -> None:
+        language = str(self.config_data.get("language", "es"))
         formula, theory, inversion_text = chord_variant_help(
-            str(pattern.suffix), self.generation_inversion, language
+            suffix, inversion, language
         )
         variant = chord_description(
-            str(pattern.suffix), language, None, None, None, tuple(pattern.intervals)
-        ) or (str(pattern.suffix) if pattern.suffix else "maj")
+            suffix, language, None, None, None, intervals
+        ) or (suffix if suffix else "maj")
         title = self.tr("chord_variant_help_title").format(variant=variant)
         dialog = tk.Toplevel(self)
         dialog.title(title)

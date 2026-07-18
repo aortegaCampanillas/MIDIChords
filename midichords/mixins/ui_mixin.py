@@ -857,6 +857,18 @@ class UiMixin:
         )
         self.detection_play_btn.pack(side=tk.LEFT, padx=(0, 8))
         self.detection_play_btn.bind("<ButtonPress-1>", self._on_detection_play_press)
+        self.detection_variant_help_btn = GrayRoundedButton(
+            self.detection_controls_row,
+            text="?",
+            command=self.open_detection_variant_help_dialog,
+            font_family=self.ui_font_family,
+            width=34,
+            height=34,
+            radius=17,
+            font_size=18,
+        )
+        self.detection_variant_help_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.detection_variant_help_btn.set_enabled(False)
         self.detection_clear_btn = GrayRoundedButton(
             self.detection_controls_row,
             text="",
@@ -3214,6 +3226,13 @@ class UiMixin:
                 self.detection_play_btn.set_enabled(has_notes)
             except Exception:
                 pass
+        if hasattr(self, "detection_variant_help_btn"):
+            try:
+                self.detection_variant_help_btn.set_enabled(
+                    getattr(self, "detection_variant_help_suffix", None) is not None
+                )
+            except Exception:
+                pass
         if hasattr(self, "detection_clear_btn"):
             try:
                 self.detection_clear_btn.set_enabled(has_notes)
@@ -4028,6 +4047,7 @@ class UiMixin:
             specific = _w(
                 "staff_canvas:help_staff",
                 "detection_play_btn:help_detect_play",
+                "detection_variant_help_btn:help_detect_variant_theory",
                 "detection_clear_btn:help_detect_clear",
                 "chord_row:help_detect_result_chord",
                 "notes_row:help_detect_result_notes",

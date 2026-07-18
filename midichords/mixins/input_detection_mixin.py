@@ -691,6 +691,22 @@ class InputDetectionMixin:
         active_set = self._current_detection_notes()
         if active_set:
             self.detection_last_playable_notes = set(active_set)
+        root, pattern, bass_pc = self._analyze_chord_notes(active_set)
+        if root is not None and pattern is not None:
+            self.detection_variant_help_suffix = str(pattern.suffix)
+            self.detection_variant_help_intervals = tuple(pattern.intervals)
+            self.detection_variant_help_inversion = next(
+                (
+                    index
+                    for index, interval in enumerate(pattern.intervals)
+                    if bass_pc is not None and (int(root) + int(interval)) % 12 == int(bass_pc)
+                ),
+                0,
+            )
+        else:
+            self.detection_variant_help_suffix = None
+            self.detection_variant_help_intervals = ()
+            self.detection_variant_help_inversion = 0
         if hasattr(self, "_refresh_detection_controls_state"):
             self._refresh_detection_controls_state()
         generated_set = set(self.generated_preview_notes)

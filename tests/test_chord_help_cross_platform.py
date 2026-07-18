@@ -54,6 +54,21 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
         self.assertIn("_showChordVariantHelpDialog", main)
         self.assertIn("enabled: false", helper)
 
+    def test_desktop_detection_reuses_variant_help_dialog(self):
+        ui = (PROJECT_ROOT / "midichords" / "mixins" / "ui_mixin.py").read_text(encoding="utf-8")
+        generation = (PROJECT_ROOT / "midichords" / "mixins" / "generation_mixin.py").read_text(
+            encoding="utf-8"
+        )
+        detection = (PROJECT_ROOT / "midichords" / "mixins" / "input_detection_mixin.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("self.detection_variant_help_btn = GrayRoundedButton", ui)
+        self.assertIn("command=self.open_detection_variant_help_dialog", ui)
+        self.assertIn("def open_detection_variant_help_dialog", generation)
+        self.assertIn("self._open_chord_variant_help_dialog(", generation)
+        self.assertIn("self.detection_variant_help_inversion = next(", detection)
+
 
 if __name__ == "__main__":
     unittest.main()

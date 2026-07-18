@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraídas las tablas y conversiones puras de notación musical —nombres de notas, tónicas, alteraciones, armaduras y pitch classes— a un módulo con pruebas JavaScript directas.
+
 - **Web (mantenimiento)**: el build, la comprobación de sintaxis y el chequeo de salud descubren ahora automáticamente todos los JS/CSS locales enlazados desde `app.html`; añadir otro módulo ya no requiere mantener listas paralelas de assets en varios scripts Python.
 
 - **Web (mantenimiento)**: extraída la configuración de ayuda contextual por modo a un módulo declarativo; la suite JavaScript comprueba que todos los callouts tengan selector y texto disponible en español e inglés, y el bundle y la salud de producción validan el nuevo asset.

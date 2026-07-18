@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 require("../static/ui_texts.js");
+require("../static/music_notation.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -45,8 +46,30 @@ test("generic inversion help follows the selected bass degree", () => {
 
 test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsUiTexts));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsMusicNotation));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("music notation normalizes pitch classes and accidentals", () => {
+  const {
+    NOTE_LABELS,
+    ROOT_LETTERS,
+    ROOT_LETTER_ACCIDENTALS,
+    rootPcFromLetterAccidental,
+    noteLabelFromPc,
+  } = globalThis.MidiChordsMusicNotation;
+
+  assert.equal(ROOT_LETTERS.length, 7);
+  assert.equal(new Set(NOTE_LABELS.es.sharp).size, 12);
+  assert.equal(new Set(NOTE_LABELS.en.flat).size, 12);
+  assert.equal(rootPcFromLetterAccidental(0, "flat"), 11);
+  assert.equal(rootPcFromLetterAccidental(11, "sharp"), 0);
+  assert.equal(noteLabelFromPc("es", -1, false), "Si");
+  assert.equal(noteLabelFromPc("en", 13, true), "D♭");
+  for (const root of ROOT_LETTERS) {
+    assert.ok(ROOT_LETTER_ACCIDENTALS[root.pc]?.includes("natural"));
+  }
 });
 
 test("every contextual help item has bilingual text", () => {

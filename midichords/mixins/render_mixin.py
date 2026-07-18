@@ -150,6 +150,30 @@ class RenderMixin:
             "Minor Blues",
         }
 
+    # Semitonos que hay que SUMAR a la tónica del modo para llegar a su
+    # mayor relativo real (el que comparte exactamente las mismas notas
+    # naturales/alteradas). Verificado nota a nota: Do Dórico = Sib Mayor
+    # (+10), Do Frigio = Lab Mayor (+8), Do Locrio = Reb Mayor (+1), Do
+    # Eolio = Mib Mayor (+3, ya era el comportamiento previo/correcto para
+    # el modo "menor natural"), Fa Lidio = Do Mayor (+7), Sol Mixolidio =
+    # Do Mayor (+5). Ionian/Mayor no necesita entrada (offset 0 = su propia
+    # armadura). Sin esto, cada modo "no jónico" heredaba o bien la
+    # armadura del menor natural (los de sabor menor) o la de su propia
+    # tónica como si fuera Mayor normal (los de sabor mayor: Lidio,
+    # Mixolidio), ambas incorrectas salvo casualidad.
+    _MODE_RELATIVE_MAJOR_OFFSET = {
+        "Dorian": 10,
+        "Phrygian": 8,
+        "Locrian": 1,
+        "Aeolian": 3,
+        "Lydian": 7,
+        "Mixolydian": 5,
+        "Minor": 3,
+        "Natural Minor": 3,
+        "Minor Pentatonic": 3,
+        "Minor Blues": 3,
+    }
+
     @staticmethod
     def _key_signature_count_for_tonic(
         tonic_pc: int,
@@ -222,7 +246,14 @@ class RenderMixin:
         tie_from_ui = str(self.config_data.get("note_accidental", "sharp")) == "flat"
         if self.scale_tab_active:
             pattern = self._resolve_scale_pattern()
-            is_minor = self._scale_prefers_minor_signature(str(pattern.name))
+            pattern_name = str(pattern.name)
+            is_minor = self._scale_prefers_minor_signature(pattern_name)
+            offset = self._MODE_RELATIVE_MAJOR_OFFSET.get(pattern_name)
+            if offset is not None:
+                relative_major_pc = (int(self.scale_tonic_pc) + offset) % 12
+                return self._key_signature_count_for_tonic(
+                    relative_major_pc, False, tie_prefer_flats=tie_from_ui
+                )
             return self._key_signature_count_for_tonic(
                 self.scale_tonic_pc, is_minor, tie_prefer_flats=tie_from_ui
             )

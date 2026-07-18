@@ -4612,11 +4612,41 @@ function scalePrefersMinor(patternName) {
   return String(patternName || "").includes("Minor") || minorNames.has(String(patternName || ""));
 }
 
+// Semitonos que hay que SUMAR a la tónica del modo para llegar a su mayor
+// relativo real (el que comparte exactamente las mismas notas). Verificado
+// nota a nota: Do Dórico = Sib Mayor (+10), Do Frigio = Lab Mayor (+8), Do
+// Locrio = Reb Mayor (+1), Do Eolio = Mib Mayor (+3, ya era el
+// comportamiento previo/correcto), Fa Lidio = Do Mayor (+7), Sol
+// Mixolidio = Do Mayor (+5). Ionian/Mayor no necesita entrada (offset 0).
+// Sin esto, cada modo "no jónico" heredaba o bien la armadura del menor
+// natural (los de sabor menor) o la de su propia tónica como si fuera
+// Mayor normal (los de sabor mayor: Lidio, Mixolidio), ambas incorrectas
+// salvo casualidad.
+const MODE_RELATIVE_MAJOR_OFFSET = {
+  Dorian: 10,
+  Phrygian: 8,
+  Locrian: 1,
+  Aeolian: 3,
+  Lydian: 7,
+  Mixolydian: 5,
+  Minor: 3,
+  "Natural Minor": 3,
+  "Minor Pentatonic": 3,
+  "Minor Blues": 3,
+};
+
 function getStaffContext() {
   const tieFromSelect = currentAccidentalValue() === "flat";
   if (state.mode === "scales" && state.generatedScale) {
-    const isMinor = scalePrefersMinor(state.generatedScale.pattern_name);
+    const patternName = String(state.generatedScale.pattern_name || "");
+    const isMinor = scalePrefersMinor(patternName);
     const tonic = Number(state.generatedScale.tonic_pc);
+    const offset = MODE_RELATIVE_MAJOR_OFFSET[patternName];
+    if (offset != null) {
+      const relativeMajorPc = ((tonic + offset) % 12 + 12) % 12;
+      const sig = keySignatureCountForTonic(relativeMajorPc, false, tieFromSelect);
+      return { signature: sig, tonicPc: tonic, isScale: true };
+    }
     let sig = keySignatureCountForTonic(tonic, isMinor, tieFromSelect);
     sig = applyFlatKeySigIfUiFlatAndTie(sig, tonic, isMinor);
     return { signature: sig, tonicPc: tonic, isScale: true };
@@ -5683,7 +5713,7 @@ function renderStaff() {
     }
 
     // Determinar alteración antes de calcular la posición Y (la convención #/b afecta la altura)
-    const noteAcc = (intervalDetectionStaff || detectionStaff)
+    const noteAcc = (intervalDetectionStaff || detectionStaff || scaleStaff || generationStaff)
       ? getNoteAccidental(Number(midi), staffCtx.signature)
       : null;
     const notePreferFlat = noteAcc === "♭";

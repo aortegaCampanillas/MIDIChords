@@ -1,5 +1,25 @@
 [
   {
+    "version": "v1.0.5",
+    "date": "2026-07-18",
+    "items": [
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop", "web", "mobile"],
+        "es": "Escalas: se corrige la armadura (número de sostenidos/bemoles) de los modos griegos (Dórico, Frigio, Lidio, Mixolidio, Locrio). Antes se calculaba como si todos los modos de sabor menor compartieran la armadura del menor natural, o como si los de sabor mayor compartieran la de su propia tónica — ahora cada modo usa la armadura de su verdadero relativo mayor (p. ej. Do Dórico muestra 2 bemoles, no 3; Fa Lidio no muestra ninguna alteración).",
+        "en": "Scales: fixed the key signature (number of sharps/flats) for the Greek modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian). It previously used natural minor's key signature for all \"minor-flavored\" modes, or the tonic's own major key signature for \"major-flavored\" ones — each mode now correctly uses its true relative major's signature (e.g. C Dorian now shows 2 flats instead of 3; F Lydian shows no accidentals)."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Escalas/Generación de acordes: se corrige que las alteraciones (#/♭) no se dibujaban junto a las notas en el pentagrama.",
+        "en": "Scales/Chord generation: fixed accidentals (#/♭) not being drawn next to notes on the staff."
+      }
+    ]
+  },
+  {
     "version": "v1.0.4",
     "date": "2026-07-14",
     "items": [

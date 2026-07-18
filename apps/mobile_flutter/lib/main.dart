@@ -2985,6 +2985,29 @@ class _HomeScreenState extends State<HomeScreen>
     return patternName.contains('Minor') || minorNames.contains(patternName);
   }
 
+  /// Semitonos que hay que SUMAR a la tónica del modo para llegar a su mayor
+  /// relativo real (comparte exactamente las mismas notas). Verificado nota
+  /// a nota: Do Dórico = Sib Mayor (+10), Do Frigio = Lab Mayor (+8), Do
+  /// Locrio = Reb Mayor (+1), Do Eolio = Mib Mayor (+3, ya era el
+  /// comportamiento previo/correcto), Fa Lidio = Do Mayor (+7), Sol
+  /// Mixolidio = Do Mayor (+5). Ionian/Mayor no necesita entrada (offset
+  /// 0). Sin esto, cada modo "no jónico" heredaba o bien la armadura del
+  /// menor natural (los de sabor menor) o la de su propia tónica como si
+  /// fuera Mayor normal (los de sabor mayor: Lidio, Mixolidio), ambas
+  /// incorrectas salvo casualidad.
+  static const Map<String, int> _modeRelativeMajorOffset = <String, int>{
+    'Dorian': 10,
+    'Phrygian': 8,
+    'Locrian': 1,
+    'Aeolian': 3,
+    'Lydian': 7,
+    'Mixolydian': 5,
+    'Minor': 3,
+    'Natural Minor': 3,
+    'Minor Pentatonic': 3,
+    'Minor Blues': 3,
+  };
+
   /// `tiePreferFlat`: null → empate enarmónico a sostenidos; true/false fuerza.
   ({int count, bool preferFlats}) _keySignatureCountForTonic(
     int tonicPc,
@@ -3044,6 +3067,15 @@ class _HomeScreenState extends State<HomeScreen>
       final tonic = _positiveMod12(
         (_generatedScaleJson!['tonic_pc'] as num?)?.toInt() ?? 0,
       );
+      final offset = _modeRelativeMajorOffset[name];
+      if (offset != null) {
+        final relativeMajorPc = _positiveMod12(tonic + offset);
+        return _keySignatureCountForTonic(
+          relativeMajorPc,
+          false,
+          tiePreferFlat: tieFromSelect,
+        );
+      }
       var sig = _keySignatureCountForTonic(
         tonic,
         isMinor,

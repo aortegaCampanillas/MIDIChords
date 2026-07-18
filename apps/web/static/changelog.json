@@ -6,6 +6,13 @@
       {
         "date": "2026-07-18",
         "publish": true,
+        "platforms": ["desktop"],
+        "es": "Ayuda de acordes en escritorio: la ventana ajusta su altura al contenido, elimina el espacio vacío inferior y coloca Cerrar debajo del texto, en la esquina inferior derecha.",
+        "en": "Desktop chord help: the window now fits its height to the content, removes the empty area below, and places Close beneath the text in the bottom-right corner."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
         "platforms": ["desktop", "web", "mobile"],
         "es": "Detección de acordes: nuevo botón de ayuda junto a Reproducir que abre la fórmula, la explicación teórica y la descripción de la posición fundamental o inversión del acorde detectado.",
         "en": "Chord detection: new help button next to Play showing the formula, theory explanation, and root-position or inversion description for the detected chord."

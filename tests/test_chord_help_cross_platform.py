@@ -71,6 +71,15 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
         self.assertIn("self._open_chord_variant_help_dialog(", generation)
         self.assertIn("self.detection_variant_help_inversion = next(", detection)
 
+    def test_desktop_help_dialog_fits_content_and_keeps_close_button_last(self):
+        generation = (PROJECT_ROOT / "midichords" / "mixins" / "generation_mixin.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn('dialog.geometry("640x430")', generation)
+        self.assertNotIn('close_btn.pack(side=tk.BOTTOM', generation)
+        self.assertIn('close_btn.pack(anchor="e"', generation)
+        self.assertIn("dialog.setFixedSize(640, content_height)", generation)
+
 
 if __name__ == "__main__":
     unittest.main()

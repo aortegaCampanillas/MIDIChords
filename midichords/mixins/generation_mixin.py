@@ -499,7 +499,6 @@ class GenerationMixin:
         dialog.title(title)
         dialog.resizable(False, False)
         dialog.configure(bg=getattr(self, "color_surface_alt", "#2f3a4b"))
-        dialog.geometry("640x430")
 
         frame = tk.Frame(dialog, bg=getattr(self, "color_surface_alt", "#2f3a4b"))
         frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=18)
@@ -540,11 +539,17 @@ class GenerationMixin:
             radius=16,
             font_size=14,
         )
-        close_btn.pack(side=tk.BOTTOM, anchor="e", pady=(16, 0))
+        close_btn.pack(anchor="e", pady=(16, 0))
         dialog.bind("<Escape>", lambda _event: dialog.reject())
         dialog.transient(self)
         dialog.grab_set()
         dialog.focus_set()
+        layout = dialog.layout()
+        if layout is not None:
+            layout.activate()
+        dialog.adjustSize()
+        content_height = max(1, int(dialog.sizeHint().height()))
+        dialog.setFixedSize(640, content_height)
         dialog.show()
     def _finalize_generation_space_release(self) -> None:
         self.generation_space_release_after_id = None

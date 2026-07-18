@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (ayuda de acordes)**: el diálogo teórico ajusta ahora su altura al contenido, elimina el gran espacio vacío inferior y coloca **Cerrar** debajo del texto, alineado en la parte inferior derecha.
+
 - **Móvil (Flutter, cierre/tests)**: la limpieza de MIDI durante `dispose()` ya no intenta ejecutar `setState` ni relanzar detección mientras el árbol de widgets se está desmontando. Se corrige además el import obsoleto del smoke test y se fija un viewport horizontal representativo, de modo que la suite Flutter completa vuelve a ejecutarse correctamente.
 
 - **Escritorio (Qt)**: en **Metrónomo**, los botones +/- de **Minutos** y **Segundos** del temporizador no funcionaban de forma persistente: el número mostrado cambiaba al pulsar, pero cualquier otro refresco de la UI (volumen, BPM, compás, activar/desactivar el temporizador...) lo devolvía al valor anterior. Causa: `Spinbox` en el shim Qt (`midichords/qt/ttk_compat.py`) ignoraba el parámetro `command` (y `increment`) del constructor — las flechas nativas de Qt cambiaban el valor mostrado pero nunca avisaban al resto de la app, así que `self.metronome_timer_minutes`/`seconds` (los valores reales que usa el temporizador) nunca se actualizaban. Ahora `command` se conecta a `valueChanged` y se dispara en cada cambio, igual que en Tk.

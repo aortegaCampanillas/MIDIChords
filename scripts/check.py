@@ -69,6 +69,10 @@ def check_web() -> None:
         "Fuente de verdad pública de PianoPilot",
         (sys.executable, "scripts/check_pianopilot_landing.py"),
     )
+    _run(
+        "Estructura y metadatos de las landings",
+        (sys.executable, "scripts/check_landing_pages.py"),
+    )
     web_tests = tuple(
         str(path.relative_to(PROJECT_ROOT))
         for path in sorted((PROJECT_ROOT / "apps/web/test").glob("*.test.js"))

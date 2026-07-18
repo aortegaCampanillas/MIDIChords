@@ -11,8 +11,26 @@
   <meta property="og:title" content="FreeMIDIChords — Free Music Theory Tools" />
   <meta property="og:description" content="Chord and interval detection, circle of fifths, scales and metronome — web, mobile, desktop and Roland FP-30X controller. All free." />
   <meta property="og:image" content="https://freemidichords.com/static/og-image.png" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="FreeMIDIChords — Understand chords, scales and harmony" />
+  <meta name="twitter:description" content="See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop." />
+  <meta name="twitter:image" content="https://freemidichords.com/static/og-image.png" />
   <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FreeMIDIChords",
+    "url": "https://freemidichords.com/app",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web, macOS, Windows, Linux, iOS, Android",
+    "softwareVersion": "1.0.2",
+    "description": "Free tools to detect and generate chords, identify intervals, explore scales and understand harmony on piano, guitar and staff.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+  }
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -528,7 +546,7 @@
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
-  <img id="lightbox-img" src="" alt="Screenshot" />
+  <img id="lightbox-img" src="" width="1280" height="800" alt="Screenshot" />
 </div>
 
 <!-- CTA BAND -->

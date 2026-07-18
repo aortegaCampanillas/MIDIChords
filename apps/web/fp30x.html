@@ -8,9 +8,30 @@
   <meta property="og:title" content="PianoPilot — Roland FP-30X Controller" />
   <meta property="og:description" content="Manage supported settings, tones, keyboard modes, presets and the metronome of your Roland FP-30X from macOS or Windows." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://freemidichords.com/fp30x" />
+  <meta property="og:image" content="https://freemidichords.com/static/fp30x/settings.webp" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PianoPilot — Desktop companion for Roland FP-30X" />
+  <meta name="twitter:description" content="Manage supported settings, tones, keyboard modes, presets and the metronome of your FP-30X from macOS or Windows." />
+  <meta name="twitter:image" content="https://freemidichords.com/static/fp30x/settings.webp" />
   <link rel="canonical" href="https://freemidichords.com/fp30x" />
   <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "PianoPilot",
+    "url": "https://freemidichords.com/fp30x",
+    "applicationCategory": "MusicApplication",
+    "operatingSystem": "macOS 10.15+, Windows 10/11 (64-bit)",
+    "softwareVersion": "1.0.1",
+    "description": "A free desktop companion for managing supported Roland FP-30X settings, tones, modes, presets and metronome controls over MIDI.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+    "sameAs": "https://github.com/aortegaCampanillas/RolandFP30xController"
+  }
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -513,7 +534,7 @@
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
-  <img id="lightbox-img" src="" alt="Screenshot" />
+  <img id="lightbox-img" src="" width="1400" height="875" alt="Screenshot" />
 </div>
 
 <!-- WHAT'S NEW -->

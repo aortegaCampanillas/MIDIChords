@@ -119,3 +119,41 @@ def build_top_bar(app: object, container: tk.Widget) -> None:
     app.config_icon_btn.bind(
         "<Leave>", lambda _event: app.config_icon_btn.configure(fg=app.color_accent)
     )
+
+
+def build_mode_frames(app: object) -> None:
+    """Create the mutually exclusive right-panel roots for every desktop mode."""
+    specs = (
+        ("tab_detection_frame", 0, 3),
+        ("tab_generation_frame", 6, 4),
+        ("tab_circle_frame", 6, 4),
+        ("tab_scale_frame", 6, 4),
+        ("tab_metronome_frame", 6, 6),
+        ("tab_tuner_frame", 6, 6),
+        ("tab_interval_frame", 6, 4),
+    )
+    for attribute, padx, pady in specs:
+        setattr(
+            app,
+            attribute,
+            tk.Frame(
+                app.chord_panel,
+                bg=app.color_surface_alt,
+                bd=0,
+                highlightthickness=0,
+                padx=padx,
+                pady=pady,
+            ),
+        )
+
+    app.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
+    # Unmanaged Qt children remain visible by default and would cover the active mode.
+    for hidden_tab in (
+        app.tab_generation_frame,
+        app.tab_circle_frame,
+        app.tab_scale_frame,
+        app.tab_metronome_frame,
+        app.tab_tuner_frame,
+        app.tab_interval_frame,
+    ):
+        hidden_tab.setVisible(False)

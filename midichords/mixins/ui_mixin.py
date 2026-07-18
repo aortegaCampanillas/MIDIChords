@@ -7,7 +7,7 @@ import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
-from midichords.ui.desktop_ui_builders import build_top_bar
+from midichords.ui.desktop_ui_builders import build_mode_frames, build_top_bar
 
 from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import Qt, QPoint, QObject, QEvent
@@ -626,73 +626,7 @@ class UiMixin:
         self.chord_panel.grid(row=0, column=0, sticky="nsew")
         self.right_side_panel.rowconfigure(0, weight=1)
 
-        self.tab_detection_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=0,
-            pady=3,
-        )
-        self.tab_generation_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_circle_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_scale_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_metronome_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=6,
-        )
-        self.tab_tuner_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=6,
-        )
-        self.tab_interval_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
-        # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
-        for _hidden_tab in (
-            self.tab_generation_frame,
-            self.tab_circle_frame,
-            self.tab_scale_frame,
-            self.tab_metronome_frame,
-            self.tab_tuner_frame,
-            self.tab_interval_frame,
-        ):
-            _hidden_tab.setVisible(False)
+        build_mode_frames(self)
 
         self.chord_title_label = tk.Label(
             self.tab_detection_frame,

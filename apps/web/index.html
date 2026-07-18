@@ -73,12 +73,17 @@
 
     /* ── HERO ── */
     .hero {
-      padding: 100px 24px 88px;
-      text-align: center;
+      padding: 76px 24px 64px;
       background:
         radial-gradient(ellipse 70% 50% at 30% 20%, rgba(91,141,238,.12) 0%, transparent 60%),
         radial-gradient(ellipse 60% 40% at 70% 80%, rgba(224,120,40,.08) 0%, transparent 60%);
     }
+    .hero-inner {
+      max-width: 1180px; margin: 0 auto;
+      display: grid; grid-template-columns: minmax(0, .85fr) minmax(480px, 1.15fr);
+      gap: 58px; align-items: center;
+    }
+    .hero-copy { text-align: left; }
     .hero-eyebrow {
       display: inline-block; font-size: .75rem; font-weight: 700; letter-spacing: .14em;
       text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
@@ -86,14 +91,38 @@
     .hero h1 {
       font-size: clamp(2.2rem, 5.5vw, 3.6rem);
       font-weight: 800; letter-spacing: -.03em; line-height: 1.1;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     .hero h1 em { font-style: normal; color: var(--accent); }
     .hero p {
       font-size: clamp(1rem, 2vw, 1.2rem);
-      color: var(--muted); max-width: 580px; margin: 0 auto 42px;
+      color: var(--muted); max-width: 620px; margin: 0 0 32px;
     }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+    .hero-note { color: var(--muted); font-size: .78rem; margin-top: 16px; }
+    .hero-preview {
+      position: relative; border: 1px solid rgba(123,164,245,.35);
+      border-radius: 18px; padding: 10px; background: rgba(30,30,42,.78);
+      box-shadow: 0 28px 80px rgba(0,0,0,.38);
+      transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
+    }
+    .hero-preview::before {
+      content: ""; position: absolute; inset: -1px; border-radius: inherit;
+      background: linear-gradient(135deg, rgba(91,141,238,.22), transparent 45%);
+      pointer-events: none;
+    }
+    .hero-preview img { width: 100%; height: auto; display: block; border-radius: 10px; }
+
+    .audience-strip {
+      max-width: 1040px; margin: 0 auto; padding: 6px 24px 38px;
+      display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px;
+      color: var(--muted); font-size: .84rem;
+    }
+    .audience-label { color: var(--text); font-weight: 650; margin-right: 3px; }
+    .audience-item {
+      border: 1px solid var(--border); border-radius: 999px;
+      background: var(--surface); padding: 6px 13px;
+    }
     .btn-primary {
       display: inline-flex; align-items: center; gap: 8px;
       background: var(--accent); color: #fff; border-radius: var(--radius);
@@ -320,6 +349,14 @@
       .cta-band { padding: 40px 24px; }
       .support-grid { grid-template-columns: 1fr; }
     }
+    @media (max-width: 900px) {
+      .hero { padding-top: 58px; }
+      .hero-inner { grid-template-columns: 1fr; gap: 42px; }
+      .hero-copy { text-align: center; }
+      .hero p { margin-left: auto; margin-right: auto; }
+      .hero-actions { justify-content: center; }
+      .hero-preview { max-width: 720px; margin: 0 auto; transform: none; }
+    }
   </style>
 </head>
 <body>
@@ -341,17 +378,33 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-eyebrow" data-i18n="hero_eyebrow">Free &amp; Open Source</div>
-  <h1 data-i18n-html="hero_h1">Music theory tools<br>for <em>every</em> platform.</h1>
-  <p data-i18n="hero_p">Detect and generate chords, explore the circle of fifths, practice scales, use the metronome — on the web, your phone, or your desktop.</p>
-  <div class="hero-actions">
-    <a class="btn-primary" href="/app" target="_blank" rel="noopener noreferrer">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      <span data-i18n="nav_cta">Open web app</span>
-    </a>
-    <a class="btn-ghost" href="#products" data-i18n="hero_explore">Explore all apps</a>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-eyebrow" data-i18n="hero_eyebrow">Chords, scales &amp; harmony</div>
+      <h1 data-i18n-html="hero_h1">Understand what you play.<br><em>See it, hear it, learn it.</em></h1>
+      <p data-i18n="hero_p">Play on the interactive piano or guitar — or connect a MIDI keyboard — to identify chords and intervals, explore scales, and understand harmony visually.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="/app">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <span data-i18n="nav_cta">Open web app</span>
+        </a>
+        <a class="btn-ghost" href="#screenshots" data-i18n="hero_explore">See how it works</a>
+      </div>
+      <div class="hero-note" data-i18n="hero_note">Free, no account, no installation, and no ads.</div>
+    </div>
+    <div class="hero-preview" aria-hidden="true">
+      <img src="/static/screenshots/detection.png" width="1280" height="800" alt="" fetchpriority="high" />
+    </div>
   </div>
 </section>
+
+<div class="audience-strip" aria-label="Designed for">
+  <span class="audience-label" data-i18n="audience_label">Made for</span>
+  <span class="audience-item" data-i18n="audience_students">music students</span>
+  <span class="audience-item" data-i18n="audience_teachers">teachers</span>
+  <span class="audience-item" data-i18n="audience_keyboard">piano &amp; MIDI players</span>
+  <span class="audience-item" data-i18n="audience_guitar">guitarists</span>
+</div>
 
 <!-- FEATURES STRIP -->
 <div class="features-strip" id="featStrip">
@@ -381,7 +434,7 @@
 <!-- PRODUCTS -->
 <section class="section" id="products">
   <span class="section-label" data-i18n="nav_apps">Apps</span>
-  <h2 class="section-title" data-i18n="products_title">One tool suite, every platform</h2>
+  <h2 class="section-title" data-i18n="products_title">Use it wherever you practise</h2>
   <div class="products-grid">
 
     <!-- Web -->
@@ -429,7 +482,7 @@
       <div class="card-title">PianoPilot</div>
       <div class="card-badge">Roland FP-30X</div>
       <div class="card-desc" data-i18n="card_pp_desc">
-        A dedicated desktop controller for the Roland FP-30X digital piano. Edit tones, metronome, transpose, Piano Designer, and note voicing from a full-screen interface over USB or Bluetooth.
+        A related desktop app for Roland FP-30X owners. Manage supported piano settings, tones, keyboard modes, presets, and the metronome over USB MIDI or Bluetooth MIDI.
       </div>
       <div class="card-links">
         <span class="card-link" data-i18n="card_learn">Learn more →</span>
@@ -546,10 +599,16 @@ const TRANSLATIONS = {
     nav_apps:           "Apps",
     nav_webapp:         "Web App",
     nav_cta:            "Open web app",
-    hero_eyebrow:       "Free \u0026 Open Source",
-    hero_h1:            "Music theory tools<br>for <em>every</em> platform.",
-    hero_p:             "Detect chords and intervals, explore the circle of fifths, practice scales, and use the metronome \u2014 on the web, your phone, or your desktop.",
-    hero_explore:       "Explore all apps",
+    hero_eyebrow:       "Chords, scales \u0026 harmony",
+    hero_h1:            "Understand what you play.<br><em>See it, hear it, learn it.</em>",
+    hero_p:             "Play on the interactive piano or guitar \u2014 or connect a MIDI keyboard \u2014 to identify chords and intervals, explore scales, and understand harmony visually.",
+    hero_explore:       "See how it works",
+    hero_note:          "Free, no account, no installation, and no ads.",
+    audience_label:     "Made for",
+    audience_students:  "music students",
+    audience_teachers:  "teachers",
+    audience_keyboard:  "piano \u0026 MIDI players",
+    audience_guitar:    "guitarists",
     pill_chords:        "Chord detection",
     pill_intervals:     "Interval detection",
     pill_generation:    "Chord generation",
@@ -576,7 +635,7 @@ const TRANSLATIONS = {
     feat_metro_body:    "A precise metronome with adjustable BPM and tap-tempo. Keep time while you practise chords or scales — the click sound uses a real percussion sample.",
     feat_midi_title:    "MIDI Input",
     feat_midi_body:     "Connect any USB or Bluetooth MIDI keyboard and use it directly in the app. Notes you play are detected in real time and reflected on the piano, guitar, and staff — no drivers needed in modern browsers.",
-    products_title:     "One tool suite, every platform",
+    products_title:     "Use it wherever you practise",
     card_web_title:     "Web App",
     card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.",
     card_open:          "Open \u2192",
@@ -584,7 +643,7 @@ const TRANSLATIONS = {
     card_mobile_desc:   "Take FreeMIDIChords anywhere. Same chord tools and circle of fifths, optimized for touch on iPhone, iPad and Android.",
     card_desktop_title: "Desktop App",
     card_desktop_desc:  "A native desktop experience for Mac, Windows and Linux. Full chord and scale toolkit with MIDI input, audio engine, and staff notation \u2014 no browser needed.",
-    card_pp_desc:       "A dedicated desktop controller for the Roland FP-30X digital piano. Edit tones, metronome, transpose, Piano Designer, and note voicing from a full-screen interface over USB or Bluetooth.",
+    card_pp_desc:       "A related desktop app for Roland FP-30X owners. Manage supported piano settings, tones, keyboard modes, presets, and the metronome over USB MIDI or Bluetooth MIDI.",
     card_learn:         "Learn more \u2192",
     cta_h2:             "Ready to play?",
     cta_p:              "The web app works right now in your browser \u2014 no account, no download, no ads.",
@@ -616,10 +675,16 @@ const TRANSLATIONS = {
     nav_apps:           "Apps",
     nav_webapp:         "App Web",
     nav_cta:            "Abrir app web",
-    hero_eyebrow:       "Gratis y c\u00f3digo abierto",
-    hero_h1:            "Herramientas de teor\u00eda musical<br>para <em>todas</em> las plataformas.",
-    hero_p:             "Detecta acordes e intervalos, explora el c\u00edrculo de quintas, practica escalas y usa el metr\u00f3nomo \u2014 en la web, tu m\u00f3vil o tu escritorio.",
-    hero_explore:       "Ver todas las apps",
+    hero_eyebrow:       "Acordes, escalas y armon\u00eda",
+    hero_h1:            "Comprende lo que tocas.<br><em>Visualiza, escucha y aprende.</em>",
+    hero_p:             "Toca en el piano o la guitarra interactivos, o conecta un teclado MIDI, para identificar acordes e intervalos, explorar escalas y comprender la armon\u00eda visualmente.",
+    hero_explore:       "Ver c\u00f3mo funciona",
+    hero_note:          "Gratis, sin cuenta, sin instalaci\u00f3n y sin anuncios.",
+    audience_label:     "Pensado para",
+    audience_students:  "estudiantes de m\u00fasica",
+    audience_teachers:  "docentes",
+    audience_keyboard:  "pianistas y usuarios MIDI",
+    audience_guitar:    "guitarristas",
     pill_chords:        "Detecci\u00f3n de acordes",
     pill_intervals:     "Detecci\u00f3n de intervalos",
     pill_generation:    "Generaci\u00f3n de acordes",
@@ -646,7 +711,7 @@ const TRANSLATIONS = {
     feat_metro_body:    "Un metr\u00f3nomo preciso con BPM ajustable y tempo por golpe. Mantener el tiempo mientras practicas acordes o escalas \u2014 el sonido usa una muestra real de percusi\u00f3n.",
     feat_midi_title:    "Entrada MIDI",
     feat_midi_body:     "Conecta cualquier teclado MIDI por USB o Bluetooth y \u00fasalo directamente en la app. Las notas que toques se detectan en tiempo real y se reflejan en el piano, la guitarra y el pentagrama \u2014 sin instalar controladores en navegadores modernos.",
-    products_title:     "Una suite de herramientas, todas las plataformas",
+    products_title:     "\u00dasalo donde practiques",
     card_web_title:     "App Web",
     card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas y metr\u00f3nomo. Teclado MIDI opcional.",
     card_open:          "Abrir \u2192",
@@ -654,7 +719,7 @@ const TRANSLATIONS = {
     card_mobile_desc:   "Lleva FreeMIDIChords a todas partes. Las mismas herramientas de acordes y el c\u00edrculo de quintas, optimizadas para pantalla t\u00e1ctil en iPhone, iPad y Android.",
     card_desktop_title: "App de Escritorio",
     card_desktop_desc:  "Una experiencia nativa para Mac, Windows y Linux. Suite completa de acordes y escalas con entrada MIDI, motor de audio y notaci\u00f3n en pentagrama \u2014 sin navegador.",
-    card_pp_desc:       "Un controlador de escritorio dedicado para el piano digital Roland FP-30X. Edita tonos, metr\u00f3nomo, transposici\u00f3n, Piano Designer y voicing de notas desde una interfaz a pantalla completa por USB o Bluetooth.",
+    card_pp_desc:       "Una app de escritorio relacionada para propietarios de un Roland FP-30X. Gestiona ajustes compatibles, tonos, modos de teclado, presets y metr\u00f3nomo por USB MIDI o Bluetooth MIDI.",
     card_learn:         "Saber m\u00e1s \u2192",
     cta_h2:             "\u00bfListo para tocar?",
     cta_p:              "La app web funciona ahora mismo en tu navegador \u2014 sin cuenta, sin descarga, sin anuncios.",

@@ -47,6 +47,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **MIDIChords (landing)**: el hero muestra ahora la aplicación real, presenta primero el beneficio de comprender visualmente acordes, intervalos, escalas y armonía, identifica sus públicos principales y prioriza el acceso directo a la app web.
 - **Generación de acordes (guitarra)**: las variantes `add2`, `add4`, `madd2` y `madd4` disponen ahora de digitaciones concretas de cuatro notas; el mástil muestra solo las cuerdas de la variante seleccionada en lugar de marcar todas las posiciones posibles.
 - **Generación de acordes (guitarra)**: al cambiar de digitación se reproduce inmediatamente el nuevo voicing, manteniendo sincronizados sonido, mástil y pentagrama.
 - **Generación de acordes (guitarra)**: cambiar el tipo de acorde desde el selector reinicia siempre la digitación a la primera variante del nuevo acorde.

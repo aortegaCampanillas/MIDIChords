@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraída la configuración de ayuda contextual por modo a un módulo declarativo; la suite JavaScript comprueba que todos los callouts tengan selector y texto disponible en español e inglés, y el bundle y la salud de producción validan el nuevo asset.
+
 - **Web (mantenimiento)**: añadida una suite JavaScript nativa, sin dependencias npm, que ejecuta los catálogos extraídos y comprueba paridad ES/EN, cobertura única de las 52 variantes, textos de inversiones e inmutabilidad de sus puntos de entrada dentro del perfil web de CI.
 
 - **Web (mantenimiento)**: separados los textos generales de interfaz ES/EN en un catálogo dedicado con prueba de paridad de claves; el build y el chequeo de producción versionan y validan también este script antes de cargar la SPA.

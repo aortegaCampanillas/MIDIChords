@@ -61,6 +61,7 @@ class TestAssetParser(unittest.TestCase):
             '<link rel="stylesheet" href="/static/style.abc123def456.css"/>'
             '<script src="/static/ui_texts.abcdef123456.js"></script>'
             '<script src="/static/chord_help.fedcba987654.js"></script>'
+            '<script src="/static/help_callouts.123456abcdef.js"></script>'
             '<script src="/static/app.0123456789ab.js"></script>'
         )
         p.close()
@@ -81,6 +82,10 @@ class TestAssetParser(unittest.TestCase):
         self.assertEqual(
             _mod.pick_ui_texts_bundle_url(js),
             "https://example.com/static/ui_texts.abcdef123456.js",
+        )
+        self.assertEqual(
+            _mod.pick_help_callouts_bundle_url(js),
+            "https://example.com/static/help_callouts.123456abcdef.js",
         )
 
 

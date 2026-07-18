@@ -152,11 +152,13 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     static_dir = pages_dist / "static"
     app_src = static_dir / "app.js"
     chord_help_src = static_dir / "chord_help.js"
+    help_callouts_src = static_dir / "help_callouts.js"
     ui_texts_src = static_dir / "ui_texts.js"
     css_src = static_dir / "style.css"
     if (
         not app_src.is_file()
         or not chord_help_src.is_file()
+        or not help_callouts_src.is_file()
         or not ui_texts_src.is_file()
         or not css_src.is_file()
     ):
@@ -166,14 +168,17 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
 
     app_h = hashlib.sha256(app_src.read_bytes()).hexdigest()[:12]
     chord_help_h = hashlib.sha256(chord_help_src.read_bytes()).hexdigest()[:12]
+    help_callouts_h = hashlib.sha256(help_callouts_src.read_bytes()).hexdigest()[:12]
     ui_texts_h = hashlib.sha256(ui_texts_src.read_bytes()).hexdigest()[:12]
     css_h = hashlib.sha256(css_src.read_bytes()).hexdigest()[:12]
     app_name = f"app.{app_h}.js"
     chord_help_name = f"chord_help.{chord_help_h}.js"
+    help_callouts_name = f"help_callouts.{help_callouts_h}.js"
     ui_texts_name = f"ui_texts.{ui_texts_h}.js"
     css_name = f"style.{css_h}.css"
     app_src.rename(static_dir / app_name)
     chord_help_src.rename(static_dir / chord_help_name)
+    help_callouts_src.rename(static_dir / help_callouts_name)
     ui_texts_src.rename(static_dir / ui_texts_name)
     css_src.rename(static_dir / css_name)
 
@@ -182,6 +187,7 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     required_assets = (
         "/static/app.js",
         "/static/chord_help.js",
+        "/static/help_callouts.js",
         "/static/ui_texts.js",
         "/static/style.css",
     )
@@ -193,6 +199,10 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
         f'src="/static/{chord_help_name}"',
     )
     html = html.replace(
+        'src="/static/help_callouts.js"',
+        f'src="/static/{help_callouts_name}"',
+    )
+    html = html.replace(
         'src="/static/ui_texts.js"',
         f'src="/static/{ui_texts_name}"',
     )
@@ -201,13 +211,20 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     print(
         "[pages-dist] Fingerprint estáticos: "
         f"/static/{css_name}, /static/{ui_texts_name}, "
-        f"/static/{chord_help_name}, /static/{app_name}"
+        f"/static/{chord_help_name}, /static/{help_callouts_name}, "
+        f"/static/{app_name}"
     )
 
     for name in ("index.html", "app.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
-    fingerprinted_assets = (app_name, chord_help_name, ui_texts_name, css_name)
+    fingerprinted_assets = (
+        app_name,
+        chord_help_name,
+        help_callouts_name,
+        ui_texts_name,
+        css_name,
+    )
     if any(not (static_dir / name).is_file() for name in fingerprinted_assets):
         raise SystemExit("[pages-dist] Faltan ficheros renombrados tras fingerprint")
 

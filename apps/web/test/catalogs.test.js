@@ -3,6 +3,7 @@ const test = require("node:test");
 
 require("../static/ui_texts.js");
 require("../static/chord_help.js");
+require("../static/help_callouts.js");
 
 const { UI_TEXTS } = globalThis.MidiChordsUiTexts;
 const {
@@ -45,4 +46,31 @@ test("generic inversion help follows the selected bass degree", () => {
 test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsUiTexts));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("every contextual help item has bilingual text", () => {
+  const { helpCalloutsForMode, isHelpAvailableForMode } =
+    globalThis.MidiChordsHelpCallouts;
+  const modes = [
+    "detection",
+    "interval_detection",
+    "generation",
+    "circle_fifths",
+    "scales",
+    "metronome",
+  ];
+
+  for (const mode of modes) {
+    const callouts = helpCalloutsForMode(mode);
+    assert.ok(isHelpAvailableForMode(mode));
+    assert.ok(callouts.length > 0);
+    for (const callout of callouts) {
+      assert.ok(callout.selector);
+      assert.ok(UI_TEXTS.es[callout.textKey], `${mode}: ${callout.textKey} missing in es`);
+      assert.ok(UI_TEXTS.en[callout.textKey], `${mode}: ${callout.textKey} missing in en`);
+    }
+  }
+  assert.deepEqual(helpCalloutsForMode("tuner"), []);
+  assert.equal(isHelpAvailableForMode("tuner"), false);
 });

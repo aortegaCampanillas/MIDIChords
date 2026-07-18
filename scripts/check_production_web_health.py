@@ -93,6 +93,15 @@ def pick_ui_texts_bundle_url(urls: list[str]) -> str | None:
     return pick_static_url(urls, "ui_texts.js")
 
 
+def pick_help_callouts_bundle_url(urls: list[str]) -> str | None:
+    """Ayuda contextual: versión con hash de deploy o nombre estable local."""
+    for u in urls:
+        path = urlparse(u).path.replace("\\", "/")
+        if "/static/help_callouts." in path and path.endswith(".js"):
+            return u
+    return pick_static_url(urls, "help_callouts.js")
+
+
 class AssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -312,6 +321,7 @@ def main() -> int:
 
     css_url = pick_css_bundle_url(css_urls)
     chord_help_url = pick_chord_help_bundle_url(js_urls)
+    help_callouts_url = pick_help_callouts_bundle_url(js_urls)
     ui_texts_url = pick_ui_texts_bundle_url(js_urls)
     js_url = pick_js_bundle_url(js_urls)
 
@@ -331,6 +341,10 @@ def main() -> int:
         failures.append(
             f"GET {app_url} → no se encontró <script src=…> a /static/ui_texts…js"
         )
+    if not help_callouts_url:
+        failures.append(
+            f"GET {app_url} → no se encontró <script src=…> a /static/help_callouts…js"
+        )
 
     if css_url:
         failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
@@ -340,6 +354,8 @@ def main() -> int:
         failures.extend(validate_static_asset(chord_help_url, kind="js", min_len=500))
     if ui_texts_url:
         failures.extend(validate_static_asset(ui_texts_url, kind="js", min_len=500))
+    if help_callouts_url:
+        failures.extend(validate_static_asset(help_callouts_url, kind="js", min_len=500))
 
     # --- API (worker) ---
     if not args.skip_api:

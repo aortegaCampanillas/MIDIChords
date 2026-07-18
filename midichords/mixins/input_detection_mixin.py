@@ -329,7 +329,19 @@ class InputDetectionMixin:
 
     def _sync_sounding_ui(self, next_active: set[int]) -> None:
         prev_staff = set(getattr(self, "staff_pressed_scale_notes", set()))
-        self._sync_scale_piano_staff_from_active_keys(set(next_active))
+        scale_visual_notes = set(next_active)
+        if self.current_mode == "scales":
+            # Escalas retiene la última nota en `held_release_notes` para que
+            # siga sonando hasta la siguiente pulsación. Esa retención de
+            # audio no debe dejar la tecla/pentagrama/armadura iluminados:
+            # visualmente cuentan solo teclas aún pulsadas o sostenidas por
+            # el pedal.
+            scale_visual_notes = (
+                set(self.midi_held_notes)
+                | set(self.mouse_held_notes)
+                | set(self.sustain_latched_notes)
+            )
+        self._sync_scale_piano_staff_from_active_keys(scale_visual_notes)
         staff_changed = set(getattr(self, "staff_pressed_scale_notes", set())) != prev_staff
         if next_active != self.active_notes or staff_changed:
             self.active_notes = next_active
@@ -540,6 +552,7 @@ class InputDetectionMixin:
             if self.scale_tab_active and self.scale_play_mode == "piano":
                 self.staff_pressed_scale_notes.clear()
                 self.scale_input_raw_note = None
+                self.redraw_keyboard()
                 self.redraw_staff()
             self._refresh_sounding_notes()
     def _on_shift_press(self, _event: tk.Event) -> None:

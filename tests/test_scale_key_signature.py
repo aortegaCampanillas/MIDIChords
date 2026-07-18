@@ -113,3 +113,23 @@ def test_active_scale_note_maps_to_key_signature_position(label, midi, count, pr
     assert RenderMixin._key_signature_index_for_scale_note(
         label, midi, count, prefer_flats
     ) == expected
+
+
+def test_scale_keyboard_visual_state_ignores_audio_latch_after_release():
+    render = RenderMixin()
+    render.tuner_tab_active = False
+    render.generation_tab_active = False
+    render.scale_tab_active = True
+    render.scale_play_mode = "piano"
+    render.active_notes = {60}  # nota retenida solo para audio
+    render.midi_held_notes = set()
+    render.mouse_held_notes = set()
+    render.sustain_latched_notes = set()
+    render.staff_pressed_scale_notes = set()
+    render.scale_loop_active = False
+    render.scale_current_note = None
+
+    assert render._instrument_display_notes() == set()
+
+    render.mouse_held_notes = {64}
+    assert render._instrument_display_notes() == {64}

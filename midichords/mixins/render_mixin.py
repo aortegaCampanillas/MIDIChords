@@ -325,7 +325,12 @@ class RenderMixin:
                 return set(self.guitar_selected_variation_notes)
             return set(self.generated_preview_notes)
         if self.scale_tab_active:
-            notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
+            notes = (
+                set(self.midi_held_notes)
+                | set(self.mouse_held_notes)
+                | set(self.sustain_latched_notes)
+                | set(self.staff_pressed_scale_notes)
+            )
             if self.scale_loop_active and self.scale_current_note is not None:
                 notes.add(self.scale_current_note)
             return notes
@@ -657,7 +662,7 @@ class RenderMixin:
             display_active_notes = set(self.generated_preview_notes) | set(self.generated_playing_notes)
         generated_sorted = sorted(self.generated_preview_notes) if self.generation_tab_active else []
         if self.scale_tab_active:
-            name_overlay_notes = set(self.active_notes) | set(self.staff_pressed_scale_notes)
+            name_overlay_notes = set(display_active_notes) | set(self.staff_pressed_scale_notes)
             if self.scale_loop_active and self.scale_current_note is not None:
                 name_overlay_notes.add(self.scale_current_note)
         elif self.generation_tab_active:

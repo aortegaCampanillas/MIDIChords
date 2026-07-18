@@ -23,6 +23,7 @@ import 'music_catalog.dart';
 import 'music_service.dart';
 import 'midi_activity_guard.dart';
 import 'midi_input_lifecycle.dart';
+import 'midi_output_controller.dart';
 import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
@@ -320,7 +321,6 @@ class _HomeScreenState extends State<HomeScreen>
   int _tabIndex = 0;
   bool _requestInFlight = false;
   String _instrumentView = 'piano';
-  int? _midiOutProgram;
 
   String _language = 'es';
   String _accidental = 'sharp';
@@ -373,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _audioPlaybackAvailable = true;
   final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
+  late final MidiOutputController _midiOutputController;
   MidiInputLifecycle? _midiInputLifecycle;
   final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
   final Set<int> _detectionMidiHeldNotes = <int>{};
@@ -834,6 +835,9 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _midiOutputController = MidiOutputController(
+      MidiCommandOutputPort(_midiCommand),
+    );
     _helpOverlayController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -1583,6 +1587,7 @@ class _HomeScreenState extends State<HomeScreen>
       } catch (_) {}
     }
     _midiConnectedDevices.clear();
+    _midiOutputController.resetProgram();
     _detectionMidiHeldNotes.clear();
     _generationMidiHeldNotes.clear();
     _scaleMidiHeldNotes.clear();
@@ -7295,38 +7300,23 @@ class _HomeScreenState extends State<HomeScreen>
   static const int _kMidiOutProgramPiano = 0;
   static const int _kMidiOutProgramGuitar = 25;
 
-  void _ensureMidiOutProgram(int program) {
-    if (_midiOutProgram == program) return;
-    try {
-      _midiCommand.sendData(Uint8List.fromList(<int>[0xC0, program & 0x7F]));
-      _midiOutProgram = program;
-    } catch (_) {}
-  }
-
   /// Send a MIDI note_on (0x90) message to all connected MIDI devices.
   /// Envía primero un Program Change si el instrumento visible ha cambiado
   /// (piano/guitarra), para que el dispositivo receptor use el timbre
   /// correcto en vez de quedarse con el que tuviera por defecto.
   void _sendMidiNoteOn(int midiNote, int velocity) {
-    _ensureMidiOutProgram(
-      _instrumentView == 'guitar'
+    _midiOutputController.noteOn(
+      note: midiNote,
+      velocity: velocity,
+      program: _instrumentView == 'guitar'
           ? _kMidiOutProgramGuitar
           : _kMidiOutProgramPiano,
     );
-    try {
-      _midiCommand.sendData(
-        Uint8List.fromList(<int>[0x90, midiNote & 0x7F, velocity & 0x7F]),
-      );
-    } catch (_) {}
   }
 
   /// Send a MIDI note_off (0x80) message to all connected MIDI devices.
   void _sendMidiNoteOff(int midiNote) {
-    try {
-      _midiCommand.sendData(
-        Uint8List.fromList(<int>[0x80, midiNote & 0x7F, 0]),
-      );
-    } catch (_) {}
+    _midiOutputController.noteOff(midiNote);
   }
 
   /// Play a note via audio or MIDI output based on _soundOutput setting.

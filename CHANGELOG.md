@@ -20,6 +20,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Generación de acordes**: añadidas las variantes menor con segunda añadida (`madd2`) y menor con cuarta añadida (`madd4`), con nombres bilingües, fórmulas, ayuda teórica y paridad de intervalos en las tres plataformas.
 - **Web (partitura / mantenimiento)**: extraídas a un módulo puro la conversión MIDI→posición vertical en claves de sol y fa y la geometría de líneas adicionales, con pruebas de referencias, enarmonías y notas fuera del pentagrama.
 - **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
+- **Móvil (mantenimiento)**: encapsulada la salida MIDI detrás de un puerto probado, incluyendo selección y caché de timbre, normalización de mensajes, reintento tras fallos y reinicio al desconectar dispositivos.
 
 - **Mantenimiento / agentes**: corregida la arquitectura documentada del escritorio (Qt/PySide6 con compatibilidad de API Tk), añadidas instrucciones locales para Python, web y Flutter, y una matriz de fuentes de verdad y copias multiplataforma.
 

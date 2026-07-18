@@ -38,7 +38,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 
 | Archivo | Líneas | Contenido |
 |---------|--------|-----------|
-| `apps/mobile_flutter/lib/main.dart` | ~10700 | Estado, servicios de plataforma y UI móvil todavía concentrados |
+| `apps/mobile_flutter/lib/main.dart` | ~10600 | Estado, servicios de plataforma y UI móvil todavía concentrados |
 | `apps/web/static/app.js` | ~8900 | SPA completa |
 | `midichords/mixins/ui_mixin.py` | ~4300 | Construcción de paneles y modos Qt |
 | `midichords/mixins/render_mixin.py` | ~2100 | Dibujo de instrumentos y pentagrama |

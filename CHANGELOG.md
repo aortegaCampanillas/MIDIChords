@@ -14,6 +14,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (mantenimiento)**: extraído a un módulo puro y probado el cálculo de tamaños, proporción y scroll del teclado de piano, separándolo de la construcción de widgets en `main.dart`.
+
 - **Móvil (mantenimiento)**: movidos los painters privados de pentagrama, metrónomo y afinador desde `main.dart` a un `part` dedicado, conservando sus símbolos y comportamiento mientras se reduce el tamaño de la pantalla principal.
 
 - **Móvil (mantenimiento)**: extraídas de `main.dart` la generación y detección local de acordes, inversiones, spelling y generación de escalas a un servicio puro con tests directos de comportamiento.

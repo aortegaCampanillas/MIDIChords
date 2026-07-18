@@ -22,6 +22,7 @@ import 'interval_data.dart';
 import 'key_signature_highlight.dart';
 import 'music_catalog.dart';
 import 'music_service.dart';
+import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
 import 'scale_staff_interaction.dart';
@@ -61,76 +62,10 @@ const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
 const bool _kEnableMobileTuner = false;
 const double _kTabletMinShortestSide = 600.0;
 
-/// Teclado móvil: proporción web (`style.css` 124px / 36px).
-const double _kPianoMinWhiteKeyWidth = 28.0;
-const double _kPianoMaxWhiteKeyWidth = 36.0;
-const double _kPianoWhiteKeyHeight = 124.0;
-const double _kPianoKeyAspect = _kPianoWhiteKeyHeight / _kPianoMaxWhiteKeyWidth;
-
-/// Teclas visibles en viewport cuando hay scroll (recorte lateral).
-const double _kPianoTargetVisibleWhiteKeys = 9.5;
-
 /// Piano estándar 88 teclas: A0 (21) … C8 (108), como escritorio/web.
 const int _kPianoLowMidi = 21;
 const int _kPianoHighMidi = 108;
 const int _kPianoMiddleCMidi = 60;
-
-class _PianoKeyMetrics {
-  const _PianoKeyMetrics({
-    required this.whiteW,
-    required this.whiteH,
-    required this.scrollable,
-  });
-
-  final double whiteW;
-  final double whiteH;
-  final bool scrollable;
-}
-
-_PianoKeyMetrics _computePianoKeyMetrics({
-  required double viewportW,
-  required double viewportH,
-  required int whiteKeyCount,
-}) {
-  final availH = math.max(88.0, viewportH - 6.0);
-  final n = whiteKeyCount.toDouble();
-
-  // 1) Caben todas las teclas: rellenar ancho del panel (poco habitual con 88 teclas).
-  var whiteW = (viewportW / n).clamp(
-    _kPianoMinWhiteKeyWidth,
-    _kPianoMaxWhiteKeyWidth,
-  );
-  var whiteH = whiteW * _kPianoKeyAspect;
-  if (whiteH <= availH && whiteW * n <= viewportW) {
-    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
-  }
-
-  // 2) Altura del panel manda; scroll horizontal si hace falta.
-  whiteH = availH;
-  whiteW = math.max(_kPianoMinWhiteKeyWidth, whiteH / _kPianoKeyAspect);
-  var keyboardW = whiteW * n;
-  if (keyboardW <= viewportW) {
-    whiteW = viewportW / n;
-    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
-    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
-  }
-
-  // 3) Scroll: priorizar altura y dejar ~media tecla cortada al borde.
-  final targetW = (viewportW / _kPianoTargetVisibleWhiteKeys).clamp(
-    0.0,
-    _kPianoMaxWhiteKeyWidth,
-  );
-  if (targetW > whiteW) {
-    whiteW = targetW;
-    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
-    keyboardW = whiteW * n;
-  }
-  return _PianoKeyMetrics(
-    whiteW: whiteW,
-    whiteH: whiteH,
-    scrollable: keyboardW > viewportW + 1,
-  );
-}
 
 class MidiChordsMobileApp extends StatelessWidget {
   const MidiChordsMobileApp({super.key});
@@ -7371,7 +7306,7 @@ class _HomeScreenState extends State<HomeScreen>
         final viewportW = constraints.maxWidth;
         final pianoViewH = (constraints.maxHeight - 2 * (stripH + gap)).clamp(
           60.0,
-          (_kPianoWhiteKeyHeight + 12).toDouble(),
+          (pianoWhiteKeyHeight + 12).toDouble(),
         );
 
         final allWhite = List<int>.generate(
@@ -7379,7 +7314,7 @@ class _HomeScreenState extends State<HomeScreen>
           (i) => _kPianoLowMidi + i,
         ).where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12)).toList();
 
-        final effectiveW = _computePianoKeyMetrics(
+        final effectiveW = computePianoKeyMetrics(
           viewportW: viewportW,
           viewportH: pianoViewH,
           whiteKeyCount: allWhite.length,
@@ -7567,16 +7502,16 @@ class _HomeScreenState extends State<HomeScreen>
         final viewportH =
             (constraints.maxHeight.isFinite
                     ? constraints.maxHeight
-                    : _kPianoWhiteKeyHeight + 12)
-                .clamp(0.0, _kPianoWhiteKeyHeight + 12);
-        final metrics = _computePianoKeyMetrics(
+                    : pianoWhiteKeyHeight + 12)
+                .clamp(0.0, pianoWhiteKeyHeight + 12);
+        final metrics = computePianoKeyMetrics(
           viewportW: viewportW,
           viewportH: viewportH,
           whiteKeyCount: whiteMidi.length,
         );
         final whiteW = forcedWhiteW ?? metrics.whiteW;
         final whiteH = forcedWhiteW != null
-            ? (forcedWhiteW * _kPianoKeyAspect).clamp(0.0, viewportH)
+            ? (forcedWhiteW * pianoKeyAspect).clamp(0.0, viewportH)
             : metrics.whiteH;
         final blackW = whiteW * 0.64;
         final blackH = whiteH * 0.58;

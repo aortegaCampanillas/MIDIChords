@@ -8,6 +8,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 - `lib/music_catalog.dart` contiene los datos declarativos de acordes, escalas y nombres localizados; modificarlo junto con sus tests de integridad y comprobar la paridad multiplataforma.
 - `lib/music_service.dart` contiene generación, detección, inversiones, spelling y presentación de patrones sin dependencias de Flutter/UI. La UI debe consumir este módulo en vez de volver a introducir esas reglas en `main.dart`.
 - `lib/main_painters.dart` es un `part` de `main.dart` que agrupa los painters privados de pentagrama, metrónomo y afinador. Comparte deliberadamente símbolos privados con la pantalla; usarlo para dibujo, no para estado o reglas musicales.
+- `lib/piano_layout.dart` calcula tamaños y necesidad de scroll del teclado sin widgets ni estado; sus constantes conservan la proporción visual compartida con web.
 - Los módulos ya extraídos en `lib/` son preferibles como destino para lógica pura y componentes acotados.
 - La app mantiene implementaciones locales de generación/detección musical para funcionar sin depender de la API web.
 

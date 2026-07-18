@@ -36,6 +36,8 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Móvil (mantenimiento)**: aislados el bloqueo de pantalla nativo y su temporizador renovable de actividad MIDI detrás de un adaptador probado; el widget ya no coordina directamente `WakelockPlus` y se verifican cancelación, renovación y desmontaje idempotente.
 
+- **Móvil (mantenimiento)**: centralizadas las claves, valores predeterminados, validación y persistencia de preferencias en un repositorio con puerto sustituible; las pruebas cubren carga inválida, guardado completo y eliminación de opciones obsoletas.
+
 - **Web (partitura / mantenimiento)**: extraídas y probadas la elección de plica común y la geometría de barras primarias y secundarias; los grupos barrados conservan una dirección coherente y las barras de semicorchea permanecen paralelas.
 
 - **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.

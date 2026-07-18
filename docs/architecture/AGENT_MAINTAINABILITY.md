@@ -20,6 +20,8 @@ La separación del renderer ha comenzado por geometría pura: `staff_beam_geomet
 
 En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de vida: encapsula `WakelockPlus` y la ventana temporal renovable de actividad MIDI. El widget conserva únicamente la decisión de cuándo renovar o cancelar; las pruebas usan un puerto falso y reloj controlado para fijar renovación, expiración y desmontaje idempotente.
 
+`app_preferences.dart` aplica el mismo patrón a configuración persistente: el estado intercambia una instantánea tipada y el repositorio concentra claves, defaults y validación sobre un puerto reemplazable. Así se pueden probar migraciones y valores corruptos sin inicializar el plugin de preferencias.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

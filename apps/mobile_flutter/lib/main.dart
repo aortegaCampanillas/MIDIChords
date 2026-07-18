@@ -12,9 +12,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'circle_of_fifths.dart';
+import 'app_preferences.dart';
 import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
@@ -844,22 +844,18 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadPrefsAndStart() async {
-    final prefs = await SharedPreferences.getInstance();
+    final repository = AppPreferencesRepository(
+      await SharedPreferencesPort.create(),
+    );
+    final prefs = repository.load();
     setState(() {
-      _language = prefs.getString('language') ?? 'es';
-      _showKeyNames = prefs.getBool('showKeyNames') ?? true;
-      _lastSeenChangelogVersion =
-          prefs.getString('lastSeenChangelogVersion') ?? '';
-      _changelogDontShow = prefs.getBool('changelogDontShow') ?? false;
-      _scaleOctaves = prefs.getInt('scaleOctaves') ?? 1;
-      final finger = prefs.getString('scaleFingeringHand');
-      _scaleFingeringHand = (finger == 'left' || finger == 'right')
-          ? finger
-          : null;
-      final savedTab = prefs.getInt('tabIndex');
-      if (savedTab != null && savedTab >= 0 && savedTab <= 6) {
-        _tabIndex = savedTab;
-      }
+      _language = prefs.language;
+      _showKeyNames = prefs.showKeyNames;
+      _lastSeenChangelogVersion = prefs.lastSeenChangelogVersion;
+      _changelogDontShow = prefs.changelogDontShow;
+      _scaleOctaves = prefs.scaleOctaves;
+      _scaleFingeringHand = prefs.scaleFingeringHand;
+      _tabIndex = prefs.tabIndex;
     });
     await _loadMeta();
     await _loadChangelog();
@@ -867,21 +863,20 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _savePrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', _language);
-    await prefs.setBool('showKeyNames', _showKeyNames);
-    await prefs.setString(
-      'lastSeenChangelogVersion',
-      _lastSeenChangelogVersion,
+    final repository = AppPreferencesRepository(
+      await SharedPreferencesPort.create(),
     );
-    await prefs.setBool('changelogDontShow', _changelogDontShow);
-    await prefs.setInt('scaleOctaves', _scaleOctaves);
-    if (_scaleFingeringHand != null) {
-      await prefs.setString('scaleFingeringHand', _scaleFingeringHand!);
-    } else {
-      await prefs.remove('scaleFingeringHand');
-    }
-    await prefs.setInt('tabIndex', _tabIndex);
+    await repository.save(
+      AppPreferences(
+        language: _language,
+        showKeyNames: _showKeyNames,
+        lastSeenChangelogVersion: _lastSeenChangelogVersion,
+        changelogDontShow: _changelogDontShow,
+        scaleOctaves: _scaleOctaves,
+        scaleFingeringHand: _scaleFingeringHand,
+        tabIndex: _tabIndex,
+      ),
+    );
   }
 
   Future<void> _loadChangelog() async {

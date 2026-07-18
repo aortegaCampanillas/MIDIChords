@@ -20,6 +20,7 @@ import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
 import 'key_signature_highlight.dart';
+import 'scale_guitar_marker.dart';
 import 'scale_staff_interaction.dart';
 
 void main() {
@@ -9382,6 +9383,11 @@ class _HomeScreenState extends State<HomeScreen>
     int chordVariant = 0,
   }) {
     final activePcs = activeMidi.map((n) => n % 12).toSet();
+    final scaleMode = _tabIndex == 3;
+    final scaleTonicPc = _positiveMod12(
+      (_generatedScaleJson?['tonic_pc'] as num?)?.toInt() ?? _scaleTonicPc,
+    );
+    final scaleCurrentNotes = <int>{..._scaleMidiHeldNotes, ?_scaleCurrentNote};
     final extraPcs = _instrumentExtrasForCurrentTab()
         .map((n) => n % 12)
         .toSet();
@@ -9565,6 +9571,32 @@ class _HomeScreenState extends State<HomeScreen>
                                   ((_scaleCurrentNote != null &&
                                           _scaleCurrentNote == note) ||
                                       _scaleMidiHeldNotes.contains(note))));
+                    final scaleMarker = scaleMode && active
+                        ? scaleGuitarMarkerStyle(
+                            note: note,
+                            tonicPitchClass: scaleTonicPc,
+                            currentNotes: scaleCurrentNotes,
+                            selectedStartNote: _scaleGuitarStartNote,
+                          )
+                        : null;
+                    final scaleMarkerColor = switch (scaleMarker) {
+                      ScaleGuitarMarkerStyle.current => const Color(0xFF2FA8FF),
+                      ScaleGuitarMarkerStyle.selectedStart => const Color(
+                        0xFFFF9800,
+                      ),
+                      ScaleGuitarMarkerStyle.tonic => const Color(0xFFF6B60B),
+                      ScaleGuitarMarkerStyle.degree => const Color(0xFFFFFFFF),
+                      null => null,
+                    };
+                    final scaleMarkerBorder = switch (scaleMarker) {
+                      ScaleGuitarMarkerStyle.current => const Color(0xFF0F5F99),
+                      ScaleGuitarMarkerStyle.selectedStart => const Color(
+                        0xFF8A4F10,
+                      ),
+                      ScaleGuitarMarkerStyle.tonic => const Color(0xFFB38B00),
+                      ScaleGuitarMarkerStyle.degree => const Color(0xFF2F3137),
+                      null => null,
+                    };
                     return Positioned(
                       left: x,
                       top: y,
@@ -9599,22 +9631,26 @@ class _HomeScreenState extends State<HomeScreen>
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: active
-                                ? (isExtra
-                                      ? const Color(0xFFE04A4A)
-                                      : (isPlaying
-                                            ? const Color(0xFFCC9200)
-                                            : const Color(0xFFF3BF2F)))
-                                : (showDot
-                                      ? const Color(0xFFE5E7EB)
-                                      : Colors.transparent),
+                            color:
+                                scaleMarkerColor ??
+                                (active
+                                    ? (isExtra
+                                          ? const Color(0xFFE04A4A)
+                                          : (isPlaying
+                                                ? const Color(0xFFCC9200)
+                                                : const Color(0xFFF3BF2F)))
+                                    : (showDot
+                                          ? const Color(0xFFE5E7EB)
+                                          : Colors.transparent)),
                             border: showDot
                                 ? Border.all(
-                                    color: active
-                                        ? (isExtra
-                                              ? const Color(0xFFB33434)
-                                              : const Color(0xFFD29B20))
-                                        : const Color(0xFFAAB1BC),
+                                    color:
+                                        scaleMarkerBorder ??
+                                        (active
+                                            ? (isExtra
+                                                  ? const Color(0xFFB33434)
+                                                  : const Color(0xFFD29B20))
+                                            : const Color(0xFFAAB1BC)),
                                     width: isPlaying ? 2.5 : 1.0,
                                   )
                                 : null,
@@ -9646,7 +9682,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                             0xFFFCECEC,
                                                           )
                                                         : const Color(
-                                                            0xFF1A222D,
+                                                            0xFF0F0F0F,
                                                           ))
                                                   : const Color(0xFF7D8797),
                                               fontSize: 10,

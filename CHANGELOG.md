@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (escalas / guitarra)**: el diapasón adopta la misma jerarquía de colores que escritorio: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.
+
 - **Móvil (escalas / pentagrama)**: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.
 
 - **Escritorio (escalas / piano)**: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.

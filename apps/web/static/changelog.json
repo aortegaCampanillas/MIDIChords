@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["mobile"],
+        "es": "Escalas: el diapasón adopta la misma jerarquía visual que las otras versiones: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.",
+        "en": "Scales: the fretboard now uses the same visual hierarchy as the other versions: blue active note, orange starting tonic, yellow remaining tonics, and white scale degrees."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["mobile"],
         "es": "Escalas: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.",
         "en": "Scales: staff notes respond to taps again, play their sound, and temporarily reflect the selection on the piano or guitar."
       },

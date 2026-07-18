@@ -73,6 +73,9 @@ están sincronizadas; las cuatro combinaciones de quinta y novena alteradas sigu
 siendo tipos propios.
 Las extensiones dominantes compartidas (`9`, `9#5`, `9b5`, `11`, `13`, `13b9`,
 `13#11`) están sincronizadas; `11b9` se conserva como tipo propio.
+Las extensiones mayores compartidas (`maj7`, `maj7#5`, `maj9`, `maj11`, `maj13`)
+están sincronizadas; `maj7b5`, `maj9#11` y `maj13#11` se conservan como tipos
+propios.
 
 ## Criterio de cierre
 

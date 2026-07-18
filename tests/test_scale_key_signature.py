@@ -184,3 +184,22 @@ def test_scale_duplicate_note_on_while_key_is_held_is_not_retriggered():
 
     assert stopped == []
     assert input_state.sounding_notes == {60}
+
+
+def test_scale_repeated_note_repaints_when_audio_active_set_is_unchanged():
+    input_state = InputDetectionMixin()
+    input_state.current_mode = "scales"
+    input_state.active_notes = {60}
+    input_state._last_scale_visual_notes = set()
+    input_state.midi_held_notes = set()
+    input_state.mouse_held_notes = {60}
+    input_state.sustain_latched_notes = set()
+    input_state.staff_pressed_scale_notes = {60}
+    input_state._sync_scale_piano_staff_from_active_keys = lambda _notes: None
+    redraws = []
+    input_state.update_music_views = lambda: redraws.append(True)
+
+    input_state._sync_sounding_ui({60})
+
+    assert input_state._last_scale_visual_notes == {60}
+    assert redraws == [True]

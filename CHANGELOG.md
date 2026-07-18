@@ -10,6 +10,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (escalas / piano)**: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.
+
 - **Escritorio (escalas / piano)**: una nota retenida en audio tras soltar la tecla vuelve a producir un ataque al pulsar de nuevo esa misma tecla; ya no se reactiva únicamente el resaltado sin que suene.
 
 - **Móvil (escalas)**: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el piano, la guitarra, el pentagrama y la armadura. La liberación MIDI también limpia correctamente la selección aunque la nota mostrada esté trasladada de octava.

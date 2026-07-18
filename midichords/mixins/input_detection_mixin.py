@@ -198,6 +198,7 @@ class InputDetectionMixin:
             self.stop_note(note)
         self.sounding_notes.clear()
         self.active_notes.clear()
+        self._last_scale_visual_notes.clear()
         self.midi_held_notes.clear()
         self.mouse_held_notes.clear()
         self.sustain_latched_notes.clear()
@@ -330,6 +331,7 @@ class InputDetectionMixin:
     def _sync_sounding_ui(self, next_active: set[int]) -> None:
         prev_staff = set(getattr(self, "staff_pressed_scale_notes", set()))
         scale_visual_notes = set(next_active)
+        scale_visual_changed = False
         if self.current_mode == "scales":
             # Escalas retiene la última nota en `held_release_notes` para que
             # siga sonando hasta la siguiente pulsación. Esa retención de
@@ -341,9 +343,14 @@ class InputDetectionMixin:
                 | set(self.mouse_held_notes)
                 | set(self.sustain_latched_notes)
             )
+            previous_visual_notes = set(
+                getattr(self, "_last_scale_visual_notes", set())
+            )
+            scale_visual_changed = scale_visual_notes != previous_visual_notes
+            self._last_scale_visual_notes = set(scale_visual_notes)
         self._sync_scale_piano_staff_from_active_keys(scale_visual_notes)
         staff_changed = set(getattr(self, "staff_pressed_scale_notes", set())) != prev_staff
-        if next_active != self.active_notes or staff_changed:
+        if next_active != self.active_notes or staff_changed or scale_visual_changed:
             self.active_notes = next_active
             self.update_music_views()
 

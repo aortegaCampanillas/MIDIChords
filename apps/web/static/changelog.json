@@ -7,6 +7,13 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["desktop"],
+        "es": "Escalas: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.",
+        "en": "Scales: pressing a latched note a second time now highlights the new attack on the piano as well as playing it."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop"],
         "es": "Escalas: al volver a pulsar una nota retenida en audio, la misma tecla produce ahora un nuevo ataque en lugar de activar únicamente el resaltado.",
         "en": "Scales: pressing an audio-latched note again now produces a new attack instead of only restoring its highlight."
       },

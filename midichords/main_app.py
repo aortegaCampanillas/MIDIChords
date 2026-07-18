@@ -122,6 +122,7 @@ class MidiChordAnalyzerApp(
         self._resolve_clef_font()
 
         self.active_notes: set[int] = set()
+        self._last_scale_visual_notes: set[int] = set()
         self.generated_preview_notes: set[int] = set()
         self.detection_extra_notes: set[int] = set()
         self.detection_overlay_note_names: dict[int, str] = {}

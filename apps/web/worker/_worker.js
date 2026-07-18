@@ -692,10 +692,13 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   });
 
   const suffixDesc = (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[pattern.suffix] || null;
+  const inversionIndex = bassPc == null
+    ? 0
+    : Math.max(0, pattern.intervals.findIndex(
+      (interval) => (Number(root) + Number(interval)) % 12 === Number(bassPc),
+    ));
   let description = suffixDesc;
   if (suffixDesc && bassName) {
-    const bassInterval = (Number(bassPc) - Number(root) + 12) % 12;
-    const inversionIndex = pattern.intervals.indexOf(bassInterval);
     const INVERSION_NAMES = {
       es: ["", "primera inversión", "segunda inversión", "tercera inversión"],
       en: ["", "first inversion", "second inversion", "third inversion"],

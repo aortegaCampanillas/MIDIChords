@@ -64,6 +64,9 @@ class WebChordVariantHelpTests(unittest.TestCase):
 
         worker_source = WORKER_JS.read_text(encoding="utf-8")
         self.assertIn("inversion: inversionIndex", worker_source)
+        declaration = worker_source.index("const inversionIndex = bassPc == null")
+        detection_return = worker_source.index("inversion: inversionIndex", declaration)
+        self.assertLess(declaration, detection_return)
 
     def test_help_describes_inversions_for_every_formula_degree(self):
         app_source = APP_JS.read_text(encoding="utf-8")

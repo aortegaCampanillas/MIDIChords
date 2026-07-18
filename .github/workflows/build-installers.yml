@@ -387,7 +387,7 @@ jobs:
           Priority: optional
           Architecture: amd64
           Maintainer: Antonio Ortega González
-          Depends: libasound2, libjack-jackd2-0 | libjack0, libportaudio2
+          Depends: libasound2, libjack-jackd2-0 | libjack0, libportaudio2, libxcb-cursor0
           Description: MIDI Chords Analyzer desktop application
            Real-time MIDI chord analyzer with staff and piano visualization.
           CONTROL
@@ -396,7 +396,7 @@ jobs:
           [Desktop Entry]
           Version=1.0
           Type=Application
-          Name=MIDI Chords Analyzer
+          Name=Free MIDI Piano&Guitar Chords
           Comment=Real-time MIDI chord analyzer
           Exec=/opt/midichords/MIDIChords
           Icon=midichords

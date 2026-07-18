@@ -167,6 +167,11 @@ const {
   midiToTrebleY,
   midiToBassY,
   ledgerLineYs,
+  closestPitchClassMidi,
+  mapPianoInputToStaffMidi,
+  expandPianoPlayingNotesForStaff,
+  mapPianoHeldNotesToStaff,
+  buildScaleStaffEntries,
 } = globalThis.MidiChordsStaffGeometry;
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
@@ -4266,20 +4271,9 @@ function renderStaff() {
     ctx.fillText(tr("detection_staff_shift_hint"), width / 2, height - 10);
   }
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
-  let scaleCurrentDisplayMidi = scaleCurrentMidi;
-  if (state.mode === "scales" && scaleCurrentDisplayMidi != null) {
-    const current = Number(scaleCurrentDisplayMidi);
-    const samePc = notes
-      .map((n) => Number(n))
-      .filter((n) => ((n % 12) + 12) % 12 === ((current % 12) + 12) % 12);
-    if (samePc.length) {
-      scaleCurrentDisplayMidi = samePc.reduce((best, n) => (
-        Math.abs(n - current) < Math.abs(best - current) ? n : best
-      ), samePc[0]);
-    } else {
-      scaleCurrentDisplayMidi = current;
-    }
-  }
+  const scaleCurrentDisplayMidi = state.mode === "scales"
+    ? closestPitchClassMidi(notes, scaleCurrentMidi)
+    : scaleCurrentMidi;
   const generationCurrentMidi = isChordGenerationLikeMode() ? state.generationCurrentNote : null;
   const generationPlaying = isChordGenerationLikeMode() ? state.generationPlayingNotes : new Set();
   const generationPlayingDisplay = new Set(Array.from(generationPlaying).map((n) => Number(n)));
@@ -4290,31 +4284,19 @@ function renderStaff() {
     ? new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) - 12).filter((n) => n >= 0))
     : new Set();
   let generationCurrentDisplayMidi = generationCurrentMidi;
-  if (isChordGenerationLikeMode() && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    // Keyboard LH taps are an octave lower than the LH voice drawn in staff.
-    if (!staffSet.has(Number(generationCurrentDisplayMidi)) && staffSet.has(Number(generationCurrentDisplayMidi) + 12)) {
-      generationCurrentDisplayMidi = Number(generationCurrentDisplayMidi) + 12;
-    }
+  if (isChordGenerationLikeMode() && state.instrument === "piano") {
+    generationCurrentDisplayMidi = mapPianoInputToStaffMidi(notes, generationCurrentMidi);
   }
   if (isChordGenerationLikeMode() && state.instrument === "piano" && generationPlayingDisplay.size) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    Array.from(generationPlayingDisplay).forEach((note) => {
-      const lhNote = Number(note) - 12;
-      if (staffSet.has(lhNote)) generationPlayingDisplay.add(lhNote);
-    });
+    const mapped = expandPianoPlayingNotesForStaff(notes, generationPlayingDisplay);
+    generationPlayingDisplay.clear();
+    mapped.forEach((note) => generationPlayingDisplay.add(note));
   }
-  const generationMidiHeldDisplay = new Set(
+  let generationMidiHeldDisplay = new Set(
     isChordGenerationLikeMode() ? Array.from(state.generationMidiHeldNotes).map((n) => Number(n)) : []
   );
   if (isChordGenerationLikeMode() && state.instrument === "piano" && generationMidiHeldDisplay.size) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    Array.from(generationMidiHeldDisplay).forEach((note) => {
-      if (!staffSet.has(note) && staffSet.has(note + 12)) {
-        generationMidiHeldDisplay.delete(note);
-        generationMidiHeldDisplay.add(note + 12);
-      }
-    });
+    generationMidiHeldDisplay = mapPianoHeldNotesToStaff(notes, generationMidiHeldDisplay);
   }
 
   const xByLine = new Map();
@@ -4324,18 +4306,9 @@ function renderStaff() {
   const scaleRhLh = scaleStaff ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
   const scaleRhSet = new Set(scaleRhLh.rh);
   const scaleLhSet = new Set(scaleRhLh.lh);
-  const scaleStaffEntries = [];
-  if (scaleStaff || detectionStaff) {
-    const pairCount = Math.min(scaleRhLh.rh.length, scaleRhLh.lh.length);
-    for (let idx = 0; idx < pairCount; idx += 1) {
-      const bass = Number(scaleRhLh.rh[idx]) - 12;
-      if (scaleLhSet.has(bass)) scaleStaffEntries.push({ midi: bass, degree: idx });
-      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
-    }
-    for (let idx = pairCount; idx < scaleRhLh.rh.length; idx += 1) {
-      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
-    }
-  }
+  const scaleStaffEntries = (scaleStaff || detectionStaff)
+    ? buildScaleStaffEntries(scaleRhLh.rh, scaleRhLh.lh)
+    : [];
   const scaleLabels = scaleStaff && Array.isArray(state.generatedScale?.notes)
     ? state.generatedScale.notes.map(scaleLabelWithoutOctave)
     : [];

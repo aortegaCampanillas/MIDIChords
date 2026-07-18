@@ -54,6 +54,11 @@ La misma frontera calcula ahora layout del mástil, centros de traste, espejo pa
 zurdos, escalado cliente→canvas y hit-testing circular. `renderGuitar` conserva
 dimensiones reales del elemento, dibujo, estado de notas y callbacks de entrada.
 
+`staff_geometry.js` incorpora la adaptación de octavas entre teclado y partitura:
+selección de la nota visible más cercana, normalización de notas actuales,
+reproducidas y sostenidas, y emparejado RH/LH por grado. `renderStaff` conserva
+la selección de modo, estilos, regiones interactivas y dibujo.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

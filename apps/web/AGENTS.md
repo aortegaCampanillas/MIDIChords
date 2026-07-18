@@ -52,6 +52,8 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 
 `static/guitar_geometry.js` detecta cejillas, calcula layout/centros del mástil, refleja la orientación zurda, escala puntos cliente al canvas y resuelve hit-testing circular. No accede al DOM ni al estado de la SPA; `renderGuitar()` aporta dimensiones, convierte índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
 
+`static/staff_geometry.js` reúne posición diatónica, líneas adicionales y adaptación de octavas entre piano y pentagrama, además del emparejado RH/LH de escalas. No accede al canvas ni al estado global; probar estos contratos en `test/staff_geometry.test.js`.
+
 `static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
 
 Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.

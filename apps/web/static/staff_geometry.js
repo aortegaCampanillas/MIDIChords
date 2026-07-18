@@ -46,10 +46,73 @@
     return lines;
   }
 
+  function closestPitchClassMidi(notes, currentMidi) {
+    if (currentMidi == null) return currentMidi;
+    const current = Number(currentMidi);
+    const currentPc = ((current % 12) + 12) % 12;
+    const matches = (Array.isArray(notes) ? notes : [])
+      .map(Number)
+      .filter((note) => ((note % 12) + 12) % 12 === currentPc);
+    if (!matches.length) return current;
+    return matches.reduce((best, note) => (
+      Math.abs(note - current) < Math.abs(best - current) ? note : best
+    ), matches[0]);
+  }
+
+  function mapPianoInputToStaffMidi(staffNotes, inputMidi) {
+    if (inputMidi == null) return inputMidi;
+    const note = Number(inputMidi);
+    const staffSet = new Set((Array.isArray(staffNotes) ? staffNotes : []).map(Number));
+    return !staffSet.has(note) && staffSet.has(note + 12) ? note + 12 : note;
+  }
+
+  function expandPianoPlayingNotesForStaff(staffNotes, playingNotes) {
+    const staffSet = new Set((Array.isArray(staffNotes) ? staffNotes : []).map(Number));
+    const display = new Set(Array.from(playingNotes || []).map(Number));
+    Array.from(display).forEach((note) => {
+      if (staffSet.has(note - 12)) display.add(note - 12);
+    });
+    return display;
+  }
+
+  function mapPianoHeldNotesToStaff(staffNotes, heldNotes) {
+    const staffSet = new Set((Array.isArray(staffNotes) ? staffNotes : []).map(Number));
+    const display = new Set(Array.from(heldNotes || []).map(Number));
+    Array.from(display).forEach((note) => {
+      if (!staffSet.has(note) && staffSet.has(note + 12)) {
+        display.delete(note);
+        display.add(note + 12);
+      }
+    });
+    return display;
+  }
+
+  function buildScaleStaffEntries(rightHand, leftHand) {
+    const rh = Array.isArray(rightHand) ? rightHand.map(Number) : [];
+    const lh = Array.isArray(leftHand) ? leftHand.map(Number) : [];
+    const lhSet = new Set(lh);
+    const entries = [];
+    const pairCount = Math.min(rh.length, lh.length);
+    for (let index = 0; index < pairCount; index += 1) {
+      const bass = rh[index] - 12;
+      if (lhSet.has(bass)) entries.push({ midi: bass, degree: index });
+      entries.push({ midi: rh[index], degree: index });
+    }
+    for (let index = pairCount; index < rh.length; index += 1) {
+      entries.push({ midi: rh[index], degree: index });
+    }
+    return entries;
+  }
+
   global.MidiChordsStaffGeometry = Object.freeze({
     midiToDiatonicIndex,
     midiToTrebleY,
     midiToBassY,
     ledgerLineYs,
+    closestPitchClassMidi,
+    mapPianoInputToStaffMidi,
+    expandPianoPlayingNotesForStaff,
+    mapPianoHeldNotesToStaff,
+    buildScaleStaffEntries,
   });
 })(globalThis);

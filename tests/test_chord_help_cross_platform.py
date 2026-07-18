@@ -45,6 +45,9 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
     def test_flutter_bundle_declares_and_uses_theory_catalog(self):
         pubspec = (PROJECT_ROOT / "apps" / "mobile_flutter" / "pubspec.yaml").read_text(encoding="utf-8")
         main = (PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main.dart").read_text(encoding="utf-8")
+        music_service = (
+            PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "music_service.dart"
+        ).read_text(encoding="utf-8")
         helper = (PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "chord_variant_help.dart").read_text(
             encoding="utf-8"
         )
@@ -53,7 +56,7 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
         self.assertIn("buildChordVariantDropdownItems", main)
         self.assertIn("_showChordVariantHelpDialog", main)
         self.assertIn("helpId: 'detection_variant_theory'", main)
-        self.assertIn("'inversion': inversionIndex", main)
+        self.assertIn("'inversion': inversionIndex", music_service)
         self.assertIn("enabled: false", helper)
 
     def test_desktop_detection_reuses_variant_help_dialog(self):

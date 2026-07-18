@@ -7,7 +7,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Concepto | Fuente o referencia actual | Consumidores/copias | Verificación existente |
 |---|---|---|---|
 | Patrones de acordes y escalas | `midichords/core/music_theory.py` | `apps/web/worker/_worker.js`, `apps/mobile_flutter/lib/music_catalog.dart` | Tests Python, `apps/mobile_flutter/test/music_catalog_test.dart` y `scripts/compare_api_parity.py` (comparación con producción) |
-| Contrato musical Python | `midichords/core/music_service.py` | Worker y cliente Flutter implementan resultados equivalentes | `scripts/compare_api_parity.py` cubre una muestra Python/producción |
+| Contrato musical Python | `midichords/core/music_service.py` | Worker y `apps/mobile_flutter/lib/music_service.dart` implementan resultados equivalentes | Tests Python, `apps/mobile_flutter/test/music_service_test.dart` y `scripts/compare_api_parity.py` para una muestra Python/producción |
 | Ayuda de variantes | `assets/chord_variant_theory.json` | `apps/mobile_flutter/assets/chord_variant_theory.json`; la web usa el catálogo desde sus fuentes | `tests/test_chord_help_cross_platform.py` |
 | Acordes de guitarra | `assets/guitar_chord_cache.json` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |

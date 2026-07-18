@@ -17,6 +17,29 @@
     Aeolian: "VI",
     Locrian: "VII",
   });
+  const MODAL_SCALE_NAMES = Object.freeze(Object.keys(MODAL_SCALE_DEGREES));
+  const SCALE_FAMILY_GROUPS = Object.freeze([
+    ["scale_group_greek_modes", MODAL_SCALE_NAMES],
+    ["scale_group_minor", ["Harmonic Minor", "Melodic Minor", "Romanian Minor", "Hawaiian"]],
+    ["scale_group_altered_modes", [
+      "Locrian #2", "Half Diminished", "Super Locrian", "Neapolitan Major", "Neapolitan Minor",
+      "Lydian Minor", "Lydian Augmented", "Lydian Diminished", "Lydian Augmented #6",
+      "Hungarian Major", "Hungarian Minor",
+    ]],
+    ["scale_group_pentatonic_blues", [
+      "Major Pentatonic", "Minor Pentatonic", "Blues Pentatonic", "Neutral Pentatonic", "Minor Blues",
+    ]],
+    ["scale_group_bebop", ["Bebop", "Bebop Major", "Bebop Minor"]],
+    ["scale_group_symmetric_synthetic", [
+      "Chromatic", "Diminished", "Whole Tone (WT)", "Diminished WT", "Enigmatic",
+      "Prometheus", "Prometheus Neapolitan", "Six Tone Symmetric",
+    ]],
+    ["scale_group_world", [
+      "Spanish Gypsy", "Eight Tone Spanish", "Pelog", "Ichikosucho", "Persian", "Flamenco",
+      "Maqam", "Oriental", "Iwato", "Raga Malakosh", "Balinese", "Kafi Raga", "Todi Raga",
+      "Purvi Raga", "In Sen",
+    ]],
+  ]);
 
   function scaleAliases(language) {
     return language === "en"
@@ -29,6 +52,14 @@
     const label = alias ? `${alias} (${localizedName})` : String(localizedName);
     const degree = MODAL_SCALE_DEGREES[patternName];
     return degree ? `${label} (${degree})` : label;
+  }
+
+  function groupScalePatterns(patterns) {
+    const available = new Map((patterns || []).map((pattern) => [pattern.name, pattern]));
+    return SCALE_FAMILY_GROUPS.map(([labelKey, names]) => ({
+      labelKey,
+      patterns: names.map((name) => available.get(name)).filter(Boolean),
+    })).filter((group) => group.patterns.length);
   }
 
   function scaleBaseNotes(notesMidi, guitarStartNote = null) {
@@ -83,8 +114,11 @@
   global.MidiChordsScaleTheory = Object.freeze({
     SCALE_BASIC_NAMES,
     MODAL_SCALE_DEGREES,
+    MODAL_SCALE_NAMES,
+    SCALE_FAMILY_GROUPS,
     scaleAliases,
     scaleDisplayLabel,
+    groupScalePatterns,
     scaleBaseNotes,
     scaleNotesForOctaves,
     scaleLabelWithoutOctave,

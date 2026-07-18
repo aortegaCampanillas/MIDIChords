@@ -677,45 +677,10 @@ extension _HomeScreenPages on _HomeScreenState {
                                   decoration: InputDecoration(
                                     labelText: _ui('Tipo', 'Type'),
                                   ),
-                                  items: filteredPatterns
-                                      .map(
-                                        (p) => DropdownMenuItem<String>(
-                                          value:
-                                              (p['name'] as String? ??
-                                              'Ionian'),
-                                          child: Text(
-                                            scaleDisplayName(
-                                              p['name'] as String? ?? 'Ionian',
-                                              p['localized_name'] as String? ??
-                                                  p['name'] as String? ??
-                                                  'Ionian',
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  selectedItemBuilder: (context) =>
-                                      filteredPatterns
-                                          .map(
-                                            (p) => Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                scaleDisplayName(
-                                                  p['name'] as String? ??
-                                                      'Ionian',
-                                                  p['localized_name']
-                                                          as String? ??
-                                                      p['name'] as String? ??
-                                                      'Ionian',
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
+                                  items: buildScaleDropdownItems(
+                                    patterns: filteredPatterns,
+                                    language: _language,
+                                  ),
                                   onChanged: (value) {
                                     if (value == null) return;
                                     _updateState(

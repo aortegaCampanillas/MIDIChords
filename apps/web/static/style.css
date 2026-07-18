@@ -1210,14 +1210,16 @@ a.btn-link:hover {
   width: 4.5em;
 }
 
-#genVariant optgroup {
+#genVariant optgroup,
+#scaleType optgroup {
   background: #17273a;
   color: #f2bf2f;
   font-style: normal;
   font-weight: 700;
 }
 
-#genVariant optgroup option {
+#genVariant optgroup option,
+#scaleType optgroup option {
   color: var(--text);
   font-weight: 400;
 }

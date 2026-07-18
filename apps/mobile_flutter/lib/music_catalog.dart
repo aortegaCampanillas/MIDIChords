@@ -663,6 +663,93 @@ const Map<String, String> modalScaleDegrees = <String, String>{
   'Locrian': 'VII',
 };
 
+const List<Map<String, Object>> scaleFamilyGroups = <Map<String, Object>>[
+  <String, Object>{
+    'key': 'greek',
+    'names': <String>[
+      'Ionian',
+      'Dorian',
+      'Phrygian',
+      'Lydian',
+      'Mixolydian',
+      'Aeolian',
+      'Locrian',
+    ],
+  },
+  <String, Object>{
+    'key': 'minor',
+    'names': <String>[
+      'Harmonic Minor',
+      'Melodic Minor',
+      'Romanian Minor',
+      'Hawaiian',
+    ],
+  },
+  <String, Object>{
+    'key': 'altered_modes',
+    'names': <String>[
+      'Locrian #2',
+      'Half Diminished',
+      'Super Locrian',
+      'Neapolitan Major',
+      'Neapolitan Minor',
+      'Lydian Minor',
+      'Lydian Augmented',
+      'Lydian Diminished',
+      'Lydian Augmented #6',
+      'Hungarian Major',
+      'Hungarian Minor',
+    ],
+  },
+  <String, Object>{
+    'key': 'pentatonic_blues',
+    'names': <String>[
+      'Major Pentatonic',
+      'Minor Pentatonic',
+      'Blues Pentatonic',
+      'Neutral Pentatonic',
+      'Minor Blues',
+    ],
+  },
+  <String, Object>{
+    'key': 'bebop',
+    'names': <String>['Bebop', 'Bebop Major', 'Bebop Minor'],
+  },
+  <String, Object>{
+    'key': 'symmetric_synthetic',
+    'names': <String>[
+      'Chromatic',
+      'Diminished',
+      'Whole Tone (WT)',
+      'Diminished WT',
+      'Enigmatic',
+      'Prometheus',
+      'Prometheus Neapolitan',
+      'Six Tone Symmetric',
+    ],
+  },
+  <String, Object>{
+    'key': 'world',
+    'names': <String>[
+      'Spanish Gypsy',
+      'Eight Tone Spanish',
+      'Pelog',
+      'Ichikosucho',
+      'Persian',
+      'Flamenco',
+      'Maqam',
+      'Oriental',
+      'Iwato',
+      'Raga Malakosh',
+      'Balinese',
+      'Kafi Raga',
+      'Todi Raga',
+      'Purvi Raga',
+      'In Sen',
+    ],
+  },
+];
+
 String scaleDisplayName(String patternName, String localizedName) {
   final degree = modalScaleDegrees[patternName];
   return degree == null ? localizedName : '$localizedName ($degree)';

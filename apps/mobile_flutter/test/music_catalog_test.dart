@@ -69,4 +69,18 @@ void main() {
     expect(scaleDisplayName('Locrian', 'Locrian'), 'Locrian (VII)');
     expect(scaleDisplayName('Chromatic', 'Cromática'), 'Cromática');
   });
+
+  test('scale families cover the catalog once and keep modes ordered', () {
+    final groupedNames = scaleFamilyGroups
+        .expand((group) => group['names']! as List<String>)
+        .toList(growable: false);
+    final catalogNames = scalePatternDefs
+        .map((pattern) => pattern['name']! as String)
+        .toSet();
+
+    expect(scaleFamilyGroups, hasLength(7));
+    expect(groupedNames.take(7), modalScaleDegrees.keys);
+    expect(groupedNames.toSet(), hasLength(groupedNames.length));
+    expect(groupedNames.toSet(), catalogNames);
+  });
 }

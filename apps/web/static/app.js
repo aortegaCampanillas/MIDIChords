@@ -2146,6 +2146,7 @@ const {
   SCALE_BASIC_NAMES,
   scaleAliases,
   scaleDisplayLabel,
+  groupScalePatterns,
   scaleBaseNotes,
   scaleNotesForOctaves,
   scaleLabelWithoutOctave,
@@ -5138,11 +5139,16 @@ function repopulateScaleTypeSelect(prevValue) {
     ? state.scalePatterns.filter((p) => SCALE_BASIC_NAMES.has(p.name))
     : state.scalePatterns;
   scaleType.innerHTML = "";
-  visiblePatterns.forEach((p) => {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = scaleDisplayLabel(p.name, p.localized_name, state.language);
-    scaleType.appendChild(opt);
+  groupScalePatterns(visiblePatterns).forEach((group) => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = tr(group.labelKey);
+    group.patterns.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = scaleDisplayLabel(p.name, p.localized_name, state.language);
+      optgroup.appendChild(opt);
+    });
+    scaleType.appendChild(optgroup);
   });
   if (visiblePatterns.length > 0) {
     const keepCurrent = visiblePatterns.some((p) => p.name === prev);

@@ -70,6 +70,8 @@ test("scale theory normalizes notes, octaves, aliases, and labels", () => {
     SCALE_BASIC_NAMES,
     scaleAliases,
     scaleDisplayLabel,
+    SCALE_FAMILY_GROUPS,
+    groupScalePatterns,
     scaleBaseNotes,
     scaleNotesForOctaves,
     scaleLabelWithoutOctave,
@@ -83,6 +85,17 @@ test("scale theory normalizes notes, octaves, aliases, and labels", () => {
   assert.equal(scaleDisplayLabel("Dorian", "Dórica", "es"), "Dórica (II)");
   assert.equal(scaleDisplayLabel("Locrian", "Locrian", "en"), "Locrian (VII)");
   assert.equal(scaleDisplayLabel("Chromatic", "Cromática", "es"), "Cromática");
+  const groupedNames = SCALE_FAMILY_GROUPS.flatMap(([, names]) => names);
+  assert.equal(SCALE_FAMILY_GROUPS.length, 7);
+  assert.equal(groupedNames.length, 53);
+  assert.equal(new Set(groupedNames).size, 53);
+  assert.deepEqual(groupedNames.slice(0, 7), [
+    "Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian",
+  ]);
+  assert.deepEqual(
+    groupScalePatterns([{ name: "Chromatic" }, { name: "Dorian" }]).map((group) => group.labelKey),
+    ["scale_group_greek_modes", "scale_group_symmetric_synthetic"],
+  );
   assert.deepEqual(scaleBaseNotes([67, 60, 64, 60]), [60, 64, 67]);
   assert.deepEqual(scaleBaseNotes([60, 64, 67], 72), [72, 76, 79]);
   assert.deepEqual(scaleBaseNotes([60, 64, 67], 73), [60, 64, 67]);

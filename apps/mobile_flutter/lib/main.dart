@@ -31,6 +31,7 @@ import 'scale_dropdown.dart';
 import 'scale_staff_interaction.dart';
 import 'staff_beam_geometry.dart';
 import 'tuner_capture_session.dart';
+import 'transient_player_lifecycle.dart';
 
 part 'main_painters.dart';
 part 'main_pages.dart';
@@ -373,6 +374,10 @@ class _HomeScreenState extends State<HomeScreen>
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
   final NativeAudioBridge _nativeAudioBridge = NativeAudioBridge.plugin();
+  late final TransientPlayerLifecycle<AudioPlayer> _audioPlayerLifecycle =
+      TransientPlayerLifecycle<AudioPlayer>(
+        disposePlayer: (player) => player.dispose(),
+      );
   final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
   late final MidiOutputController _midiOutputController;
@@ -1112,6 +1117,7 @@ class _HomeScreenState extends State<HomeScreen>
     _stopHeldChord();
     _stopHeldInputs();
     _stopHeldMidiInputs();
+    unawaited(_audioPlayerLifecycle.disposeAll());
     unawaited(_disableMidiInput(notify: false));
     unawaited(_midiInputLifecycle?.dispose());
     for (final t in _forbiddenFlashTimers.values) {
@@ -2322,7 +2328,7 @@ class _HomeScreenState extends State<HomeScreen>
           volume: targetVolume,
         );
       }
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
@@ -2400,7 +2406,10 @@ class _HomeScreenState extends State<HomeScreen>
         if (level > 0) {
           unawaited(_playMetronomeAccentTransient(level: level, gain: gain));
         }
-        _bindAutoDisposeOnComplete(samplePlayer);
+        _audioPlayerLifecycle.watch(
+          samplePlayer,
+          samplePlayer.onPlayerComplete,
+        );
         return samplePlayer;
       } catch (err) {
         _metronomeSampleAvailable = false;
@@ -2422,7 +2431,7 @@ class _HomeScreenState extends State<HomeScreen>
         BytesSource(clickWav, mimeType: 'audio/wav'),
         volume: (baseGain * gain).clamp(0.0, 1.0),
       );
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
       return player;
     } catch (err) {
       try {
@@ -2466,7 +2475,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         volume: ((level >= 2 ? 0.48 : 0.32) * gain).clamp(0.0, 1.0),
       );
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
     } catch (_) {
       try {
         await player.dispose();
@@ -2555,7 +2564,7 @@ class _HomeScreenState extends State<HomeScreen>
           unawaited(_safeStopDispose(player));
         });
       } else {
-        _bindAutoDisposeOnComplete(player);
+        _audioPlayerLifecycle.watch(player, player.onPlayerComplete);
       }
       return player;
     } catch (err) {
@@ -2567,19 +2576,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _bindAutoDisposeOnComplete(AudioPlayer player) {
-    late StreamSubscription<void> completeSub;
-    completeSub = player.onPlayerComplete.listen((_) {
-      completeSub.cancel();
-      unawaited(_safeStopDispose(player));
-    });
-  }
-
-  Future<void> _safeStopDispose(AudioPlayer player) async {
-    try {
-      await player.dispose();
-    } catch (_) {}
-  }
+  Future<void> _safeStopDispose(AudioPlayer player) =>
+      _audioPlayerLifecycle.dispose(player);
 
   void _showForbiddenOnPiano(int midi) {
     final note = _safeMidi(midi);

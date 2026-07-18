@@ -54,6 +54,12 @@ La misma frontera calcula ahora layout del mástil, centros de traste, espejo pa
 zurdos, escalado cliente→canvas y hit-testing circular. `renderGuitar` conserva
 dimensiones reales del elemento, dibujo, estado de notas y callbacks de entrada.
 
+El fixture de canvas deja de ser implícito: `guitar_canvas.js` recibe contexto y
+layout y dibuja el marco estático del mástil sin DOM ni estado. Un contexto
+grabador fija fondo, tabla, cejuela, trastes, etiquetas y espejo zurdo, de modo
+que nuevas extracciones visuales pueden ampliar operaciones observables antes de
+mover lógica.
+
 `staff_geometry.js` incorpora la adaptación de octavas entre teclado y partitura:
 selección de la nota visible más cercana, normalización de notas actuales,
 reproducidas y sostenidas, y emparejado RH/LH por grado. `renderStaff` conserva
@@ -102,7 +108,7 @@ plan o continuar con el fallback sintetizado.
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 7.360 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puertos de audio |
-| Web `app.js` | 8.902 líneas | 7.158 líneas | textos, teoría, notación, ayudas, MIDI/audio, resaltado, ciclo de vida global y geometría de partitura |
+| Web `app.js` | 8.902 líneas | 6.982 líneas | textos, teoría, notación, ayudas, MIDI/audio, ciclo de vida y canvas/geometría de instrumentos |
 | Escritorio `ui_mixin.py` | 4.012 líneas | 3.905 líneas | builders Qt para estructura principal y selectores de escalas, bajo smoke contract |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
@@ -119,7 +125,7 @@ La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trab
 | Área | Acoplamiento observado | Prerrequisito antes de separar |
 |---|---|---|
 | Flutter `main.dart` | las decisiones de reproducción aún comparten estado visual con cada modo | pruebas de integración por modo antes de mover la orquestación de reproducción |
-| Web `app.js` | `renderStaff`, `renderGuitar` y eventos de controles conservan DOM/canvas y estado global | ampliar el fixture con el canvas o control concreto antes de cada extracción |
+| Web `app.js` | `renderStaff` y las capas dinámicas de `renderGuitar` conservan DOM/canvas y estado global | ampliar el fixture grabador con cada capa concreta antes de extraerla |
 | Escritorio `ui_mixin.py` | los controles internos de cada modo aún se construyen en métodos extensos | ampliar el smoke contract con sus señales públicas antes de nuevos builders |
 
 No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.

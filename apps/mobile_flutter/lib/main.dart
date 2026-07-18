@@ -3517,10 +3517,12 @@ class _HomeScreenState extends State<HomeScreen>
     }
     switch (key) {
       case 'name':
-        final name = (json['pattern_localized_name'] ?? json['pattern_name'])
-            ?.toString()
-            .trim();
-        return (name?.isNotEmpty ?? false) ? name! : '-';
+        final patternName = json['pattern_name']?.toString().trim() ?? '';
+        final localizedName =
+            json['pattern_localized_name']?.toString().trim() ?? patternName;
+        return localizedName.isEmpty
+            ? '-'
+            : scaleDisplayName(patternName, localizedName);
       case 'notes':
         final notes = (json['notes'] as List<dynamic>? ?? const <dynamic>[])
             .map((e) => e.toString())
@@ -3841,7 +3843,7 @@ class _HomeScreenState extends State<HomeScreen>
       _scaleCurrentNote = null;
       _scaleCurrentIsLeft = null;
       _scaleOutputController.text =
-          '${_ui('Escala', 'Scale')}: ${json['pattern_localized_name'] ?? json['pattern_name']}\n'
+          '${_ui('Escala', 'Scale')}: ${scaleDisplayName(json['pattern_name']?.toString() ?? '', json['pattern_localized_name']?.toString() ?? json['pattern_name']?.toString() ?? '')}\n'
           '${_ui('Notas', 'Notes')}: ${(json['notes'] as List<dynamic>? ?? <dynamic>[]).join(' - ')}\n'
           '${_ui('Intervalos', 'Intervals')}: ${_intervalTextFromMidiList(scaleMidi)}';
       if (Platform.isIOS && scaleMidi.isNotEmpty) {

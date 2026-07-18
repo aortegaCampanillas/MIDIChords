@@ -481,7 +481,7 @@ class ScalesMixin:
             with_octave=False,
             prefer_flats_override=(self.note_accidental == "flat"),
         )[0]
-        localized_scale_name = self.scale_name(pattern.name)
+        localized_scale_name = self._scale_result_display_label(pattern.name)
         if hasattr(self, "scale_tonic_combo"):
             self._update_scale_tonic_combo()
         if hasattr(self, "scale_type_combo"):
@@ -566,6 +566,11 @@ class ScalesMixin:
         if language == "es":
             return {"Ionian": "Mayor", "Aeolian": "Menor Natural", "Super Locrian": "Alterada"}
         return {"Ionian": "Major", "Aeolian": "Natural Minor", "Super Locrian": "Altered"}
+
+    def _scale_result_display_label(self, pattern_name: str) -> str:
+        localized = self.scale_name(pattern_name)
+        degree = MODAL_SCALE_DEGREES.get(pattern_name)
+        return f"{localized} ({degree})" if degree else localized
 
     def _scale_type_display_label(self, pattern_name: str) -> str:
         alias = self._scale_type_aliases().get(pattern_name)

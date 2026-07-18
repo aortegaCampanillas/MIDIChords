@@ -2144,7 +2144,6 @@ function getActiveMidiForMode() {
 
 const {
   SCALE_BASIC_NAMES,
-  scaleAliases,
   scaleDisplayLabel,
   groupScalePatterns,
   scaleBaseNotes,
@@ -2152,10 +2151,6 @@ const {
   scaleLabelWithoutOctave,
   scaleLabelForMidi: findScaleLabelForMidi,
 } = globalThis.MidiChordsScaleTheory;
-
-function getScaleAliases() {
-  return scaleAliases(state.language);
-}
 
 function getScaleBaseNotes() {
   const notesMidi = state.generatedScale?.notes_midi;
@@ -5270,9 +5265,8 @@ async function runGenerateScale() {
   // explícita elegida en el combo (p. ej. Re# se mostraría como Mib).
   const tonicFromNotes = Array.isArray(out.notes) && out.notes.length ? scaleLabelWithoutOctave(out.notes[0]) : null;
   const tonic = tonicFromNotes || noteNameFromPc(out.tonic_pc || 0);
-  const scaleAlias = getScaleAliases()[out.pattern_name];
   const patternLabel = out.pattern_localized_name || out.pattern_name || "";
-  const patternWithAlias = scaleAlias ? `${scaleAlias} (${patternLabel})` : patternLabel;
+  const patternWithAlias = scaleDisplayLabel(out.pattern_name, patternLabel, state.language);
   el("scaleName").textContent = `${tonic} ${patternWithAlias}`.trim();
   el("scaleNotes").textContent = (out.notes || []).map(scaleLabelWithoutOctave).join(" - ") || "-";
   el("scaleIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);

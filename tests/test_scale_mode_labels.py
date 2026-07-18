@@ -45,6 +45,9 @@ def test_modal_scale_labels_include_their_roman_degree() -> None:
     assert labels._scale_type_display_label("Dorian") == "Dórica (II)"
     assert labels._scale_type_display_label("Locrian") == "Locria (VII)"
     assert labels._scale_type_display_label("Chromatic") == "Chromatic"
+    assert labels._scale_result_display_label("Ionian") == "Jónica (I)"
+    assert labels._scale_result_display_label("Aeolian") == "Eólica (VI)"
+    assert labels._scale_result_display_label("Chromatic") == "Chromatic"
 
 
 def test_scale_families_cover_the_catalog_once_and_keep_modes_ordered() -> None:

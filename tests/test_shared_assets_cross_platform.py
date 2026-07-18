@@ -1,3 +1,5 @@
+import json
+import re
 import unittest
 from pathlib import Path
 
@@ -49,6 +51,22 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
         mobile_changelog = MOBILE_ASSETS / "changelog.json"
         self.assertEqual(web_changelog.resolve(), get_changelog_path().resolve())
         self.assertEqual(web_changelog.read_bytes(), mobile_changelog.read_bytes())
+
+    def test_changelog_text_does_not_repeat_platform_field(self):
+        changelog = json.loads((WEB_ASSETS / "changelog.json").read_text(encoding="utf-8"))
+        redundant_prefix = re.compile(
+            r"^(?:Web|Escritorio|Móvil|Todas las plataformas|Desktop|Mobile|All platforms)\b|^[^:]{1,60} "
+            r"(?:en (?:web|escritorio|móvil|todas las plataformas)|on every platform):",
+            re.IGNORECASE,
+        )
+        for version in changelog:
+            for item in version.get("items", []):
+                if not item.get("platforms"):
+                    continue
+                for language in ("es", "en"):
+                    text = str(item.get(language, ""))
+                    with self.subTest(version=version.get("version"), date=item.get("date"), language=language):
+                        self.assertIsNone(redundant_prefix.search(text), text)
 
 
 if __name__ == "__main__":

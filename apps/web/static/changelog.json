@@ -7,22 +7,22 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["desktop"],
-        "es": "Escalas en escritorio: al soltar una tecla deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura; la retención de audio ya no mantiene activo el resaltado visual, salvo al usar el pedal de sustain.",
-        "en": "Desktop scales: releasing a key now immediately clears its highlight from the piano, staff, and key signature; audio latching no longer keeps the visual state active, except while using the sustain pedal."
+        "es": "Escalas: al soltar una tecla deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura; la retención de audio ya no mantiene activo el resaltado visual, salvo al usar el pedal de sustain.",
+        "en": "Scales: releasing a key now immediately clears its highlight from the piano, staff, and key signature; audio latching no longer keeps the visual state active, except while using the sustain pedal."
       },
       {
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["web", "desktop", "mobile"],
-        "es": "Escalas en todas las plataformas: al pulsar una nota alterada o alcanzarla durante la reproducción, el sostenido o bemol correspondiente se resalta también en la armadura de ambas claves. Escritorio admite varias alteraciones simultáneas al tocar por MIDI.",
-        "en": "Scales on every platform: when an altered note is pressed or reached during playback, its corresponding sharp or flat is also highlighted in the key signature on both staves. Desktop supports multiple simultaneous highlights via MIDI."
+        "es": "Escalas: al pulsar una nota alterada o alcanzarla durante la reproducción, el sostenido o bemol correspondiente se resalta también en la armadura de ambas claves.",
+        "en": "Scales: when an altered note is pressed or reached during playback, its corresponding sharp or flat is also highlighted in the key signature on both staves."
       },
       {
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["desktop"],
-        "es": "Ayuda de acordes en escritorio: la ventana ajusta su altura al contenido, elimina el espacio vacío inferior, recupera los márgenes y coloca Cerrar debajo del texto, en la esquina inferior derecha.",
-        "en": "Desktop chord help: the window now fits its height to the content, removes the empty area below, restores its margins, and places Close beneath the text in the bottom-right corner."
+        "es": "Ayuda de acordes: la ventana ajusta su altura al contenido, elimina el espacio vacío inferior, recupera los márgenes y coloca Cerrar debajo del texto, en la esquina inferior derecha.",
+        "en": "Chord help: the window now fits its height to the content, removes the empty area below, restores its margins, and places Close beneath the text in the bottom-right corner."
       },
       {
         "date": "2026-07-18",

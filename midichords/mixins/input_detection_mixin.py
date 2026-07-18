@@ -190,6 +190,7 @@ class InputDetectionMixin:
         self.mouse_held_notes.clear()
         self.sustain_latched_notes.clear()
         self.midi_latched_notes.clear()
+        self.held_release_notes.clear()
         self.note_velocity.clear()
         self.mouse_current_note = None
         self.detection_mouse_chord_notes.clear()
@@ -268,6 +269,23 @@ class InputDetectionMixin:
                     for note in next_active
                     if note not in set(self.detection_midi_held_notes)
                 }
+        elif self.current_mode in ("scales", "metronome"):
+            # Mismo patrón que Detección de Acordes/Intervalos: la nota
+            # sigue sonando aunque se suelte la tecla, hasta que llega una
+            # pulsación nueva que la reemplaza (held_release_notes se
+            # actualiza en _note_on_from_source), en vez de cortarse en
+            # cuanto sale de midi_held_notes/mouse_held_notes.
+            currently_held = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
+            next_active = set(self.held_release_notes) | currently_held
+            if play_midi_input:
+                next_sounding = set(next_active)
+            else:
+                blocked_midi_notes = set(self.midi_held_notes) | set(self.midi_latched_notes)
+                next_sounding = {
+                    int(note)
+                    for note in next_active
+                    if (note not in blocked_midi_notes) or (note in self.mouse_held_notes)
+                }
         else:
             next_active = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
             if play_midi_input:
@@ -340,6 +358,13 @@ class InputDetectionMixin:
         else:
             self.mouse_held_notes.add(note)
             self.midi_latched_notes.discard(note)
+
+        if self.current_mode in ("scales", "metronome"):
+            # Una pulsación nueva reemplaza la selección retenida anterior
+            # por las notas actualmente pulsadas (soporta acordes tocados a
+            # la vez); las que ya no se pulsan dejan de sonar solo cuando
+            # llega la siguiente pulsación, no al soltar esta.
+            self.held_release_notes = set(self.midi_held_notes) | set(self.mouse_held_notes)
     def _note_off_from_source(self, note: int, source: str) -> None:
         if source == "midi":
             self.midi_held_notes.discard(note)

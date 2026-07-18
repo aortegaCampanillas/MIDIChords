@@ -128,6 +128,10 @@ class MidiChordAnalyzerApp(
         self.midi_held_notes: set[int] = set()
         self.mouse_held_notes: set[int] = set()
         self.sustain_latched_notes: set[int] = set()
+        # Escalas y Metrónomo: última selección de notas tocadas, retenida
+        # hasta que llega una pulsación nueva (no se corta al soltar la
+        # tecla), igual que Detección de Acordes/Intervalos.
+        self.held_release_notes: set[int] = set()
         self.note_velocity: dict[int, int] = {}
         self.pedal_active = False
         self.mouse_current_note: Optional[int] = None

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 import midichords.qt.tk_compat as tk
+from midichords.core.chord_help import chord_variant_groups, chord_variant_help
 from midichords.core.music_theory import (
     CHORD_PATTERNS,
     ROOT_LETTER_ACCIDENTALS,
@@ -162,7 +163,16 @@ class GenerationMixin:
                 seen.add(label)
                 variant_options.append((label, str(pattern.suffix)))
             self._generation_variant_label_to_suffix = {label: suffix for label, suffix in variant_options}
-            self.generation_variant_combo.configure(values=[label for label, _ in variant_options])
+            language = str(self.config_data.get("language", "es"))
+            suffix_to_label = {suffix: label for label, suffix in variant_options}
+            grouped_values = [
+                (group_label, [suffix_to_label[suffix] for suffix in suffixes if suffix in suffix_to_label])
+                for group_label, suffixes in chord_variant_groups(language, suffix_to_label)
+            ]
+            if hasattr(self.generation_variant_combo, "set_grouped_values"):
+                self.generation_variant_combo.set_grouped_values(grouped_values)
+            else:
+                self.generation_variant_combo.configure(values=[label for label, _ in variant_options])
             self.generation_variant_var.set(variant_label)
 
         if hasattr(self, "generation_inversion_combo") and hasattr(self, "generation_inversion_var"):
@@ -457,6 +467,68 @@ class GenerationMixin:
         if self.instrument_view == "guitar":
             return
         self._open_generation_selection_overlay("inversion")
+
+    def open_generation_variant_help_dialog(self) -> None:
+        language = str(self.config_data.get("language", "es"))
+        pattern = self._resolve_generation_pattern()
+        formula, theory, inversion_text = chord_variant_help(
+            str(pattern.suffix), self.generation_inversion, language
+        )
+        variant = chord_description(
+            str(pattern.suffix), language, None, None, None, tuple(pattern.intervals)
+        ) or (str(pattern.suffix) if pattern.suffix else "maj")
+        title = self.tr("chord_variant_help_title").format(variant=variant)
+        dialog = tk.Toplevel(self)
+        dialog.title(title)
+        dialog.resizable(False, False)
+        dialog.configure(bg=getattr(self, "color_surface_alt", "#2f3a4b"))
+        dialog.geometry("640x430")
+
+        frame = tk.Frame(dialog, bg=getattr(self, "color_surface_alt", "#2f3a4b"))
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=18)
+        tk.Label(
+            frame,
+            text=title,
+            bg=getattr(self, "color_surface_alt", "#2f3a4b"),
+            fg=getattr(self, "color_text", "#e9edf2"),
+            font=(self.ui_font_family, 19, "bold"),
+        ).pack(anchor="w", pady=(0, 10))
+        tk.Label(
+            frame,
+            text=self.tr("chord_variant_help_formula").format(formula=formula),
+            bg="#17273a",
+            fg="#f2bf2f",
+            font=(self.ui_font_family, 14, "bold"),
+            padx=10,
+            pady=6,
+        ).pack(anchor="w", pady=(0, 14))
+        for idx, paragraph in enumerate((theory, inversion_text)):
+            tk.Label(
+                frame,
+                text=paragraph,
+                bg=getattr(self, "color_surface_alt", "#2f3a4b"),
+                fg=getattr(self, "color_text", "#e9edf2"),
+                font=(self.ui_font_family, 14),
+                justify=tk.LEFT,
+                wraplength=585,
+            ).pack(fill=tk.X, anchor="w", pady=((0 if idx == 0 else 14), 0))
+
+        close_btn = GrayRoundedButton(
+            frame,
+            text=self.tr("chord_variant_help_close"),
+            command=dialog.accept,
+            font_family=self.ui_font_family,
+            width=120,
+            height=38,
+            radius=16,
+            font_size=14,
+        )
+        close_btn.pack(side=tk.BOTTOM, anchor="e", pady=(16, 0))
+        dialog.bind("<Escape>", lambda _event: dialog.reject())
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.focus_set()
+        dialog.show()
     def _finalize_generation_space_release(self) -> None:
         self.generation_space_release_after_id = None
         if self.generation_tab_active and self.generation_play_space_pressed:

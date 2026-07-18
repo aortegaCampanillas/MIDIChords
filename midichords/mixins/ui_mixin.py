@@ -1180,6 +1180,17 @@ class UiMixin:
         )
         self.generation_play_btn.pack(side=tk.LEFT)
         self.generation_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
+        self.generation_variant_help_btn = GrayRoundedButton(
+            self.generated_chord_row,
+            text="?",
+            command=self.open_generation_variant_help_dialog,
+            font_family=self.ui_font_family,
+            width=34,
+            height=34,
+            radius=17,
+            font_size=18,
+        )
+        self.generation_variant_help_btn.pack(side=tk.LEFT, padx=(8, 0))
         self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
 
         self.generation_result_canvas = tk.Canvas(
@@ -4053,6 +4064,7 @@ class UiMixin:
                 "generation_play_btn:help_gen_play",
                 "generation_root_combo+generation_root_accidental_combo:help_gen_root",
                 "generation_variant_combo:help_gen_variant",
+                "generation_variant_help_btn:help_gen_variant_theory",
                 "generation_inversion_combo:help_gen_inversion",
                 # subpanel de resultado: fila por fila
                 "gen_result_chord_row:help_gen_result_name",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, cast
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPaintEvent, QPainter, QPixmap
+from PySide6.QtGui import QColor, QPaintEvent, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -252,6 +252,28 @@ class Combobox(QComboBox, _LayoutCompat):
         if "state" in kwargs:
             st = str(kwargs["state"]).lower()
             self.setEnabled(st != "disabled")
+
+    def set_grouped_values(self, groups: list[tuple[str, list[str]]]) -> None:
+        """Carga cabeceras no seleccionables y sus opciones en el desplegable."""
+        current = str(self._textvariable.get()) if self._textvariable is not None else self.currentText()
+        self.blockSignals(True)
+        try:
+            self.clear()
+            model = self.model()
+            for label, values in groups:
+                self.addItem(str(label))
+                header = model.item(self.count() - 1) if hasattr(model, "item") else None
+                if header is not None:
+                    header.setEnabled(False)
+                    font = header.font()
+                    font.setBold(True)
+                    header.setFont(font)
+                    header.setForeground(QColor("#f2bf2f"))
+                self.addItems([str(value) for value in values])
+            if current in [self.itemText(i) for i in range(self.count())]:
+                self.setCurrentText(current)
+        finally:
+            self.blockSignals(False)
 
     def bind(self, sequence: str, func: Callable[..., None]) -> None:  # type: ignore[override]
         if sequence == "<<ComboboxSelected>>":

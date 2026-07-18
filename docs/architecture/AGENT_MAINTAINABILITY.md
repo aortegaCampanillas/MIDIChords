@@ -16,6 +16,8 @@ Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de w
 
 El prerrequisito web también está en curso: `ui_lifecycle.js` aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles se migrarán por bloques antes de separar el resto.
 
+La separación del renderer ha comenzado por geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas para grupos barrados y evita que el canvas una extremos opuestos.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

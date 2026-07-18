@@ -147,6 +147,7 @@ const state = {
 
 const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
+const { commonStemUp } = globalThis.MidiChordsStaffBeamGeometry;
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
@@ -4477,6 +4478,24 @@ function renderStaff() {
   })();
   const beamedIdxSet = new Set(melodyBeamGroups.flat());
   const beamStemData = new Map(); // idx → {stemX, stemEndY, stemUp, base}
+  const beamStemDirection = new Map();
+  melodyBeamGroups.forEach((group) => {
+    const firstMidi = notes[group[0]];
+    if (firstMidi == null) return;
+    const treble = Number(firstMidi) >= 60;
+    const staffTop = treble ? trebleTop : bassTop;
+    const noteYs = group
+      .map((index) => notes[index])
+      .filter((midi) => midi != null)
+      .map((midi) => {
+        const preferFlat = getNoteAccidental(Number(midi), staffCtx.signature) === "♭";
+        return treble
+          ? midiToTrebleY(Number(midi), trebleTop, gap, preferFlat)
+          : midiToBassY(Number(midi), bassTop, gap, preferFlat);
+      });
+    const stemUp = commonStemUp(noteYs, staffTop + gap * 2);
+    group.forEach((index) => beamStemDirection.set(index, stemUp));
+  });
 
   // Espaciado adaptativo: reduce el paso si la melodía tiene muchas notas
   const intervalNoteStep = intervalDetectionStaff && notes.length > 1
@@ -4601,7 +4620,7 @@ function renderStaff() {
     // Registrar datos de stem para notas barradas
     if (beamedNote) {
       const bStaffMiddle = staffTop + gap * 2;
-      const bStemUp = y >= bStaffMiddle;
+      const bStemUp = beamStemDirection.get(idx) ?? (y >= bStaffMiddle);
       const bStemX = bStemUp ? x + 8 : x - 8;
       const bStemEndY = bStemUp ? y - gap * 3.5 : y + gap * 3.5;
       const bBase = typeof duration === "string" && duration.endsWith(".") ? duration.slice(0, -1) : duration;

@@ -9,6 +9,29 @@ from midichords.core.i18n import NOTE_NAMES
 WHITE_PCS = {0, 2, 4, 5, 7, 9, 11}
 # Indice diatonico por clase de pitch (C..B), manteniendo sostenidos en la misma linea/espacio base.
 PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]
+# Igual que PC_TO_DIATONIC_LETTER pero con convencion de bemoles (p. ej. pc=1 -> Re
+# en vez de Do), para que la posicion en el pentagrama tambien "se mueva" al
+# cambiar el ajuste global #/b, no solo el simbolo dibujado junto a la nota.
+PC_TO_DIATONIC_FLAT = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6]
+
+# Combo de tonica dividido en nota natural + alteracion: pc de cada letra natural
+# (Do..Si) y que alteraciones son reales para cada una (sin enarmonias inventadas
+# como Fb/Cb/E#/B#, que no existen en NOTE_NAMES).
+ROOT_LETTER_PCS: tuple[int, ...] = (0, 2, 4, 5, 7, 9, 11)  # Do, Re, Mi, Fa, Sol, La, Si
+ROOT_LETTER_ACCIDENTALS: dict[int, tuple[str, ...]] = {
+    0: ("natural", "sharp"),
+    2: ("flat", "natural", "sharp"),
+    4: ("flat", "natural"),
+    5: ("natural", "sharp"),
+    7: ("flat", "natural", "sharp"),
+    9: ("flat", "natural", "sharp"),
+    11: ("flat", "natural"),
+}
+
+
+def root_pc_from_letter_accidental(letter_pc: int, accidental: str) -> int:
+    offset = 1 if accidental == "sharp" else -1 if accidental == "flat" else 0
+    return (letter_pc + offset) % 12
 
 
 @dataclass(frozen=True)

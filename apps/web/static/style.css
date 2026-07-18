@@ -1151,6 +1151,11 @@ a.btn-link:hover {
   flex: 1;
 }
 
+.row select.accidental-select {
+  flex: 0 0 auto;
+  width: 4.5em;
+}
+
 #panelMetronome .row {
   display: grid;
   grid-template-columns: 120px auto 1fr auto auto;

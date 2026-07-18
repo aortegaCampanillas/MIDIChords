@@ -400,7 +400,16 @@ function noteName(midiNote, language = "es", preferFlat = false, withOctave = tr
   return `${name}${octave}`;
 }
 
-function tonicLetterIndex(tonicPc, preferFlats) {
+// pc de cada letra natural (Do..Si), en el mismo orden que ROOT_LETTERS del
+// cliente — usado para mapear tonicLetterPc (pc de letra elegida en el combo
+// de tónica) a un índice de letra 0-6.
+const ROOT_LETTER_PCS_ORDERED = [0, 2, 4, 5, 7, 9, 11];
+
+function tonicLetterIndex(tonicPc, preferFlats, tonicLetterPc = null) {
+  if (tonicLetterPc != null) {
+    const idx = ROOT_LETTER_PCS_ORDERED.indexOf(((Number(tonicLetterPc) % 12) + 12) % 12);
+    if (idx >= 0) return idx;
+  }
   const pc = ((Number(tonicPc) % 12) + 12) % 12;
   const mapping = preferFlats
     ? { 0: 0, 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 4, 8: 5, 9: 5, 10: 6, 11: 6 }
@@ -417,10 +426,10 @@ function applyAccidental(base, diff) {
   return null;
 }
 
-function spellByDegree(rootPc, targetPc, degree, language, preferFlats, midiNote = null, withOctave = false) {
+function spellByDegree(rootPc, targetPc, degree, language, preferFlats, midiNote = null, withOctave = false, tonicLetterPc = null) {
   const letterNames = language === "es" ? ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"] : ["C", "D", "E", "F", "G", "A", "B"];
   const basePcs = [0, 2, 4, 5, 7, 9, 11];
-  const tonicLetter = tonicLetterIndex(rootPc, preferFlats);
+  const tonicLetter = tonicLetterIndex(rootPc, preferFlats, tonicLetterPc);
   const letterIdx = (tonicLetter + Number(degree)) % 7;
   const naturalPc = basePcs[letterIdx];
   let diff = ((Number(targetPc) - naturalPc) % 12 + 12) % 12;
@@ -567,7 +576,7 @@ function chordSymbolPreferFlat(rootPc, isMinor) {
   return true;
 }
 
-function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es", preferFlat = false }) {
+function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es", preferFlat = false, tonicLetterPc = null }) {
   const selected = CHORD_PATTERNS.find((p) => p.suffix === suffix) || CHORD_PATTERNS[0];
   if (!selected.intervals.length) {
     return { root_pc: Number(rootPc) % 12, suffix: selected.suffix, inversion: 0, name: "-", notes_midi: [], notes: [] };
@@ -583,10 +592,10 @@ function generateChord({ rootPc = 0, suffix = "", inversion = 0, language = "es"
     const midiNote = notesMidi[i];
     const degree = chordIntervalDegree(interval, selected.suffix);
     const pc = midiNote % 12;
-    notes.push(spellByDegree(rootPc, pc, degree, language, preferFlat, midiNote, true));
-    notesNoOctave.push(spellByDegree(rootPc, pc, degree, language, preferFlat, midiNote, false));
+    notes.push(spellByDegree(rootPc, pc, degree, language, preferFlat, midiNote, true, tonicLetterPc));
+    notesNoOctave.push(spellByDegree(rootPc, pc, degree, language, preferFlat, midiNote, false, tonicLetterPc));
   }
-  const rootName = spellByDegree(rootPc, Number(rootPc) % 12, 0, language, preferFlat, rootPc, false);
+  const rootName = spellByDegree(rootPc, Number(rootPc) % 12, 0, language, preferFlat, rootPc, false, tonicLetterPc);
   let chordName = `${rootName}${selected.suffix}`;
   let bassName = null;
   if (safeInversion > 0 && notesMidi.length) {
@@ -671,9 +680,16 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
 
   const expectedPcs = new Set(pattern.intervals.map((i) => (Number(root) + Number(i)) % 12));
   const extrasMidi = midiNotes.filter((n) => !expectedPcs.has(n % 12));
-  // Listado del panel: respetar #/♭ del usuario (noteName), no la escritura por grado del acorde
-  // (spellByDegree puede mostrar sostenidos aunque preferFlat sea true).
-  const noteLabels = midiNotes.map((n) => noteName(n, language, preferFlat, true));
+  // Notas dentro del acorde reconocido: ortografía diatónica fija respecto a su
+  // tónica (p. ej. la 3ª de Mi mayor siempre es Sol#, nunca Lab) — el ajuste
+  // #/♭ del usuario solo decide notas "extra" que caen fuera del acorde.
+  const noteLabels = midiNotes.map((n) => {
+    const pc = n % 12;
+    const degree = degreeByPc[pc];
+    return degree == null
+      ? noteName(n, language, preferFlat, true)
+      : spellByDegree(root, pc, degree, language, namePf, n, true);
+  });
 
   const suffixDesc = (CHORD_SUFFIX_NAMES[language] || CHORD_SUFFIX_NAMES.en)[pattern.suffix] || null;
   let description = suffixDesc;
@@ -703,13 +719,13 @@ function detectChord({ notes = [], language = "es", preferFlat = false }) {
   };
 }
 
-function generateScale({ tonicPc = 0, patternName = "Ionian", language = "es", preferFlat = false }) {
+function generateScale({ tonicPc = 0, patternName = "Ionian", language = "es", preferFlat = false, tonicLetterPc = null }) {
   const pattern = SCALE_PATTERNS.find((p) => p.name === patternName) || SCALE_PATTERNS[0];
   const rootMidi = 60 + (Number(tonicPc) % 12);
   const intervals = [...pattern.intervals];
   const notesMidi = intervals.map((i) => rootMidi + Number(i));
   const notes = notesMidi.map((midiNote, degree) =>
-    spellByDegree(tonicPc, midiNote % 12, degree, language, preferFlat, midiNote, true));
+    spellByDegree(tonicPc, midiNote % 12, degree, language, preferFlat, midiNote, true, tonicLetterPc));
   const localized = (SCALE_NAME_TEXTS[language] || SCALE_NAME_TEXTS.en)[pattern.name] || pattern.name;
   return {
     tonic_pc: Number(tonicPc) % 12,
@@ -871,6 +887,7 @@ export default {
         inversion: Number(body.inversion) || 0,
         language: normalizeLanguage(body.language),
         preferFlat: normalizePreferFlat(body.accidental),
+        tonicLetterPc: body.tonic_letter_pc != null ? Number(body.tonic_letter_pc) : null,
       }));
     }
 
@@ -881,6 +898,7 @@ export default {
         patternName: String(body.pattern_name || "Ionian"),
         language: normalizeLanguage(body.language),
         preferFlat: normalizePreferFlat(body.accidental),
+        tonicLetterPc: body.tonic_letter_pc != null ? Number(body.tonic_letter_pc) : null,
       }));
     }
 

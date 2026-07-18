@@ -2,9 +2,18 @@ from __future__ import annotations
 
 import midichords.qt.tk_compat as tk
 import time
-from midichords.core.music_theory import SCALE_PATTERNS, SCALE_BASIC_NAMES, ScalePattern
+from midichords.core.music_theory import (
+    SCALE_PATTERNS,
+    SCALE_BASIC_NAMES,
+    ROOT_LETTER_ACCIDENTALS,
+    ROOT_LETTER_PCS,
+    ScalePattern,
+    root_pc_from_letter_accidental,
+)
 from midichords.core.tomplay_fingerings import get_fingering_for_scale
 from midichords.ui.widgets_qt import GrayRoundedButton
+
+ACCIDENTAL_SYMBOLS = {"natural": "♮", "sharp": "♯", "flat": "♭"}
 
 
 class ScalesMixin:
@@ -60,6 +69,18 @@ class ScalesMixin:
                 11: 6,  # B
             }
         tonic_letter = tonic_letter_map.get(int(tonic_pc) % 12, 0)
+        # Si el usuario eligió explícitamente letra+alteración en el combo de
+        # tónica (p. ej. Si♭ en vez de La#), respetar esa letra en lugar de la
+        # que saldría de la tabla sostenido/bemol genérica de arriba.
+        saved_letter_pc = getattr(self, "scale_tonic_letter_pc", None)
+        saved_accidental = getattr(self, "scale_tonic_accidental", "natural")
+        if saved_letter_pc is not None and int(tonic_pc) % 12 == root_pc_from_letter_accidental(
+            int(saved_letter_pc), str(saved_accidental)
+        ):
+            try:
+                tonic_letter = ROOT_LETTER_PCS.index(int(saved_letter_pc) % 12)
+            except ValueError:
+                pass
 
         # La escala cromática tiene 13 notas (12 semitonos + octava) pero
         # solo 7 letras: asignar una letra por índice (como se hace para
@@ -395,7 +416,13 @@ class ScalesMixin:
             self.scale_octaves = 1
 
         pattern = self._resolve_scale_pattern()
-        tonic_name = self.note_name(self.scale_tonic_pc, with_octave=False)
+        tonic_name = self._spelled_scale_note_names(
+            root_midi=60 + self.scale_tonic_pc,
+            intervals=[0],
+            tonic_pc=self.scale_tonic_pc,
+            with_octave=False,
+            prefer_flats_override=(self.note_accidental == "flat"),
+        )[0]
         localized_scale_name = self.scale_name(pattern.name)
         if hasattr(self, "scale_tonic_combo"):
             self._update_scale_tonic_combo()
@@ -435,10 +462,46 @@ class ScalesMixin:
     def _update_scale_tonic_combo(self) -> None:
         if not hasattr(self, "scale_tonic_combo"):
             return
-        options = [self.note_name(pc, with_octave=False) for pc in range(12)]
-        self._scale_tonic_label_to_pc = {self.note_name(pc, with_octave=False): pc for pc in range(12)}
+        options = [self.note_name(pc, with_octave=False) for pc in ROOT_LETTER_PCS]
+        self._scale_tonic_label_to_pc = {
+            self.note_name(pc, with_octave=False): pc for pc in ROOT_LETTER_PCS
+        }
         self.scale_tonic_combo.configure(values=options)
-        self.scale_tonic_var.set(self.note_name(self.scale_tonic_pc, with_octave=False))
+        letter_pc, accidental = self._sync_scale_tonic_letter_state()
+        self.scale_tonic_var.set(self.note_name(letter_pc, with_octave=False))
+        self._refresh_scale_tonic_accidental_options(letter_pc, accidental)
+
+    def _sync_scale_tonic_letter_state(self) -> tuple[int, str]:
+        """Devuelve (letra, alteración) elegidas explícitamente por el usuario.
+
+        Igual que en Generación: mientras scale_tonic_pc siga coincidiendo con
+        la combinación guardada, se respeta la elección real del usuario en
+        vez de recalcular una enarmonía "canónica" (evita que Re♭ se muestre
+        como Do# solo porque Do va antes en el orden de letras).
+        """
+        target_pc = int(self.scale_tonic_pc) % 12
+        letter_pc = int(getattr(self, "scale_tonic_letter_pc", 0))
+        accidental = str(getattr(self, "scale_tonic_accidental", "natural"))
+        if root_pc_from_letter_accidental(letter_pc, accidental) == target_pc:
+            return letter_pc, accidental
+        for candidate_letter_pc in ROOT_LETTER_PCS:
+            for candidate_accidental in ROOT_LETTER_ACCIDENTALS.get(candidate_letter_pc, ("natural",)):
+                if root_pc_from_letter_accidental(candidate_letter_pc, candidate_accidental) == target_pc:
+                    self.scale_tonic_letter_pc = candidate_letter_pc
+                    self.scale_tonic_accidental = candidate_accidental
+                    return candidate_letter_pc, candidate_accidental
+        self.scale_tonic_letter_pc = 0
+        self.scale_tonic_accidental = "natural"
+        return 0, "natural"
+
+    def _refresh_scale_tonic_accidental_options(self, letter_pc: int, accidental: str) -> None:
+        if not (hasattr(self, "scale_tonic_accidental_combo") and hasattr(self, "scale_tonic_accidental_var")):
+            return
+        accidentals = ROOT_LETTER_ACCIDENTALS.get(int(letter_pc), ("natural",))
+        self._scale_tonic_accidental_label_to_value = {ACCIDENTAL_SYMBOLS[a]: a for a in accidentals}
+        self.scale_tonic_accidental_combo.configure(values=[ACCIDENTAL_SYMBOLS[a] for a in accidentals])
+        chosen = accidental if accidental in accidentals else "natural"
+        self.scale_tonic_accidental_var.set(ACCIDENTAL_SYMBOLS[chosen])
 
     def _scale_type_aliases(self) -> dict[str, str]:
         language = str(self.config_data.get("language", "es"))
@@ -469,21 +532,41 @@ class ScalesMixin:
             self.scale_type_var.set(options[0])
             self.scale_pattern_name = self._scale_type_label_to_name[options[0]]
 
+    def _apply_scale_tonic_pc(self, pc: int) -> None:
+        self.scale_tonic_pc = int(pc)
+        self._refresh_scale_preview()
+        if self.scale_loop_active:
+            self._play_scale()
+        if self.scale_tab_active:
+            self.update_music_views()
+
     def _on_scale_tonic_combo_changed(self, _event: object) -> None:
         label = str(self.scale_tonic_var.get()).strip()
-        pc = getattr(self, "_scale_tonic_label_to_pc", {}).get(label, None)
-        if pc is None:
-            for i in range(12):
-                if self.note_name(i, with_octave=False) == label:
-                    pc = i
+        letter_pc = getattr(self, "_scale_tonic_label_to_pc", {}).get(label, None)
+        if letter_pc is None:
+            for pc in ROOT_LETTER_PCS:
+                if self.note_name(pc, with_octave=False) == label:
+                    letter_pc = pc
                     break
-        if pc is not None:
-            self.scale_tonic_pc = int(pc)
-            self._refresh_scale_preview()
-            if self.scale_loop_active:
-                self._play_scale()
-            if self.scale_tab_active:
-                self.update_music_views()
+        if letter_pc is None:
+            return
+        _, prev_accidental = self._sync_scale_tonic_letter_state()
+        accidentals = ROOT_LETTER_ACCIDENTALS.get(int(letter_pc), ("natural",))
+        accidental = prev_accidental if prev_accidental in accidentals else "natural"
+        self._refresh_scale_tonic_accidental_options(int(letter_pc), accidental)
+        self.scale_tonic_letter_pc = int(letter_pc)
+        self.scale_tonic_accidental = accidental
+        self._apply_scale_tonic_pc(root_pc_from_letter_accidental(int(letter_pc), accidental))
+
+    def _on_scale_tonic_accidental_combo_changed(self, _event: object) -> None:
+        label = str(self.scale_tonic_accidental_var.get()).strip()
+        accidental = getattr(self, "_scale_tonic_accidental_label_to_value", {}).get(label)
+        if accidental is None:
+            return
+        letter_pc, _ = self._sync_scale_tonic_letter_state()
+        self.scale_tonic_letter_pc = int(letter_pc)
+        self.scale_tonic_accidental = str(accidental)
+        self._apply_scale_tonic_pc(root_pc_from_letter_accidental(int(letter_pc), accidental))
 
     def _on_scale_type_combo_changed(self, _event: object) -> None:
         label = str(self.scale_type_var.get()).strip()

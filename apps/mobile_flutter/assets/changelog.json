@@ -37,6 +37,13 @@
         "platforms": ["web"],
         "es": "Escalas/Generación de acordes: se corrige que las alteraciones (#/♭) no se dibujaban junto a las notas en el pentagrama.",
         "en": "Scales/Chord generation: fixed accidentals (#/♭) not being drawn next to notes on the staff."
+      },
+      {
+        "date": "2026-07-18",
+        "publish": true,
+        "platforms": ["desktop", "web", "mobile"],
+        "es": "Generación de acordes/Escalas: el combo de tónica ahora es una nota natural (Do, Re, Mi...) con un segundo combo al lado para elegir la alteración (♮ becuadro, ♯ sostenido, ♭ bemol), en vez de un único combo con las 12 notas cromáticas.",
+        "en": "Chord generation/Scales: the tonic dropdown is now a natural note (C, D, E...) with a second dropdown next to it to pick the accidental (♮ natural, ♯ sharp, ♭ flat), instead of a single dropdown with all 12 chromatic notes."
       }
     ]
   },

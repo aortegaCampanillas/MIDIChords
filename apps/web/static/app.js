@@ -15,6 +15,14 @@ const state = {
   guitarHandedness: "right",
   language: "es",
   accidental: "sharp",
+  // Letra natural + alteración elegidas explícitamente en el combo de tónica
+  // (varias combinaciones dan el mismo pc, p. ej. Reb y Do#: se guarda la
+  // elección real del usuario en vez de recalcular una enarmonía "canónica"
+  // cada vez que se repueblan los combos).
+  genRootLetterPc: 0,
+  genRootAccidental: "natural",
+  scaleRootLetterPc: 0,
+  scaleRootAccidental: "natural",
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
@@ -574,6 +582,35 @@ const NOTE_LABELS = {
   },
 };
 
+/**
+ * Combo tónica dividido en Nota + Alteración: 7 letras naturales, cada una con
+ * solo las alteraciones que corresponden a una de las 12 notas reales (no se
+ * inventan enarmonías como Fb/Cb/E#/B# que no existen en NOTE_LABELS).
+ */
+const ROOT_LETTERS = [
+  { es: "Do", en: "C", pc: 0 },
+  { es: "Re", en: "D", pc: 2 },
+  { es: "Mi", en: "E", pc: 4 },
+  { es: "Fa", en: "F", pc: 5 },
+  { es: "Sol", en: "G", pc: 7 },
+  { es: "La", en: "A", pc: 9 },
+  { es: "Si", en: "B", pc: 11 },
+];
+const ACCIDENTAL_SYMBOLS = { natural: "♮", sharp: "♯", flat: "♭" };
+const ROOT_LETTER_ACCIDENTALS = {
+  0: ["natural", "sharp"],
+  2: ["flat", "natural", "sharp"],
+  4: ["flat", "natural"],
+  5: ["natural", "sharp"],
+  7: ["flat", "natural", "sharp"],
+  9: ["flat", "natural", "sharp"],
+  11: ["flat", "natural"],
+};
+function rootPcFromLetterAccidental(letterPc, accidental) {
+  const offset = accidental === "sharp" ? 1 : accidental === "flat" ? -1 : 0;
+  return ((letterPc + offset) % 12 + 12) % 12;
+}
+
 const SHARP_KEY_SIGNATURES = ["F", "C", "G", "D", "A", "E", "B"];
 const FLAT_KEY_SIGNATURES = ["B", "E", "A", "D", "G", "C", "F"];
 const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // convención sostenidos
@@ -642,7 +679,7 @@ const HELP_CALLOUTS_GENERATION = [
   { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
   { selector: "#staffCanvas", textKey: "help_staff_generation", side: "top" },
   { selector: "#panelGeneration", textKey: "help_generation_panel", side: "left" },
-  { selector: "#genRoot", textKey: "help_gen_root", side: "left" },
+  { selector: "#genRootRow", textKey: "help_gen_root", side: "left" },
   { selector: "#genVariant", textKey: "help_gen_variant", side: "left" },
   { selector: "#genInversion", textKey: "help_gen_inversion", side: "left" },
   { selector: "#genPlay", textKey: "help_gen_play", side: "bottom" },
@@ -681,7 +718,7 @@ const HELP_CALLOUTS_SCALES = [
   { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
   { selector: "#staffCanvas", textKey: "help_staff_scales", side: "top" },
   { selector: "#panelScales", textKey: "help_scales_panel", side: "left" },
-  { selector: "#scaleRoot", textKey: "help_scale_root", side: "left" },
+  { selector: "#scaleRootRow", textKey: "help_scale_root", side: "left" },
   { selector: "#scaleType", textKey: "help_scale_type", side: "left" },
   { selector: "#scaleFilterToggle", textKey: "help_scale_filter", side: "left" },
   { selector: "#scalePlay", textKey: "help_scale_play", side: "bottom" },
@@ -6233,31 +6270,102 @@ async function loadMeta() {
   buildSelectors();
 }
 
+function currentGenRootPc() {
+  return rootPcFromLetterSelects("genRootLetter", "genRootAccidental");
+}
+
+function currentScaleRootPc() {
+  return rootPcFromLetterSelects("scaleRootLetter", "scaleRootAccidental");
+}
+
+function rootPcFromLetterSelects(letterSelectId, accidentalSelectId) {
+  const letterEl = el(letterSelectId);
+  const accEl = el(accidentalSelectId);
+  const letterPc = Number(letterEl?.value ?? 0);
+  const accidental = accEl?.value || "natural";
+  return rootPcFromLetterAccidental(letterPc, accidental);
+}
+
+/**
+ * Sincroniza los combos Nota+Alteración con un pc concreto, respetando la
+ * letra+alteración explícita guardada en state (stateLetterKey/stateAccidentalKey)
+ * mientras siga coincidiendo con ese pc — solo recalcula una combinación por
+ * defecto si el pc cambió desde otro sitio (p. ej. el overlay legacy).
+ */
+function setRootLetterSelectsFromPc(letterSelectId, accidentalSelectId, pc, stateLetterKey, stateAccidentalKey) {
+  const letterEl = el(letterSelectId);
+  const accEl = el(accidentalSelectId);
+  if (!letterEl || !accEl) return;
+  const targetPc = ((Number(pc) % 12) + 12) % 12;
+  const savedLetterPc = Number(state[stateLetterKey] ?? 0);
+  const savedAccidental = state[stateAccidentalKey] || "natural";
+  let match = null;
+  if (rootPcFromLetterAccidental(savedLetterPc, savedAccidental) === targetPc) {
+    match = { letterPc: savedLetterPc, accidental: savedAccidental };
+  } else {
+    for (const letter of ROOT_LETTERS) {
+      const accidentals = ROOT_LETTER_ACCIDENTALS[letter.pc] || ["natural"];
+      for (const accidental of accidentals) {
+        if (rootPcFromLetterAccidental(letter.pc, accidental) === targetPc) {
+          match = { letterPc: letter.pc, accidental };
+          break;
+        }
+      }
+      if (match) break;
+    }
+  }
+  if (!match) match = { letterPc: 0, accidental: "natural" };
+  state[stateLetterKey] = match.letterPc;
+  state[stateAccidentalKey] = match.accidental;
+  letterEl.value = String(match.letterPc);
+  populateAccidentalSelect(accidentalSelectId, match.letterPc);
+  accEl.value = match.accidental;
+}
+
+/** Repuebla el combo de alteración con las opciones válidas para la letra elegida. */
+function populateAccidentalSelect(accidentalSelectId, letterPc) {
+  const accEl = el(accidentalSelectId);
+  if (!accEl) return;
+  const prevAccidental = accEl.value || "natural";
+  const accidentals = ROOT_LETTER_ACCIDENTALS[letterPc] || ["natural"];
+  accEl.innerHTML = "";
+  accidentals.forEach((accidental) => {
+    const opt = document.createElement("option");
+    opt.value = accidental;
+    opt.textContent = ACCIDENTAL_SYMBOLS[accidental];
+    accEl.appendChild(opt);
+  });
+  accEl.value = accidentals.includes(prevAccidental) ? prevAccidental : "natural";
+}
+
+function populateRootLetterSelect(letterSelectId) {
+  const letterEl = el(letterSelectId);
+  if (!letterEl) return;
+  const prevValue = letterEl.value;
+  letterEl.innerHTML = "";
+  ROOT_LETTERS.forEach((letter) => {
+    const opt = document.createElement("option");
+    opt.value = String(letter.pc);
+    opt.textContent = letter[state.language] || letter.es;
+    letterEl.appendChild(opt);
+  });
+  letterEl.value = ROOT_LETTERS.some((l) => String(l.pc) === prevValue) ? prevValue : "0";
+}
+
 function buildSelectors() {
-  const genRoot = el("genRoot");
-  const scaleRoot = el("scaleRoot");
   const genVariant = el("genVariant");
   const scaleType = el("scaleType");
-  const prevGenRoot = Number(genRoot.value || "0");
-  const prevScaleRoot = Number(scaleRoot.value || "0");
+  const prevGenRootPc = currentGenRootPc();
+  const prevScaleRootPc = currentScaleRootPc();
   const prevVariant = genVariant.value || "";
   const prevScaleType = scaleType.value || "Ionian";
 
-  genRoot.innerHTML = "";
-  scaleRoot.innerHTML = "";
-  for (let pc = 0; pc < 12; pc += 1) {
-    const label = noteNameFromPc(pc);
-    const o1 = document.createElement("option");
-    o1.value = String(pc);
-    o1.textContent = label;
-    genRoot.appendChild(o1);
-    const o2 = document.createElement("option");
-    o2.value = String(pc);
-    o2.textContent = label;
-    scaleRoot.appendChild(o2);
-  }
-  genRoot.value = String(Math.max(0, Math.min(11, prevGenRoot)));
-  scaleRoot.value = String(Math.max(0, Math.min(11, prevScaleRoot)));
+  populateRootLetterSelect("genRootLetter");
+  populateRootLetterSelect("scaleRootLetter");
+  populateAccidentalSelect("genRootAccidental", Number(el("genRootLetter")?.value ?? 0));
+  populateAccidentalSelect("scaleRootAccidental", Number(el("scaleRootLetter")?.value ?? 0));
+  setRootLetterSelectsFromPc("genRootLetter", "genRootAccidental", prevGenRootPc, "genRootLetterPc", "genRootAccidental");
+  setRootLetterSelectsFromPc("scaleRootLetter", "scaleRootAccidental", prevScaleRootPc, "scaleRootLetterPc", "scaleRootAccidental");
 
   genVariant.innerHTML = "";
   state.chordPatterns.forEach((p) => {
@@ -6358,7 +6466,8 @@ async function runDetection() {
 
 async function runGenerateChord() {
   const payload = {
-    root_pc: Number(el("genRoot").value),
+    root_pc: currentGenRootPc(),
+    tonic_letter_pc: Number(el("genRootLetter")?.value ?? 0),
     suffix: el("genVariant").value,
     inversion: Number(el("genInversion").value),
     language: state.language,
@@ -6390,7 +6499,8 @@ async function runGenerateScale() {
   const restartLoop = state.scaleLoop.active;
   stopScaleLoop();
   const payload = {
-    tonic_pc: Number(el("scaleRoot").value),
+    tonic_pc: currentScaleRootPc(),
+    tonic_letter_pc: Number(el("scaleRootLetter")?.value ?? 0),
     pattern_name: el("scaleType").value,
     language: state.language,
     accidental: currentAccidentalValue(),
@@ -6402,7 +6512,11 @@ async function runGenerateScale() {
   });
   state.generatedScale = out;
   state.scaleGuitarStartNote = Array.isArray(out.notes_midi) && out.notes_midi.length ? Number(out.notes_midi[0]) : null;
-  const tonic = noteNameFromPc(out.tonic_pc || 0);
+  // Usar la tónica ya deletreada por el backend (respeta tonic_letter_pc) en vez
+  // de recalcularla aquí con el ajuste global #/♭, que ignoraría la letra
+  // explícita elegida en el combo (p. ej. Re# se mostraría como Mib).
+  const tonicFromNotes = Array.isArray(out.notes) && out.notes.length ? scaleLabelWithoutOctave(out.notes[0]) : null;
+  const tonic = tonicFromNotes || noteNameFromPc(out.tonic_pc || 0);
   const scaleAlias = getScaleAliases()[out.pattern_name];
   const patternLabel = out.pattern_localized_name || out.pattern_name || "";
   const patternWithAlias = scaleAlias ? `${scaleAlias} (${patternLabel})` : patternLabel;
@@ -7709,6 +7823,13 @@ function disableMidiInput(options = {}) {
   if (state.mode === "metronome") renderInstrument();
   resetMidiScreenWakeLockFully();
   setMidiButtonStatus("off");
+  // Sin MIDI activo no hay salida MIDI posible: si se quedaba en "midi" la app
+  // se quedaba muda (el toggle además se oculta, así que el usuario no podría
+  // volver a "audio" a mano).
+  if (state.soundOutput === "midi") {
+    state.soundOutput = "audio";
+    saveSoundOutputPref();
+  }
   refreshSoundOutputToggle();
 }
 
@@ -7949,6 +8070,7 @@ function bindEvents() {
     await loadMeta();
     renderInstrument();
     if (state.mode === "detection") await runDetection();
+    if (state.mode === "interval_detection") refreshIntervalResult();
     if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
     if (state.mode === "circle_fifths" && state.generatedChord) await runGenerateChordCircle();
     if (state.mode === "scales" && state.generatedScale) await runGenerateScale();
@@ -8108,7 +8230,16 @@ function bindEvents() {
     state.detectionShiftPressed = false;
   });
 
-  el("genRoot").addEventListener("change", runGenerateChord);
+  el("genRootLetter").addEventListener("change", (e) => {
+    populateAccidentalSelect("genRootAccidental", Number(e.target.value));
+    state.genRootLetterPc = Number(e.target.value);
+    state.genRootAccidental = el("genRootAccidental")?.value || "natural";
+    runGenerateChord();
+  });
+  el("genRootAccidental").addEventListener("change", (e) => {
+    state.genRootAccidental = e.target.value;
+    runGenerateChord();
+  });
   el("genVariant").addEventListener("change", () => {
     updateInversionMax();
     runGenerateChord();
@@ -8164,7 +8295,16 @@ function bindEvents() {
       // Metronome mode only changes sound source; playback starts/stops with Play/Stop.
     });
   }
-  el("scaleRoot").addEventListener("change", runGenerateScale);
+  el("scaleRootLetter").addEventListener("change", (e) => {
+    populateAccidentalSelect("scaleRootAccidental", Number(e.target.value));
+    state.scaleRootLetterPc = Number(e.target.value);
+    state.scaleRootAccidental = el("scaleRootAccidental")?.value || "natural";
+    runGenerateScale();
+  });
+  el("scaleRootAccidental").addEventListener("change", (e) => {
+    state.scaleRootAccidental = e.target.value;
+    runGenerateScale();
+  });
   el("scaleType").addEventListener("change", runGenerateScale);
   el("scaleFilterToggle").addEventListener("click", () => {
     setScaleFilterMode(state.scaleFilterMode === "basic" ? "advanced" : "basic");

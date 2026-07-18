@@ -439,8 +439,12 @@ class OverlaysMixin:
     def _on_global_click_press(self, event: tk.Event) -> None:
         widget = event.widget
         if self.scale_tonic_overlay is not None and not self._is_widget_inside(self.scale_tonic_overlay, widget):
-            tonic_trigger = getattr(self, "scale_tonic_combo", getattr(self, "scale_tonic_btn", None))
-            if widget != tonic_trigger:
+            tonic_triggers = {
+                getattr(self, "scale_tonic_combo", None),
+                getattr(self, "scale_tonic_accidental_combo", None),
+                getattr(self, "scale_tonic_btn", None),
+            }
+            if widget not in tonic_triggers:
                 self._close_scale_tonic_overlay()
         if self.scale_type_overlay is not None and not self._is_widget_inside(self.scale_type_overlay, widget):
             type_trigger = getattr(self, "scale_type_combo", getattr(self, "scale_type_btn", None))
@@ -452,6 +456,7 @@ class OverlaysMixin:
                 getattr(self, "generation_variant_btn", None),
                 getattr(self, "generation_inversion_btn", None),
                 getattr(self, "generation_root_combo", None),
+                getattr(self, "generation_root_accidental_combo", None),
                 getattr(self, "generation_variant_combo", None),
                 getattr(self, "generation_inversion_combo", None),
             }

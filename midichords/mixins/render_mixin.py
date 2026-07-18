@@ -6,7 +6,7 @@ from typing import Optional
 import midichords.qt.tk_compat as tk
 import midichords.qt.tkfont_compat as tkfont
 from midichords.core.music_service import _chord_symbol_prefer_flat
-from midichords.core.music_theory import WHITE_PCS
+from midichords.core.music_theory import WHITE_PCS, ROOT_LETTER_PCS
 from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 
@@ -208,8 +208,13 @@ class RenderMixin:
         return int(sharp_count), False
 
     @staticmethod
-    def _tonic_letter_index(tonic_pc: int, prefer_flats: bool) -> int:
+    def _tonic_letter_index(tonic_pc: int, prefer_flats: bool, tonic_letter_pc: Optional[int] = None) -> int:
         tonic_pc = int(tonic_pc) % 12
+        if tonic_letter_pc is not None:
+            try:
+                return ROOT_LETTER_PCS.index(int(tonic_letter_pc) % 12)
+            except ValueError:
+                pass
         if prefer_flats:
             mapping = {
                 0: 0,   # C
@@ -270,7 +275,9 @@ class RenderMixin:
             return self._key_signature_count_for_tonic(
                 self.generation_root_pc, is_minor, tie_prefer_flats=tie_from_ui
             )
-        if self.metronome_tab_active or self.tuner_tab_active or getattr(self, "interval_tab_active", False) or not display_notes:
+        if getattr(self, "interval_tab_active", False):
+            return 0, tie_from_ui
+        if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
             return 0, False
         root, pattern, _bass = self._analyze_chord_notes(display_notes)
         if root is None or pattern is None:
@@ -1479,7 +1486,9 @@ class RenderMixin:
                     label_prefixes = [("Do", 0), ("Re", 1), ("Mi", 2), ("Fa", 3), ("Sol", 4), ("La", 5), ("Si", 6)]
                 else:
                     label_prefixes = [("C", 0), ("D", 1), ("E", 2), ("F", 3), ("G", 4), ("A", 5), ("B", 6)]
-                tonic_letter = self._tonic_letter_index(self.scale_tonic_pc, prefer_flat_signature)
+                tonic_letter = self._tonic_letter_index(
+                    self.scale_tonic_pc, prefer_flat_signature, getattr(self, "scale_tonic_letter_pc", None)
+                )
                 scale_letter_indices: list[int] = []
                 for idx, label in enumerate(scale_label_names):
                     text = str(label)
@@ -1688,7 +1697,7 @@ class RenderMixin:
                     if self.scale_tab_active and not scale_is_bass and degree_idx < len(scale_diatonic_indices):
                         diatonic_idx = scale_diatonic_indices[degree_idx]
                     else:
-                        diatonic_idx = self._diatonic_index(note)
+                        diatonic_idx = self._diatonic_index(note, prefer_flat_signature)
                     diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
                     y = treble_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28
@@ -1697,7 +1706,7 @@ class RenderMixin:
                     staff_base_y = treble_top + 4 * line_space
                 else:
                     placed_cols = placed_bass_cols
-                    diatonic_idx = self._diatonic_index(note)
+                    diatonic_idx = self._diatonic_index(note, prefer_flat_signature)
                     diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28

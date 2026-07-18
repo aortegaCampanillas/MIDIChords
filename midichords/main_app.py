@@ -192,6 +192,11 @@ class MidiChordAnalyzerApp(
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
         self.midi_input_sound_enabled = bool(self.config_data.get("midi_input_sound_enabled", True))
         self.generation_root_pc = 0
+        # Letra natural + alteración elegidas explícitamente en el combo de tónica
+        # (varias combinaciones pueden dar el mismo pc, p. ej. Re♭ y Do#: se guarda
+        # la elección real del usuario en vez de recalcular una enarmonía "canónica").
+        self.generation_root_letter_pc = 0
+        self.generation_root_accidental = "natural"
         self.generation_pattern_suffix = ""
         self.generation_inversion = 0
         self.circle_tonic_pc = 0
@@ -200,6 +205,8 @@ class MidiChordAnalyzerApp(
         self.circle_fifths_tab_active = False
         self._circle_generated_chord = None
         self.scale_tonic_pc = 0
+        self.scale_tonic_letter_pc = 0
+        self.scale_tonic_accidental = "natural"
         self.scale_pattern_name = SCALE_PATTERNS[0].name
         self.scale_preview_notes: list[int] = []
         self.scale_base_notes: list[int] = []

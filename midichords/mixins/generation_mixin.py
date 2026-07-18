@@ -5,11 +5,16 @@ from typing import Optional
 import midichords.qt.tk_compat as tk
 from midichords.core.music_theory import (
     CHORD_PATTERNS,
+    ROOT_LETTER_ACCIDENTALS,
+    ROOT_LETTER_PCS,
     ChordPattern,
     chord_description,
     chord_patterns_for_ui,
+    root_pc_from_letter_accidental,
 )
 from midichords.ui.widgets_qt import GrayRoundedButton
+
+ACCIDENTAL_SYMBOLS = {"natural": "♮", "sharp": "♯", "flat": "♭"}
 
 
 class GenerationMixin:
@@ -68,7 +73,9 @@ class GenerationMixin:
         letter_names = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"] if language == "es" else ["C", "D", "E", "F", "G", "A", "B"]
         base_pcs = [0, 2, 4, 5, 7, 9, 11]
         prefer_flats = self.note_accidental == "flat"
-        tonic_letter = self._tonic_letter_index(self.generation_root_pc, prefer_flats)
+        tonic_letter = self._tonic_letter_index(
+            self.generation_root_pc, prefer_flats, getattr(self, "generation_root_letter_pc", None)
+        )
 
         names: list[str] = []
         for interval in voiced_intervals:
@@ -134,12 +141,16 @@ class GenerationMixin:
         if hasattr(self, "generation_inversion_btn"):
             self.generation_inversion_btn.set_text(self._inversion_label(self.generation_inversion))
 
-        # Combo-based UI.
+        # Combo-based UI: nota natural + alteración por separado.
         if hasattr(self, "generation_root_combo") and hasattr(self, "generation_root_var"):
-            root_options = [(self.note_name(pc, with_octave=False), int(pc)) for pc in range(12)]
+            root_options = [
+                (self.note_name(pc, with_octave=False), int(pc)) for pc in ROOT_LETTER_PCS
+            ]
             self._generation_root_label_to_pc = {label: pc for label, pc in root_options}
             self.generation_root_combo.configure(values=[label for label, _ in root_options])
-            self.generation_root_var.set(self.note_name(self.generation_root_pc, with_octave=False))
+            letter_pc, accidental = self._sync_generation_root_letter_state()
+            self.generation_root_var.set(self.note_name(letter_pc, with_octave=False))
+            self._refresh_generation_root_accidental_options(letter_pc, accidental)
 
         if hasattr(self, "generation_variant_combo") and hasattr(self, "generation_variant_var"):
             variant_options: list[tuple[str, str]] = []
@@ -171,11 +182,65 @@ class GenerationMixin:
             text_color = getattr(self, "color_text", "#e9edf2")
             self.generation_inversion_label.configure(fg=(text_color if inversion_enabled else muted))
 
+    def _sync_generation_root_letter_state(self) -> tuple[int, str]:
+        """Devuelve (letra, alteración) elegidas explícitamente por el usuario.
+
+        Si generation_root_pc ya no coincide con esa combinación (p. ej. se
+        cambió desde otro sitio, como el Círculo de quintas), se deriva una
+        combinación por defecto y se guarda como nuevo estado explícito —
+        pero mientras coincida, se respeta la elección real del usuario en
+        vez de recalcular una enarmonía "canónica" (evita que Re♭ se muestre
+        como Do# solo porque Do va antes en el orden de letras).
+        """
+        target_pc = int(self.generation_root_pc) % 12
+        letter_pc = int(getattr(self, "generation_root_letter_pc", 0))
+        accidental = str(getattr(self, "generation_root_accidental", "natural"))
+        if root_pc_from_letter_accidental(letter_pc, accidental) == target_pc:
+            return letter_pc, accidental
+        for candidate_letter_pc in ROOT_LETTER_PCS:
+            for candidate_accidental in ROOT_LETTER_ACCIDENTALS.get(candidate_letter_pc, ("natural",)):
+                if root_pc_from_letter_accidental(candidate_letter_pc, candidate_accidental) == target_pc:
+                    self.generation_root_letter_pc = candidate_letter_pc
+                    self.generation_root_accidental = candidate_accidental
+                    return candidate_letter_pc, candidate_accidental
+        self.generation_root_letter_pc = 0
+        self.generation_root_accidental = "natural"
+        return 0, "natural"
+
+    def _refresh_generation_root_accidental_options(self, letter_pc: int, accidental: str) -> None:
+        if not (hasattr(self, "generation_root_accidental_combo") and hasattr(self, "generation_root_accidental_var")):
+            return
+        accidentals = ROOT_LETTER_ACCIDENTALS.get(int(letter_pc), ("natural",))
+        self._generation_root_accidental_label_to_value = {
+            ACCIDENTAL_SYMBOLS[a]: a for a in accidentals
+        }
+        self.generation_root_accidental_combo.configure(values=[ACCIDENTAL_SYMBOLS[a] for a in accidentals])
+        chosen = accidental if accidental in accidentals else "natural"
+        self.generation_root_accidental_var.set(ACCIDENTAL_SYMBOLS[chosen])
+
     def _on_generation_root_combo_changed(self, _event: tk.Event) -> None:
         label = str(self.generation_root_var.get()).strip()
-        pc = getattr(self, "_generation_root_label_to_pc", {}).get(label)
-        if pc is None:
+        letter_pc = getattr(self, "_generation_root_label_to_pc", {}).get(label)
+        if letter_pc is None:
             return
+        _, prev_accidental = self._sync_generation_root_letter_state()
+        accidentals = ROOT_LETTER_ACCIDENTALS.get(int(letter_pc), ("natural",))
+        accidental_value = prev_accidental if prev_accidental in accidentals else "natural"
+        self._refresh_generation_root_accidental_options(int(letter_pc), accidental_value)
+        self.generation_root_letter_pc = int(letter_pc)
+        self.generation_root_accidental = accidental_value
+        pc = root_pc_from_letter_accidental(int(letter_pc), accidental_value)
+        self._on_generation_root_clicked(int(pc))
+
+    def _on_generation_root_accidental_combo_changed(self, _event: tk.Event) -> None:
+        label = str(self.generation_root_accidental_var.get()).strip()
+        accidental = getattr(self, "_generation_root_accidental_label_to_value", {}).get(label)
+        if accidental is None:
+            return
+        letter_pc, _ = self._sync_generation_root_letter_state()
+        self.generation_root_letter_pc = int(letter_pc)
+        self.generation_root_accidental = str(accidental)
+        pc = root_pc_from_letter_accidental(int(letter_pc), accidental)
         self._on_generation_root_clicked(int(pc))
 
     def _on_generation_variant_combo_changed(self, _event: tk.Event) -> None:
@@ -451,7 +516,10 @@ class GenerationMixin:
         spelled_map_oct = self._generation_note_name_map(with_octave=True)
 
         shown_suffix = pattern.suffix if pattern.suffix else ""
-        chord_name = f"{self.note_name(self.generation_root_pc, with_octave=False)}{shown_suffix}"
+        root_name = self._spelled_generation_note_names(
+            root_midi=root_midi, voiced_intervals=[0], suffix=str(pattern.suffix), with_octave=False
+        )[0]
+        chord_name = f"{root_name}{shown_suffix}"
         bass_pc = None
         bass_name = None
         if inversion > 0 and voiced_notes:

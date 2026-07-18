@@ -1091,19 +1091,36 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
+        self.generation_root_row = tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt)
+        self.generation_root_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
         self.generation_root_var = tk.StringVar(value="-")
         self.generation_root_combo = ttk.Combobox(
-            self.tab_generation_frame,
+            self.generation_root_row,
             textvariable=self.generation_root_var,
             state="readonly",
             values=["-"],
             font=(self.ui_font_family, 15),
         )
-        self.generation_root_combo.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        self.generation_root_combo.pack(side=tk.LEFT, padx=(0, 6))
         self.generation_root_combo.bind("<<ComboboxSelected>>", self._on_generation_root_combo_changed)
         self._qt_apply_dark_combobox_style(self.generation_root_combo)
         if hasattr(self.generation_root_combo, "setMaxVisibleItems"):
             self.generation_root_combo.setMaxVisibleItems(12)
+
+        self.generation_root_accidental_var = tk.StringVar(value="♮")
+        self.generation_root_accidental_combo = ttk.Combobox(
+            self.generation_root_row,
+            textvariable=self.generation_root_accidental_var,
+            state="readonly",
+            values=["♮"],
+            width=3,
+            font=(self.ui_font_family, 15),
+        )
+        self.generation_root_accidental_combo.pack(side=tk.LEFT)
+        self.generation_root_accidental_combo.bind(
+            "<<ComboboxSelected>>", self._on_generation_root_accidental_combo_changed
+        )
+        self._qt_apply_dark_combobox_style(self.generation_root_accidental_combo)
 
         self.generation_variant_label = tk.Label(
             self.tab_generation_frame,
@@ -1360,6 +1377,7 @@ class UiMixin:
 
         self.tab_generation_frame.columnconfigure(0, weight=0)
         self.tab_generation_frame.columnconfigure(1, weight=1)
+        self.tab_generation_frame.columnconfigure(2, weight=0)
         self.tab_generation_frame.rowconfigure(0, weight=0)
         self.tab_generation_frame.rowconfigure(1, weight=0)
         self.tab_generation_frame.rowconfigure(2, weight=0)
@@ -1541,18 +1559,35 @@ class UiMixin:
             font=(self.ui_font_family, 14),
         )
         self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
+        self.scale_tonic_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt)
+        self.scale_tonic_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
         self.scale_tonic_var = tk.StringVar(value="C")
         self.scale_tonic_combo = ttk.Combobox(
-            self.tab_scale_frame,
+            self.scale_tonic_row,
             textvariable=self.scale_tonic_var,
             state="readonly",
             values=["-"],
             font=(self.ui_font_family, 15),
             height=15,
         )
-        self.scale_tonic_combo.grid(row=1, column=1, sticky="w", pady=(0, 5))
+        self.scale_tonic_combo.pack(side=tk.LEFT, padx=(0, 6))
         self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
         self._qt_apply_dark_combobox_style(self.scale_tonic_combo)
+
+        self.scale_tonic_accidental_var = tk.StringVar(value="♮")
+        self.scale_tonic_accidental_combo = ttk.Combobox(
+            self.scale_tonic_row,
+            textvariable=self.scale_tonic_accidental_var,
+            state="readonly",
+            values=["♮"],
+            width=3,
+            font=(self.ui_font_family, 15),
+        )
+        self.scale_tonic_accidental_combo.pack(side=tk.LEFT)
+        self.scale_tonic_accidental_combo.bind(
+            "<<ComboboxSelected>>", self._on_scale_tonic_accidental_combo_changed
+        )
+        self._qt_apply_dark_combobox_style(self.scale_tonic_accidental_combo)
 
         self.scale_type_selector_label = tk.Label(
             self.tab_scale_frame,
@@ -1881,6 +1916,7 @@ class UiMixin:
 
         self.tab_scale_frame.columnconfigure(0, weight=0)
         self.tab_scale_frame.columnconfigure(1, weight=1)
+        self.tab_scale_frame.columnconfigure(2, weight=0)
         self.tab_scale_frame.rowconfigure(5, weight=0)
         self.tab_scale_frame.rowconfigure(6, weight=0)
         # Row 7: empty spacer that absorbs extra vertical space
@@ -2864,6 +2900,9 @@ class UiMixin:
             self._refresh_generation_controls()
         if self.scale_tab_active:
             self._refresh_scale_preview()
+        if getattr(self, "interval_tab_active", False) and hasattr(self, "_update_interval_display"):
+            self._update_interval_display()
+        self.redraw_keyboard()
     def _refresh_midi_input_sound_toggle_button(self) -> None:
         if self.midi_input_sound_enabled:
             label = self.tr("button_midi_sound_on")
@@ -4012,7 +4051,7 @@ class UiMixin:
             specific = _w(
                 "staff_canvas:help_staff",
                 "generation_play_btn:help_gen_play",
-                "generation_root_combo:help_gen_root",
+                "generation_root_combo+generation_root_accidental_combo:help_gen_root",
                 "generation_variant_combo:help_gen_variant",
                 "generation_inversion_combo:help_gen_inversion",
                 # subpanel de resultado: fila por fila
@@ -4055,7 +4094,7 @@ class UiMixin:
                 "staff_canvas:help_staff",
                 "scale_play_btn:help_scale_play",
                 "scale_mode_metronome_btn:help_scale_metronome",
-                "scale_tonic_selector_label+scale_tonic_combo:help_scale_root",
+                "scale_tonic_selector_label+scale_tonic_combo+scale_tonic_accidental_combo:help_scale_root",
                 "scale_type_selector_label+scale_type_combo:help_scale_type",
                 "scale_inline_filter_btn:help_scale_filter",
                 "scale_bpm_row:help_scale_bpm",

@@ -8,7 +8,7 @@ from typing import Optional
 from midichords.core.i18n import NOTE_NAMES
 from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.midi_idle_inhibit import bump_after_midi_detection_activity
-from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, ChordPattern, analyze_chord_notes, chord_description, format_intervals
+from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, PC_TO_DIATONIC_FLAT, ChordPattern, analyze_chord_notes, chord_description, format_intervals
 from midichords.core.verbose_log import vlog
 
 
@@ -157,8 +157,10 @@ class InputDetectionMixin:
         # Duplicates across octaves are valid (e.g., left-hand reinforcement).
         extras: set[int] = {int(note) for note in chord_notes if (int(note) % 12) not in expected_pcs}
 
-        # Lista de notas en panel: #/♭ del usuario. Nombre del acorde (tónica/bajo): convención armónica
-        # (_chord_symbol_prefer_flat: menos alteraciones; empate → bemoles), no el toggle.
+        # Notas dentro del acorde reconocido: ortografía diatónica fija respecto a
+        # su tónica (p. ej. la 3ª de Mi mayor siempre es Sol#, nunca Lab), igual
+        # que en Generación — el toggle #/♭ solo decide la ortografía de notas
+        # "extra" que caen fuera del acorde detectado (sin grado diatónico).
         map_oct: dict[int, str] = {}
         map_no_oct: dict[int, str] = {}
         for note in chord_notes:
@@ -173,11 +175,21 @@ class InputDetectionMixin:
                     note_int, with_octave=False, prefer_flat=prefer_flats
                 )
                 continue
-            map_oct[note_int] = self.note_name(
-                note_int, with_octave=True, prefer_flat=prefer_flats
+            map_oct[note_int] = self._spell_detection_note_name(
+                root_pc=int(root),
+                target_pc=pc,
+                degree=int(degree),
+                prefer_flats=name_pf,
+                midi_note=note_int,
+                with_octave=True,
             )
-            map_no_oct[note_int] = self.note_name(
-                note_int, with_octave=False, prefer_flat=prefer_flats
+            map_no_oct[note_int] = self._spell_detection_note_name(
+                root_pc=int(root),
+                target_pc=pc,
+                degree=int(degree),
+                prefer_flats=name_pf,
+                midi_note=note_int,
+                with_octave=False,
             )
         return chord, extras, map_oct, map_no_oct, desc
 
@@ -644,7 +656,7 @@ class InputDetectionMixin:
                 10: "B♭",
             }
         if prefer_flat is None:
-            in_note_modes = self.current_mode in {"detection", "generation", "scales"}
+            in_note_modes = self.current_mode in {"detection", "generation", "scales", "interval_detection"}
             prefer_flat = in_note_modes and str(self.config_data.get("note_accidental", "sharp")) == "flat"
         flat_name = flat_aliases.get(pc)
         name = flat_name if (prefer_flat and flat_name is not None) else sharp_name
@@ -659,9 +671,10 @@ class InputDetectionMixin:
         return f"{name}{octave}"
     def format_intervals(self, notes: set[int]) -> str:
         return format_intervals(notes)
-    def _diatonic_index(self, midi_note: int) -> int:
+    def _diatonic_index(self, midi_note: int, prefer_flat: bool = False) -> int:
         octave = midi_note // 12 - 1
-        letter_index = PC_TO_DIATONIC_LETTER[midi_note % 12]
+        table = PC_TO_DIATONIC_FLAT if prefer_flat else PC_TO_DIATONIC_LETTER
+        letter_index = table[midi_note % 12]
         return octave * 7 + letter_index
     def _analyze_chord_notes(self, notes: set[int]) -> tuple[Optional[int], Optional[ChordPattern], Optional[int]]:
         return analyze_chord_notes(notes)
@@ -700,7 +713,10 @@ class InputDetectionMixin:
 
         if generated_set:
             generated_ordered = sorted(generated_set)
-            self.generated_notes_var.set(" - ".join(self.note_name(note) for note in generated_ordered))
+            generated_map_oct = self._generation_note_name_map(with_octave=True) if hasattr(self, "_generation_note_name_map") else {}
+            self.generated_notes_var.set(
+                " - ".join(generated_map_oct.get(int(note), self.note_name(note)) for note in generated_ordered)
+            )
         else:
             self.generated_notes_var.set("-")
         self.generated_intervals_var.set(self.format_intervals(generated_set))

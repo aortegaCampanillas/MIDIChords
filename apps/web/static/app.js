@@ -148,6 +148,12 @@ const state = {
 const { createUiLifecycle, bindGlobalUiEvents } = globalThis.MidiChordsUiLifecycle;
 const uiLifecycle = createUiLifecycle(window);
 const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
+const {
+  midiToDiatonicIndex,
+  midiToTrebleY,
+  midiToBassY,
+  ledgerLineYs,
+} = globalThis.MidiChordsStaffGeometry;
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
@@ -161,8 +167,6 @@ const {
   ROOT_LETTER_ACCIDENTALS,
   SHARP_KEY_SIGNATURES,
   FLAT_KEY_SIGNATURES,
-  PC_TO_DIATONIC_LETTER,
-  PC_TO_DIATONIC_FLAT,
   rootPcFromLetterAccidental,
   noteLabelFromPc,
 } = globalThis.MidiChordsMusicNotation;
@@ -3561,47 +3565,15 @@ function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig, activeIndex = 
   return Math.max(xTrebleEnd, xBassEnd) + 10;
 }
 
-function midiToDiatonicIndex(midi, preferFlat = false) {
-  const note = Number(midi);
-  const pc = ((note % 12) + 12) % 12;
-  const octave = Math.floor(note / 12) - 1;
-  const map = preferFlat ? PC_TO_DIATONIC_FLAT : PC_TO_DIATONIC_LETTER;
-  return (octave * 7) + map[pc];
-}
-
-function midiToTrebleY(midi, trebleTop, gap, preferFlat = false) {
-  const trebleBottomLineDiatonic = (4 * 7) + 2; // E4
-  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
-  const staffBaseY = trebleTop + (4 * gap);
-  return staffBaseY - ((diatonicIdx - trebleBottomLineDiatonic) * (gap / 2));
-}
-
-function midiToBassY(midi, bassTop, gap, preferFlat = false) {
-  const bassBottomLineDiatonic = (2 * 7) + 4; // G2
-  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
-  const staffBaseY = bassTop + (4 * gap);
-  return staffBaseY - ((diatonicIdx - bassBottomLineDiatonic) * (gap / 2));
-}
-
 function drawLedgerLines(ctx, x, y, staffTop, gap, strokeColor = "#cad3e0") {
-  const staffBottom = staffTop + gap * 4;
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 1;
-  if (y < staffTop - 1) {
-    for (let ly = staffTop - gap; ly >= y - 1; ly -= gap) {
-      ctx.beginPath();
-      ctx.moveTo(x - 13, ly);
-      ctx.lineTo(x + 13, ly);
-      ctx.stroke();
-    }
-  } else if (y > staffBottom + 1) {
-    for (let ly = staffBottom + gap; ly <= y + 1; ly += gap) {
-      ctx.beginPath();
-      ctx.moveTo(x - 13, ly);
-      ctx.lineTo(x + 13, ly);
-      ctx.stroke();
-    }
-  }
+  ledgerLineYs(y, staffTop, gap).forEach((lineY) => {
+    ctx.beginPath();
+    ctx.moveTo(x - 13, lineY);
+    ctx.lineTo(x + 13, lineY);
+    ctx.stroke();
+  });
 }
 
 /**

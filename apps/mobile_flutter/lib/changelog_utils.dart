@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class ChangelogItem {
@@ -20,8 +21,7 @@ class ChangelogUtils {
     String platform,
   ) async {
     try {
-      final jsonString =
-          await rootBundle.loadString('assets/changelog.json');
+      final jsonString = await rootBundle.loadString('assets/changelog.json');
       final List<dynamic> jsonData = json.decode(jsonString);
 
       final List<ChangelogItem> items = [];
@@ -41,7 +41,8 @@ class ChangelogUtils {
 
           if (!platforms.contains(platform)) continue;
 
-          final text = item['es'] as String? ??
+          final text =
+              item['es'] as String? ??
               item['en'] as String? ??
               'No description';
 
@@ -58,7 +59,7 @@ class ChangelogUtils {
 
       return items;
     } catch (e) {
-      print('Error loading changelog: $e');
+      debugPrint('Error loading changelog: $e');
       return [];
     }
   }

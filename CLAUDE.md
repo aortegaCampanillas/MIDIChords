@@ -5,7 +5,7 @@
 ## Qué es este proyecto
 
 Monorepo con tres plataformas de la misma app de acordes/teoría musical:
-- **Escritorio**: Python/Tkinter — `apps/desktop/` + paquete `midichords/`
+- **Escritorio**: Python/PySide6 — `apps/desktop/` + paquete `midichords/`; `midichords/qt/` adapta parte de la API Tk histórica
 - **Web**: SPA estática + Cloudflare Worker — `apps/web/`
 - **Móvil**: Flutter iOS/Android — `apps/mobile_flutter/`
 
@@ -24,12 +24,12 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | UI escritorio (paneles, teclado, pentagrama) | `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
 | Web: círculo de quintas | `apps/web/static/app.js` (`renderCircleFifths`) |
 | Lanzar la app | `python launch.py desktop` / `web` / `mobile` |
-| Tests | `python -m pytest tests/` |
+| Verificación | `python scripts/check.py python|web|mobile|all` |
 
 ## Convenciones clave
 
 - Idioma UI por defecto: **español** (`es`). Ver `midichords/core/i18n.py`.
-- App escritorio = **Tkinter** (rama `main`). Los archivos `qt_*.py` son experimentales.
+- App escritorio = **Qt/PySide6** (rama `main`). Los imports `tk_compat` son adaptadores sobre Qt, no una segunda UI Tkinter.
 - Rutas a assets/samples: usar `midichords.core.app_constants.PROJECT_ROOT`.
 - Python requerido: **3.12** (python-rtmidi solo tiene rueda hasta cp312 en Windows).
 - Deploy web: solo se lanza con **push de etiqueta `v*`**, no con push a `main`.
@@ -38,15 +38,18 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 
 | Archivo | Líneas | Contenido |
 |---------|--------|-----------|
-| `midichords/mixins/ui_mixin.py` | ~3000 | Construcción de paneles y tabs Tk |
-| `midichords/main_app.py` | ~1600 | Clase principal (hereda todos los mixins) |
-| `midichords/mixins/render_mixin.py` | ~1550 | Dibujo de teclado y pentagrama |
-| `apps/web/static/app.js` | grande | SPA completa |
+| `apps/mobile_flutter/lib/main.dart` | ~13700 | Estado, servicios y UI móvil todavía concentrados |
+| `apps/web/static/app.js` | ~8900 | SPA completa |
+| `midichords/mixins/ui_mixin.py` | ~4300 | Construcción de paneles y modos Qt |
+| `midichords/mixins/render_mixin.py` | ~2100 | Dibujo de instrumentos y pentagrama |
+| `midichords/main_app.py` | ~1800 | Ventana principal y estado transversal |
 
 Pide siempre el método o la sección concreta, no el archivo entero.
+
+Hay instrucciones específicas en `midichords/AGENTS.md`, `apps/web/AGENTS.md` y `apps/mobile_flutter/AGENTS.md`.
 
 ## Antes de cerrar un cambio
 
 ```bash
-python -m pytest tests/
+python scripts/check.py python
 ```

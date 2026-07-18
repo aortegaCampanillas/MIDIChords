@@ -6,11 +6,11 @@ Este documento orienta a asistentes de código (agentes IA) sobre la estructura,
 
 **MIDIChords** es un monorepo con varias versiones de una misma aplicación de acordes y teoría musical:
 
-- **Escritorio (Python/Tkinter)**: `apps/desktop/` — app principal con detección de acordes, generación, escalas, metrónomo y afinador.
+- **Escritorio (Python/PySide6)**: `apps/desktop/` — app principal Qt. Conserva una API parecida a Tk mediante `midichords/qt/` para reutilizar la UI histórica.
 - **Web**: `apps/web/` — frontend estático + Cloudflare Worker; misma lógica vía API del worker.
 - **Móvil/tablet (Flutter)**: `apps/mobile_flutter/` — app iOS/Android que reutiliza lógica vía llamadas al backend o implementación propia.
 
-La **lógica reutilizable** está en el paquete Python **`midichords`**. Las apps (desktop, web worker, scripts) importan desde `midichords`; Flutter puede llamar a la API web o duplicar reglas de negocio.
+La implementación Python reutilizable está en **`midichords`** y alimenta el escritorio y scripts. El Worker web y Flutter mantienen implementaciones propias de parte de la teoría musical; deben conservar paridad de contratos y resultados con el core Python.
 
 ## Estructura de directorios
 
@@ -23,9 +23,10 @@ La **lógica reutilizable** está en el paquete Python **`midichords`**. Las app
 ├── midichords/           # Paquete Python compartido
 │   ├── core/             # Teoría musical, audio, config, i18n
 │   ├── mixins/           # Lógica por modo (UI, detección, generación, MIDI, etc.)
-│   ├── ui/               # Widgets Tkinter (botones, paneles, canvas)
-│   ├── main_app.py       # App Tk principal (MidiChordAnalyzerApp)
-│   └── qt_app.py, qt_widgets.py  # (Si existen) UI Qt experimental
+│   ├── qt/               # Compatibilidad de API Tk sobre PySide6
+│   ├── ui/               # Widgets Qt y componentes visuales
+│   ├── main_app.py       # Ventana Qt principal (MidiChordAnalyzerApp)
+│   └── mixins/           # Modos y subsistemas de la UI de escritorio
 ├── assets/               # Imágenes, samples de audio compartidos
 ├── tests/                # Tests unitarios (Python unittest)
 ├── scripts/              # Build, firma, notarización, utilidades
@@ -42,7 +43,7 @@ La **lógica reutilizable** está en el paquete Python **`midichords`**. Las app
 | App escritorio        | `python launch.py desktop` o `python app.py` (desde la raíz del repo). Trazas **audio/MIDI** en stderr: `python launch.py desktop /verbose` (o `--verbose`/`-v`, o `MIDICHORDS_VERBOSE=1`). Equivalente: `python apps/desktop/main.py` si `PYTHONPATH` incluye la raíz. |
 | App web (local)       | `python launch.py web --host 127.0.0.1 --port 8000` (usa `wrangler dev`). Abrir `http://127.0.0.1:8000`. |
 | App Flutter           | `python launch.py mobile` (o `python launch.py mobile -d <device_id>`). Requiere Flutter y emulador/dispositivo. |
-| Tests Python          | `python -m pytest tests/` o `python -m unittest discover -s tests`. Los tests importan `midichords.*`. |
+| Verificación          | `python scripts/check.py python|web|mobile|all` desde la raíz. |
 
 El **launch unificado** está en `launch.py`: define `run_desktop()`, `run_web()`, `run_mobile()` y parsea argumentos. Las configuraciones de VS Code/Cursor suelen usar `launch.py` o `apps/desktop/main.py` con el directorio de trabajo en la raíz del proyecto.
 
@@ -76,14 +77,14 @@ Para **añadir o cambiar comportamiento** en un modo concreto, localizar el mixi
 
 ### `midichords/main_app.py`
 
-- **`MidiChordAnalyzerApp`**: Clase principal Tk que hereda de todos los mixins y de `tk.Tk`. Orden de herencia: UiMixin, RenderMixin, OverlaysMixin, TunerMixin, MetronomeMixin, ScalesMixin, GenerationMixin, MidiIOMixin, InputDetectionMixin, tk.Tk.
-- **`main()`**: Punto de entrada que crea la app y ejecuta el mainloop.
+- **`MidiChordAnalyzerApp`**: Ventana principal PySide6. Hereda de los mixins de funcionalidad, `QtSchedulerMixin` y `QMainWindow`.
+- **`main()`**: Punto de entrada que crea `QApplication`, construye la ventana y ejecuta el event loop de Qt.
 
 La app de escritorio se lanza siempre desde `apps/desktop/main.py` → `midichords.main_app.main()`.
 
 ### `midichords/ui/widgets.py`
 
-Widgets Tkinter reutilizables: `RoundedChoiceButton`, `RoundedPanel`, `GreenRoundedButton`, `GrayRoundedButton`, `PlayTransportButton`, etc. No contienen lógica de negocio; solo presentación y eventos básicos.
+La UI activa utiliza `midichords/ui/widgets_qt.py`. `widgets.py` conserva widgets históricos/compatibles y no debe asumirse como la implementación principal sin comprobar sus consumidores.
 
 ## Versión de Python (escritorio)
 
@@ -91,33 +92,35 @@ Para instalar **todo** `requirements.txt` (incl. **python-rtmidi**) en **Windows
 
 ## Cómo ejecutar tests
 
-Desde la **raíz del proyecto**, con el entorno virtual activado y dependencias instaladas:
+Desde la **raíz del proyecto**, con el entorno virtual activado y `requirements-dev.txt` instalado:
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
-# o
-python -m pytest tests/
+python scripts/check.py python
 ```
 
-Los tests importan módulos de `midichords`; el directorio de trabajo debe ser la raíz del repo (o `PYTHONPATH` debe incluirla) para que `midichords` se resuelva.
+El perfil usa pytest porque la suite contiene tanto casos `unittest` como funciones pytest. Ejecutar solamente `unittest discover` omite parte de la suite.
 
 ## Comandos de verificación
 
-Antes de dar por cerrado un cambio en código Python, ejecutar desde la **raíz** del repo:
+Ejecutar desde la **raíz** el perfil correspondiente a los archivos cambiados:
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+python scripts/check.py python
+python scripts/check.py web
+python scripts/check.py mobile
+# Todos, en ese orden:
+python scripts/check.py all
 ```
 
-Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.): ejecutarlo según `CONTRIBUTING.md` o scripts del repo.
+Los perfiles son también la interfaz usada por `.github/workflows/quality.yml`.
 
 ## Convenciones útiles para agentes
 
 1. **Idioma por defecto**: La UI y los textos por defecto suelen estar en español (`es`). `midichords.core.i18n` y `music_service.note_name(..., language="es")` son los puntos de uso.
 2. **Ruta del proyecto**: Las rutas a assets/samples/config se resuelven con `midichords.core.app_constants.PROJECT_ROOT` (o equivalente). En Flatpak puede ser `/app/share/midichords`.
 3. **Detección de acordes**: La fuente de verdad para “qué acorde es un conjunto de notas” está en `music_theory.analyze_chord_notes()` y en la capa de “spelling”/detección armónica en `music_service` / `InputDetectionMixin` (`_detect_harmonic_spelling`, `detect_chord`).
-4. **No asumir Qt**: En la rama `main` la app de escritorio es Tkinter. Si existen `qt_app.py` / `qt_widgets.py`, son experimentales o de otra rama; no modificar la UI Tk sin tener en cuenta que es la referencia actual.
-5. **Web**: La API está en `apps/web/worker/`. El cliente es una SPA en **`apps/web/static/app.js`** (y `style.css`): modos detección, generación, **círculo de quintas**, escalas, metrónomo y afinador. Cualquier cambio en respuestas o rutas API debe reflejarse en el worker y, si aplica, en `apps/web/static/` y `apps/web/templates/`. El modo **círculo de quintas** (`state.mode === "circle_fifths"`) dibuja el círculo en canvas (`renderCircleFifths`), fija tonalidad con clic (anillo mayor/menor), acorde diatónico con Mayús+clic y usa `POST /api/generate/chord`; detalle en **`apps/web/README.md`** → sección *Frontend (modos SPA)*. El toggle **`soundOutputToggle`** (en el header, junto al botón MIDI) controla `state.soundOutput` (`"audio"` | `"midi"`): en modo `"audio"` la app genera audio WebAudio; en modo `"midi"` todas las notas (escalas, acordes, botones ▶) se envían al dispositivo MIDI conectado vía Web MIDI API (`getMidiOutput`, `sendMidiNote`, `sendMidiNoteOn/Off`), y la entrada MIDI del dispositivo no genera audio de la app. La preferencia se persiste en `localStorage("soundOutput")`.
+4. **Escritorio Qt con compatibilidad Tk**: En `main` la ventana real es PySide6. Los imports `midichords.qt.tk_compat as tk` son una capa de adaptación, no Tkinter real. Antes de cambiar un widget, comprobar si procede de `widgets_qt.py`, `midichords/qt/` o de PySide6 directamente.
+5. **Web**: La API está en `apps/web/worker/`. El cliente es una SPA en **`apps/web/static/app.js`** (y `style.css`): modos detección, generación, **círculo de quintas**, escalas, metrónomo y afinador. Cualquier cambio en respuestas o rutas API debe reflejarse en el worker y, si aplica, en `apps/web/static/` y los HTML bajo `apps/web/`. El modo **círculo de quintas** (`state.mode === "circle_fifths"`) dibuja el círculo en canvas (`renderCircleFifths`), fija tonalidad con clic (anillo mayor/menor), acorde diatónico con Mayús+clic y usa `POST /api/generate/chord`; detalle en **`apps/web/README.md`** → sección *Frontend (modos SPA)*. El toggle **`soundOutputToggle`** (en el header, junto al botón MIDI) controla `state.soundOutput` (`"audio"` | `"midi"`): en modo `"audio"` la app genera audio WebAudio; en modo `"midi"` todas las notas (escalas, acordes, botones ▶) se envían al dispositivo MIDI conectado vía Web MIDI API (`getMidiOutput`, `sendMidiNote`, `sendMidiNoteOn/Off`), y la entrada MIDI del dispositivo no genera audio de la app. La preferencia se persiste en `localStorage("soundOutput")`.
 
 ## Resumen rápido por tarea
 
@@ -133,6 +136,13 @@ Si el proyecto usa pytest: `python -m pytest tests/`. Si hay linter (ruff, etc.)
 | Lanzar desktop / web / mobile | `launch.py` |
 | Web: modo círculo de quintas (canvas, tonalidad, Mayús+clic diatónico) | `apps/web/static/app.js` (`renderCircleFifths`, `circleChordRootPcFromClick`, `runGenerateChordCircle`) |
 | Tests unitarios | `tests/` (importan `midichords.*`) |
+
+## Instrucciones locales y fuentes de verdad
+
+- Al trabajar bajo `midichords/`, leer también `midichords/AGENTS.md`.
+- Al trabajar en web, leer `apps/web/AGENTS.md`.
+- Al trabajar en Flutter, leer `apps/mobile_flutter/AGENTS.md`.
+- Para saber qué datos son canónicos, cuáles se duplican por plataforma y cómo validarlos, ver `docs/architecture/SOURCE_OF_TRUTH.md`.
 
 ## Términos clave
 

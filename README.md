@@ -4,10 +4,10 @@ Sitio web del proyecto: [freemidichords.com](https://freemidichords.com)
 
 Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas. **Documentación**: [AGENTS.md](AGENTS.md) (para agentes IA), [PROJECT_SPEC.md](PROJECT_SPEC.md) (especificación para regenerar el proyecto).
 
-- `apps/desktop`: aplicación de escritorio (Tkinter, Python)
+- `apps/desktop`: aplicación de escritorio (Qt/PySide6, Python; con compatibilidad de API Tk en `midichords/qt/`)
 - `apps/web`: aplicación web (Cloudflare Worker + frontend JS)
 - `apps/mobile_flutter`: aplicación tablet (Flutter para iOS/Android)
-- `midichords`: librería Python común (teoría musical, audio y lógica compartida)
+- `midichords`: implementación Python de teoría musical, audio y escritorio; web y Flutter mantienen implementaciones equivalentes donde no pueden reutilizar Python
 - `assets`: recursos gráficos y muestras de audio compartidas
 
 Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDIChords/CHANGELOG.md)
@@ -63,6 +63,8 @@ pip install -r requirements.txt
 npm i -g wrangler
 ```
 
+Para desarrollo y tests Python, instalar `requirements-dev.txt` en lugar de `requirements.txt`.
+
 **Windows:** si tienes varias versiones instaladas, crea el venv con 3.12 o 3.13 explícitamente, por ejemplo:
 
 ```powershell
@@ -103,6 +105,19 @@ python launch.py web --host 127.0.0.1 --port 8443 --https
 Abrir: `https://127.0.0.1:8443`
 
 Nota: `launch.py web` usa el mismo Worker de Cloudflare que producción (`wrangler dev`), para evitar diferencias entre local y Cloudflare.
+
+## Verificación
+
+Desde la raíz del repositorio:
+
+```bash
+python scripts/check.py python
+python scripts/check.py web
+python scripts/check.py mobile
+python scripts/check.py all
+```
+
+Cada perfil comprueba únicamente su plataforma; `all` requiere tener disponibles Python, Node.js y Flutter. Estos mismos perfiles se ejecutan en CI.
 
 **Despliegue a producción (Cloudflare Pages):** solo se lanza al hacer **push de una etiqueta** `v*` (p. ej. `v1.0.1`), no con un push a `main`. Para dispararlo a mano: Actions → "Deploy Cloudflare (Production)" → Run workflow, o desde CLI con un tag existente:
 

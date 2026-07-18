@@ -1086,7 +1086,7 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, List<Map<String, dynamic>>> _guitarChordCacheByKey =
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
-  bool _midiInputSoundEnabled = true;
+  final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
   StreamSubscription<MidiPacket>? _midiDataSub;
   StreamSubscription<dynamic>? _midiSetupSub;
@@ -1121,10 +1121,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _scaleLoopDirection = 1;
 
   // Interval detection state
-  List<int> _intervalNotes = <int>[]; // Last 2 notes for interval pair
-  int? _intervalPlayingNote;
+  final List<int> _intervalNotes = <int>[]; // Last 2 notes for interval pair
   int? _intervalPlayingIdx;
-  bool _intervalMelodyPlaying = false;
   bool _intervalMelodyMode =
       false; // false = play 2 notes, true = play reference melody
   Timer? _intervalMelodyPlaybackTimer;
@@ -1219,31 +1217,6 @@ class _HomeScreenState extends State<HomeScreen>
           .toList();
     }
     return patterns;
-  }
-
-  List<int> _getScaleNotesForOctaves(List<int> noteMidi, int octaves) {
-    if (noteMidi.isEmpty || octaves <= 1) {
-      return noteMidi;
-    }
-
-    final result = <int>[...noteMidi];
-
-    if (octaves >= 2) {
-      // Add lower octave
-      final lowerOctave = noteMidi
-          .where((note) => note - 12 >= 0)
-          .map((note) => note - 12)
-          .toList();
-      result.insertAll(0, lowerOctave);
-    }
-
-    if (octaves >= 3) {
-      // Add upper octave
-      final upperOctave = noteMidi.map((note) => note + 12).toList();
-      result.addAll(upperOctave);
-    }
-
-    return result;
   }
 
   GlobalKey _helpAnchorKey(String id) =>
@@ -2507,8 +2480,9 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                         onChanged: (value) {
-                          if (value != null)
+                          if (value != null) {
                             setDialogState(() => selectedLanguage = value);
+                          }
                         },
                       ),
                       const SizedBox(height: 4),
@@ -2519,7 +2493,7 @@ class _HomeScreenState extends State<HomeScreen>
                           style: const TextStyle(color: _text),
                         ),
                         value: selectedShowKeyNames,
-                        activeColor: _accent,
+                        activeThumbColor: _accent,
                         onChanged: (v) =>
                             setDialogState(() => selectedShowKeyNames = v),
                       ),
@@ -5186,14 +5160,6 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (err) {
       debugPrint('iOS synth chord unavailable: $err');
       return false;
-    }
-  }
-
-  Future<void> _stopIosSynth() async {
-    try {
-      await _kPlatformChannel.invokeMethod<bool>('stopIosSynth');
-    } catch (err) {
-      debugPrint('iOS synth stop unavailable: $err');
     }
   }
 
@@ -10452,7 +10418,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 'scales_pattern',
                                 DropdownButtonFormField<String>(
                                   key: ValueKey<String>(
-                                    'scale_${_scalePatternName}_${_scaleFilterMode}',
+                                    'scale_${_scalePatternName}_$_scaleFilterMode',
                                   ),
                                   initialValue: currentPatternValid
                                       ? _scalePatternName
@@ -10502,8 +10468,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   onChanged: (value) {
                                     if (value == null) return;
                                     setState(() => _scalePatternName = value);
-                                    if (!_requestInFlight)
+                                    if (!_requestInFlight) {
                                       unawaited(_callGenerateScale());
+                                    }
                                   },
                                 ),
                               ),
@@ -11939,14 +11906,6 @@ class _HomeScreenState extends State<HomeScreen>
     // No explicit stop needed for synthesized tones with fixed duration
   }
 
-  /// Set scale fingering hand preference (none, right, left)
-  void _setScaleFingeringHand(String? hand) {
-    setState(() {
-      _scaleFingeringHand = hand;
-      _updateScaleFingeringsMap();
-    });
-  }
-
   /// Update fingerings map based on current scale and hand
   void _updateScaleFingeringsMap() {
     if (_scaleFingeringHand == null || _generatedScaleJson == null) {
@@ -12017,7 +11976,6 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _intervalNotes.clear();
       _intervalMelodyMode = false;
-      _intervalPlayingNote = null;
       _intervalPlayingIdx = null;
       _intervalMelodyPlaybackTimer?.cancel();
       _intervalMelodyPlaybackTimer = null;
@@ -12031,7 +11989,6 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _intervalMelodyMode = !_intervalMelodyMode;
       if (!_intervalMelodyMode) {
-        _intervalPlayingNote = null;
         _intervalPlayingIdx = null;
       }
     });
@@ -12070,7 +12027,6 @@ class _HomeScreenState extends State<HomeScreen>
       if (semitones == null) return;
       final melody = getIntervalMelody(semitones);
       if (melody == null) return;
-      setState(() => _intervalMelodyPlaying = true);
       _playMelodySequence(notes, melody, 0);
     } else {
       // Normal mode: play the two interval notes (reversible)
@@ -12084,7 +12040,6 @@ class _HomeScreenState extends State<HomeScreen>
         offsets: [0, 0],
         durations: ['q', 'q'],
       );
-      setState(() => _intervalMelodyPlaying = true);
       _playMelodySequence(ordered, dummyMelody, 0);
     }
   }
@@ -12092,8 +12047,6 @@ class _HomeScreenState extends State<HomeScreen>
   void _playMelodySequence(List<int?> notes, IntervalMelody melody, int index) {
     if (index >= notes.length) {
       setState(() {
-        _intervalMelodyPlaying = false;
-        _intervalPlayingNote = null;
         _intervalPlayingIdx = null;
       });
       return;
@@ -12103,7 +12056,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (note != null) {
       unawaited(playNote(note, instrument: _instrumentView));
       setState(() {
-        _intervalPlayingNote = note;
         _intervalPlayingIdx = index;
       });
     }
@@ -13110,8 +13062,9 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.intervalMelodyMode != intervalMelodyMode) return true;
     if (oldDelegate.intervalPlayingIdx != intervalPlayingIdx) return true;
-    if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length)
+    if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length) {
       return true;
+    }
     if (oldDelegate.keySignatureCount != keySignatureCount) return true;
     if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
       return true;

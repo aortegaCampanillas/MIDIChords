@@ -1,0 +1,43 @@
+# Fuentes de verdad y paridad multiplataforma
+
+Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué copias o consumidores deben comprobarse.
+
+## Matriz
+
+| Concepto | Fuente o referencia actual | Consumidores/copias | Verificación existente |
+|---|---|---|---|
+| Patrones de acordes y escalas | `midichords/core/music_theory.py` | `apps/web/worker/_worker.js`, lógica local de `apps/mobile_flutter/lib/main.dart` | Tests Python y `scripts/compare_api_parity.py` (comparación con producción) |
+| Contrato musical Python | `midichords/core/music_service.py` | Worker y cliente Flutter implementan resultados equivalentes | `scripts/compare_api_parity.py` cubre una muestra Python/producción |
+| Ayuda de variantes | `assets/chord_variant_theory.json` | `apps/mobile_flutter/assets/chord_variant_theory.json`; la web usa el catálogo desde sus fuentes | `tests/test_chord_help_cross_platform.py` |
+| Acordes de guitarra | `assets/guitar_chord_cache.json` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` |
+| Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |
+| Samples compartidos | `assets/` | Copias necesarias para web y bundle Flutter | `tests/test_shared_assets_cross_platform.py` |
+| Build web publicable | Fuentes bajo `apps/web/` | `apps/web/pages-dist/` generado y no versionado | `scripts/build_web_pages_dist.py` |
+
+## Reglas de cambio
+
+1. Editar primero la fuente indicada; no comenzar por una copia empaquetada.
+2. Actualizar todos los consumidores en el mismo cambio cuando el formato o comportamiento sea incompatible.
+3. No editar `apps/web/pages-dist/`: se regenera.
+4. Si una copia de assets es necesaria para el bundle, mantenerla idéntica y ejecutar los tests de assets.
+5. Un cambio de algoritmo musical debe añadir casos que puedan reutilizar Python, JavaScript y Dart, aunque la infraestructura común todavía sea parcial.
+
+## Verificación reproducible
+
+`scripts/check.py` es la interfaz común para desarrollo local, agentes y CI:
+
+```bash
+python scripts/check.py python
+python scripts/check.py web
+python scripts/check.py mobile
+python scripts/check.py all
+```
+
+El workflow `.github/workflows/quality.yml` ejecuta los tres perfiles en jobs aislados para que un fallo de herramientas de una plataforma no oculte los resultados de las demás.
+
+## Carencias conocidas y dirección recomendada
+
+- Los patrones musicales están declarados en tres lenguajes. La dirección recomendada es mover los datos declarativos a un catálogo canónico, manteniendo lectores o generación por plataforma.
+- Los algoritmos no deben depender de una llamada de red para compartirse. La paridad debe apoyarse en fixtures de entrada/salida comunes y tests locales.
+- `scripts/compare_api_parity.py` depende de producción y no sustituye una comprobación offline en CI.
+- Falta una orden única de sincronización de assets; hasta que exista, los tests de igualdad son el guardarraíl obligatorio.

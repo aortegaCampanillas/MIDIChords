@@ -16,6 +16,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Web (mantenimiento)**: extraída la resolución de armaduras mayores, menores y modales a un módulo puro, con pruebas para tonalidades con sostenidos/bemoles, empates enarmónicos, relativos modales y sufijos menores.
+
 - **Web (mantenimiento)**: extraídos los patrones documentados y la resolución de digitaciones de piano a un módulo puro, con pruebas para acordes, escalas mayores, cromáticas, cruces de dedo y ausencia explícita de fallback cuando no existe referencia.
 
 - **Web (mantenimiento)**: extraídos nombres, cálculo y melodías mnemotécnicas de intervalos a un módulo puro; las pruebas cubren unísono, octava, dirección, traducciones, intervalos consecutivos y alineación de silencios con duraciones.

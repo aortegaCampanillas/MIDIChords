@@ -6,6 +6,7 @@ require("../static/music_notation.js");
 require("../static/circle_theory.js");
 require("../static/interval_theory.js");
 require("../static/piano_fingering.js");
+require("../static/key_signature.js");
 require("../static/chord_help.js");
 require("../static/help_callouts.js");
 
@@ -53,8 +54,38 @@ test("catalog entry points are immutable", () => {
   assert.ok(Object.isFrozen(globalThis.MidiChordsCircleTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsIntervalTheory));
   assert.ok(Object.isFrozen(globalThis.MidiChordsPianoFingering));
+  assert.ok(Object.isFrozen(globalThis.MidiChordsKeySignature));
   assert.ok(Object.isFrozen(globalThis.MidiChordsChordHelp));
   assert.ok(Object.isFrozen(globalThis.MidiChordsHelpCallouts));
+});
+
+test("key signatures choose the shortest spelling and modal relative major", () => {
+  const {
+    MODE_RELATIVE_MAJOR_OFFSET,
+    keySignatureCountForTonic,
+    chordSymbolPreferFlat,
+    applyFlatKeySignatureTie,
+    isMinorSuffix,
+    scalePrefersMinor,
+  } = globalThis.MidiChordsKeySignature;
+
+  assert.deepEqual(keySignatureCountForTonic(0, false), { count: 0, preferFlats: false });
+  assert.deepEqual(keySignatureCountForTonic(7, false), { count: 1, preferFlats: false });
+  assert.deepEqual(keySignatureCountForTonic(5, false), { count: 1, preferFlats: true });
+  assert.deepEqual(keySignatureCountForTonic(0, true), { count: 3, preferFlats: true });
+  assert.deepEqual(keySignatureCountForTonic(6, false, false), { count: 6, preferFlats: false });
+  assert.deepEqual(keySignatureCountForTonic(6, false, true), { count: 6, preferFlats: true });
+  assert.equal(chordSymbolPreferFlat(6, false), true);
+  assert.deepEqual(
+    applyFlatKeySignatureTie({ count: 6, preferFlats: false }, 6, false, true),
+    { count: 6, preferFlats: true },
+  );
+  assert.equal(MODE_RELATIVE_MAJOR_OFFSET.Dorian, 10);
+  assert.equal(MODE_RELATIVE_MAJOR_OFFSET.Lydian, 7);
+  assert.equal(isMinorSuffix("m7"), true);
+  assert.equal(isMinorSuffix("maj7"), false);
+  assert.equal(scalePrefersMinor("Dorian"), true);
+  assert.equal(scalePrefersMinor("Mixolydian"), false);
 });
 
 test("piano fingering resolves documented scales without synthetic fallbacks", () => {

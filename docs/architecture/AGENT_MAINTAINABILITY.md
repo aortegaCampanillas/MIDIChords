@@ -7,7 +7,7 @@ Estado de la refactorización orientada a reducir contexto, explicitar fronteras
 | Área | Antes | Ahora | Fronteras añadidas |
 |---|---:|---:|---|
 | Flutter `main.dart` | 13.774 líneas | 8.576 líneas | catálogo musical, servicio musical puro, painters, layout del piano y páginas por modo |
-| Web `app.js` | 8.902 líneas | ~7.500 líneas | textos, notación, teoría del círculo e intervalos, digitaciones, ayuda de acordes y configuración de callouts |
+| Web `app.js` | 8.902 líneas | ~7.450 líneas | textos, notación, teoría del círculo e intervalos, digitaciones, armaduras y ayudas |
 | Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
 
 También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.

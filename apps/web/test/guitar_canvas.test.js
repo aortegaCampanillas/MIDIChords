@@ -5,7 +5,7 @@ require("../static/guitar_geometry.js");
 require("../static/guitar_canvas.js");
 
 const { calculateFretboardLayout } = globalThis.MidiChordsGuitarGeometry;
-const { drawFretboardFrame } = globalThis.MidiChordsGuitarCanvas;
+const { drawFretboardFrame, drawFretboardStrings } = globalThis.MidiChordsGuitarCanvas;
 
 function recordingContext() {
   const calls = [];
@@ -62,4 +62,53 @@ test("left-handed frame mirrors fret and label coordinates", () => {
   rightLabels.forEach((call, index) => {
     assert.equal(call[2] + leftLabels[index][2], 1000);
   });
+});
+
+test("strings paint double strokes and restore text alignment", () => {
+  const ctx = recordingContext();
+  const layout = calculateFretboardLayout({
+    width: 1000,
+    height: 240,
+    frets: 3,
+    stringCount: 3,
+    leftHanded: false,
+  });
+
+  drawFretboardStrings(ctx, {
+    layout,
+    width: 1000,
+    stringNames: ["E", "B", "G"],
+    leftHanded: false,
+  });
+
+  assert.equal(ctx.calls.filter((call) => call[0] === "stroke").length, 6);
+  assert.deepEqual(
+    ctx.calls.filter((call) => call[0] === "fillText").map((call) => call[1]),
+    ["E", "B", "G"],
+  );
+  assert.deepEqual(ctx.calls.slice(-2), [
+    ["set", "textAlign", "start"],
+    ["set", "textBaseline", "alphabetic"],
+  ]);
+});
+
+test("left-handed string labels mirror to the opposite board edge", () => {
+  const rightCtx = recordingContext();
+  const leftCtx = recordingContext();
+  const base = { width: 1000, height: 240, frets: 3, stringCount: 1 };
+  const right = calculateFretboardLayout({ ...base, leftHanded: false });
+  const left = calculateFretboardLayout({ ...base, leftHanded: true });
+
+  drawFretboardStrings(rightCtx, {
+    layout: right, width: 1000, stringNames: ["E"], leftHanded: false,
+  });
+  drawFretboardStrings(leftCtx, {
+    layout: left, width: 1000, stringNames: ["E"], leftHanded: true,
+  });
+
+  const rightLabel = rightCtx.calls.find((call) => call[0] === "fillText");
+  const leftLabel = leftCtx.calls.find((call) => call[0] === "fillText");
+  assert.equal(rightLabel[2] + leftLabel[2], 1000);
+  assert.equal(rightCtx.textAlign, "start");
+  assert.equal(leftCtx.textAlign, "start");
 });

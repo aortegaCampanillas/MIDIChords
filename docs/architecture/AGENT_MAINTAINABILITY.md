@@ -36,6 +36,11 @@ Los gestos de desbloqueo de Web Audio usan asimismo el ciclo de vida compartido:
 el callback de la SPA conserva la decisión de crear o reanudar el contexto, y el
 módulo garantiza el alta y desmontaje conjunto de puntero y teclado.
 
+Los listeners de controles generales, MIDI, detección, intervalos, generación y
+escalas han migrado también al registro común. Sus callbacks y estado permanecen
+en `app.js`, pero la propiedad y retirada de eventos ya no se gestiona de forma
+ad hoc en cada control.
+
 La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
 
 Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.

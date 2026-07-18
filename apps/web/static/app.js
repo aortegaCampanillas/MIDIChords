@@ -6494,6 +6494,8 @@ async function toggleMidi() {
 
 function bindEvents() {
   bindAudioUnlockGestures();
+  const listen = (target, type, handler, options) =>
+    uiLifecycle.listen(target, type, handler, options);
 
   const bindImmediatePress = (button, action, options = {}) =>
     bindImmediatePressControl(uiLifecycle, button, action, {
@@ -6503,26 +6505,26 @@ function bindEvents() {
 
   const modeSelect = el("modeSelect");
   if (modeSelect) {
-    modeSelect.addEventListener("change", (e) => setMode(e.target.value));
+    listen(modeSelect, "change", (e) => setMode(e.target.value));
   }
   document.querySelectorAll(".inst-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    listen(btn, "click", () => {
       setInstrument(btn.dataset.inst);
       renderInstrument();
     });
   });
 
-  el("midiToggle").addEventListener("click", toggleMidi);
+  listen(el("midiToggle"), "click", toggleMidi);
   const helpToggle = el("helpToggle");
   if (helpToggle) {
-    helpToggle.addEventListener("click", () => {
+    listen(helpToggle, "click", () => {
       setHelpActive(!state.help.active);
     });
   }
   const genVariantHelp = el("genVariantHelp");
-  if (genVariantHelp) genVariantHelp.addEventListener("click", () => showChordVariantHelpModal("generation"));
+  if (genVariantHelp) listen(genVariantHelp, "click", () => showChordVariantHelpModal("generation"));
   const detectVariantHelp = el("detectVariantHelp");
-  if (detectVariantHelp) detectVariantHelp.addEventListener("click", () => showChordVariantHelpModal("detection"));
+  if (detectVariantHelp) listen(detectVariantHelp, "click", () => showChordVariantHelpModal("detection"));
   const chordVariantHelpCloseBtn = el("chordVariantHelpCloseBtn");
   const chordVariantHelpModal = el("chordVariantHelpModal");
   bindModalControls(uiLifecycle, {
@@ -6532,14 +6534,14 @@ function bindEvents() {
   });
   const midiStartupEnableBtn = el("midiStartupEnableBtn");
   if (midiStartupEnableBtn) {
-    midiStartupEnableBtn.addEventListener("click", async () => {
+    listen(midiStartupEnableBtn, "click", async () => {
       await toggleMidi();
       if (state.midi.enabled) hideMidiStartupModal();
     });
   }
   const midiStartupCloseBtn = el("midiStartupCloseBtn");
   if (midiStartupCloseBtn) {
-    midiStartupCloseBtn.addEventListener("click", () => {
+    listen(midiStartupCloseBtn, "click", () => {
       saveMidiEnabledPref(false);
       hideMidiStartupModal();
     });
@@ -6564,11 +6566,11 @@ function bindEvents() {
     onOpen: showDownloadsModal,
     onClose: hideDownloadsModal,
   });
-  el("guitarHandedness").addEventListener("change", (e) => {
+  listen(el("guitarHandedness"), "change", (e) => {
     state.guitarHandedness = e.target.value;
     if (state.instrument === "guitar") renderInstrument();
   });
-  el("language").addEventListener("change", async (e) => {
+  listen(el("language"), "change", async (e) => {
     state.language = e.target.value;
     await loadMeta();
     applyTranslations();
@@ -6586,7 +6588,7 @@ function bindEvents() {
     renderStaff();
   });
 
-  el("accidental").addEventListener("change", async (e) => {
+  listen(el("accidental"), "change", async (e) => {
     state.accidental = e.target.value;
     await loadMeta();
     renderInstrument();
@@ -6598,7 +6600,7 @@ function bindEvents() {
     renderStaff();
   });
 
-  el("detectClear").addEventListener("click", () => {
+  listen(el("detectClear"), "click", () => {
     stopHeldChord();
     stopAllHeldInputNotes();
     stopAllHeldMidiInputNotes();
@@ -6612,7 +6614,7 @@ function bindEvents() {
     runDetection();
   });
   const soundOutputToggle = el("soundOutputToggle");
-  if (soundOutputToggle) soundOutputToggle.addEventListener("click", async () => {
+  if (soundOutputToggle) listen(soundOutputToggle, "click", async () => {
     state.soundOutput = state.soundOutput === "midi" ? "audio" : "midi";
     if (state.soundOutput === "audio") {
       stopAllHeldMidiOutputNotes();
@@ -6628,14 +6630,14 @@ function bindEvents() {
   });
   const midiStartupSoundAudio = el("midiStartupSoundAudio");
   const midiStartupSoundMidi = el("midiStartupSoundMidi");
-  if (midiStartupSoundAudio) midiStartupSoundAudio.addEventListener("click", () => {
+  if (midiStartupSoundAudio) listen(midiStartupSoundAudio, "click", () => {
     state.soundOutput = "audio";
     stopAllHeldMidiOutputNotes();
     saveSoundOutputPref();
     refreshMidiStartupSoundChoice();
     refreshSoundOutputToggle();
   });
-  if (midiStartupSoundMidi) midiStartupSoundMidi.addEventListener("click", () => {
+  if (midiStartupSoundMidi) listen(midiStartupSoundMidi, "click", () => {
     state.soundOutput = "midi";
     stopAllHeldMidiInputNotes();
     saveSoundOutputPref();
@@ -6657,7 +6659,7 @@ function bindEvents() {
     },
   });
 
-  el("intervalClear").addEventListener("click", () => {
+  listen(el("intervalClear"), "click", () => {
     state.intervalPlayGeneration++;
     if (state.intervalPreviewClearTimer != null) {
       clearTimeout(state.intervalPreviewClearTimer);
@@ -6693,7 +6695,7 @@ function bindEvents() {
 
   const intervalRecuerdaBtn = el("intervalRecuerdaBtn");
   if (intervalRecuerdaBtn) {
-    intervalRecuerdaBtn.addEventListener("click", () => {
+    listen(intervalRecuerdaBtn, "click", () => {
       if (state.intervalNotes.length < 2) return;
       if (!INTERVAL_MELODIES[getIntervalSemitones()]) return;
       state.intervalMelodyActive = !state.intervalMelodyActive;
@@ -6745,22 +6747,22 @@ function bindEvents() {
     },
   });
 
-  el("genRootLetter").addEventListener("change", (e) => {
+  listen(el("genRootLetter"), "change", (e) => {
     populateAccidentalSelect("genRootAccidental", Number(e.target.value));
     state.genRootLetterPc = Number(e.target.value);
     state.genRootAccidental = el("genRootAccidental")?.value || "natural";
     runGenerateChord();
   });
-  el("genRootAccidental").addEventListener("change", (e) => {
+  listen(el("genRootAccidental"), "change", (e) => {
     state.genRootAccidental = e.target.value;
     runGenerateChord();
   });
-  el("genVariant").addEventListener("change", () => {
+  listen(el("genVariant"), "change", () => {
     state.guitarSelectedVariationIdx = 0;
     updateInversionMax();
     runGenerateChord();
   });
-  el("genInversion").addEventListener("change", () => {
+  listen(el("genInversion"), "change", () => {
     runGenerateChord();
   });
   bindImmediatePress(el("genPlay"), () => {
@@ -6805,27 +6807,27 @@ function bindEvents() {
 
   const scaleModeMetronome = el("scaleModeMetronome");
   if (scaleModeMetronome) {
-    scaleModeMetronome.addEventListener("click", () => {
+    listen(scaleModeMetronome, "click", () => {
       state.scaleMetronomeEnabled = !state.scaleMetronomeEnabled;
       renderScaleModeButtons();
       // Metronome mode only changes sound source; playback starts/stops with Play/Stop.
     });
   }
-  el("scaleRootLetter").addEventListener("change", (e) => {
+  listen(el("scaleRootLetter"), "change", (e) => {
     populateAccidentalSelect("scaleRootAccidental", Number(e.target.value));
     state.scaleRootLetterPc = Number(e.target.value);
     state.scaleRootAccidental = el("scaleRootAccidental")?.value || "natural";
     runGenerateScale();
   });
-  el("scaleRootAccidental").addEventListener("change", (e) => {
+  listen(el("scaleRootAccidental"), "change", (e) => {
     state.scaleRootAccidental = e.target.value;
     runGenerateScale();
   });
-  el("scaleType").addEventListener("change", runGenerateScale);
-  el("scaleFilterToggle").addEventListener("click", () => {
+  listen(el("scaleType"), "change", runGenerateScale);
+  listen(el("scaleFilterToggle"), "click", () => {
     setScaleFilterMode(state.scaleFilterMode === "basic" ? "advanced" : "basic");
   });
-  el("scaleBpm").addEventListener("input", (e) => {
+  listen(el("scaleBpm"), "input", (e) => {
     const v = String(e.target.value || "120");
     el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;
     const metroBpm = el("bpm");
@@ -6837,16 +6839,16 @@ function bindEvents() {
   });
 
   document.querySelectorAll(".scale-oct-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setScaleOctaves(Number(btn.dataset.oct)));
+    listen(btn, "click", () => setScaleOctaves(Number(btn.dataset.oct)));
   });
 
   document.querySelectorAll("input[name='scaleFingering']").forEach((inp) => {
-    inp.addEventListener("change", () => {
+    listen(inp, "change", () => {
       if (inp.checked) setScaleFingeringMode(inp.value);
     });
   });
 
-  el("sharedPiano").addEventListener("scroll", updateFingeringStrip);
+  listen(el("sharedPiano"), "scroll", updateFingeringStrip);
 
   const syncMeterDisplay = () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4));

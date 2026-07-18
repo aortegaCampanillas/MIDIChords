@@ -23,6 +23,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (mantenimiento)**: ayuda de acordes, feedback y descargas comparten un contrato probado para abrir, cerrar y descartar modales desde el fondo, con desmontaje automático de todos sus listeners.
 - **Web (mantenimiento)**: Escape, Mayús y la pérdida de foco se gestionan mediante el ciclo de vida probado; se ignoran repeticiones de Mayús y se limpia de forma consistente su estado global y de detección al soltar la tecla o cambiar de ventana.
 - **Web (mantenimiento)**: los gestos globales que desbloquean Web Audio conservan sus reintentos cuando el navegador suspende el contexto, pero sus listeners de puntero y teclado se eliminan ahora durante el desmontaje.
+- **Web (mantenimiento)**: los controles generales, MIDI, detección, intervalos, generación y escalas registran sus eventos mediante el ciclo de vida común, evitando listeners huérfanos tras abandonar o reconstruir la página.
 - **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
 - **Móvil (mantenimiento)**: encapsulada la salida MIDI detrás de un puerto probado, incluyendo selección y caché de timbre, normalización de mensajes, reintento tras fallos y reinicio al desconectar dispositivos.
 - **Escritorio (mantenimiento)**: extraída la construcción de los selectores de tónica y alteración de Escalas a un builder Qt, manteniendo atributos, callbacks y jerarquía bajo el smoke contract.

@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_audio_capture/flutter_audio_capture.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -30,6 +29,7 @@ import 'scale_guitar_marker.dart';
 import 'scale_dropdown.dart';
 import 'scale_staff_interaction.dart';
 import 'staff_beam_geometry.dart';
+import 'tuner_capture_session.dart';
 
 part 'main_painters.dart';
 part 'main_pages.dart';
@@ -439,7 +439,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _metroDirection = 1;
   int _metroTickCount = 0;
   DateTime _metroMotionStartAt = DateTime.fromMillisecondsSinceEpoch(0);
-  FlutterAudioCapture? _audioCapture;
+  late final TunerCaptureSession _tunerCaptureSession =
+      TunerCaptureSession.plugin();
   bool _tunerRunning = false;
   String _tunerNote = '-';
   int _tunerCents = 0;
@@ -1115,7 +1116,7 @@ class _HomeScreenState extends State<HomeScreen>
       t.cancel();
     }
     _forbiddenFlashTimers.clear();
-    _audioCapture?.stop();
+    unawaited(_tunerCaptureSession.dispose());
     _detectionOutputController.dispose();
     _chordOutputController.dispose();
     _scaleOutputController.dispose();
@@ -4648,10 +4649,8 @@ class _HomeScreenState extends State<HomeScreen>
         .map((s) => (s * _tunerInputGain).clamp(-1.0, 1.0))
         .toList(growable: false);
     final effectiveSampleRate =
-        (_audioCapture?.actualSampleRate?.round() ?? _tunerSampleRate).clamp(
-          8000,
-          96000,
-        );
+        (_tunerCaptureSession.actualSampleRate?.round() ?? _tunerSampleRate)
+            .clamp(8000, 96000);
     final spectrum = _computeTunerSpectrum(
       scaled,
       effectiveSampleRate,
@@ -4743,15 +4742,10 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     try {
-      _audioCapture ??= FlutterAudioCapture();
-      final initialized = await _audioCapture!.init();
-      if (initialized != true) {
-        throw Exception('No se pudo inicializar FlutterAudioCapture');
-      }
       _tunerError = '';
       _tunerSmoothedFreq = 0.0;
       _tunerSpectrumBins = List<double>.filled(96, 0.0);
-      await _audioCapture!.start(
+      await _tunerCaptureSession.start(
         _onTunerAudio,
         _onTunerError,
         sampleRate: _tunerSampleRate,
@@ -4777,7 +4771,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _stopTuner() async {
     try {
-      await _audioCapture?.stop();
+      await _tunerCaptureSession.stop();
     } catch (_) {}
     if (!mounted) {
       return;

@@ -23,6 +23,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Resaltado de reproducción web | `apps/web/static/playback_highlight.js` | `apps/web/static/app.js` aporta renderers, modo e instrumento actual | `apps/web/test/playback_highlight.test.js` |
 | Geometría de guitarra web | `apps/web/static/guitar_geometry.js` | `renderGuitar()` adapta cejillas e índices cubiertos al canvas interactivo | `apps/web/test/guitar_geometry.test.js` |
 | Geometría de partitura web | `apps/web/static/staff_geometry.js` y `staff_beam_geometry.js` | `renderStaff()` aporta modo, estilos, regiones interactivas y canvas | `apps/web/test/staff_geometry.test.js` y `staff_beam_geometry.test.js` |
+| Sesión de captura del afinador móvil | `apps/mobile_flutter/lib/tuner_capture_session.dart` | `main.dart` aporta DSP, rangos, afinación y estado visual | `apps/mobile_flutter/test/tuner_capture_session_test.dart` |
 | Ayuda contextual de la web | `apps/web/static/help_callouts.js` | La SPA selecciona los callouts según el modo activo | `apps/web/test/catalogs.test.js` |
 | Acordes de guitarra | `assets/guitar_chord_cache.json`; AutoChords es la referencia externa para los tipos mapeados en `scripts/sync_guitar_chord_reference.py` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` y `tests/test_guitar_chord_reference_sync.py` |
 | Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |

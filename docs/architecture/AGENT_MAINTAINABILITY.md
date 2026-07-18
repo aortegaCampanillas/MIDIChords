@@ -71,6 +71,11 @@ En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de
 
 `midi_output_controller.dart` encapsula los mensajes de salida detrás de un puerto mínimo. Conserva la caché de Program Change fuera del widget, normaliza bytes, reintenta un cambio de timbre fallido y fuerza su reenvío después de desconectar la sesión; las pruebas no necesitan hardware ni el plugin activo.
 
+`tuner_capture_session.dart` establece el puerto de sesión del afinador: posee la
+instancia de `FlutterAudioCapture`, valida inicialización, evita arranques
+duplicados, expone la frecuencia real y garantiza parada tras errores y cierre
+idempotente. El widget conserva análisis DSP, suavizado y presentación.
+
 ## Resultado de esta fase
 
 | Área | Antes | Ahora | Fronteras añadidas |

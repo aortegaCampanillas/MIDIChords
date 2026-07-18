@@ -30,6 +30,7 @@ Historial de versiones publicadas de MIDIChords.
 - **Web (partitura / mantenimiento)**: extraída la adaptación de octavas entre piano y pentagrama, incluida la nota visible más cercana, las voces sostenidas/reproducidas y el emparejado RH/LH de grados de escala, con pruebas sin canvas.
 - **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
 - **Móvil (mantenimiento)**: encapsulada la salida MIDI detrás de un puerto probado, incluyendo selección y caché de timbre, normalización de mensajes, reintento tras fallos y reinicio al desconectar dispositivos.
+- **Móvil (mantenimiento)**: la captura del afinador queda detrás de una sesión y un puerto inyectables; inicialización, callbacks, frecuencia real, arranque único, recuperación tras fallo nativo y cierre idempotente se prueban sin micrófono ni plugin activo.
 - **Escritorio (mantenimiento)**: extraída la construcción de los selectores de tónica y alteración de Escalas a un builder Qt, manteniendo atributos, callbacks y jerarquía bajo el smoke contract.
 
 - **Mantenimiento / agentes**: corregida la arquitectura documentada del escritorio (Qt/PySide6 con compatibilidad de API Tk), añadidas instrucciones locales para Python, web y Flutter, y una matriz de fuentes de verdad y copias multiplataforma.

@@ -11,6 +11,7 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 - `lib/main_pages.dart` es un `part` con una extensión privada que agrupa los constructores de las páginas de cada modo. Comparte deliberadamente el estado de `_HomeScreenState`; mantener aquí composición de widgets y callbacks breves, no añadir reglas musicales ni servicios con ciclo de vida.
 - `lib/main_help.dart` es un `part` con el catálogo contextual, resolución de anclas y geometría del tour de ayuda. Comparte las claves y el estado privado de `_HomeScreenState`; reutilizar `_updateState` en vez de llamar directamente a `setState` desde la extensión.
 - `lib/piano_layout.dart` calcula tamaños y necesidad de scroll del teclado sin widgets ni estado; sus constantes conservan la proporción visual compartida con web.
+- `lib/tuner_capture_session.dart` posee el ciclo de vida de `FlutterAudioCapture` detrás de un puerto inyectable. `main.dart` conserva DSP y estado visual; probar inicialización, errores, reintentos y cierre sin micrófono en `test/tuner_capture_session_test.dart`.
 - Los módulos ya extraídos en `lib/` son preferibles como destino para lógica pura y componentes acotados.
 - La app mantiene implementaciones locales de generación/detección musical para funcionar sin depender de la API web.
 

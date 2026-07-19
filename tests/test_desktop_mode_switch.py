@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import unittest
 
 from midichords.main_app import _configure_qt_application_identity
@@ -109,6 +110,9 @@ class _ApplicationIdentityHarness:
     def setOrganizationDomain(self, value: str) -> None:
         self.values["domain"] = value
 
+    def setDesktopFileName(self, value: str) -> None:
+        self.values["desktop_file_name"] = value
+
 
 class DesktopApplicationIdentityTests(unittest.TestCase):
     def test_qt_identity_uses_product_name(self) -> None:
@@ -120,6 +124,8 @@ class DesktopApplicationIdentityTests(unittest.TestCase):
         self.assertEqual(app.values["display_name"], "MIDIChords")
         self.assertEqual(app.values["organization"], "MIDIChords")
         self.assertEqual(app.values["domain"], "midichords.app")
+        if sys.platform.startswith("linux"):
+            self.assertEqual(app.values["desktop_file_name"], "midichords")
 
 if __name__ == "__main__":
     unittest.main()

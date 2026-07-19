@@ -1785,6 +1785,12 @@ def _configure_qt_application_identity(qt_app: QApplication) -> None:
     qt_app.setApplicationDisplayName("MIDIChords")
     qt_app.setOrganizationName("MIDIChords")
     qt_app.setOrganizationDomain("midichords.app")
+    if sys.platform.startswith("linux"):
+        # Sin esto, Qt deriva un app-id como "app.midichords.MIDIChords" (a partir
+        # del organizationDomain) que no coincide con el .desktop instalado
+        # (midichords.desktop), así que GNOME Shell no encuentra nombre/icono en
+        # el selector de ventanas (Alt+Tab) y muestra el id crudo.
+        qt_app.setDesktopFileName("midichords")
 
 
 def main() -> None:

@@ -1488,6 +1488,7 @@ class RenderMixin:
                 intervals=[int(note - root_midi) for note in base_scale_ordered_for_signature],
                 tonic_pc=self.scale_tonic_pc,
                 with_octave=False,
+                prefer_flats_override=prefer_flat_signature,
             )
             active_scale_notes = (
                 set(self.staff_pressed_scale_notes)

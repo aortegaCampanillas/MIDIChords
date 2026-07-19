@@ -365,7 +365,8 @@ jobs:
 
       - name: Build binary (PyInstaller)
         run: |
-          pyinstaller --noconfirm --clean --onefile --name MIDIChords --add-data "assets:assets" app.py
+          pyinstaller --noconfirm --clean --onefile --name MIDIChords --add-data "assets:assets" \
+            --collect-all mido --collect-all rtmidi app.py
 
       - name: Build .deb package
         env:

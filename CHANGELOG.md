@@ -48,6 +48,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Escritorio (intervalos)**: los controles de reproducción ascendente y descendente reatacan las notas retenidas desde la primera pulsación, sin requerir un segundo intento para oírlas.
+
+- **Escritorio (partitura)**: las notas de un mismo grupo de corcheas o semicorcheas comparten ahora dirección de plica y el grupo se corta al cambiar entre las claves de fa y sol, evitando barras diagonales incorrectas dentro del pentagrama o entre ambos pentagramas.
+
 - **MIDIChords (landing)**: el hero muestra ahora la aplicación real, presenta primero el beneficio de comprender visualmente acordes, intervalos, escalas y armonía, identifica sus públicos principales y prioriza el acceso directo a la app web.
 - **PianoPilot (landing)**: la portada presenta el producto real, limita claramente la compatibilidad al Roland FP-30X y añade una guía visible para USB MIDI, Bluetooth MIDI y controladores; las capturas servidas pasan de más de 13 MB en PNG a unos 167 KB en WebP.
 - **Landings (accesibilidad)**: las galerías se navegan ahora con teclado mediante botones semánticos, los paneles de funciones exponen su estado, los diálogos anuncian apertura y cierre, el foco resulta visible y las animaciones respetan la preferencia de movimiento reducido.

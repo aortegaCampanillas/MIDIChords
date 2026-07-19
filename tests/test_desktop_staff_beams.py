@@ -5,6 +5,21 @@ import pytest
 from midichords.mixins.render_mixin import RenderMixin
 
 
+def test_beam_group_never_crosses_between_bass_and_treble_staffs() -> None:
+    assert RenderMixin._notes_share_staff(59, 60) is False
+    assert RenderMixin._notes_share_staff(48, 59) is True
+    assert RenderMixin._notes_share_staff(60, 72) is True
+
+
+def test_beamed_notes_on_opposite_sides_share_one_stem_direction() -> None:
+    assert RenderMixin._beam_group_stem_up([30.0, 90.0], 50.0) is True
+    assert RenderMixin._beam_group_stem_up([20.0, 60.0], 50.0) is False
+
+
+def test_empty_beam_group_defaults_to_upward_stems() -> None:
+    assert RenderMixin._beam_group_stem_up([], 50.0) is True
+
+
 def test_secondary_beam_stub_follows_rising_primary_beam() -> None:
     end_x, end_y = RenderMixin._parallel_beam_endpoint(
         100.0, 50.0, 70.0, 40.0, 60.0, 100.0, 48.0

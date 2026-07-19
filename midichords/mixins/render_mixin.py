@@ -12,6 +12,18 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 class RenderMixin:
     @staticmethod
+    def _notes_share_staff(first_note: int, second_note: int) -> bool:
+        """Return whether both notes belong to the same grand-staff clef."""
+        return (int(first_note) >= 60) == (int(second_note) >= 60)
+
+    @staticmethod
+    def _beam_group_stem_up(note_ys: list[float], staff_middle_y: float) -> bool:
+        """Choose one stem direction for every note in a beamed group."""
+        if not note_ys:
+            return True
+        return (sum(note_ys) / len(note_ys)) >= staff_middle_y
+
+    @staticmethod
     def _parallel_beam_endpoint(
         start_x: float,
         start_y: float,
@@ -1683,7 +1695,13 @@ class RenderMixin:
                         _is_sq = _bdb in ("e", "et", "s") and _mel_raw[_bni] is not None
                         _beat = _tp // _Q_t
                         if _is_sq:
-                            if _bg_cur and _beat != _bg_beat0:
+                            _crosses_staff = bool(
+                                _bg_cur
+                                and not self._notes_share_staff(
+                                    int(_mel_raw[_bg_cur[-1]]), int(_mel_raw[_bni])
+                                )
+                            )
+                            if _bg_cur and (_beat != _bg_beat0 or _crosses_staff):
                                 if len(_bg_cur) > 1:
                                     _gid = len(_beam_groups_mel)
                                     for _g in _bg_cur:
@@ -1791,6 +1809,41 @@ class RenderMixin:
             bass_bottom_line_diatonic = 2 * 7 + 4    # G2
             bass_top_line_diatonic = bass_bottom_line_diatonic + 8      # A3
             staff_step = line_space / 2.0
+            _beam_stem_direction: dict[int, bool] = {}
+            if _imel:
+                for _bgrp in _beam_groups_mel:
+                    _group_ys: list[float] = []
+                    _first_note = next(
+                        (_mel_raw[_bmi] for _bmi in _bgrp if _mel_raw[_bmi] is not None),
+                        None,
+                    )
+                    if _first_note is None:
+                        continue
+                    _group_staff_middle = (
+                        treble_top + 2 * line_space
+                        if int(_first_note) >= 60
+                        else bass_top + 2 * line_space
+                    )
+                    for _bmi in _bgrp:
+                        _group_note = _mel_raw[_bmi]
+                        if _group_note is None:
+                            continue
+                        _group_note = int(_group_note)
+                        _group_diatonic = self._diatonic_index(
+                            _group_note, prefer_flat_signature
+                        )
+                        if _group_note >= 60:
+                            _group_steps = _group_diatonic - treble_bottom_line_diatonic
+                            _group_y = treble_top + 4 * line_space - _group_steps * staff_step
+                        else:
+                            _group_steps = _group_diatonic - bass_bottom_line_diatonic
+                            _group_y = bass_top + 4 * line_space - _group_steps * staff_step
+                        _group_ys.append(_group_y)
+                    _group_stem_up = self._beam_group_stem_up(
+                        _group_ys, _group_staff_middle
+                    )
+                    for _bmi in _bgrp:
+                        _beam_stem_direction[_bmi] = _group_stem_up
             for note_idx, note in enumerate(ordered):
                 degree_idx = int(note_idx)
                 scale_is_bass = False
@@ -1987,7 +2040,7 @@ class RenderMixin:
                     _flag_count = 1 if _dur_base in ("e", "et") else (2 if _dur_base == "s" else 0)
                     _has_stem = _dur_base != "w"
                     _stem_mid = treble_top + 2 * line_space if note >= 60 else bass_top + 2 * line_space
-                    _stem_up = y > _stem_mid
+                    _stem_up = _beam_stem_direction.get(_mi, y > _stem_mid)
                     _stem_len = 3.5 * line_space
                     _stem_col = note_outline if note_outline else "#d7dde7"
                     if _has_stem:

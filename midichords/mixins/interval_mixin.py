@@ -125,6 +125,7 @@ class IntervalMixin:
             if not melody:
                 return
             notes = self.get_interval_melody_notes()
+            self._prepare_interval_playback(notes)
             self.interval_melody_playing = True
             self._play_melody_sequence(notes, melody)
         else:
@@ -133,8 +134,21 @@ class IntervalMixin:
             if reversed_:
                 notes_to_play = list(reversed(notes_to_play))
             dummy_melody = {"durations": ["q", "q"]}
+            self._prepare_interval_playback(notes_to_play)
             self.interval_melody_playing = True
             self._play_melody_sequence(notes_to_play, dummy_melody)
+
+    def _prepare_interval_playback(self, notes: list[int | None]) -> None:
+        """Release retained detection voices so transport playback can re-attack."""
+        if self.interval_melody_playback_timer:
+            self.after_cancel(self.interval_melody_playback_timer)
+            self.interval_melody_playback_timer = None
+        notes_to_retrigger = {int(note) for note in notes if note is not None}
+        for note in notes_to_retrigger & set(self.sounding_notes):
+            self.stop_note(note)
+        self.sounding_notes -= notes_to_retrigger
+        self.interval_playing_note = None
+        self.interval_playing_idx = None
 
     def _play_melody_sequence(self, notes: list[int | None], melody_info: dict, index: int = 0):
         """Play a sequence of notes with timing from melody info."""

@@ -158,6 +158,7 @@ class Combobox(QComboBox, _LayoutCompat):
     ) -> None:
         font_spec = _kwargs.pop("font", None)
         postcommand = _kwargs.pop("postcommand", None)
+        visible_rows = max(1, int(_kwargs.pop("height", 8)))
         super().__init__(master)
         self._popup_bg: str = "#3a4452"
         self._postcommand: Callable[[], None] | None = (
@@ -170,7 +171,7 @@ class Combobox(QComboBox, _LayoutCompat):
         popup_view.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         popup_view.viewport().setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setView(popup_view)
-        self.setMaxVisibleItems(8)
+        self.setMaxVisibleItems(visible_rows)
         if font_spec is not None:
             self.setFont(_font_from_tk_tuple(font_spec))
         self._textvariable = textvariable

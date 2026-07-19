@@ -4,13 +4,13 @@ Sitio web del proyecto: [freemidichords.com](https://freemidichords.com)
 
 Repositorio reorganizado para albergar varias versiones de la app con librerías compartidas. **Documentación**: [AGENTS.md](AGENTS.md) (para agentes IA), [PROJECT_SPEC.md](PROJECT_SPEC.md) (especificación para regenerar el proyecto).
 
-- `apps/desktop`: aplicación de escritorio (Tkinter, Python)
+- `apps/desktop`: aplicación de escritorio (Qt/PySide6, Python; con compatibilidad de API Tk en `midichords/qt/`)
 - `apps/web`: aplicación web (Cloudflare Worker + frontend JS)
 - `apps/mobile_flutter`: aplicación tablet (Flutter para iOS/Android)
-- `midichords`: librería Python común (teoría musical, audio y lógica compartida)
+- `midichords`: implementación Python de teoría musical, audio y escritorio; web y Flutter mantienen implementaciones equivalentes donde no pueden reutilizar Python
 - `assets`: recursos gráficos y muestras de audio compartidas
 
-Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDIChords/CHANGELOG.md)
+Historial de versiones publicadas: [CHANGELOG.md](CHANGELOG.md)
 
 ## Descargas
 
@@ -18,7 +18,7 @@ Historial de versiones publicadas: [CHANGELOG.md](/Users/aortega/desarrollo/MIDI
 - **macOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)
 - **Windows (Microsoft Store)**: [Free MIDI Piano&Guitar Chords](https://apps.microsoft.com/detail/9PF268X1JF66?hl=neutral&gl=ES&ocid=pdpshare)
 
-> **Versión actual: 1.0.4.** iOS y macOS comparten el mismo listing en App Store Connect
+> **Versión actual: 1.0.5.** iOS y macOS comparten el mismo listing en App Store Connect
 > (`id6760035776`), así que Apple exige `CFBundleShortVersionString` estrictamente creciente
 > en ambas plataformas aunque se publiquen por separado — no puedes resubir una versión ya
 > aprobada en la otra plataforma. Windows toma la versión directamente del tag de git
@@ -63,6 +63,8 @@ pip install -r requirements.txt
 npm i -g wrangler
 ```
 
+Para desarrollo y tests Python, instalar `requirements-dev.txt` en lugar de `requirements.txt`.
+
 **Windows:** si tienes varias versiones instaladas, crea el venv con 3.12 o 3.13 explícitamente, por ejemplo:
 
 ```powershell
@@ -104,6 +106,19 @@ Abrir: `https://127.0.0.1:8443`
 
 Nota: `launch.py web` usa el mismo Worker de Cloudflare que producción (`wrangler dev`), para evitar diferencias entre local y Cloudflare.
 
+## Verificación
+
+Desde la raíz del repositorio:
+
+```bash
+python scripts/check.py python
+python scripts/check.py web
+python scripts/check.py mobile
+python scripts/check.py all
+```
+
+Cada perfil comprueba únicamente su plataforma; `all` requiere tener disponibles Python, Node.js y Flutter. Estos mismos perfiles se ejecutan en CI.
+
 **Despliegue a producción (Cloudflare Pages):** solo se lanza al hacer **push de una etiqueta** `v*` (p. ej. `v1.0.1`), no con un push a `main`. Para dispararlo a mano: Actions → "Deploy Cloudflare (Production)" → Run workflow, o desde CLI con un tag existente:
 
 ```bash
@@ -129,10 +144,8 @@ Para ejecutar en emulador Android:
 # 1) Listar emuladores disponibles
 flutter emulators
 
-# 2) Arrancar Medium_Tablet con el SDK que contiene su system image
-ANDROID_SDK_ROOT=/Users/aortega/.buildozer/android/platform/android-sdk \
-ANDROID_HOME=/Users/aortega/.buildozer/android/platform/android-sdk \
-/Users/aortega/.buildozer/android/platform/android-sdk/emulator/emulator -avd Medium_Tablet
+# 2) Arrancar el AVD configurado en el SDK local
+flutter emulators --launch Medium_Tablet
 
 # 3) Confirmar device id activo (ej: emulator-5554)
 flutter devices
@@ -141,10 +154,8 @@ flutter devices
 python launch.py mobile -d emulator-5554
 ```
 
-Nota: en esta máquina `Medium_Tablet` usa la imagen en
-`/Users/aortega/.buildozer/android/platform/android-sdk/system-images/...`.
-Si se intenta arrancar con `/Users/aortega/Library/Android/sdk`, puede fallar
-con error de `Broken AVD system path`.
+Si aparece `Broken AVD system path`, comprobar que `ANDROID_SDK_ROOT` apunta al
+SDK que contiene la imagen usada al crear el AVD.
 
 Si ya tienes un único dispositivo Android activo, también funciona:
 
@@ -235,7 +246,7 @@ Requisitos previos:
 - Provisioning profile de macOS App Store para tu `Bundle ID`
 - Python adecuado para empaquetar (el script de MAS aún comprueba `tkinter`/Tcl por compatibilidad con el entorno de build; la **UI de la app es Qt/PySide6**). Evita Homebrew `python@3.14` + `Tk 9.0` si el chequeo del script falla.
 
-**Atajo:** con credenciales en `signing/local/mas.env` (plantilla `scripts/mas-env.example`):
+**Atajo:** con credenciales en `signing/local/mas.env` (plantilla `packaging/macos/mas-env.example`):
 
 ```bash
 ./scripts/build_mas_store.sh
@@ -262,8 +273,8 @@ Salida esperada:
 
 Notas:
 
-- Entitlements base en `scripts/entitlements.mas.plist`.
-- El script genera un archivo temporal: `scripts/entitlements.mas.generated.plist`.
+- Entitlements base en `packaging/macos/entitlements.mas.plist`.
+- El script genera un archivo temporal: `packaging/macos/entitlements.mas.generated.plist`.
 - Si no necesitas red o acceso a archivos seleccionados por usuario, omite `--allow-network` y/o `--allow-file-access`.
 - El script también configura automáticamente claves requeridas por App Store:
   - `LSApplicationCategoryType` (por defecto: `public.app-category.music`)
@@ -312,10 +323,10 @@ Flujo recomendado para este proyecto:
 5. Pulsa **Deliver**.
 6. Espera a que Transporter muestre la entrega como enviada; luego revisa App Store Connect hasta que la build aparezca en procesamiento o lista en TestFlight.
 
-Ruta local típica del archivo:
+Ruta típica desde la raíz del repositorio:
 
 ```text
-/Users/aortega/desarrollo/MIDIChords/MIDIChords-macos-appstore.pkg
+MIDIChords-macos-appstore.pkg
 ```
 
 Notas:

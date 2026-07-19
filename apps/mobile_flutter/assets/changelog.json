@@ -5,21 +5,21 @@
     "items": [
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Piano: Generación, Círculo y Escalas solo se centran en su primera apertura; después cada modo recupera su último desplazamiento, también al alternar con la guitarra.",
         "en": "Piano: Generation, Circle, and Scales center only on their first opening; afterwards each mode restores its last scroll position, including after switching to guitar."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Generación: al tocar una nota del acorde en el pentagrama, su posición vuelve a resaltarse temporalmente en el diapasón de guitarra.",
         "en": "Generation: tapping a chord note on the staff now temporarily highlights its position on the guitar fretboard again."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Generación: al entrar en el modo o volver desde la guitarra, el piano se recentra en el Do de la mano derecha en lugar de conservar el desplazamiento anterior.",
         "en": "Generation: entering the mode or returning from guitar now recenters the piano on the right-hand C instead of keeping the previous scroll position."
@@ -33,42 +33,42 @@
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Escalas: el diapasón adopta la misma jerarquía visual que las otras versiones: nota activa azul, tónica inicial naranja, demás tónicas amarillas y el resto de grados blancos.",
         "en": "Scales: the fretboard now uses the same visual hierarchy as the other versions: blue active note, orange starting tonic, yellow remaining tonics, and white scale degrees."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Escalas: las notas del pentagrama vuelven a responder al toque, reproducen su sonido y reflejan temporalmente la selección en el piano o la guitarra.",
         "en": "Scales: staff notes respond to taps again, play their sound, and temporarily reflect the selection on the piano or guitar."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["desktop"],
         "es": "Escalas: al pulsar por segunda vez una nota retenida, el nuevo ataque vuelve a resaltarse correctamente en el piano además de sonar.",
         "en": "Scales: pressing a latched note a second time now highlights the new attack on the piano as well as playing it."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["desktop"],
         "es": "Escalas: al volver a pulsar una nota retenida en audio, la misma tecla produce ahora un nuevo ataque en lugar de activar únicamente el resaltado.",
         "en": "Scales: pressing an audio-latched note again now produces a new attack instead of only restoring its highlight."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Escalas: al soltar una nota pulsada manualmente deja de mantenerse como selección actual en el instrumento, el pentagrama y la armadura; la liberación MIDI también funciona aunque la nota mostrada esté trasladada de octava.",
         "en": "Scales: releasing a manually pressed note now clears its current selection from the instrument, staff, and key signature; MIDI release also works when the displayed note is shifted by an octave."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["desktop"],
         "es": "Escalas: al soltar una tecla deja de resaltarse inmediatamente en el piano, el pentagrama y la armadura; la retención de audio ya no mantiene activo el resaltado visual, salvo al usar el pedal de sustain.",
         "en": "Scales: releasing a key now immediately clears its highlight from the piano, staff, and key signature; audio latching no longer keeps the visual state active, except while using the sustain pedal."
@@ -82,7 +82,7 @@
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["desktop"],
         "es": "Ayuda de acordes: la ventana ajusta su altura al contenido, elimina el espacio vacío inferior, recupera los márgenes y coloca Cerrar debajo del texto, en la esquina inferior derecha.",
         "en": "Chord help: the window now fits its height to the content, removes the empty area below, restores its margins, and places Close beneath the text in the bottom-right corner."
@@ -98,19 +98,12 @@
         "date": "2026-07-18",
         "publish": true,
         "platforms": ["desktop", "web", "mobile"],
-        "es": "Generación de acordes: nuevo botón de ayuda junto a Reproducir con la fórmula, una explicación teórica y la descripción de la posición fundamental o inversión seleccionada para cada variante. El selector agrupa las 52 variantes por familias (Tríadas, Séptimas, Sextas, Add, Dominantes alterados y Extensiones) sin eliminar ninguna.",
-        "en": "Chord generation: new help button next to Play with the formula, a theory explanation and a description of the selected root position or inversion for every variant. The selector groups all 52 variants into families (Triads, Sevenths, Sixths, Add, Altered dominants and Extensions) without removing any."
-      },
-      {
-        "date": "2026-07-18",
-        "publish": true,
-        "platforms": ["desktop", "web", "mobile"],
         "es": "Nuevas variantes de acorde: \"add2\" (2ª añadida, p. ej. Do-Re-Mi-Sol) y \"add4\" (4ª añadida, p. ej. Do-Mi-Fa-Sol), disponibles en Generación de acordes.",
         "en": "New chord variants: \"add2\" (added 2nd, e.g. C-D-E-G) and \"add4\" (added 4th, e.g. C-E-F-G), available in Chord Generation."
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["desktop", "web", "mobile"],
         "es": "Detección de acordes: cuando varios acordes comparten exactamente las mismas notas (p. ej. Do sus2 y Sol sus4 son el mismo conjunto de notas), ahora se elige el que coincide con la nota más grave realmente tocada como raíz, en vez de una prioridad fija de sufijos.",
         "en": "Chord detection: when multiple chords share the exact same notes (e.g. C sus2 and G sus4 are the same note set), the one matching the actual lowest note played as root is now chosen, instead of a fixed suffix priority."
@@ -131,7 +124,7 @@
       },
       {
         "date": "2026-07-18",
-        "publish": true,
+        "publish": false,
         "platforms": ["web"],
         "es": "Escalas/Generación de acordes: se corrige que las alteraciones (#/♭) no se dibujaban junto a las notas en el pentagrama.",
         "en": "Scales/Chord generation: fixed accidentals (#/♭) not being drawn next to notes on the staff."

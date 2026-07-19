@@ -4,6 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:midichords/key_signature_highlight.dart';
 
 void main() {
+  test('maps generated chord notes to sharp and flat key signatures', () {
+    expect(
+      keySignatureIndexForMidi(midi: 66, signatureCount: 3, preferFlats: false),
+      0,
+    );
+    expect(
+      keySignatureIndexForMidi(midi: 68, signatureCount: 3, preferFlats: false),
+      2,
+    );
+    expect(
+      keySignatureIndexForMidi(midi: 70, signatureCount: 3, preferFlats: true),
+      0,
+    );
+    expect(
+      keySignatureIndexForMidi(midi: 66, signatureCount: 2, preferFlats: true),
+      -1,
+    );
+  });
+
   test('maps all seven sharp signature positions', () {
     final cases = <(String, int)>[
       ('Fa#', 66),

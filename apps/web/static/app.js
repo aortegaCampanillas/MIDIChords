@@ -57,7 +57,6 @@ const state = {
   },
   scaleCurrentClearTimer: null,
   generationCurrentClearTimer: null,
-  generationPlayClearTimer: null,
   intervalPreviewClearTimer: null,
   metronomeRunning: false,
   metronomeTimer: null,
@@ -143,526 +142,91 @@ const state = {
   midiScreenWakeLockTimer: null,
   midiScreenWakeLockWanted: false,
   heldMidiInputVoices: new Map(),
-  audioSampleCache: {},
-  audioSampleLoadPromise: null,
+  heldMidiChordNotes: new Set(),
 };
+
+const {
+  createUiLifecycle,
+  bindGlobalUiEvents,
+  bindImmediatePress: bindImmediatePressControl,
+  bindModalControls,
+  bindKeyboardUiEvents,
+  bindAudioUnlockEvents,
+} = globalThis.MidiChordsUiLifecycle;
+const {
+  findBarreSegments,
+  calculateFretboardLayout,
+  fretCenterX: guitarFretCenterX,
+  scaleClientPoint,
+  findCircularHitRegion,
+} = globalThis.MidiChordsGuitarGeometry;
+const { drawFretboardFrame, drawFretboardStrings } = globalThis.MidiChordsGuitarCanvas;
+const uiLifecycle = createUiLifecycle(window);
+const { commonStemUp, beamSegments } = globalThis.MidiChordsStaffBeamGeometry;
+const {
+  midiToDiatonicIndex,
+  midiToTrebleY,
+  midiToBassY,
+  ledgerLineYs,
+  closestPitchClassMidi,
+  mapPianoInputToStaffMidi,
+  expandPianoPlayingNotesForStaff,
+  mapPianoHeldNotesToStaff,
+  buildScaleStaffEntries,
+} = globalThis.MidiChordsStaffGeometry;
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
 
-const UI_TEXTS = {
-  es: {
-    mode_detection: "Detección de Acordes",
-    mode_interval_detection: "Detección de Intervalos",
-    mode_generation: "Generación de Acordes",
-    mode_circle_fifths: "Círculo de quintas",
-    mode_scales: "Escalas",
-    mode_metronome: "Metrónomo",
-    mode_tuner: "Afinador",
-    staff: "Pentagrama",
-    heading_detection: "Detección",
-    heading_interval_detection: "Intervalos",
-    heading_generation: "Generación de Acordes",
-    heading_circle_fifths: "Círculo de quintas",
-    heading_scales: "Escalas",
-    heading_metronome: "Metrónomo",
-    heading_tuner: "Afinador",
-    heading_metronome_settings: "Configuración de Metrónomo",
-    heading_tuner_settings: "Configuración de Afinador",
-    hint_detection: "Pulsa notas en piano/guitarra para detectar acordes o usa un dispositivo MIDI.",
-    hint_interval_detection: "Pulsa dos notas (ratón, teclado o MIDI) para detectar el intervalo.",
-    interval_play_reverse: "Reproducir descendente",
-    label_interval_notes: "Notas:",
-    label_interval_name: "Intervalo:",
-    label_interval_semitones: "Semitonos:",
-    help_staff_interval: "Pentagrama de intervalos: muestra las dos últimas notas pulsadas.",
-    help_interval_panel: "Panel de intervalos: controles y resultado del intervalo actual.",
-    help_interval_play: "Reproduce las dos notas del intervalo de forma melódica.",
-    help_interval_clear: "Limpia las notas activas para comenzar de nuevo.",
-    help_interval_field_notes: "Notas: las dos últimas notas pulsadas.",
-    help_interval_field_name: "Nombre del intervalo detectado.",
-    help_interval_field_semitones: "Número de semitonos entre las dos notas.",
-    help_interval_field_recuerda: "Canción mnemotécnica: pulsa el nombre para activar la melodía de referencia en el pentagrama y reproducirla.",
-    help_instrument_surface_interval: "Teclado interactivo: pulsa notas para detectar intervalos (también vía MIDI). Cada pulsación añade la nota al par; la más antigua se descarta automáticamente.",
-    label_interval_recuerda: "Ejemplo:",
-    help_interval_play_reverse: "Reproduce el intervalo de forma descendente (nota alta → nota baja).",
-    clear: "Limpiar",
-    label_chord: "Acorde:",
-    label_notes: "Notas:",
-    label_extras: "Sobrantes:",
-    label_intervals: "Intervalos:",
-    label_tonic: "Tónica",
-    label_variant: "Variante",
-    chord_group_triads: "Tríadas",
-    chord_group_sevenths: "Séptimas",
-    chord_group_sixths: "Sextas",
-    chord_group_add: "Add (notas añadidas)",
-    chord_group_altered_dominants: "Dominantes alterados",
-    chord_group_extensions: "Extensiones",
-    chord_group_altered_extensions: "Extensiones alteradas",
-    chord_group_other: "Otras variantes",
-    label_inversion: "Inversión",
-    label_type: "Tipo",
-    label_speed: "Velocidad",
-    label_scale: "Escala:",
-    label_note: "Nota:",
-    label_cents: "Desviación:",
-    label_freq: "Frecuencia:",
-    label_bpm: "PPM",
-    label_metronome_tempo: "Tempo",
-    label_metronome_volume: "Volumen",
-    label_beats: "Pulsos",
-    label_subdivision: "Subdivisión",
-    label_bar_accent: "Acento de compás",
-    label_timer_enabled: "Temporizador",
-    label_timer: "Tiempo",
-    play: "Reproducir",
-    stop: "Detener",
-    metronome_mode: "Modo metrónomo",
-    metro_start: "Iniciar metrónomo",
-    metro_stop: "Detener metrónomo",
-    tuner_start: "Iniciar afinador",
-    tuner_stop: "Detener afinador",
-    tuner_no_permission: "Sin permiso",
-    tuner_cents_suffix: "cents",
-    label_tuner_tuning: "Afinación",
-    label_tuner_input: "Entrada",
-    label_tuner_gain: "Ganancia de entrada",
-    label_tuner_spectrum_range: "Rango del espectro",
-    midi_off: "MIDI: Off",
-    midi_on: "MIDI: On",
-    midi_unsupported: "MIDI no soportado",
-    midi_denied: "MIDI denegado",
-    midi_requires_secure: "MIDI requiere HTTPS o localhost",
-    midi_try_chrome: "MIDI: usa Chrome/Edge",
-    midi_ios_warning: "MIDI: descarga la app nativa",
-    midi_help_ready: "MIDI Web listo. Pulsa para activar/desactivar entradas MIDI.",
-    midi_help_denied: "Permiso MIDI denegado. Revisa permisos del navegador y vuelve a intentar.",
-    sound_output_audio: "Audio",
-    sound_output_midi: "MIDI out",
-    sound_output_label: "Salida de sonido:",
-    sound_output_warning: "En modo MIDI, el sonido lo produce tu dispositivo MIDI. Si el dispositivo no reproduce los eventos MIDI, no se escuchará nada.",
-    midi_startup_title: "Activar entrada MIDI",
-    midi_startup_text: "Para usar un teclado/controlador MIDI en detección, activa la entrada MIDI.",
-    midi_startup_enable: "Activar MIDI",
-    midi_startup_close: "Ahora no",
-    close: "Cerrar",
-    chord_variant_help_button: "Ayuda de la variante",
-    chord_variant_help_title: "Teoría: {variant}",
-    chord_variant_help_formula: "Fórmula: {formula}",
-    midi_startup_safari_warning: "En Safari no es posible usar MIDI en esta web. Usa Chrome o Edge.",
-    midi_startup_ios_warning: "MIDI no está disponible en iOS/iPadOS. Descarga la app nativa para usar MIDI en tu dispositivo.",
-    midi_startup_ios_link: "Descargar en el App Store",
-    guitar_right: "Diestro",
-    guitar_left: "Zurdo",
-    inst_piano: "Piano",
-    inst_guitar: "Guitarra",
-    inversion_root: "Posición fundamental",
-    inversion_suffix: "ª inversión",
-    tempo_unit: "PPM",
-    inversion_word: "inversión",
-    donation_title: "Apoya MIDI Piano & Guitar Chords",
-    donation_text: "Este proyecto está pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y tiempo de soporte para seguir mejorándolo.",
-    donation_button: "Donar",
-    feedback_panel_title: "Comentarios",
-    feedback_panel_text: "Puedes enviarnos comentarios sobre la página y sugerencias de mejora para seguir evolucionando la herramienta.",
-    feedback_open: "Enviar comentarios",
-    changelog_title: "Novedades",
-    changelog_loading: "Cargando...",
-    changelog_error: "No disponible",
-    feedback_modal_title: "Enviar comentarios",
-    feedback_help: "Envíanos sugerencias o errores que hayas detectado.",
-    feedback_name: "Nombre",
-    feedback_email: "Email",
-    feedback_message: "Comentario",
-    downloads_panel_title: "Descargas",
-    downloads_panel_text: "Descarga la app para PC y móvil, o abre las tiendas oficiales.",
-    downloads_open: "Ver descargas",
-    downloads_modal_title: "Descargas",
-    downloads_modal_intro: "Elige tu plataforma para descargar la app.",
-    downloads_pc_title: "PC/Mac",
-    downloads_mobile_title: "Móvil",
-    downloads_windows_store: "Windows (Microsoft Store)",
-    downloads_macos_dmg: "macOS (App Store)",
-    downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
-    downloads_ios_appstore: "iOS (App Store)",
-    downloads_android_googleplay: "Android (Google Play)",
-    feedback_send: "Enviar comentario",
-    feedback_sending: "Enviando...",
-    feedback_ok: "Gracias. Comentario enviado.",
-    feedback_error: "No se pudo enviar. Inténtalo de nuevo.",
-    help_button: "Ayuda",
-    help_close_hint: "Pulsa Ayuda de nuevo para cerrar",
-    help_mode_select: "Aquí cambias entre detección, generación, escalas y utilidades.",
-    help_language: "Selecciona el idioma de la interfaz.",
-    help_accidental: "Elige si prefieres nombres de notas con sostenidos (#) o bemoles (♭).",
-    help_midi_toggle: "Activa o desactiva la entrada de un teclado/controlador MIDI.",
-    help_sound_output: "Selecciona si el sonido lo genera la aplicación (Audio) o tu dispositivo MIDI (MIDI out). En modo MIDI out, los botones ▶ envían notas al dispositivo.",
-    help_inst_piano_btn: "Cambia el instrumento visual e interactivo a teclado.",
-    help_inst_guitar_btn: "Cambia el instrumento visual e interactivo a guitarra.",
-    help_guitar_handedness: "Ajusta la orientación de la guitarra (diestro/zurdo).",
-    help_staff_detection: "Pentagrama de detección: muestra las notas activas y el acorde detectado.",
-    help_staff_generation: "Pentagrama de generación: muestra el acorde generado y resalta la nota que pulses.",
-    help_staff_scales: "Pentagrama de escalas: muestra las notas y la nota actual. Al tocar en teclado/guitarra se refleja aquí, y al pulsar notas del pentagrama también se reproducen.",
-    help_staff_metronome: "Vista del metrónomo: muestra el pulso y el estado de reproducción.",
-    help_detection_panel: "Panel de detección: controles y resultado del acorde actual.",
-    help_detect_play: "Reproduce las notas activas del acorde detectado.",
-    help_detect_variant_theory: "Abre la explicación teórica de la variante detectada.",
-    help_detect_clear: "Limpia todas las notas activas para comenzar de nuevo.",
-    help_detect_result: "Resultado de la detección: nombre, notas, sobrantes e intervalos.",
-    help_instrument_surface_detection: "Teclado/guitarra interactivos: pulsa para detectar acordes (también vía MIDI). Puedes mantener notas con Shift; lo que toques se refleja en el pentagrama y viceversa.",
-    help_field_chord: "Acorde: nombre detectado con la mejor coincidencia.",
-    help_field_notes: "Notas: notas que forman el acorde detectado.",
-    help_field_extras: "Sobrantes: notas activas que no encajan en el acorde.",
-    help_field_intervals: "Intervalos: distancias entre notas respecto a la tónica.",
-    help_generation_panel: "Panel de generación: elige tónica, variante e inversión para construir acordes.",
-    help_instrument_surface_generation: "Teclado/guitarra del acorde generado: al pulsar una nota se resalta en el pentagrama, y al pulsar una nota del pentagrama se marca en el instrumento con su octava. En piano se muestran mano derecha (arriba) y mano izquierda (una octava abajo); los números en teclas son digitaciones sugeridas de dedos.",
-    help_gen_root: "Tónica del acorde a generar.",
-    help_gen_variant: "Tipo o color del acorde (mayor, menor, 7, etc.).",
-    help_gen_inversion: "Reordena las notas del acorde sin cambiar su calidad.",
-    help_gen_play: "Reproduce el acorde generado.",
-    help_gen_variant_theory: "Abre la explicación teórica de la variante seleccionada.",
-    help_gen_result_chord: "Nombre del acorde generado.",
-    help_gen_result_notes: "Notas que forman el acorde generado.",
-    help_gen_result_intervals: "Intervalos del acorde respecto a su tónica.",
-    circle_hint: "Clic: elige un acorde diatónico, es decir, una triada sobre un grado de esa escala (mayor, menor o disminuida); no cambia la tónica. Mayús+clic: fija la tónica y la tonalidad (mayor en el anillo exterior, menor natural relativa en el interior; misma armadura).",
-    help_circle_staff_footer: "Bajo el pentagrama: ayuda (clic / Mayús) para el círculo. Reproducir: botón ▶ sobre el círculo (arriba a la izquierda).",
-    help_circle_panel: "Círculo de tónicas: elige un acorde diatónico con el ratón; con Mayús, cambia de tonalidad.",
-    help_circle_canvas: "Círculo de tónicas (en quintas): cada sector es una tónica posible. Clic con el ratón para elegir un acorde diatónico de esa tonalidad (triada en un grado de la escala) sin cambiar la tónica. Con Mayús pulsado, clic para fijar la tonalidad (mayor en el anillo exterior, menor relativa en el interior).",
-    help_circle_play: "Reproduce el acorde seleccionado.",
-    help_circle_result_chord: "Nombre del acorde según la tonalidad elegida.",
-    help_guitar_variations_bar: "Barra de variaciones de guitarra: aquí aparecen posiciones alternativas del mismo acorde.",
-    help_guitar_variation_btn: "Cada botón selecciona una digitación/posición distinta del acorde en guitarra.",
-    help_scales_panel: "Panel de escalas: configura tónica, tipo y reproducción.",
-    help_instrument_surface_scales: "Teclado/guitarra de escala: puedes tocar notas de la escala y verlas en el pentagrama; el pentagrama y el instrumento se mantienen sincronizados al tocar en cualquiera de los dos.",
-    help_scale_root: "Tónica de la escala.",
-    help_scale_type: "Tipo de escala (mayor, menor, modos, etc.).",
-    help_scale_play: "Reproduce la escala actual.",
-    help_scale_metronome_mode: "Activa reproducción de escala con pulsos de metrónomo.",
-    help_scale_octaves: "Número de octavas que se reproducen y se marcan en el piano (1, 2 o 3).",
-    scale_filter_basic: "Básicas",
-    scale_filter_advanced: "Todas",
-    help_scale_filter: "Alterna entre el conjunto de escalas más habituales (Básicas) y la lista completa (Todas).",
-    help_scale_fingering: "Digitación documentada para tocar la escala en piano: elige mano derecha o mano izquierda para ver los números de dedo cuando hay una referencia disponible. Los recuadros naranjas indican el dedo sugerido; los rojos marcan un paso de dedo (cruce del pulgar o del dedo 3).",
-    scale_fingering_label: "Digitación",
-    scale_fingering_none: "No",
-    scale_fingering_left: "Mano izquierda",
-    scale_fingering_right: "Mano derecha",
-    help_scale_bpm: "Velocidad de reproducción de la escala.",
-    help_scale_result_name: "Nombre completo de la escala seleccionada.",
-    help_scale_result_notes: "Notas de la escala.",
-    help_scale_result_intervals: "Intervalos de la escala respecto a la tónica.",
-    help_metronome_panel: "Panel de metrónomo: tempo, compás, subdivisión y temporizador.",
-    help_instrument_surface_metronome: "Piano del metrónomo: muestra las notas que entran por MIDI (si están habilitadas) y permite ver qué tocas mientras el metrónomo corre.",
-    help_metro_start: "Inicia o detiene el metrónomo.",
-    help_metro_volume: "Volumen del clic del metrónomo.",
-    help_metro_bpm: "Tempo en pulsos por minuto.",
-    help_metro_bpm_minus: "Disminuye el tempo (BPM) en 1.",
-    help_metro_bpm_plus: "Aumenta el tempo (BPM) en 1.",
-    help_metro_meter: "Número de pulsos por compás.",
-    help_metro_meter_minus: "Disminuye los pulsos por compás en 1.",
-    help_metro_meter_plus: "Aumenta los pulsos por compás en 1.",
-    help_metro_subdivision: "Subdivide cada pulso en 1, 2, 3, 4 o 6 clics.",
-    help_metro_bar_accent: "Activa acento en el primer pulso de cada compás.",
-    help_metro_timer: "Activa un temporizador de parada automática.",
-    help_metro_timer_values: "Duración del temporizador (minutos y segundos).",
-    help_metro_yellow_points: "Puntos amarillos: representan los pulsos del compás actual.",
-    help_metro_scale_axis: "Escala/eje del metrónomo: marca el recorrido y la subdivisión del pulso.",
-    help_metro_red_ball: "Bola roja: indica la posición instantánea del pulso en movimiento.",
-    detection_staff_shift_hint: "Mantén Shift pulsado para sostener notas",
-    scale_staff_guitar_shift_hint: "Mantén Shift y pulsa una tónica para cambiar el inicio de la escala",
-    staff_no_active_notes: "Sin notas activas",
+const { UI_TEXTS } = globalThis.MidiChordsUiTexts;
+
+const {
+  NOTE_LABELS,
+  ROOT_LETTERS,
+  ACCIDENTAL_SYMBOLS,
+  ROOT_LETTER_ACCIDENTALS,
+  SHARP_KEY_SIGNATURES,
+  FLAT_KEY_SIGNATURES,
+  rootPcFromLetterAccidental,
+  noteLabelFromPc,
+} = globalThis.MidiChordsMusicNotation;
+
+const {
+  PIANO_SAMPLE_URLS,
+  GUITAR_SAMPLE_URLS,
+  METRONOME_SAMPLE_URL,
+  allAudioSampleUrls,
+  nearestSampleRoot,
+  samplePlaybackRate,
+  normalizeAudioBuffer,
+} = globalThis.MidiChordsAudioSamples;
+
+const { createAudioSampleLoader } = globalThis.MidiChordsAudioSampleLoader;
+const {
+  instrumentSampleEnvelope,
+  heldVoiceReleaseTiming,
+  releaseAudioVoice,
+} = globalThis.MidiChordsAudioVoice;
+const { autoCorrelate, freqToMidi, midiToFreq } = globalThis.MidiChordsTunerMath;
+const {
+  isChordPlaybackMode,
+  isPlaybackNoteActive,
+  createPlaybackHighlighter,
+} = globalThis.MidiChordsPlaybackHighlight;
+const audioSampleLoader = createAudioSampleLoader({
+  getContext: ensureAudioCtx,
+  sampleUrls: allAudioSampleUrls(),
+  metronomeUrl: METRONOME_SAMPLE_URL,
+  normalizeBuffer: normalizeAudioBuffer,
+});
+const generationPlaybackHighlight = createPlaybackHighlighter({
+  onChange: (notes) => { state.generationPlayingNotes = notes; },
+  render: () => {
+    if (!isChordGenerationLikeMode()) return;
+    renderInstrument();
+    renderStaff();
   },
-  en: {
-    mode_detection: "Chord Detection",
-    mode_interval_detection: "Interval Detection",
-    mode_generation: "Chord Generation",
-    mode_circle_fifths: "Circle of Fifths",
-    mode_scales: "Scales",
-    mode_metronome: "Metronome",
-    mode_tuner: "Tuner",
-    staff: "Staff",
-    heading_detection: "Detection",
-    heading_interval_detection: "Intervals",
-    heading_generation: "Chord Generation",
-    heading_circle_fifths: "Circle of Fifths",
-    heading_scales: "Scales",
-    heading_metronome: "Metronome",
-    heading_tuner: "Tuner",
-    heading_metronome_settings: "Metronome Settings",
-    heading_tuner_settings: "Tuner Settings",
-    hint_detection: "Press notes on piano/guitar to detect chords or use a MIDI device.",
-    hint_interval_detection: "Press two notes (mouse, keyboard or MIDI) to detect the interval.",
-    interval_play_reverse: "Play descending",
-    label_interval_notes: "Notes:",
-    label_interval_name: "Interval:",
-    label_interval_semitones: "Semitones:",
-    help_staff_interval: "Interval staff: shows the two latest pressed notes.",
-    help_interval_panel: "Interval panel: controls and current interval output.",
-    help_interval_play: "Play the two interval notes melodically.",
-    help_interval_clear: "Clear active notes and start over.",
-    help_interval_field_notes: "Notes: the two latest pressed notes.",
-    help_interval_field_name: "Name of the detected interval.",
-    help_interval_field_semitones: "Number of semitones between the two notes.",
-    help_interval_field_recuerda: "Mnemonic song: tap the name to activate the reference melody on the staff and play it.",
-    help_instrument_surface_interval: "Interactive keyboard: press notes to detect intervals (also via MIDI). Each press adds a note to the pair; the oldest is automatically discarded.",
-    label_interval_recuerda: "Example:",
-    help_interval_play_reverse: "Play the interval descending (high note → low note).",
-    clear: "Clear",
-    label_chord: "Chord:",
-    label_notes: "Notes:",
-    label_extras: "Extra notes:",
-    label_intervals: "Intervals:",
-    label_tonic: "Tonic",
-    label_variant: "Variant",
-    chord_group_triads: "Triads",
-    chord_group_sevenths: "Sevenths",
-    chord_group_sixths: "Sixths",
-    chord_group_add: "Add chords",
-    chord_group_altered_dominants: "Altered dominants",
-    chord_group_extensions: "Extensions",
-    chord_group_altered_extensions: "Altered extensions",
-    chord_group_other: "Other variants",
-    label_inversion: "Inversion",
-    label_type: "Type",
-    label_speed: "Speed",
-    label_scale: "Scale:",
-    label_note: "Note:",
-    label_cents: "Cents:",
-    label_freq: "Frequency:",
-    label_bpm: "BPM",
-    label_metronome_tempo: "Tempo",
-    label_metronome_volume: "Volume",
-    label_beats: "Beats",
-    label_subdivision: "Subdivision",
-    label_bar_accent: "Bar accent",
-    label_timer_enabled: "Timer",
-    label_timer: "Time",
-    play: "Play",
-    stop: "Stop",
-    metronome_mode: "Metronome mode",
-    metro_start: "Start metronome",
-    metro_stop: "Stop metronome",
-    tuner_start: "Start tuner",
-    tuner_stop: "Stop tuner",
-    tuner_no_permission: "No permission",
-    tuner_cents_suffix: "cents",
-    label_tuner_tuning: "Tuning",
-    label_tuner_input: "Input",
-    label_tuner_gain: "Input gain",
-    label_tuner_spectrum_range: "Spectrum range",
-    midi_off: "MIDI: Off",
-    midi_on: "MIDI: On",
-    midi_unsupported: "MIDI unsupported",
-    midi_denied: "MIDI denied",
-    midi_requires_secure: "MIDI requires HTTPS or localhost",
-    midi_try_chrome: "MIDI: use Chrome/Edge",
-    midi_ios_warning: "MIDI: download native app",
-    midi_help_ready: "Web MIDI ready. Click to enable/disable MIDI inputs.",
-    midi_help_denied: "MIDI permission denied. Check browser permissions and try again.",
-    sound_output_audio: "Audio",
-    sound_output_midi: "MIDI out",
-    sound_output_label: "Sound output:",
-    sound_output_warning: "In MIDI mode, sound is produced by your MIDI device. If the device does not play MIDI events, nothing will be heard.",
-    midi_startup_title: "Enable MIDI input",
-    midi_startup_text: "To use a MIDI keyboard/controller in detection, enable MIDI input.",
-    midi_startup_enable: "Enable MIDI",
-    midi_startup_close: "Not now",
-    close: "Close",
-    chord_variant_help_button: "Variant help",
-    chord_variant_help_title: "Theory: {variant}",
-    chord_variant_help_formula: "Formula: {formula}",
-    midi_startup_safari_warning: "MIDI is not available on this website in Safari. Use Chrome or Edge.",
-    midi_startup_ios_warning: "MIDI is not available on iOS/iPadOS. Download the native app to use MIDI on your device.",
-    midi_startup_ios_link: "Download on the App Store",
-    guitar_right: "Right-handed",
-    guitar_left: "Left-handed",
-    inst_piano: "Piano",
-    inst_guitar: "Guitar",
-    inversion_root: "Root position",
-    inversion_suffix: " inversion",
-    tempo_unit: "BPM",
-    inversion_word: "inversion",
-    donation_title: "Support MIDI Piano & Guitar Chords",
-    donation_text: "This project is designed to stay free forever and ad-free. Your support helps cover development, maintenance, infrastructure, and support time so we can keep improving it.",
-    donation_button: "Donate",
-    feedback_panel_title: "Feedback",
-    feedback_panel_text: "You can send comments about the website and suggestions for improvements to keep evolving the tool.",
-    feedback_open: "Send feedback",
-    changelog_title: "What's New",
-    changelog_loading: "Loading...",
-    changelog_error: "Not available",
-    feedback_modal_title: "Send feedback",
-    feedback_help: "Send us suggestions or report issues you found.",
-    feedback_name: "Name",
-    feedback_email: "Email",
-    feedback_message: "Comment",
-    downloads_panel_title: "Downloads",
-    downloads_panel_text: "Download the app for PC and mobile, or open the official stores.",
-    downloads_open: "View downloads",
-    downloads_modal_title: "Downloads",
-    downloads_modal_intro: "Choose your platform to download the app.",
-    downloads_pc_title: "PC/Mac",
-    downloads_mobile_title: "Mobile",
-    downloads_windows_store: "Windows (Microsoft Store)",
-    downloads_macos_dmg: "macOS (App Store)",
-    downloads_linux_deb: "Linux (.deb) (GitHub Releases)",
-    downloads_ios_appstore: "iOS (App Store)",
-    downloads_android_googleplay: "Android (Google Play)",
-    feedback_send: "Send feedback",
-    feedback_sending: "Sending...",
-    feedback_ok: "Thanks. Feedback sent.",
-    feedback_error: "Could not send. Please try again.",
-    help_button: "Help",
-    help_close_hint: "Click Help again to close",
-    help_mode_select: "Switch between detection, generation, scales, and utility tools here.",
-    help_language: "Choose the interface language.",
-    help_accidental: "Set whether note names prefer sharps (#) or flats (♭).",
-    help_midi_toggle: "Enable or disable MIDI keyboard/controller input.",
-    help_sound_output: "Select whether sound is generated by the app (Audio) or your MIDI device (MIDI out). In MIDI out mode, ▶ buttons send notes to the device.",
-    help_inst_piano_btn: "Switch the interactive instrument to piano.",
-    help_inst_guitar_btn: "Switch the interactive instrument to guitar.",
-    help_guitar_handedness: "Set guitar orientation (right-handed/left-handed).",
-    help_staff_detection: "Detection staff: shows active notes and the detected chord.",
-    help_staff_generation: "Generation staff: shows the generated chord and highlights the note you press.",
-    help_staff_scales: "Scale staff: shows scale notes and the current note. Playing notes on keyboard/guitar is reflected here, and clicking staff notes also triggers playback.",
-    help_staff_metronome: "Metronome view: shows pulse and playback state.",
-    help_detection_panel: "Detection panel: controls and current chord output.",
-    help_detect_play: "Play the currently active detected notes.",
-    help_detect_variant_theory: "Open the theory explanation for the detected chord quality.",
-    help_detect_clear: "Clear all active notes and start over.",
-    help_detect_result: "Detection output: chord name, notes, extras, and intervals.",
-    help_instrument_surface_detection: "Interactive keyboard/guitar: press notes to detect chords (also via MIDI). Hold Shift to sustain notes; instrument and staff stay in sync both ways.",
-    help_field_chord: "Chord: detected chord name with the best match.",
-    help_field_notes: "Notes: notes that belong to the detected chord.",
-    help_field_extras: "Extra notes: active notes that do not fit the chord.",
-    help_field_intervals: "Intervals: note distances relative to the tonic.",
-    help_generation_panel: "Generation panel: choose tonic, chord quality, and inversion.",
-    help_instrument_surface_generation: "Generated-chord keyboard/guitar: pressing a note highlights it on the staff, and pressing a staff note highlights it on the instrument at the same octave. In piano mode, right hand notes (upper register) and left hand notes (one octave below) are shown; numbers on keys are suggested fingerings.",
-    help_gen_root: "Root note of the chord to generate.",
-    help_gen_variant: "Chord quality/type (major, minor, 7th, etc.).",
-    help_gen_inversion: "Reorders chord notes without changing chord quality.",
-    help_gen_play: "Play the generated chord.",
-    help_gen_variant_theory: "Open the theory explanation for the selected chord variant.",
-    help_gen_result_chord: "Generated chord name.",
-    help_gen_result_notes: "Notes that form the generated chord.",
-    help_gen_result_intervals: "Chord intervals relative to its tonic.",
-    circle_hint: "Click: choose a diatonic chord—a triad on a scale degree (major, minor, or diminished); does not change the tonic. Shift+click: sets the tonic and key (major on the outer ring, relative natural minor on the inner; same key signature).",
-    help_circle_staff_footer: "Below the staff: hint (click / Shift) for the circle. Play: ▶ button on the circle (top left).",
-    help_circle_panel: "Circle of tonics: choose a diatonic chord with the mouse; with Shift, change the key.",
-    help_circle_canvas: "Circle of tonics (by fifths): each sector is a possible tonic. Click to pick a diatonic chord in that key (a triad on a scale degree) without changing the tonic. Hold Shift and click to set the key (major on the outer ring, relative natural minor on the inner).",
-    help_circle_play: "Play the selected chord.",
-    help_circle_result_chord: "Chord name in the chosen key context.",
-    help_guitar_variations_bar: "Guitar variations bar: alternative positions for the same chord appear here.",
-    help_guitar_variation_btn: "Each button selects a different guitar fingering/position for the chord.",
-    help_scales_panel: "Scales panel: set tonic, scale type, and playback.",
-    help_instrument_surface_scales: "Scale keyboard/guitar: play scale notes and see them on the staff; staff and instrument stay synced when you interact with either one.",
-    help_scale_root: "Scale tonic.",
-    help_scale_type: "Scale type (major, minor, modes, etc.).",
-    help_scale_play: "Play the current scale.",
-    help_scale_metronome_mode: "Enable scale playback synced with metronome pulses.",
-    help_scale_octaves: "Number of octaves to play and highlight on the piano (1, 2 or 3).",
-    scale_filter_basic: "Basic",
-    scale_filter_advanced: "All",
-    help_scale_filter: "Toggle between the most common scales (Basic) and the full list (All).",
-    help_scale_fingering: "Documented fingering for playing the scale on piano: choose right hand or left hand to see finger numbers when a reference is available. Orange squares indicate the suggested finger; red squares mark a thumb or finger crossing.",
-    scale_fingering_label: "Fingering",
-    scale_fingering_none: "None",
-    scale_fingering_left: "Left hand",
-    scale_fingering_right: "Right hand",
-    help_scale_bpm: "Scale playback speed.",
-    help_scale_result_name: "Full selected scale name.",
-    help_scale_result_notes: "Scale notes.",
-    help_scale_result_intervals: "Scale intervals relative to tonic.",
-    help_metronome_panel: "Metronome panel: tempo, meter, subdivision, and timer.",
-    help_instrument_surface_metronome: "Metronome piano: displays incoming MIDI notes (when enabled) so you can monitor what you play while the metronome runs.",
-    help_metro_start: "Start or stop the metronome.",
-    help_metro_volume: "Metronome click volume.",
-    help_metro_bpm: "Tempo in beats per minute.",
-    help_metro_bpm_minus: "Decrease tempo (BPM) by 1.",
-    help_metro_bpm_plus: "Increase tempo (BPM) by 1.",
-    help_metro_meter: "Beats per bar.",
-    help_metro_meter_minus: "Decrease beats per bar by 1.",
-    help_metro_meter_plus: "Increase beats per bar by 1.",
-    help_metro_subdivision: "Subdivide each beat into 1, 2, 3, 4, or 6 clicks.",
-    help_metro_bar_accent: "Enable accent on the first beat of each bar.",
-    help_metro_timer: "Enable auto-stop timer.",
-    help_metro_timer_values: "Timer duration (minutes and seconds).",
-    help_metro_yellow_points: "Yellow points: represent beats in the current bar.",
-    help_metro_scale_axis: "Metronome scale/axis: shows pulse travel and subdivision.",
-    help_metro_red_ball: "Red ball: shows current pulse position in motion.",
-    detection_staff_shift_hint: "Hold Shift to sustain notes",
-    scale_staff_guitar_shift_hint: "Hold Shift and click a tonic to change the scale start note",
-    staff_no_active_notes: "No active notes",
-  },
-};
-
-const NOTE_LABELS = {
-  es: {
-    sharp: ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"],
-    flat: ["Do", "Re♭", "Re", "Mi♭", "Mi", "Fa", "Sol♭", "Sol", "La♭", "La", "Si♭", "Si"],
-  },
-  en: {
-    sharp: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
-    flat: ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"],
-  },
-};
-
-/**
- * Combo tónica dividido en Nota + Alteración: 7 letras naturales, cada una con
- * solo las alteraciones que corresponden a una de las 12 notas reales (no se
- * inventan enarmonías como Fb/Cb/E#/B# que no existen en NOTE_LABELS).
- */
-const ROOT_LETTERS = [
-  { es: "Do", en: "C", pc: 0 },
-  { es: "Re", en: "D", pc: 2 },
-  { es: "Mi", en: "E", pc: 4 },
-  { es: "Fa", en: "F", pc: 5 },
-  { es: "Sol", en: "G", pc: 7 },
-  { es: "La", en: "A", pc: 9 },
-  { es: "Si", en: "B", pc: 11 },
-];
-const ACCIDENTAL_SYMBOLS = { natural: "♮", sharp: "♯", flat: "♭" };
-const ROOT_LETTER_ACCIDENTALS = {
-  0: ["natural", "sharp"],
-  2: ["flat", "natural", "sharp"],
-  4: ["flat", "natural"],
-  5: ["natural", "sharp"],
-  7: ["flat", "natural", "sharp"],
-  9: ["flat", "natural", "sharp"],
-  11: ["flat", "natural"],
-};
-function rootPcFromLetterAccidental(letterPc, accidental) {
-  const offset = accidental === "sharp" ? 1 : accidental === "flat" ? -1 : 0;
-  return ((letterPc + offset) % 12 + 12) % 12;
-}
-
-const SHARP_KEY_SIGNATURES = ["F", "C", "G", "D", "A", "E", "B"];
-const FLAT_KEY_SIGNATURES = ["B", "E", "A", "D", "G", "C", "F"];
-const PC_TO_DIATONIC_LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // convención sostenidos
-const PC_TO_DIATONIC_FLAT   = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6]; // convención bemoles
-
-const PIANO_SAMPLE_URLS = {
-  48: "/static/samples/grand_piano/C3.mp3",
-  52: "/static/samples/grand_piano/E3.mp3",
-  55: "/static/samples/grand_piano/G3.mp3",
-  60: "/static/samples/grand_piano/C4.mp3",
-  64: "/static/samples/grand_piano/E4.mp3",
-  67: "/static/samples/grand_piano/G4.mp3",
-  72: "/static/samples/grand_piano/C5.mp3",
-};
-
-const GUITAR_SAMPLE_URLS = {
-  40: "/static/samples/guitar_nylon/E2.mp3",
-  45: "/static/samples/guitar_nylon/A2.mp3",
-  50: "/static/samples/guitar_nylon/D3.mp3",
-  52: "/static/samples/guitar_nylon/E3.mp3",
-  55: "/static/samples/guitar_nylon/G3.mp3",
-  59: "/static/samples/guitar_nylon/B3.mp3",
-  64: "/static/samples/guitar_nylon/E4.mp3",
-};
-
-const METRONOME_SAMPLE_URL = "/static/metronome.mp3";
+});
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
 const TUNER_TUNINGS = [
   { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
@@ -675,310 +239,22 @@ const TUNER_TUNINGS = [
   { key: "dadgad", es: "DADGAD", en: "DADGAD", notes: [38, 45, 50, 55, 57, 62] },
 ];
 
-// Mantiene la clasificación de AutoChords y añade dos grupos explícitos para
-// las variantes alteradas propias de MIDIChords. Todos los sufijos del Worker
-// deben aparecer una sola vez; el fallback de buildSelectors evita perder
-// variantes futuras aunque todavía no estén clasificadas aquí.
-const CHORD_VARIANT_GROUPS = [
-  { labelKey: "chord_group_triads", suffixes: ["", "m", "dim", "aug", "sus2", "sus4", "5", "-5", "sus2sus4"] },
-  { labelKey: "chord_group_sevenths", suffixes: ["7", "maj7", "m7", "mMaj7", "dim7", "m7b5", "maj7#5", "7sus4", "maj7b5", "m7#5"] },
-  { labelKey: "chord_group_sixths", suffixes: ["6", "m6", "6add9", "m6add9"] },
-  { labelKey: "chord_group_add", suffixes: ["add2", "add4", "add9", "madd9"] },
-  { labelKey: "chord_group_altered_dominants", suffixes: ["7#5", "7b5", "7#9", "7b9", "7(#5,#9)", "7(#5,b9)", "7(b5,#9)", "7(b5,b9)"] },
-  { labelKey: "chord_group_extensions", suffixes: ["9", "maj9", "m9", "11", "maj11", "m11", "13", "maj13", "m13", "mMaj9"] },
-  { labelKey: "chord_group_altered_extensions", suffixes: ["9#5", "9b5", "11b9", "13b9", "13#11", "maj9#11", "maj13#11"] },
-];
+const {
+  CHORD_VARIANT_GROUPS,
+  CHORD_VARIANT_THEORY,
+  MAJOR_CHORD_INVERSION_THEORY,
+  chordInversionTheory,
+} = globalThis.MidiChordsChordHelp;
 
-// Textos propios, resumidos y contrastados con el apartado «Teoría» de
-// https://auto-chords.com/es/acordes/piano/mayor.html y sus páginas de variantes.
-// La fórmula se separa del párrafo para que la ayuda sea fácil de consultar.
-const CHORD_VARIANT_THEORY = {
-  "": ["1 - 3 - 5", "El acorde mayor se construye apilando dos terceras: una tercera mayor (4 semitonos) seguida de una tercera menor (3 semitonos). Este apilamiento crea un intervalo de quinta justa (7 semitonos) entre la fundamental y la quinta.", "A major chord stacks two thirds: a major third (4 semitones) followed by a minor third (3 semitones). Together they form a perfect fifth (7 semitones) from the root."],
-  "5": ["1 - 5", "El power chord contiene solo la fundamental y la quinta justa (7 semitonos). Al no tener tercera no es mayor ni menor: su sonido es abierto, neutro y potente, especialmente habitual en rock.", "A power chord contains only the root and perfect fifth (7 semitones). With no third it is neither major nor minor, giving it an open, neutral and powerful sound commonly used in rock."],
-  "-5": ["1 - 3 - ♭5", "Parte de una tríada mayor y rebaja la quinta un semitono, convirtiéndola en quinta disminuida. El tritono entre fundamental y ♭5 rompe la estabilidad del acorde mayor y crea una tensión marcada.", "This chord starts from a major triad and lowers the fifth by one semitone. The tritone between the root and ♭5 removes the usual stability of the major chord and creates pronounced tension."],
-  "m": ["1 - ♭3 - 5", "El acorde menor apila una tercera menor (3 semitonos) y una tercera mayor (4 semitonos). La tercera rebajada respecto al acorde mayor le da su color oscuro, mientras la quinta justa conserva la estabilidad.", "A minor chord stacks a minor third (3 semitones) and a major third (4 semitones). Lowering the third changes the major chord's brightness into a darker color while the perfect fifth retains stability."],
-  "dim": ["1 - ♭3 - ♭5", "La tríada disminuida apila dos terceras menores. Su quinta disminuida forma un tritono con la fundamental, por lo que produce una sonoridad inestable que suele conducir hacia otro acorde.", "A diminished triad stacks two minor thirds. Its diminished fifth forms a tritone with the root, producing an unstable sound that usually leads toward another chord."],
-  "aug": ["1 - 3 - ♯5", "La tríada aumentada apila dos terceras mayores. Al subir la quinta un semitono pierde la quinta justa y adquiere un carácter simétrico, expansivo y ambiguo que pide continuación.", "An augmented triad stacks two major thirds. Raising the fifth removes the perfect fifth and gives the chord a symmetrical, expansive and ambiguous quality that calls for continuation."],
-  "sus2": ["1 - 2 - 5", "Sustituye la tercera por una segunda mayor. Sin tercera no define modo mayor o menor; la cercanía entre fundamental y segunda crea una suspensión abierta que suele resolver en la tercera.", "This chord replaces the third with a major second. Without a third it defines neither major nor minor; the close root-second interval creates an open suspension that often resolves to the third."],
-  "sus4": ["1 - 4 - 5", "Sustituye la tercera por una cuarta justa. La cuarta queda a un tono de la quinta y genera una suspensión clara que, en la armonía tonal, suele descender hacia la tercera.", "This chord replaces the third with a perfect fourth. The fourth sits one whole tone below the fifth and creates a clear suspension that commonly resolves downward to the third."],
-  "sus2sus4": ["1 - 2 - 4 - 5", "Combina segunda y cuarta suspendidas alrededor de la fundamental y la quinta. Al omitir la tercera mantiene un carácter modalmente ambiguo, amplio y rico en tensiones internas.", "This chord combines suspended seconds and fourths around the root and fifth. Omitting the third keeps it modally ambiguous, spacious and rich in internal tension."],
-  "add2": ["1 - 2 - 3 - 5", "Añade la segunda mayor dentro de la tríada mayor sin retirar la tercera. La fricción de un tono entre 1-2 y 2-3 aporta brillo y densidad, manteniendo intacta la identidad mayor.", "This chord adds the major second inside a major triad without removing the third. The whole-tone motion through 1-2-3 adds brightness and density while preserving its major identity."],
-  "add4": ["1 - 3 - 4 - 5", "Añade la cuarta justa a la tríada mayor sin sustituir la tercera. El semitono entre tercera y cuarta crea una tensión expresiva que convive con la estabilidad de la quinta.", "This chord adds a perfect fourth to the major triad without replacing the third. The semitone between the third and fourth creates expressive tension alongside the stable fifth."],
-  "add9": ["1 - 3 - 5 - 9", "Es una tríada mayor con una novena mayor añadida, pero sin séptima. La separación de octava distingue la novena de add2 y ofrece un color abierto y luminoso muy usado en pop.", "This is a major triad with an added major ninth but no seventh. Placing it above the octave distinguishes it from add2 and gives an open, bright color widely used in pop."],
-  "madd9": ["1 - ♭3 - 5 - 9", "Añade una novena mayor a la tríada menor sin incorporar séptima. La novena ilumina el color oscuro de la tercera menor y crea una sonoridad emotiva y espaciosa.", "This chord adds a major ninth to a minor triad without adding a seventh. The ninth brightens the darker minor third and creates an emotional, spacious sound."],
-  "6": ["1 - 3 - 5 - 6", "Añade una sexta mayor a la tríada mayor. Es una alternativa suave al maj7: conserva el carácter estable del acorde mayor con un color cálido frecuente en jazz, swing y pop clásico.", "This chord adds a major sixth to a major triad. It is a gentle alternative to maj7, retaining major stability with a warm color common in jazz, swing and classic pop."],
-  "6add9": ["1 - 3 - 5 - 6 - 9", "Combina una tríada mayor con sexta y novena mayores. Al no incluir séptima evita la tensión dominante y produce un acorde amplio, consonante y muy útil como tónica final.", "This chord combines a major triad with major sixth and ninth. With no seventh it avoids dominant tension and produces a broad, consonant chord often used as a final tonic."],
-  "m6": ["1 - ♭3 - 5 - 6", "Añade una sexta mayor a la tríada menor. El contraste entre tercera menor y sexta mayor crea un color sofisticado, asociado al jazz menor, la bossa nova y ciertos finales melódicos.", "This chord adds a major sixth to a minor triad. The contrast between minor third and major sixth creates a sophisticated color associated with minor jazz, bossa nova and melodic endings."],
-  "m6add9": ["1 - ♭3 - 5 - 6 - 9", "Extiende el acorde menor con sexta y novena mayores, sin séptima. Su mezcla de oscuridad y apertura produce una tónica menor rica, suave y especialmente característica del jazz.", "This chord extends a minor triad with major sixth and ninth, without a seventh. Its blend of darkness and openness creates a rich, gentle minor tonic especially characteristic of jazz."],
-  "7": ["1 - 3 - 5 - ♭7", "Añade una séptima menor a la tríada mayor. El tritono entre tercera y séptima crea una fuerte tensión dominante que normalmente resuelve hacia un acorde situado una quinta por debajo.", "This chord adds a minor seventh to a major triad. The tritone between third and seventh creates strong dominant tension that normally resolves to a chord a fifth below."],
-  "7sus4": ["1 - 4 - 5 - ♭7", "Sustituye la tercera del acorde dominante por la cuarta justa. Conserva la séptima menor, pero aplaza la definición mayor y la resolución habitual de la cuarta hacia la tercera.", "This chord replaces the third of a dominant seventh with a perfect fourth. It retains the minor seventh while delaying the major identity and the usual resolution of the fourth to the third."],
-  "7#5": ["1 - 3 - ♯5 - ♭7", "Altera el acorde dominante elevando su quinta un semitono. Mantiene el tritono de tercera y séptima, mientras la quinta aumentada añade cromatismo y empuja con más fuerza hacia la resolución.", "This alteration raises the fifth of a dominant seventh by one semitone. It keeps the third-seventh tritone while the augmented fifth adds chromatic pull toward the resolution."],
-  "7b5": ["1 - 3 - ♭5 - ♭7", "Rebaja la quinta del acorde dominante. La ♭5 añade otro tritono respecto a la fundamental y crea un color más áspero, útil para enlaces cromáticos y dominantes alterados.", "This chord lowers the fifth of a dominant seventh. The ♭5 adds another tritone against the root, creating a sharper color useful in chromatic movement and altered dominants."],
-  "7#9": ["1 - 3 - 5 - ♭7 - ♯9", "Añade una novena aumentada al acorde de dominante. La convivencia de tercera mayor y ♯9 —enarmónica de una tercera menor— produce la característica tensión mayor-menor del acorde Hendrix.", "This chord adds a sharp ninth to a dominant seventh. The clash between the major third and ♯9—enharmonically a minor third—creates the characteristic major-minor tension of the Hendrix chord."],
-  "7b9": ["1 - 3 - 5 - ♭7 - ♭9", "Añade una novena menor, situada un semitono sobre la fundamental. Esa fricción intensifica la función dominante y es habitual en tonalidades menores y en escalas dominante disminuida o frigia dominante.", "This chord adds a minor ninth one semitone above the root. That friction intensifies its dominant function and is common in minor keys and diminished-dominant or Phrygian-dominant contexts."],
-  "7(#5,#9)": ["1 - 3 - ♯5 - ♭7 - ♯9", "Combina quinta y novena aumentadas sobre una séptima dominante. Las dos alteraciones aumentan la ambigüedad cromática y permiten varias resoluciones por semitono.", "This chord combines sharp fifth and sharp ninth over a dominant seventh. Both alterations increase chromatic ambiguity and provide several semitone resolutions."],
-  "7(#5,b9)": ["1 - 3 - ♯5 - ♭7 - ♭9", "Combina quinta aumentada y novena menor. La ♭9 presiona contra la fundamental y la ♯5 abre una vía cromática adicional hacia el acorde de resolución.", "This chord combines an augmented fifth and minor ninth. The ♭9 presses against the root while the ♯5 adds another chromatic route into the resolving chord."],
-  "7(b5,#9)": ["1 - 3 - ♭5 - ♭7 - ♯9", "Combina quinta disminuida y novena aumentada en un dominante muy alterado. Reúne varios tritonos y semitonos, por lo que su color es tenso y flexible en jazz.", "This heavily altered dominant combines a diminished fifth and sharp ninth. Its tritones and semitone relationships create a tense, flexible jazz color."],
-  "7(b5,b9)": ["1 - 3 - ♭5 - ♭7 - ♭9", "Combina quinta y novena disminuidas. La concentración de tritonos y semitonos refuerza al máximo la inestabilidad dominante y favorece resoluciones cromáticas.", "This chord combines flat fifth and flat ninth. Its concentration of tritones and semitones strongly reinforces dominant instability and favors chromatic resolution."],
-  "9": ["1 - 3 - 5 - ♭7 - 9", "Añade una novena mayor al acorde de séptima dominante. Conserva la tensión del tritono y suma un color más amplio, frecuente en jazz, blues, funk y soul.", "This chord adds a major ninth to a dominant seventh. It retains the tritone's tension while adding a broader color common in jazz, blues, funk and soul."],
-  "9#5": ["1 - 3 - ♯5 - ♭7 - 9", "Es un acorde de novena dominante con la quinta aumentada. La novena aporta amplitud y la ♯5 intensifica el movimiento cromático hacia la resolución.", "This is a dominant ninth with an augmented fifth. The ninth adds breadth while the ♯5 intensifies chromatic movement toward the resolution."],
-  "9b5": ["1 - 3 - ♭5 - ♭7 - 9", "Es un acorde de novena dominante con quinta disminuida. La novena suaviza parcialmente el color, pero la ♭5 mantiene una tensión incisiva y ambigua.", "This is a dominant ninth with a diminished fifth. The ninth partly softens the color while the ♭5 maintains incisive, ambiguous tension."],
-  "11": ["1 - 3 - 5 - ♭7 - 9 - 11", "Extiende el acorde dominante hasta la undécima. La 11ª choca con la tercera mayor, por lo que en la práctica suele omitirse la tercera o separarse ambas notas en distintas octavas.", "This chord extends a dominant harmony to the eleventh. The 11th clashes with the major third, so performers often omit the third or separate both notes into different octaves."],
-  "11b9": ["1 - 3 - 5 - ♭7 - ♭9 - 11", "Combina la amplitud de la undécima con la intensa fricción de la novena menor. Es un dominante complejo en el que suelen omitirse notas para lograr un voicing claro.", "This chord combines the breadth of an eleventh with the strong friction of a minor ninth. It is a complex dominant in which notes are often omitted to keep the voicing clear."],
-  "13": ["1 - 3 - 5 - ♭7 - 9 - 13", "Extiende la séptima dominante hasta la decimotercera, equivalente a una sexta mayor sobre la octava. La 11ª suele omitirse para evitar su choque con la tercera.", "This chord extends a dominant seventh to the thirteenth, equivalent to a major sixth above the octave. The 11th is usually omitted to avoid its clash with the third."],
-  "13b9": ["1 - 3 - 5 - ♭7 - ♭9 - 13", "Añade a la dominante una decimotercera mayor y una novena menor. El contraste entre ambas tensiones es típico del jazz y conduce con fuerza hacia acordes mayores o menores.", "This chord adds a major thirteenth and minor ninth to a dominant harmony. Their contrasting tensions are typical of jazz and resolve strongly to major or minor chords."],
-  "13#11": ["1 - 3 - 5 - ♭7 - 9 - ♯11 - 13", "Combina novena, undécima aumentada y decimotercera sobre una dominante. La ♯11 evita el choque de la 11ª justa con la tercera y aporta un color lidio dominante.", "This dominant combines ninth, sharp eleventh and thirteenth. The ♯11 avoids the perfect 11th's clash with the major third and supplies a Lydian-dominant color."],
-  "maj7": ["1 - 3 - 5 - 7", "Añade una séptima mayor a la tríada mayor. El semitono entre séptima y fundamental superior crea una tensión suave y refinada, sin la necesidad de resolución propia del acorde dominante.", "This chord adds a major seventh to a major triad. The semitone between the seventh and upper root creates gentle, refined tension without the dominant seventh's need to resolve."],
-  "maj7#5": ["1 - 3 - ♯5 - 7", "Une una tríada aumentada con una séptima mayor. La simetría de las terceras mayores se combina con la tensión de la séptima para crear un color luminoso, inestable y cinematográfico.", "This chord joins an augmented triad with a major seventh. Its stacked major thirds combine with seventh tension to create a bright, unstable and cinematic color."],
-  "maj7b5": ["1 - 3 - ♭5 - 7", "Rebaja la quinta de un maj7. El tritono fundamental-♭5 contrasta con la delicada séptima mayor y produce una sonoridad moderna y ambigua.", "This chord lowers the fifth of a maj7. The root-♭5 tritone contrasts with the delicate major seventh, producing a modern and ambiguous sound."],
-  "maj9": ["1 - 3 - 5 - 7 - 9", "Añade una novena mayor al acorde maj7. Mantiene el carácter estable de tónica y lo amplía con una sonoridad aérea, cálida y muy habitual en jazz y soul.", "This chord adds a major ninth to maj7. It preserves a stable tonic character while expanding it into an airy, warm sonority common in jazz and soul."],
-  "maj11": ["1 - 3 - 5 - 7 - 9 - 11", "Extiende el maj7 con novena y undécima. La 11ª justa roza con la tercera mayor, así que suele omitirse la tercera o abrirse mucho el voicing.", "This chord extends maj7 with a ninth and eleventh. The perfect 11th rubs against the major third, so the third is often omitted or the voicing spread widely."],
-  "maj13": ["1 - 3 - 5 - 7 - 9 - 13", "Extiende el maj7 con novena y decimotercera. Suele prescindir de la 11ª para conservar claridad y ofrece una tónica mayor rica, suave y completa.", "This chord extends maj7 with ninth and thirteenth. The 11th is usually omitted for clarity, resulting in a rich, smooth and complete major tonic."],
-  "maj9#11": ["1 - 3 - 5 - 7 - 9 - ♯11", "Añade novena y undécima aumentada al maj7. La ♯11 convive mejor con la tercera mayor que la 11ª justa y crea el color abierto característico del modo lidio.", "This chord adds a ninth and sharp eleventh to maj7. The ♯11 coexists more easily with the major third than a perfect 11th and creates the open color of the Lydian mode."],
-  "maj13#11": ["1 - 3 - 5 - 7 - 9 - ♯11 - 13", "Reúne las extensiones superiores del acorde mayor con una 11ª aumentada. Es una tónica lidia muy completa, brillante y espaciosa, normalmente distribuida en un voicing abierto.", "This chord gathers the upper major extensions around a sharp eleventh. It is a full, bright and spacious Lydian tonic, normally distributed across an open voicing."],
-  "m7": ["1 - ♭3 - 5 - ♭7", "Añade una séptima menor a la tríada menor. Su estructura es estable y flexible: funciona como tónica menor, como ii en tonalidades mayores y como base habitual de jazz, funk y soul.", "This chord adds a minor seventh to a minor triad. Its stable, flexible structure works as a minor tonic, as ii in major keys, and as a staple of jazz, funk and soul."],
-  "m7#5": ["1 - ♭3 - ♯5 - ♭7", "Eleva la quinta del acorde m7. La quinta aumentada debilita la estabilidad de la tríada y genera un color raro y cromático, útil como acorde de paso.", "This chord raises the fifth of m7. The augmented fifth weakens triadic stability and creates an unusual chromatic color useful as a passing chord."],
-  "m9": ["1 - ♭3 - 5 - ♭7 - 9", "Añade una novena mayor al m7. La extensión aporta luz y amplitud sin borrar el carácter menor, creando uno de los colores más suaves y expresivos del jazz.", "This chord adds a major ninth to m7. The extension brings light and breadth without erasing its minor character, creating one of jazz's smoothest and most expressive colors."],
-  "m11": ["1 - ♭3 - 5 - ♭7 - 9 - 11", "Extiende el m9 con una undécima justa. A diferencia del acorde mayor, la 11ª no choca fuertemente con la tercera menor y forma un voicing modal amplio y natural.", "This chord extends m9 with a perfect eleventh. Unlike in a major chord, the 11th does not strongly clash with the minor third, creating a broad and natural modal voicing."],
-  "m13": ["1 - ♭3 - 5 - ♭7 - 9 - 13", "Añade novena y decimotercera mayores al m7. La 13ª aporta un color dórico luminoso al fondo menor; la 11ª suele omitirse para mantener claridad.", "This chord adds major ninth and thirteenth to m7. The 13th supplies a bright Dorian color over the minor base; the 11th is commonly omitted for clarity."],
-  "mMaj7": ["1 - ♭3 - 5 - 7", "Combina una tríada menor con una séptima mayor. El semitono entre séptima y fundamental superior crea un color oscuro y luminoso a la vez, propio de la menor armónica y del cine.", "This chord combines a minor triad with a major seventh. The semitone between seventh and upper root creates a simultaneously dark and bright color associated with harmonic minor and film music."],
-  "mMaj9": ["1 - ♭3 - 5 - 7 - 9", "Añade una novena mayor al acorde menor con séptima mayor. Amplía su tensión misteriosa con una nota más abierta y cantable, frecuente en jazz moderno y música cinematográfica.", "This chord adds a major ninth to a minor-major seventh. It expands the chord's mysterious tension with a more open, singable note common in modern jazz and film music."],
-  "dim7": ["1 - ♭3 - ♭5 - 𝄫7", "Apila tres terceras menores, dividiendo la octava simétricamente. Cada nota puede sentirse como fundamental y el acorde admite varias resoluciones por semitono, lo que lo hace muy útil para modular.", "This chord stacks three minor thirds and divides the octave symmetrically. Any note can act as a root, and several semitone resolutions make it especially useful for modulation."],
-  "m7b5": ["1 - ♭3 - ♭5 - ♭7", "También llamado semidisminuido: es una tríada disminuida con séptima menor. Aparece de forma natural como ii en tonalidades menores y conduce habitualmente al dominante.", "Also called half-diminished, this is a diminished triad with a minor seventh. It occurs naturally as ii in minor keys and commonly leads to the dominant."],
-};
-
-const MAJOR_CHORD_INVERSION_THEORY = [
-  ["Posición fundamental: la fundamental está en el bajo, seguida de la tercera y la quinta. Es la disposición más estable y directa del acorde, y la que expresa con mayor claridad su función tonal.", "Root position: the root is in the bass, followed by the third and fifth. This is the chord's most stable and direct arrangement, and the one that expresses its tonal function most clearly."],
-  ["Primera inversión: la tercera pasa al bajo y la fundamental se desplaza a la voz superior. Produce una sonoridad más ligera y facilita movimientos suaves del bajo entre acordes cercanos.", "First inversion: the third moves to the bass and the root is displaced to the upper voice. This produces a lighter sound and enables smooth bass movement between nearby chords."],
-  ["Segunda inversión: la quinta está en el bajo, con la fundamental y la tercera por encima. Su carácter es menos estable y suele utilizarse como acorde de paso, prolongación o preparación de una resolución.", "Second inversion: the fifth is in the bass, with the root and third above it. Its character is less stable, and it is often used as a passing chord, prolongation or preparation for a resolution."],
-];
-
-const CHORD_DEGREE_NAMES = {
-  es: {
-    "1": "la fundamental",
-    "2": "la segunda mayor",
-    "♭3": "la tercera menor",
-    "3": "la tercera mayor",
-    "4": "la cuarta justa",
-    "♭5": "la quinta disminuida",
-    "5": "la quinta justa",
-    "♯5": "la quinta aumentada",
-    "6": "la sexta mayor",
-    "𝄫7": "la séptima disminuida",
-    "♭7": "la séptima menor",
-    "7": "la séptima mayor",
-    "♭9": "la novena menor",
-    "9": "la novena mayor",
-    "♯9": "la novena aumentada",
-    "11": "la undécima justa",
-    "♯11": "la undécima aumentada",
-    "13": "la decimotercera mayor",
-  },
-  en: {
-    "1": "the root",
-    "2": "the major second",
-    "♭3": "the minor third",
-    "3": "the major third",
-    "4": "the perfect fourth",
-    "♭5": "the diminished fifth",
-    "5": "the perfect fifth",
-    "♯5": "the augmented fifth",
-    "6": "the major sixth",
-    "𝄫7": "the diminished seventh",
-    "♭7": "the minor seventh",
-    "7": "the major seventh",
-    "♭9": "the minor ninth",
-    "9": "the major ninth",
-    "♯9": "the augmented ninth",
-    "11": "the perfect eleventh",
-    "♯11": "the augmented eleventh",
-    "13": "the major thirteenth",
-  },
-};
-
-const CHORD_INVERSION_NAMES = {
-  es: ["Posición fundamental", "Primera inversión", "Segunda inversión", "Tercera inversión", "Cuarta inversión", "Quinta inversión", "Sexta inversión"],
-  en: ["Root position", "First inversion", "Second inversion", "Third inversion", "Fourth inversion", "Fifth inversion", "Sixth inversion"],
-};
-
-function naturalLanguageList(items, language) {
-  if (items.length <= 1) return items[0] || "";
-  const conjunction = language === "en" ? " and " : " y ";
-  return `${items.slice(0, -1).join(", ")}${conjunction}${items[items.length - 1]}`;
-}
-
-function chordInversionTheory(formula, inversion, language) {
-  const lang = language === "en" ? "en" : "es";
-  const degrees = String(formula || "").split(" - ").filter(Boolean);
-  const safeInversion = Math.max(0, Math.min(Number(inversion) || 0, degrees.length - 1));
-  const inversionName = CHORD_INVERSION_NAMES[lang][safeInversion] || (lang === "en" ? `Inversion ${safeInversion}` : `Inversión ${safeInversion}`);
-  if (safeInversion === 0) {
-    return lang === "en"
-      ? `${inversionName}: the root is in the bass and the remaining notes appear above it in formula order. This is the clearest reference position for recognizing the chord's structure.`
-      : `${inversionName}: la fundamental está en el bajo y las demás notas aparecen por encima siguiendo el orden de la fórmula. Es la posición de referencia más clara para reconocer la estructura del acorde.`;
-  }
-
-  const degreeNames = CHORD_DEGREE_NAMES[lang];
-  const bassDegree = degreeNames[degrees[safeInversion]] || degrees[safeInversion];
-  const movedDegrees = degrees.slice(0, safeInversion).map((degree) => degreeNames[degree] || degree);
-  const moved = naturalLanguageList(movedDegrees, lang);
-  if (lang === "en") {
-    return `${inversionName}: ${bassDegree} is in the bass. ${moved} ${movedDegrees.length === 1 ? "moves" : "move"} up one octave; the chord keeps the same notes, but its bass support and voice leading into nearby chords change.`;
-  }
-  return `${inversionName}: ${bassDegree} está en el bajo. ${moved} ${movedDegrees.length === 1 ? "se desplaza" : "se desplazan"} una octava hacia arriba; el acorde conserva las mismas notas, pero cambia su apoyo grave y el enlace con los acordes cercanos.`;
-}
-
-const HELP_CALLOUTS_DETECTION = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
-  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
-  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_detection", side: "top" },
-  { selector: "#panelDetection", textKey: "help_detection_panel", side: "left" },
-  { selector: "#detectPlay", textKey: "help_detect_play", side: "bottom" },
-  { selector: "#detectVariantHelp", textKey: "help_detect_variant_theory", side: "bottom" },
-  { selector: "#detectClear", textKey: "help_detect_clear", side: "bottom" },
-  { selector: "#detectFieldChord", textKey: "help_field_chord", side: "left" },
-  { selector: "#detectFieldNotes", textKey: "help_field_notes", side: "left" },
-  { selector: "#detectFieldExtras", textKey: "help_field_extras", side: "left" },
-  { selector: "#detectFieldIntervals", textKey: "help_field_intervals", side: "left" },
-  { selector: "#sharedPiano", textKey: "help_instrument_surface_detection", side: "top" },
-];
-const HELP_CALLOUTS_GENERATION = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
-  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
-  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_generation", side: "top" },
-  { selector: "#panelGeneration", textKey: "help_generation_panel", side: "left" },
-  { selector: "#genRootRow", textKey: "help_gen_root", side: "left" },
-  { selector: "#genVariant", textKey: "help_gen_variant", side: "left" },
-  { selector: "#genInversion", textKey: "help_gen_inversion", side: "left" },
-  { selector: "#genPlay", textKey: "help_gen_play", side: "bottom" },
-  { selector: "#genVariantHelp", textKey: "help_gen_variant_theory", side: "bottom" },
-  { selector: "#genFieldChord", textKey: "help_gen_result_chord", side: "left" },
-  { selector: "#genFieldNotes", textKey: "help_gen_result_notes", side: "left" },
-  { selector: "#genFieldIntervals", textKey: "help_gen_result_intervals", side: "left" },
-  { selector: "#guitarVariationBar", textKey: "help_guitar_variations_bar", side: "top" },
-  { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
-  { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
-];
-const HELP_CALLOUTS_CIRCLE_FIFTHS = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
-  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
-  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_generation", side: "top" },
-  { selector: "#circleFifthsCanvas", textKey: "help_circle_canvas", side: "left" },
-  { selector: "#circlePlay", textKey: "help_circle_play", side: "bottom" },
-  { selector: "#circleFieldChord", textKey: "help_circle_result_chord", side: "left" },
-  { selector: "#guitarVariationBar", textKey: "help_guitar_variations_bar", side: "top" },
-  { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
-  { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
-];
-const HELP_CALLOUTS_SCALES = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
-  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
-  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_scales", side: "top" },
-  { selector: "#panelScales", textKey: "help_scales_panel", side: "left" },
-  { selector: "#scaleRootRow", textKey: "help_scale_root", side: "left" },
-  { selector: "#scaleType", textKey: "help_scale_type", side: "left" },
-  { selector: "#scaleFilterToggle", textKey: "help_scale_filter", side: "left" },
-  { selector: "#scalePlay", textKey: "help_scale_play", side: "bottom" },
-  { selector: "#scaleModeMetronome", textKey: "help_scale_metronome_mode", side: "top" },
-  { selector: ".scale-octaves-wrap", textKey: "help_scale_octaves", side: "top" },
-  { selector: "#scaleBpm", textKey: "help_scale_bpm", side: "left" },
-  { selector: "#scaleName", textKey: "help_scale_result_name", side: "left" },
-  { selector: "#scaleNotes", textKey: "help_scale_result_notes", side: "left" },
-  { selector: "#scaleIntervals", textKey: "help_scale_result_intervals", side: "left" },
-  { selector: ".scale-fingering-row", textKey: "help_scale_fingering", side: "left" },
-  { selector: "#instrumentArea", textKey: "help_instrument_surface_scales", side: "top" },
-];
-const HELP_CALLOUTS_METRONOME = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
-  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
-  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_metronome", side: "top" },
-  { selector: "#sharedPiano", textKey: "help_instrument_surface_metronome", side: "top" },
-  { selector: "#panelMetronome", textKey: "help_metronome_panel", side: "left" },
-  { selector: "#metroToggle", textKey: "help_metro_start", side: "bottom" },
-  { selector: "#metroVolume", textKey: "help_metro_volume", side: "left" },
-  { selector: "#metroBpmMinus", textKey: "help_metro_bpm_minus", side: "left" },
-  { selector: "#bpm", textKey: "help_metro_bpm", side: "left" },
-  { selector: "#metroBpmPlus", textKey: "help_metro_bpm_plus", side: "left" },
-  { selector: "#metroMeterMinus", textKey: "help_metro_meter_minus", side: "left" },
-  { selector: "#metroMeter", textKey: "help_metro_meter", side: "left" },
-  { selector: "#metroMeterPlus", textKey: "help_metro_meter_plus", side: "left" },
-  { selector: "#metroRowSubdivision", textKey: "help_metro_subdivision", side: "top" },
-  { selector: "#metroRowBarAccent", textKey: "help_metro_bar_accent", side: "left" },
-  { selector: "#metroRowTimerEnabled", textKey: "help_metro_timer", side: "left" },
-  { selector: "#metroRowTimer", textKey: "help_metro_timer_values", side: "left" },
-  { selector: "#helpMetroYellowPoints", textKey: "help_metro_yellow_points", side: "top" },
-  { selector: "#helpMetroScaleAxis", textKey: "help_metro_scale_axis", side: "top" },
-  { selector: "#helpMetroRedBall", textKey: "help_metro_red_ball", side: "top" },
-];
-
-const HELP_CALLOUTS_INTERVAL_DETECTION = [
-  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
-  { selector: "#language", textKey: "help_language", side: "bottom" },
-  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
-  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
-  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
-  { selector: "#staffCanvas", textKey: "help_staff_interval", side: "top" },
-  { selector: "#panelIntervalDetection", textKey: "help_interval_panel", side: "left" },
-  { selector: "#intervalPlayReverse", textKey: "help_interval_play_reverse", side: "bottom" },
-  { selector: "#intervalPlay", textKey: "help_interval_play", side: "bottom" },
-  { selector: "#intervalClear", textKey: "help_interval_clear", side: "bottom" },
-  { selector: "#intervalFieldNotes", textKey: "help_interval_field_notes", side: "left" },
-  { selector: "#intervalFieldName", textKey: "help_interval_field_name", side: "left" },
-  { selector: "#intervalFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
-  { selector: "#intervalFieldRecuerda", textKey: "help_interval_field_recuerda", side: "left" },
-  { selector: "#sharedPiano", textKey: "help_instrument_surface_interval", side: "top" },
-];
-
-function helpCalloutsForMode(mode) {
-  if (mode === "detection") return HELP_CALLOUTS_DETECTION;
-  if (mode === "interval_detection") return HELP_CALLOUTS_INTERVAL_DETECTION;
-  if (mode === "generation") return HELP_CALLOUTS_GENERATION;
-  if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
-  if (mode === "scales") return HELP_CALLOUTS_SCALES;
-  if (mode === "metronome") return HELP_CALLOUTS_METRONOME;
-  return [];
-}
-
-function isHelpAvailableForMode(mode) {
-  return helpCalloutsForMode(mode).length > 0;
-}
+const { helpCalloutsForMode, isHelpAvailableForMode } =
+  globalThis.MidiChordsHelpCallouts;
 
 function el(id) {
   return document.getElementById(id);
 }
 
 function isChordGenerationLikeMode() {
-  return state.mode === "generation" || state.mode === "circle_fifths";
+  return isChordPlaybackMode(state.mode);
 }
 
 /** #/♭: leer el <select> visible primero (state puede desincronizarse si no hubo evento change). */
@@ -996,7 +272,7 @@ function currentAccidentalValue() {
 
 function noteNameFromPc(pc) {
   const preferFlat = accidentalPreferFlatFromUi();
-  return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
+  return noteLabelFromPc(state.language, pc, preferFlat);
 }
 
 /** Etiqueta del teclado: base + alteración sin hueco tipográfico entre ambos. */
@@ -1014,289 +290,43 @@ function pianoKeyLabelHtml(pc) {
 }
 
 function noteNameFromPcStaff(pc, preferFlat) {
-  return NOTE_LABELS[state.language][preferFlat ? "flat" : "sharp"][((pc % 12) + 12) % 12];
+  return noteLabelFromPc(state.language, pc, preferFlat);
 }
 
-/** Sentido horario desde arriba (Do), avanzando de quinta en quinta. */
-const CIRCLE_FIFTHS_ORDER = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
-
-const DIATONIC_DEGREE_SUFFIX = {
-  0: "",
-  2: "m",
-  4: "m",
-  5: "",
-  7: "",
-  9: "m",
-  11: "dim",
-};
-
-const ROMAN_BY_DEGREE = {
-  0: "I",
-  2: "ii",
-  4: "iii",
-  5: "IV",
-  7: "V",
-  9: "vi",
-  11: "vii°",
-};
-
-/**
- * Fondos diatónicos (referencia visual): mayor = melocotón claro; tónica I = beige/marrón más oscuro;
- * menor = lavanda claro; vii° = rosa pálido (como en la maqueta del círculo).
- */
-const CIRCLE_DEGREE_FILL = {
-  0: { base: "#f0d5b8", tonic: "#c9a06a" },
-  2: "#ddd0e8",
-  4: "#ddd0e8",
-  5: "#f0d5b8",
-  7: "#f0d5b8",
-  9: "#ddd0e8",
-  11: "#f5d4dc",
-};
-
-/** Texto diatónico: I/vi verde; IV/ii azul; V/iii/vii° rojo (legible sobre fondos claros). */
-const CIRCLE_DEGREE_TEXT = {
-  0: "#1b5e20",
-  2: "#0d47a1",
-  4: "#b71c1c",
-  5: "#1565c0",
-  7: "#c62828",
-  9: "#2e7d32",
-  11: "#c62828",
-};
-
-function diatonicTriadSuffixMajorKey(tonicPc, rootPc) {
-  const d = (rootPc - tonicPc + 12) % 12;
-  if (Object.prototype.hasOwnProperty.call(DIATONIC_DEGREE_SUFFIX, d)) {
-    return { suffix: DIATONIC_DEGREE_SUFFIX[d], degree: d };
-  }
-  return { suffix: "", degree: null };
-}
-
-/**
- * Triadas diatónicas en tonalidad menor natural (intervalos desde la tónica menor).
- * III/VI/VII como ♭ respecto a la mayor paralela (p. ej. en Lam: Do = ♭III).
- */
-const ROMAN_BY_MINOR_NATURAL_INTERVAL = {
-  0: "i",
-  2: "ii°",
-  3: "\u266DIII",
-  5: "iv",
-  7: "v",
-  8: "\u266DVI",
-  10: "\u266DVII",
-};
-
-/** En canvas, dibuja numerales con el bem (\u266D) en superíndice respecto al número romano. */
-function fillTextRomanMaybeFlatSuperscript(ctx, roman, x, y, fsRoman) {
-  const ff = `"Avenir Next", "Segoe UI", sans-serif`;
-  const flat = "\u266D";
-  if (!roman) return;
-  if (roman.charAt(0) !== flat) {
-    ctx.font = `${fsRoman}px ${ff}`;
-    ctx.fillText(roman, x, y);
-    return;
-  }
-  const body = roman.slice(1);
-  const supFs = Math.max(7, Math.round(fsRoman * 0.58));
-  const rise = Math.round(fsRoman * 0.4);
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.font = `${supFs}px ${ff}`;
-  const wFlat = ctx.measureText(flat).width;
-  ctx.font = `${fsRoman}px ${ff}`;
-  const wBody = ctx.measureText(body).width;
-  const gap = Math.max(2, Math.round(fsRoman * 0.14));
-  const total = wFlat + gap + wBody;
-  let drawX = x - total / 2;
-  ctx.font = `${supFs}px ${ff}`;
-  ctx.fillText(flat, drawX, y - rise);
-  drawX += wFlat + gap;
-  ctx.font = `${fsRoman}px ${ff}`;
-  ctx.fillText(body, drawX, y);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-}
-
-function diatonicTriadSuffixNaturalMinorKey(minorTonicPc, rootPc) {
-  const d = (rootPc - minorTonicPc + 12) % 12;
-  const MAP = {
-    0: { suffix: "m" },
-    2: { suffix: "dim" },
-    3: { suffix: "" },
-    5: { suffix: "m" },
-    7: { suffix: "m" },
-    8: { suffix: "" },
-    10: { suffix: "" },
-  };
-  if (!Object.prototype.hasOwnProperty.call(MAP, d)) {
-    return { suffix: "", interval: null, roman: "" };
-  }
-  return {
-    suffix: MAP[d].suffix,
-    interval: d,
-    roman: ROMAN_BY_MINOR_NATURAL_INTERVAL[d] || "",
-  };
-}
-
-/**
- * Mapea intervalo menor natural → clave de grado mayor para CIRCLE_DEGREE_TEXT / rellenos.
- * VII comparte lavanda con III/VI (no el rosa de vii°); ii° usa el rosa de grado 11.
- */
-function circleMinorIntervalToMajorDegreeKey(intervalD) {
-  const map = { 0: 0, 2: 11, 3: 4, 5: 5, 7: 7, 8: 9, 10: 9 };
-  return map[intervalD] !== undefined ? map[intervalD] : 0;
-}
-
-function circleDiatonicSliceFill(degree, pc, tonicPc) {
-  if (degree === 0) {
-    return pc === tonicPc ? CIRCLE_DEGREE_FILL[0].tonic : CIRCLE_DEGREE_FILL[0].base;
-  }
-  return CIRCLE_DEGREE_FILL[degree];
-}
-
-/** En el anillo mayor del sector solo la triada mayor I, IV o V es la función diatónica (no Re mayor = ii ni Si mayor = vii°). */
-function circleUpperBandIsDiatonicMajorTriad(degree) {
-  return degree === 0 || degree === 5 || degree === 7;
-}
-
-/** El anillo inferior muestra la menor relativa; ii/iii/vi coinciden con Rem/Mim/Lam en los sectores correctos. */
-function circleLowerBandIsDiatonicMinorTriad(minorDeg) {
-  return minorDeg === 2 || minorDeg === 4 || minorDeg === 9;
-}
-
-/** Índice 0..11 en orden de quintas (C arriba): 0–6 → #, 7–11 → ♭. */
-function circleSignatureLabelForSliceIndex(i) {
-  if (i <= 6) {
-    const n = i;
-    if (n === 0) return "0";
-    return `${n}♯`;
-  }
-  const fb = 12 - i;
-  return `${fb}♭`;
-}
-
-/** Menor relativa de una mayor (ej. Do → La). */
-function relativeMinorPcFromMajorPc(majorPc) {
-  return (Number(majorPc) + 9 + 12) % 12;
-}
+const {
+  CIRCLE_FIFTHS_ORDER,
+  ROMAN_BY_DEGREE,
+  CIRCLE_DEGREE_FILL,
+  CIRCLE_DEGREE_TEXT,
+  ROMAN_BY_MINOR_NATURAL_INTERVAL,
+  diatonicTriadSuffixMajorKey,
+  fillTextRomanMaybeFlatSuperscript,
+  diatonicTriadSuffixNaturalMinorKey,
+  circleMinorIntervalToMajorDegreeKey,
+  circleDiatonicSliceFill,
+  circleUpperBandIsDiatonicMajorTriad,
+  circleLowerBandIsDiatonicMinorTriad,
+  circleSignatureLabelForSliceIndex,
+  relativeMinorPcFromMajorPc,
+  circleFifthsRadiiPx,
+  circleSliceAngles,
+  pitchClassFromCircleClick,
+  circleChordRootPcFromClick,
+  circleChordShiftClickIsDiatonic,
+  circleFifthsClickInnerMinorBand,
+  circleChordHighlightGeom,
+  circleSliceIndexForPitchClass,
+  chordRootPcForMajorScaleDegree,
+  circlePathArc,
+  circlePathArcHoleBottom,
+  circlePathArcSpan,
+} = globalThis.MidiChordsCircleTheory;
 
 function circleMinorLabel(majorPc) {
   const mpc = relativeMinorPcFromMajorPc(majorPc);
   return `${noteNameFromPc(mpc)}m`;
 }
 
-function circleFifthsRadiiPx(w, h) {
-  const rOuter = Math.min(w, h) * 0.46;
-  const rHole = rOuter * 0.18;
-  /** Anillo de ♯/♭: mitad del ancho que tenía la franja exterior respecto a la guía antigua (0.775·R). */
-  const rGuideSigMajRef = rOuter * 0.775;
-  const bandSig = (rOuter - rGuideSigMajRef) / 2;
-  const rSigInner = rOuter - bandSig;
-  const rSig = (rOuter + rSigInner) / 2;
-  /** Frontera mayor/menor: más cerca del centro → anillo mayor más estrecho y anillo menor más ancho (menos solape de textos). */
-  const rGuideMajMin = rOuter * 0.52;
-  return {
-    rOuter,
-    rHole,
-    rSigInner,
-    rSig,
-    rMajName: rOuter * 0.72,
-    rMajRoman: rOuter * 0.60,
-    rMin: rOuter * 0.38,
-    /** Romano bajo el nombre menor; más hacia el centro del anillo menor que el agujero. */
-    rMinRoman: rOuter * 0.292,
-    /** Líneas entre anillo de armadura / mayor / menor. */
-    rGuideSigMaj: rSigInner,
-    rGuideMajMin,
-  };
-}
-
-function circleSliceIndexForPitchClass(pc) {
-  const p = ((pc % 12) + 12) % 12;
-  for (let i = 0; i < 12; i += 1) {
-    if (CIRCLE_FIFTHS_ORDER[i] === p) return i;
-  }
-  return 0;
-}
-
-/** Raíz del acorde diatónico en tonalidad mayor (I, ii, iii, IV, V, vi, vii°). */
-function chordRootPcForMajorScaleDegree(tonicPc, degree) {
-  const inter = { 0: 0, 2: 2, 4: 4, 5: 5, 7: 7, 9: 9, 11: 11 };
-  return (((tonicPc + inter[degree]) % 12) + 12) % 12;
-}
-
-/**
- * Arco entre dos ángulos en r: elige tramo corto o largo según preferNorth (−sin) o sur (+sin).
- * Usado para el arco superior IV–I–V (pasar por el norte, por encima de Do).
- */
-function circlePathArc(ctx, r, aFrom, aTo, preferNorth) {
-  let d = aTo - aFrom;
-  while (d <= 0) d += Math.PI * 2;
-  while (d > Math.PI * 2) d -= Math.PI * 2;
-  const shortSweep = d > Math.PI ? Math.PI * 2 - d : d;
-  const longSweep = Math.PI * 2 - shortSweep;
-  const midShort = aFrom + shortSweep / 2;
-  const midLong = aFrom + longSweep / 2;
-  const scoreNorth = (a) => -Math.sin(a);
-  const scoreSouth = (a) => Math.sin(a);
-  const score = preferNorth ? scoreNorth : scoreSouth;
-  const sweep = score(midLong) > score(midShort) ? longSweep : shortSweep;
-  const steps = 40;
-  for (let i = 1; i <= steps; i += 1) {
-    const t = i / steps;
-    const ang = aFrom + sweep * t;
-    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
-  }
-}
-
-/**
- * Arco en rHole entre dos ángulos: tramo por la parte inferior (Mi, Si, Fa#…),
- * coherente con ii–iii–vi en el anillo interior.
- */
-function circlePathArcHoleBottom(ctx, r, aFrom, aTo) {
-  let d = aTo - aFrom;
-  while (d <= 0) d += Math.PI * 2;
-  while (d > Math.PI * 2) d -= Math.PI * 2;
-  const shortSweep = d > Math.PI ? Math.PI * 2 - d : d;
-  const longSweep = Math.PI * 2 - shortSweep;
-  function avgSin(sweep) {
-    let s = 0;
-    for (let k = 0; k <= 16; k += 1) {
-      const t = k / 16;
-      const ang = aFrom + sweep * t;
-      s += Math.sin(ang);
-    }
-    return s / 17;
-  }
-  const sweep = avgSin(longSweep) > avgSin(shortSweep) ? longSweep : shortSweep;
-  const steps = 40;
-  for (let i = 1; i <= steps; i += 1) {
-    const t = i / steps;
-    const ang = aFrom + sweep * t;
-    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
-  }
-}
-
-/** Arco en r constante de ang0 a ang1 (recorrido corto positivo, hasta 2π). */
-function circlePathArcSpan(ctx, r, ang0, ang1) {
-  let d = ang1 - ang0;
-  while (d <= 0) d += Math.PI * 2;
-  while (d > Math.PI * 2) d -= Math.PI * 2;
-  const steps = Math.max(8, Math.min(64, Math.ceil(48 * d / (Math.PI * 2))));
-  for (let i = 1; i <= steps; i += 1) {
-    const t = i / steps;
-    const ang = ang0 + d * t;
-    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
-  }
-}
-
-/**
- * Perímetro de la unión de celdas diatónicas en la grilla (3 radios × 12 sectores):
- * solo aristas de celda (arcos en rHole, rGuideMajMin, rSigInner y radiales en límites de sector).
- * Diferencia simétrica de aristas → borde de la unión (mínimo en el sentido de perímetro de polígono ortogonal).
- * Esquina superior izquierda del IV = vértice (radial del a0 del IV, banda rSigInner).
- */
 function strokeCircleDiatonicEnvelope(ctx, tonicPc, rSigInner, rGuideMajMin, rHole, dpr) {
   const R = [rHole, rGuideMajMin, rSigInner];
   /** Celda [slice][banda]: 0 = rHole–rGuide, 1 = rGuide–rSig. */
@@ -1485,44 +515,6 @@ function strokeCircleDiatonicEnvelope(ctx, tonicPc, rSigInner, rGuideMajMin, rHo
  * Resaltado del acorde: banda superior (mayor + romanos mayores) o inferior (menor + romanos menores).
  * Lam (vi) vive en el sector de su mayor relativa (p. ej. Do), no en el sector La.
  */
-function circleChordHighlightGeom(tonicPc, chordRootPc, generatedChord) {
-  const rootFromState = ((chordRootPc % 12) + 12) % 12;
-  const rootFromApi = generatedChord != null && generatedChord.root_pc != null
-    ? (((Number(generatedChord.root_pc) % 12) + 12) % 12)
-    : null;
-  const root = rootFromApi != null ? rootFromApi : rootFromState;
-  let suffix = "";
-  if (generatedChord && generatedChord.suffix != null && generatedChord.suffix !== undefined) {
-    suffix = String(generatedChord.suffix);
-  }
-  if (suffix === "" || suffix === "undefined") {
-    if (state.circleKeyMode === "minor") {
-      const mt = ((state.circleTonicPc % 12) + 12) % 12;
-      suffix = diatonicTriadSuffixNaturalMinorKey(mt, root).suffix || "";
-    } else {
-      suffix = diatonicTriadSuffixMajorKey(tonicPc, root).suffix || "";
-    }
-  }
-  if (suffix === "m") {
-    const relMajPc = (root - 9 + 12) % 12;
-    return {
-      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
-      band: "minor",
-    };
-  }
-  if (suffix === "dim") {
-    const relMajPc = (root + 3 + 12) % 12;
-    return {
-      sliceIdx: circleSliceIndexForPitchClass(relMajPc),
-      band: "minor",
-    };
-  }
-  return {
-    sliceIdx: circleSliceIndexForPitchClass(root),
-    band: "major",
-  };
-}
-
 /** Trapecio circular: solo contorno amarillo (sin relleno). */
 function strokeCircleChordSelectionBand(ctx, rOut, rIn, a0, a1, dpr) {
   ctx.beginPath();
@@ -1539,86 +531,6 @@ function strokeCircleChordSelectionBand(ctx, rOut, rIn, a0, a1, dpr) {
   ctx.stroke();
 }
 
-const CIRCLE_SLICE_RAD = (Math.PI * 2) / 12;
-
-/** Do (índice 0) con eje en el norte (−90°); cada sector centrado en −90° + i·30°. */
-function circleSliceAngles(i) {
-  const mid = (-Math.PI / 2) + (i * CIRCLE_SLICE_RAD);
-  const half = CIRCLE_SLICE_RAD / 2;
-  return { mid, a0: mid - half, a1: mid + half };
-}
-
-function circleSliceIndexFromCanvas(cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const a = Math.atan2(dy, dx);
-  const t = (a + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
-  return Math.floor((t + CIRCLE_SLICE_RAD / 2) / CIRCLE_SLICE_RAD) % 12;
-}
-
-function pitchClassFromCircleClick(cx, cy, x, y) {
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  return CIRCLE_FIFTHS_ORDER[idx];
-}
-
-/**
- * Clic: fija tónica/tonalidad según anillo (mayor exterior / menor relativa interior).
- * Mayús+clic: raíz del acorde diatónico en la misma regla de anillo.
- */
-function circleChordRootPcFromClick(canvasW, canvasH, cx, cy, x, y, shiftKey) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
-  if (!shiftKey) {
-    if (dist < rGuideMajMin) {
-      return ((majorPc + 9) % 12 + 12) % 12;
-    }
-    return ((majorPc % 12) + 12) % 12;
-  }
-  if (dist < rGuideMajMin) {
-    return ((majorPc + 9) % 12 + 12) % 12;
-  }
-  return ((majorPc % 12) + 12) % 12;
-}
-
-/**
- * Mayús+clic: solo triadas diatónicas según banda y sector (mayor: I–IV–V / ii–iii–vi–vii°; menor natural: grados relativos).
- */
-function circleChordShiftClickIsDiatonic(tonicPc, canvasW, canvasH, cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return false;
-  const idx = circleSliceIndexFromCanvas(cx, cy, x, y);
-  const majorPc = CIRCLE_FIFTHS_ORDER[idx];
-  const innerMinorBand = dist < rGuideMajMin;
-  if (state.circleKeyMode === "minor") {
-    const minorTonic = ((state.circleTonicPc % 12) + 12) % 12;
-    if (!innerMinorBand) {
-      const dU = (majorPc - minorTonic + 12) % 12;
-      return [3, 8, 10].includes(dU);
-    }
-    const rootMinor = (majorPc + 9 + 12) % 12;
-    return diatonicTriadSuffixNaturalMinorKey(minorTonic, rootMinor).interval != null;
-  }
-  const viiRootPc = chordRootPcForMajorScaleDegree(tonicPc, 11);
-  const viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
-  if (!innerMinorBand) {
-    const { degree } = diatonicTriadSuffixMajorKey(tonicPc, majorPc);
-    return degree != null && circleUpperBandIsDiatonicMajorTriad(degree);
-  }
-  const rootMinor = (majorPc + 9 + 12) % 12;
-  const { degree: minorDeg } = diatonicTriadSuffixMajorKey(tonicPc, rootMinor);
-  if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) return true;
-  if (minorDeg === 11 && majorPc === viiLabelSlicePc) return true;
-  return false;
-}
-
 /** Tónica de la tonalidad mayor usada en análisis diatónico (numeración, colores, API). Si el usuario eligió modo menor, es la relativa mayor. */
 function circleMajorTonicPcForTheory() {
   const t = ((state.circleTonicPc % 12) + 12) % 12;
@@ -1626,16 +538,6 @@ function circleMajorTonicPcForTheory() {
     return (t + 3 + 12) % 12;
   }
   return t;
-}
-
-/** null = fuera del anillo; true = banda menor; false = banda mayor. */
-function circleFifthsClickInnerMinorBand(canvasW, canvasH, cx, cy, x, y) {
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt((dx * dx) + (dy * dy));
-  const { rOuter, rHole, rGuideMajMin } = circleFifthsRadiiPx(canvasW, canvasH);
-  if (dist < rHole * 1.02 || dist > rOuter * 1.02) return null;
-  return dist < rGuideMajMin;
 }
 
 function scheduleCircleFifthsLayout() {
@@ -1771,7 +673,13 @@ function renderCircleFifths() {
     ctx.stroke();
   }
   strokeCircleDiatonicEnvelope(ctx, tonic, rSigInner, rGuideMajMin, rHole, dpr);
-  const hl = circleChordHighlightGeom(tonic, chordRoot, state.generatedChord);
+  const hl = circleChordHighlightGeom(
+    tonic,
+    chordRoot,
+    state.generatedChord,
+    state.circleKeyMode,
+    state.circleTonicPc,
+  );
   const { a0: ha0, a1: ha1 } = circleSliceAngles(hl.sliceIdx);
   const selInset = Math.max(2.5, 3.2 * dpr);
   let rHiOut = rSigInner - selInset;
@@ -1912,13 +820,23 @@ function bindCircleFifthsCanvas() {
     const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y, event.shiftKey);
+    const pc = circleChordRootPcFromClick(canvas.width, canvas.height, cx, cy, x, y);
     if (pc == null) return;
     // Invertido respecto al gesto original (alineado con móvil): clic simple
     // elige un acorde diatónico dentro de la tonalidad actual; Mayús+clic
     // cambia de tónica/tonalidad.
     if (!event.shiftKey) {
-      if (!circleChordShiftClickIsDiatonic(circleMajorTonicPcForTheory(), canvas.width, canvas.height, cx, cy, x, y)) return;
+      if (!circleChordShiftClickIsDiatonic(
+        circleMajorTonicPcForTheory(),
+        canvas.width,
+        canvas.height,
+        cx,
+        cy,
+        x,
+        y,
+        state.circleKeyMode,
+        state.circleTonicPc,
+      )) return;
       state.circleChordRootPc = pc;
     } else {
       const band = circleFifthsClickInnerMinorBand(canvas.width, canvas.height, cx, cy, x, y);
@@ -2180,30 +1098,25 @@ function getMidiOutput() {
   return state.midi.access.outputs.values().next().value || null;
 }
 
+const midiOutputController = globalThis.MidiChordsMidiOutput.createMidiOutputController({
+  getOutput: getMidiOutput,
+  heldNotes: state.heldMidiChordNotes,
+});
+
 function sendMidiNote(note, durationMs) {
-  const output = getMidiOutput();
-  if (!output) return;
-  output.send([0x90, note, 64]);
-  setTimeout(() => { try { output.send([0x80, note, 0]); } catch (_e) {} }, durationMs);
+  midiOutputController.sendNote(note, durationMs);
 }
 
 function sendMidiNoteOn(note) {
-  const output = getMidiOutput();
-  if (!output) return;
-  output.send([0x90, note, 64]);
-  if (!state.heldMidiChordNotes) state.heldMidiChordNotes = new Set();
-  state.heldMidiChordNotes.add(note);
+  midiOutputController.noteOn(note);
 }
 
 function sendMidiNoteOff(note) {
-  const output = getMidiOutput();
-  if (output) { try { output.send([0x80, note, 0]); } catch (_e) {} }
-  if (state.heldMidiChordNotes) state.heldMidiChordNotes.delete(note);
+  midiOutputController.noteOff(note);
 }
 
 function stopAllHeldMidiOutputNotes() {
-  if (!state.heldMidiChordNotes || !state.heldMidiChordNotes.size) return;
-  Array.from(state.heldMidiChordNotes).forEach((note) => sendMidiNoteOff(note));
+  midiOutputController.stopAll();
 }
 
 function loadSavedSoundOutputPref() {
@@ -2932,10 +1845,6 @@ function setMode(mode) {
     state.generationCurrentClearTimer = null;
   }
   state.generationCurrentNote = null;
-  if (state.generationPlayClearTimer != null) {
-    clearTimeout(state.generationPlayClearTimer);
-    state.generationPlayClearTimer = null;
-  }
   if (state.intervalPreviewClearTimer != null) {
     clearTimeout(state.intervalPreviewClearTimer);
     state.intervalPreviewClearTimer = null;
@@ -2943,7 +1852,6 @@ function setMode(mode) {
   state.intervalPlayGeneration++;
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
-  state.generationPlayingNotes.clear();
   state.generationMidiHeldNotes.clear();
   state.generationMidiForbiddenNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
@@ -3057,11 +1965,7 @@ function backToMenu() {
 
 function sendMidiProgramChange(inst) {
   if (state.soundOutput !== "midi") return;
-  const output = getMidiOutput();
-  if (!output) return;
-  // General MIDI: 0 = Acoustic Grand Piano, 24 = Acoustic Guitar (nylon)
-  const program = inst === "guitar" ? 24 : 0;
-  output.send([0xC0, program]);
+  midiOutputController.programChange(inst);
 }
 
 function setInstrument(inst) {
@@ -3128,10 +2032,13 @@ function renderGuitarVariationButtons() {
     if (idx === state.guitarSelectedVariationIdx) btn.classList.add("active");
     btn.textContent = String(idx + 1);
     btn.addEventListener("click", () => {
+      if (idx === state.guitarSelectedVariationIdx) return;
       state.guitarSelectedVariationIdx = idx;
       renderGuitarVariationButtons();
       renderInstrument();
       renderStaff();
+      const notes = getGenerationBaseNotes();
+      if (notes.length) playChordMidi(notes, { instrument: "guitar" });
     });
     bar.appendChild(btn);
   });
@@ -3262,71 +2169,33 @@ function getActiveMidiForMode() {
   return new Set();
 }
 
-const SCALE_BASIC_NAMES = new Set([
-  "Ionian", "Aeolian", "Harmonic Minor", "Melodic Minor",
-  "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian",
-  "Major Pentatonic", "Minor Pentatonic",
-  "Blues Pentatonic", "Minor Blues",
-  "Chromatic", "Whole Tone (WT)",
-]);
-
-function getScaleAliases() {
-  return state.language === "en"
-    ? { Ionian: "Major", Aeolian: "Natural Minor", "Super Locrian": "Altered" }
-    : { Ionian: "Mayor", Aeolian: "Menor Natural", "Super Locrian": "Alterada" };
-}
+const {
+  SCALE_BASIC_NAMES,
+  scaleDisplayLabel,
+  groupScalePatterns,
+  scaleBaseNotes,
+  scaleNotesForOctaves,
+  scaleLabelWithoutOctave,
+  scaleLabelForMidi: findScaleLabelForMidi,
+} = globalThis.MidiChordsScaleTheory;
 
 function getScaleBaseNotes() {
-  if (!state.generatedScale || !Array.isArray(state.generatedScale.notes_midi)) return [];
-  const base = Array.from(new Set(state.generatedScale.notes_midi.map((n) => Number(n))))
-    .filter((n) => Number.isFinite(n))
-    .sort((a, b) => a - b);
+  const notesMidi = state.generatedScale?.notes_midi;
   const guitarScaleMode = state.mode === "scales" && getScalePlaybackInstrument() === "guitar";
-  if (!guitarScaleMode || !base.length || state.scaleGuitarStartNote == null) return base;
-  const start = Number(state.scaleGuitarStartNote);
-  if (!Number.isFinite(start)) return base;
-  const first = Number(base[0]);
-  if ((((start % 12) + 12) % 12) !== (((first % 12) + 12) % 12)) return base;
-  const delta = start - first;
-  return base.map((n) => Number(n) + delta).filter((n) => Number.isFinite(n));
+  const startNote = guitarScaleMode ? state.scaleGuitarStartNote : null;
+  return scaleBaseNotes(notesMidi, startNote);
 }
 
 function getScaleNotesForOctaves() {
-  const base = getScaleBaseNotes();
-  if (!base.length) return base;
-  const oct = state.scaleOctaves || 1;
-  if (oct <= 1) return base;
-  const result = new Set(base);
-  if (oct >= 2) {
-    for (const n of base) result.add(n - 12);
-  }
-  if (oct >= 3) {
-    for (const n of base) result.add(n + 12);
-  }
-  return Array.from(result).sort((a, b) => a - b);
-}
-
-function scaleLabelWithoutOctave(label) {
-  return String(label || "").replace(/-?\d+$/g, "");
+  return scaleNotesForOctaves(getScaleBaseNotes(), state.scaleOctaves || 1);
 }
 
 function scaleLabelForMidi(midi) {
-  const target = Number(midi);
-  if (!Number.isFinite(target) || !state.generatedScale) return null;
-  const notesMidi = state.generatedScale.notes_midi;
-  const labels = state.generatedScale.notes;
-  if (!Array.isArray(notesMidi) || !Array.isArray(labels)) return null;
-  const targetPc = ((target % 12) + 12) % 12;
-  let best = null;
-  notesMidi.forEach((baseMidi, idx) => {
-    const base = Number(baseMidi);
-    if (!Number.isFinite(base) || (((base % 12) + 12) % 12) !== targetPc) return;
-    const label = scaleLabelWithoutOctave(labels[idx]);
-    if (!label) return;
-    const distance = Math.abs(target - base);
-    if (!best || distance < best.distance) best = { label, distance };
-  });
-  return best ? best.label : null;
+  return findScaleLabelForMidi(
+    midi,
+    state.generatedScale?.notes_midi,
+    state.generatedScale?.notes,
+  );
 }
 
 function setScaleGuitarStartNote(note) {
@@ -3396,145 +2265,30 @@ function getExtraMidiForMode() {
   return new Set();
 }
 
-function formatIntervalsFromMidi(notesMidi) {
-  const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
-  if (ordered.length === 0) return "-";
-  const result = ["0"];
-  for (let i = 1; i < ordered.length; i++) {
-    result.push(`+${ordered[i] - ordered[i - 1]}`);
-  }
-  return result.join(" ");
-}
-
-const INTERVAL_NAMES = {
-  es: {
-    0: "Unísono justo", 1: "Segunda menor", 2: "Segunda mayor",
-    3: "Tercera menor", 4: "Tercera mayor", 5: "Cuarta justa",
-    6: "Cuarta aum. / Quinta dim.", 7: "Quinta justa",
-    8: "Sexta menor", 9: "Sexta mayor", 10: "Séptima menor",
-    11: "Séptima mayor", 12: "Octava justa",
-  },
-  en: {
-    0: "Perfect Unison", 1: "Minor Second", 2: "Major Second",
-    3: "Minor Third", 4: "Major Third", 5: "Perfect Fourth",
-    6: "Aug. Fourth / Dim. Fifth", 7: "Perfect Fifth",
-    8: "Minor Sixth", 9: "Major Sixth", 10: "Minor Seventh",
-    11: "Major Seventh", 12: "Perfect Octave",
-  },
-};
-
-// durations: "w"=redonda  "h"=blanca  "q"=negra  "e"=corchea  "s"=semicorchea
-//            Añadir "." para puntillo. null=silencio
-// jumpAt: índice donde ocurre el intervalo (por defecto 0 = salto entre notas 0 y 1)
-const INTERVAL_MELODIES = {
-  1:  { name_es: "Tiburón (Jaws)",             name_en: "Jaws Theme",
-        beatsPerBar: 4,
-        showFull: true,
-        accent: true,
-        beams: [[0, 7]],
-        offsets:   [0, 1, 0, 1, 0, 1, 0, 1],
-        durations: ["e","e","e","e","e","e","e","e"] },
-
-  2:  { name_es: "Cumpleaños feliz",            name_en: "Happy Birthday",
-        beatsPerBar: 3, anacrusis: 1,
-        jumpAt: 1,
-        beams: [[0, 1]],
-        offsets:   [0, 0, 2, 0, 5, 4],
-        durations: ["e.","s","q","q","q","h"] },
-
-  3:  { name_es: "Smoke on the Water",          name_en: "Smoke on the Water",
-        beatsPerBar: 4,
-        offsets:   [0, 3, 5, null, 0, null, 3, 6, 5],
-        durations: ["q","q","q","e","e","e","q","e","h"] },
-
-  4:  { name_es: "When the Saints Go Marching In", name_en: "When the Saints Go Marching In",
-        beatsPerBar: 4, anacrusis: 1,
-        playbackStepMs: 320,
-        offsets:   [0, 4, 5, 7],
-        durations: ["q","q","q","w"] },
-
-  5:  { name_es: "Here Comes the Bride",  name_en: "Here Comes the Bride",
-        beatsPerBar: 4,
-        jumpAt: 3,
-        setupSlur: false,
-        highlightUntil: 1,
-        offsets:   [0, 5, 5, 5, 0, 7, 4, 5],
-        durations: ["q","e.","s","h","q","e.","s","h"] },
-
-  6:  { name_es: "María (West Side Story)",     name_en: "Maria (West Side Story)",
-        beatsPerBar: 3,
-        setupSlur: false,
-        offsets:   [0, 6, 7, 4, 0, -5],
-        durations: ["q.","e","h","q","q","h"] },
-
-  7:  { name_es: "Star Wars",                   name_en: "Star Wars",
-        beatsPerBar: 4,
-        beams: [[2, 3, 4]],
-        tuplets: [[2, 3, 4]],
-        offsets:   [0, 7, 5, 4, 2, 12, 7],
-        durations: ["h","h","et","et","et","h","q"] },
-
-  8:  { name_es: "Love Story",                 name_en: "Love Story",
-        beatsPerBar: 4, anacrusis: 1,
-        playbackStepMs: 520,
-        highlightUntil: 2,
-        offsets:   [0, 0, 8, 8, 0, 1, 0, -2],
-        durations: ["e","e","e","e","e","e","e","e"] },
-
-  9:  { name_es: "My Way",                      name_en: "My Way",
-        beatsPerBar: 4, anacrusis: 1.5,
-        offsets:   [0, 9, 7, 9],
-        durations: ["e","e","e","h"] },
-
-  10: { name_es: "Somewhere (West Side Story)", name_en: "Somewhere (West Side Story)",
-        beatsPerBar: 4,
-        offsets:   [0, 10, 9, 5, 2],
-        durations: ["h","h","q.","e","h"] },
-
-  11: { name_es: "Take On Me",                  name_en: "Take On Me",
-        beatsPerBar: 4,
-        offsets:   [0, 11, 12],
-        durations: ["h","h","h"] },
-
-  12: { name_es: "Somewhere Over the Rainbow",  name_en: "Somewhere Over the Rainbow",
-        beatsPerBar: 4,
-        offsets:   [0, 12, 11, 7, 9, 11, 12],
-        durations: ["h","h","q","e","e","q","q"] },
-};
+const {
+  INTERVAL_NAMES,
+  INTERVAL_MELODIES,
+  formatIntervalsFromMidi,
+  intervalName,
+  intervalSemitones,
+  intervalMelodyNotes,
+  intervalMelodySongName,
+} = globalThis.MidiChordsIntervalTheory;
 
 function getIntervalName(semitones) {
-  const lang = state.language in INTERVAL_NAMES ? state.language : "es";
-  return INTERVAL_NAMES[lang][semitones] || "-";
+  return intervalName(state.language, semitones);
 }
 
 function getIntervalSemitones() {
-  const n = state.intervalNotes;
-  if (n.length < 2) return null;
-  const raw = Math.abs(n[1] - n[0]);
-  const mod = raw % 12;
-  return (mod === 0 && raw > 0) ? 12 : mod;
+  return intervalSemitones(state.intervalNotes);
 }
 
 function getIntervalMelodyNotes() {
-  if (state.intervalNotes.length < 2) return [...state.intervalNotes].sort((a, b) => a - b);
-  const semitones = getIntervalSemitones();
-  const melody = INTERVAL_MELODIES[semitones];
-  if (!melody) return [...state.intervalNotes].sort((a, b) => a - b);
-  const base = Math.min(...state.intervalNotes);
-  // Mapear a null en vez de filtrar: preserva longitud de array y alineación con durations[]
-  return melody.offsets.map((offset) => {
-    if (offset === null) return null;
-    const n = base + offset;
-    return (n >= 0 && n <= 127) ? n : null;
-  });
+  return intervalMelodyNotes(state.intervalNotes);
 }
 
 function getIntervalMelodySongName() {
-  const semitones = getIntervalSemitones();
-  if (semitones === null) return null;
-  const entry = INTERVAL_MELODIES[semitones];
-  if (!entry) return null;
-  return state.language === "en" ? entry.name_en : entry.name_es;
+  return intervalMelodySongName(state.language, state.intervalNotes);
 }
 
 function previewIntervalMelodyNote(midi, idx = null) {
@@ -3729,258 +2483,8 @@ function noteNameWithOctave(midi) {
   return noteNameFromPc(m % 12) + octave;
 }
 
-function pianoFingeringForCount(count, hand) {
-  const n = Math.max(1, Number(count) || 1);
-  if (hand === "right") {
-    const templates = {
-      1: [1],
-      2: [1, 3],
-      3: [1, 3, 5],
-      4: [1, 2, 4, 5],
-      5: [1, 2, 3, 4, 5],
-    };
-    if (templates[n]) return templates[n];
-    return Array.from({ length: n }, (_, i) => Math.min(5, i + 1));
-  }
-  const templates = {
-    1: [5],
-    2: [5, 3],
-    3: [5, 3, 1],
-    4: [5, 3, 2, 1],
-    5: [5, 4, 3, 2, 1],
-  };
-  if (templates[n]) return templates[n];
-  return Array.from({ length: n }, (_, i) => Math.max(1, 5 - i));
-}
-
-// Documented one-octave piano scale fingerings. Do not add fallback patterns
-// for unsupported scales/tonics unless they are backed by a piano fingering source.
-
-// Major Pentatonic (6 notes/oct).
-const MAJOR_PENT_RH = {
-  0:[1,2,3,1,2,3], 1:[2,3,1,2,3,4], 2:[1,2,3,1,2,4], 3:[2,1,2,3,1,2],
-  4:[1,2,3,1,2,3], 5:[1,2,3,1,2,4], 6:[1,2,3,1,2,3], 7:[1,2,3,1,2,4],
-  8:[2,3,1,2,1,2], 9:[1,2,3,1,2,1], 10:[3,1,2,1,2,3], 11:[1,2,3,4,5,1],
-};
-const MAJOR_PENT_LH = {
-  0:[3,2,1,2,1,3], 1:[3,2,1,4,3,2], 2:[2,1,3,2,1,2], 3:[3,2,1,2,1,3],
-  4:[4,3,2,1,2,1], 5:[3,2,1,2,1,3], 6:[3,2,1,3,2,1], 7:[3,2,1,2,1,3],
-  8:[3,2,1,2,1,3], 9:[2,1,2,1,3,2], 10:[3,2,1,2,1,3], 11:[1,5,4,3,2,1],
-};
-
-// Minor Pentatonic (6 notes/oct).
-const MINOR_PENT_RH = {
-  0:[1,2,3,1,2,3], 1:[2,1,2,3,1,2], 2:[1,2,3,1,2,3], 3:[1,2,3,1,2,3],
-  4:[1,2,3,1,2,3], 5:[1,2,3,1,2,3], 6:[2,1,2,3,1,2], 7:[1,2,1,2,3,1],
-  8:[2,1,2,3,4,5], 9:[1,2,3,1,2,3], 10:[2,3,4,1,2,3], 11:[2,1,2,3,1,2],
-};
-const MINOR_PENT_LH = {
-  0:[1,3,2,1,2,1], 1:[2,1,3,2,1,2], 2:[3,2,1,3,2,1], 3:[3,2,1,3,2,1],
-  4:[3,2,1,3,2,1], 5:[4,3,2,1,2,1], 6:[3,2,1,2,1,3], 7:[1,3,2,1,2,1],
-  8:[2,1,5,4,3,2], 9:[3,2,1,3,2,1], 10:[4,3,2,1,4,3], 11:[3,2,1,3,2,1],
-};
-
-// Minor Blues (7 notes/oct). C blues is documented in beginner piano sheets.
-// Other tonics are intentionally not synthesized here.
-const MINOR_BLUES_RH = {
-  0:[1,2,3,4,1,2,3],
-};
-const MINOR_BLUES_LH = {
-  0:[3,2,1,4,3,2,1],
-};
-
-// Whole Tone (7 notes/oct).
-const WHOLE_TONE_RH = {
-  0:[1,2,1,2,3,4,5], 1:[2,3,1,2,3,1,2], 2:[2,1,2,3,4,1,2],
-  3:[4,1,2,1,2,3,4], 4:[1,2,3,4,1,2,3], 5:[1,2,3,1,2,3,4],
-  6:[2,3,4,1,2,3,4], 7:[1,2,1,2,3,4,5], 8:[2,3,1,2,1,2,3],
-  9:[1,2,3,4,1,2,3], 10:[4,1,2,1,2,3,4], 11:[1,2,3,1,2,3,4],
-};
-const WHOLE_TONE_LH = {
-  0:[3,2,1,4,3,2,1], 1:[3,2,1,3,2,1,3], 2:[2,1,4,3,2,1,2],
-  3:[4,3,2,1,4,3,2], 4:[5,4,3,2,1,3,2], 5:[4,3,2,1,3,2,1],
-  6:[4,3,2,1,3,1,2], 7:[3,2,1,4,3,2,1], 8:[3,2,1,2,1,3,2],
-  9:[2,1,3,2,1,2,3], 10:[4,3,2,1,4,3,2], 11:[4,3,2,1,3,2,1],
-};
-
-// Chromatic (13 notes/oct). Same for all keys.
-const CHROMATIC_RH = [1,3,1,3,1,2,3,1,3,1,3,1,2];
-const CHROMATIC_LH = [1,3,1,3,2,1,3,1,3,1,3,2,1];
-
-// Natural Minor / Aeolian fingerings.
-const NATURAL_MINOR_RH = {
-  0:[1,2,3,1,2,3,4,5], 1:[3,4,1,2,3,1,2,3], 2:[1,2,3,1,2,3,4,5],
-  3:[3,1,2,3,4,1,2,3], 4:[1,2,3,1,2,3,4,5], 5:[1,2,3,4,1,2,3,4],
-  6:[2,3,1,2,3,1,2,3], 7:[1,2,3,1,2,3,4,5], 8:[3,4,1,2,3,1,2,3],
-  9:[1,2,3,1,2,3,4,5], 10:[2,1,2,3,1,2,3,4], 11:[1,2,3,1,2,3,4,5],
-};
-const NATURAL_MINOR_LH = {
-  0:[5,4,3,2,1,3,2,1], 1:[3,2,1,4,3,2,1,3], 2:[5,4,3,2,1,3,2,1],
-  3:[2,1,4,3,2,1,3,2], 4:[5,4,3,2,1,3,2,1], 5:[5,4,3,2,1,3,2,1],
-  6:[4,3,2,1,3,2,1,4], 7:[5,4,3,2,1,3,2,1], 8:[3,2,1,3,2,1,4,3],
-  9:[5,4,3,2,1,3,2,1], 10:[2,1,3,2,1,4,3,2], 11:[4,3,2,1,4,3,2,1],
-};
-
-// Harmonic Minor fingerings.
-const HARMONIC_MINOR_RH = {
-  0:[1,2,3,1,2,3,4,5], 1:[3,4,1,2,3,1,2,3], 2:[1,2,3,1,2,3,4,5],
-  3:[3,1,2,3,4,1,2,3], 4:[1,2,3,1,2,3,4,5], 5:[1,2,3,4,1,2,3,4],
-  6:[2,3,1,2,3,1,2,3], 7:[1,2,3,1,2,3,4,5], 8:[2,3,1,2,3,1,2,3],
-  9:[1,2,3,1,2,3,4,5], 10:[2,1,2,3,1,2,3,4], 11:[1,2,3,1,2,3,4,5],
-};
-const HARMONIC_MINOR_LH = {
-  0:[5,4,3,2,1,3,2,1], 1:[3,2,1,4,3,2,1,3], 2:[5,4,3,2,1,3,2,1],
-  3:[2,1,4,3,2,1,3,2], 4:[5,4,3,2,1,3,2,1], 5:[5,4,3,2,1,3,2,1],
-  6:[4,3,2,1,3,2,1,4], 7:[5,4,3,2,1,3,2,1], 8:[3,2,1,4,3,2,1,3],
-  9:[5,4,3,2,1,3,2,1], 10:[2,1,3,2,1,4,3,2], 11:[4,3,2,1,4,3,2,1],
-};
-
-// Melodic Minor fingerings, ascending/jazz form.
-const MELODIC_MINOR_RH = {
-  0:[1,2,3,1,2,3,4,5], 1:[2,3,1,2,3,4,1,2], 2:[1,2,3,1,2,3,4,5],
-  3:[3,1,2,3,4,1,2,3], 4:[1,2,3,1,2,3,4,5], 5:[1,2,3,4,1,2,3,4],
-  6:[2,3,1,2,3,4,1,2], 7:[1,2,3,4,1,2,3,4], 8:[3,4,1,2,3,1,2,3],
-  9:[1,2,3,1,2,3,4,5], 10:[4,1,2,3,1,2,3,4], 11:[1,2,3,1,2,3,4,5],
-};
-const MELODIC_MINOR_LH = {
-  0:[5,4,3,2,1,3,2,1], 1:[3,2,1,4,3,2,1,3], 2:[5,4,3,2,1,3,2,1],
-  3:[2,1,4,3,2,1,3,2], 4:[5,4,3,2,1,3,2,1], 5:[5,4,3,2,1,3,2,1],
-  6:[4,3,2,1,3,2,1,4], 7:[5,4,3,2,1,3,2,1], 8:[3,2,1,4,3,2,1,3],
-  9:[5,4,3,2,1,3,2,1], 10:[2,1,4,3,2,1,3,2], 11:[4,3,2,1,4,3,2,1],
-};
-
-// LH Ionian fingerings (1 octave = 8 notes). No sharp/flat distinction needed for LH.
-const IONIAN_LH = {
-  0:  [5,4,3,2,1,3,2,1], // C
-  7:  [5,4,3,2,1,3,2,1], // G
-  2:  [5,4,3,2,1,3,2,1], // D
-  9:  [5,4,3,2,1,3,2,1], // A
-  4:  [5,4,3,2,1,3,2,1], // E
-  5:  [5,4,3,2,1,3,2,1], // F
-  11: [4,3,2,1,4,3,2,1], // B
-  6:  [4,3,2,1,3,2,1,4], // F# / Gb
-  10: [3,2,1,4,3,2,1,3], // Bb
-  3:  [3,2,1,4,3,2,1,3], // Eb
-  8:  [3,2,1,4,3,2,1,3], // Ab
-  1:  [3,2,1,4,3,2,1,3], // C# / Db
-};
-
-// RH Ionian fingerings (1 octave = 8 notes). Multi-octave: period of 7 + last note = pattern[7].
-const IONIAN_RH = {
-  sharp: {
-    0:  [1,2,3,1,2,3,4,5], // C
-    2:  [1,2,3,1,2,3,4,5], // D
-    4:  [1,2,3,1,2,3,4,5], // E
-    5:  [1,2,3,4,1,2,3,4], // F
-    7:  [1,2,3,1,2,3,4,5], // G
-    9:  [1,2,3,1,2,3,4,5], // A
-    11: [1,2,3,1,2,3,4,5], // B
-    1:  [2,3,1,2,3,4,1,2], // C#
-    6:  [2,3,4,1,2,3,1,2], // F# (same as Gb)
-    10: [2,1,2,3,1,2,3,4], // Bb/A#
-    3:  [3,1,2,3,4,1,2,3], // Eb/D#
-    8:  [3,4,1,2,3,1,2,3], // Ab/G#
-  },
-  flat: {
-    0:  [1,2,3,1,2,3,4,5], // C
-    2:  [1,2,3,1,2,3,4,5], // D
-    4:  [1,2,3,1,2,3,4,5], // E
-    5:  [1,2,3,4,1,2,3,4], // F
-    7:  [1,2,3,1,2,3,4,5], // G
-    9:  [1,2,3,1,2,3,4,5], // A
-    11: [1,2,3,1,2,3,4,5], // B
-    1:  [2,3,1,2,3,4,1,2], // Db
-    6:  [2,3,4,1,2,3,1,2], // Gb
-    10: [2,1,2,3,1,2,3,4], // Bb
-    3:  [3,1,2,3,4,1,2,3], // Eb
-    8:  [3,4,1,2,3,1,2,3], // Ab
-  },
-};
-
-function fingerArrayToResult(fingers) {
-  return fingers.map((f, i) => ({
-    finger: f,
-    crossover: i > 0 && i < fingers.length - 1 && Math.abs(f - fingers[i - 1]) > 1,
-  }));
-}
-
-function extendFingerPattern(pattern, n) {
-  const len = pattern.length;
-  if (n <= len) return pattern.slice(0, n);
-  if (len === 8) {
-    // 8-note scales: octave boundary = thumb if pattern starts on thumb, else ending finger
-    const ob = pattern[0] === 1 ? 1 : pattern[7];
-    const period = pattern.slice(0, 7);
-    const fingers = [];
-    for (let i = 0; i < n - 1; i++) {
-      fingers.push(i > 0 && i % 7 === 0 ? ob : period[i % 7]);
-    }
-    fingers.push(pattern[7]);
-    return fingers;
-  }
-  const period = len - 1;
-  const out = [];
-  for (let i = 0; i < n - 1; i++) out.push(pattern[i % period]);
-  out.push(pattern[len - 1]);
-  return out;
-}
-
-// Returns [{finger: 1-5, crossover: bool}] for each note in midiNotes (ascending).
-// crossover=true marks a "paso de dedo" (thumb passing under for RH, finger-3 crossing over for LH).
-// ctx: optional { tonicPc, patternName, preferFlat } for scale-specific overrides.
-function computeScaleFingering(midiNotes, hand, ctx = {}) {
-  const n = midiNotes.length;
-  if (n === 0) return [];
-
-  if (ctx.patternName === "Ionian") {
-    if (hand === "right") {
-      const table = ctx.preferFlat ? IONIAN_RH.flat : IONIAN_RH.sharp;
-      const pattern8 = table[ctx.tonicPc];
-      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
-    } else {
-      const pattern8 = IONIAN_LH[ctx.tonicPc];
-      if (pattern8) return fingerArrayToResult(extendFingerPattern(pattern8, n));
-    }
-  }
-
-  if (ctx.patternName === "Aeolian" && ctx.tonicPc != null) {
-    const p = hand === "right" ? NATURAL_MINOR_RH[ctx.tonicPc] : NATURAL_MINOR_LH[ctx.tonicPc];
-    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
-  }
-
-  if (ctx.patternName === "Harmonic Minor" && ctx.tonicPc != null) {
-    const p = hand === "right" ? HARMONIC_MINOR_RH[ctx.tonicPc] : HARMONIC_MINOR_LH[ctx.tonicPc];
-    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
-  }
-
-  if (ctx.patternName === "Melodic Minor" && ctx.tonicPc != null) {
-    const p = hand === "right" ? MELODIC_MINOR_RH[ctx.tonicPc] : MELODIC_MINOR_LH[ctx.tonicPc];
-    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
-  }
-
-  if (ctx.patternName === "Minor Blues" && ctx.tonicPc != null) {
-    const p = hand === "right" ? MINOR_BLUES_RH[ctx.tonicPc] : MINOR_BLUES_LH[ctx.tonicPc];
-    if (p) return fingerArrayToResult(extendFingerPattern(p, n));
-  }
-
-  for (const [names, rh, lh] of [
-    [["Major Pentatonic"], MAJOR_PENT_RH, MAJOR_PENT_LH],
-    [["Minor Pentatonic", "Blues Pentatonic"], MINOR_PENT_RH, MINOR_PENT_LH],
-    [["Whole Tone (WT)"], WHOLE_TONE_RH, WHOLE_TONE_LH],
-  ]) {
-    if (names.includes(ctx.patternName) && ctx.tonicPc != null) {
-      const p = hand === "right" ? rh[ctx.tonicPc] : lh[ctx.tonicPc];
-      if (p) return fingerArrayToResult(extendFingerPattern(p, n));
-    }
-  }
-
-  if (ctx.patternName === "Chromatic") {
-    const p = hand === "right" ? CHROMATIC_RH : CHROMATIC_LH;
-    return fingerArrayToResult(extendFingerPattern(p, n));
-  }
-
-  return [];
-}
+const { pianoFingeringForCount, computeScaleFingering } =
+  globalThis.MidiChordsPianoFingering;
 
 function setScaleFingeringMode(mode) {
   if (!["none", "right", "left"].includes(mode)) mode = "none";
@@ -4083,6 +2587,7 @@ function renderPiano() {
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
       if (
         (generationCurrentMidi != null && Number(midi) === generationCurrentMidi)
+        || isPlaybackNoteActive(midi, state.generationPlayingNotes)
         || state.generationMidiHeldNotes.has(midi)
       ) key.classList.add("active");
     } else if (state.mode === "detection") {
@@ -4269,7 +2774,7 @@ function renderGuitar() {
   const rightNames = ["E", "B", "G", "D", "A", "E"];
   const tuning = state.guitarHandedness === "left" ? [...rightTuning].reverse() : rightTuning;
   const stringNames = state.guitarHandedness === "left" ? [...rightNames].reverse() : rightNames;
-  const frets = 14;
+  const frets = 15;
   const activeMidi = getActiveMidiForMode();
   const activePcs = getActivePcsForMode();
   const extraMidi = getExtraMidiForMode();
@@ -4277,6 +2782,9 @@ function renderGuitar() {
   const chordRootPc = state.generatedChord ? Number(state.generatedChord.root_pc) : null;
   const tonicPc = state.generatedScale ? Number(state.generatedScale.tonic_pc) : null;
   const generationCurrentMidi = isChordGenerationLikeMode() ? Number(state.generationCurrentNote) : null;
+  const generationPlayingPcs = isChordGenerationLikeMode()
+    ? state.generationPlayingNotes
+    : new Set();
   const drawnPcs = state.mode === "detection" ? null : activePcs;
   const generationVariationMode = isChordGenerationLikeMode() && state.instrument === "guitar" && state.guitarSelectedVariationIdx != null
     && state.guitarSelectedVariationIdx >= 0 && state.guitarSelectedVariationIdx < state.guitarVariations.length;
@@ -4286,122 +2794,27 @@ function renderGuitar() {
   const displayFrets = leftHanded ? variationFretsRaw : [...variationFretsRaw].reverse();
   const displayFingers = leftHanded ? variationFingersRaw : [...variationFingersRaw].reverse();
 
-  ctx.fillStyle = "#f9f9f7";
-  ctx.fillRect(0, 0, width, height);
+  const layout = calculateFretboardLayout({
+    width,
+    height,
+    frets,
+    stringCount: tuning.length,
+    leftHanded,
+  });
+  const { top, yGap } = layout;
+  const fretCenterX = (fret) => guitarFretCenterX(layout, fret);
+  drawFretboardFrame(ctx, { layout, width, height, frets });
+  drawFretboardStrings(ctx, { layout, width, stringNames, leftHanded });
 
-  const boardPad = 20;
-  const nutMargin = 72;
-  const stringBand = Math.max(116, Math.min(148, height * 0.56));
-  const top = Math.round((height - stringBand) / 2);
-  const bottom = Math.round(top + stringBand);
-  const nutX = leftHanded ? width - nutMargin : nutMargin;
-  const boardEdgeX = leftHanded ? boardPad : width - boardPad;
-  const step = Math.abs(boardEdgeX - nutX) / frets;
-  const dir = leftHanded ? -1 : 1;
-  const openX = nutX - dir * (step * 0.5);
-  const yGap = (bottom - top) / (tuning.length - 1);
-  const fretCenterX = (fret) => (fret <= 0 ? (openX + nutX) / 2 : nutX + dir * (fret - 0.5) * step);
-
-  ctx.fillStyle = "#34363c";
-  ctx.strokeStyle = "#4a4f58";
-  ctx.lineWidth = 1;
-  ctx.fillRect(Math.min(nutX, boardEdgeX), top - 10, Math.abs(boardEdgeX - nutX), bottom - top + 20);
-  ctx.strokeRect(Math.min(nutX, boardEdgeX), top - 10, Math.abs(boardEdgeX - nutX), bottom - top + 20);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(Math.min(openX, nutX), top - 10, Math.abs(nutX - openX), bottom - top + 20);
-  ctx.strokeStyle = "#c8b79f";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(nutX, top - 10);
-  ctx.lineTo(nutX, bottom + 10);
-  ctx.stroke();
-
-  for (let fret = 1; fret <= frets; fret += 1) {
-    const x = nutX + dir * fret * step;
-    ctx.strokeStyle = "#c8b79f";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, top - 10);
-    ctx.lineTo(x, bottom + 10);
-    ctx.stroke();
-    ctx.strokeStyle = "#8f8576";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x + (dir > 0 ? 2 : -2), top - 10);
-    ctx.lineTo(x + (dir > 0 ? 2 : -2), bottom + 10);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = "#222";
-  ctx.font = "bold 13px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (let fret = 0; fret < frets; fret += 1) {
-    const x = fret <= 0 ? (openX + nutX) / 2 : nutX + dir * (fret - 0.5) * step;
-    ctx.fillText(String(fret), x, 16);
-  }
-  ctx.textAlign = "start";
-  ctx.textBaseline = "alphabetic";
-
-  const barreSegments = [];
-  const barreCovered = new Set();
+  let barreSegments = [];
+  let barreCovered = new Set();
   if (generationVariationMode && displayFrets.length >= 6 && displayFingers.length >= 6) {
-    const soundedIdxs = [];
-    for (let i = 0; i < displayFrets.length; i += 1) {
-      if (Number(displayFrets[i]) >= 0) soundedIdxs.push(i);
-    }
-    const minSounded = soundedIdxs.length ? Math.min(...soundedIdxs) : 0;
-    const maxSounded = soundedIdxs.length ? Math.max(...soundedIdxs) : 0;
-    const uniqueFrets = Array.from(new Set(displayFrets.filter((f) => Number(f) > 0))).sort((a, b) => a - b);
-
-    uniqueFrets.forEach((fretValue) => {
-      const idxsByFinger = new Map();
-      for (let i = 0; i < displayFrets.length; i += 1) {
-        if (Number(displayFrets[i]) !== Number(fretValue)) continue;
-        const finger = Number(displayFingers[i]);
-        if (!Number.isFinite(finger) || finger <= 0) continue;
-        const arr = idxsByFinger.get(finger) || [];
-        arr.push(i);
-        idxsByFinger.set(finger, arr);
-      }
-
-      idxsByFinger.forEach((idxs, finger) => {
-        if (!Array.isArray(idxs) || idxs.length < 2) return;
-
-        // Full barre: first and last sounding strings are covered at same fret and same finger.
-        if (idxs[0] === minSounded && idxs[idxs.length - 1] === maxSounded) {
-          const covered = new Set(idxs);
-          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: idxs[0], end: idxs[idxs.length - 1], covered });
-          idxs.forEach((idx) => barreCovered.add(idx));
-          return;
-        }
-
-        // Partial barre(s): contiguous runs with at least 2 strings, same fret and same finger.
-        let runStart = idxs[0];
-        let runPrev = idxs[0];
-        for (let j = 1; j < idxs.length; j += 1) {
-          const idx = idxs[j];
-          if (idx === runPrev + 1) {
-            runPrev = idx;
-            continue;
-          }
-          if ((runPrev - runStart + 1) >= 2) {
-            const covered = new Set();
-            for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-            barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
-            for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
-          }
-          runStart = idx;
-          runPrev = idx;
-        }
-        if ((runPrev - runStart + 1) >= 2) {
-          const covered = new Set();
-          for (let s = runStart; s <= runPrev; s += 1) covered.add(s);
-          barreSegments.push({ fret: Number(fretValue), finger: Number(finger), start: runStart, end: runPrev, covered });
-          for (let s = runStart; s <= runPrev; s += 1) barreCovered.add(s);
-        }
-      });
-    });
+    const barreGeometry = findBarreSegments(displayFrets, displayFingers);
+    barreSegments = barreGeometry.segments.map((segment) => ({
+      ...segment,
+      covered: new Set(segment.covered),
+    }));
+    barreCovered = new Set(barreGeometry.coveredIndexes);
   }
 
   state.guitarHitRegions = [];
@@ -4425,31 +2838,6 @@ function renderGuitar() {
 
   tuning.forEach((openNote, i) => {
     const y = top + i * yGap;
-    ctx.strokeStyle = "#bdbdbd";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.min(openX, boardEdgeX), y);
-    ctx.lineTo(Math.max(openX, boardEdgeX), y);
-    ctx.stroke();
-    ctx.strokeStyle = "#8a8a8a";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(Math.min(openX, boardEdgeX), y + 1);
-    ctx.lineTo(Math.max(openX, boardEdgeX), y + 1);
-    ctx.stroke();
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 11px sans-serif";
-    ctx.textBaseline = "middle";
-    if (leftHanded) {
-      ctx.textAlign = "left";
-      const rightEdge = Math.max(openX, boardEdgeX);
-      ctx.fillText(stringNames[i], Math.min(width - 2, rightEdge + 10), y);
-    } else {
-      ctx.textAlign = "right";
-      const leftEdge = Math.min(openX, boardEdgeX);
-      ctx.fillText(stringNames[i], Math.max(2, leftEdge - 10), y);
-    }
-    ctx.textAlign = "start";
 
     for (let fret = 0; fret < frets; fret += 1) {
       if (generationVariationMode) {
@@ -4460,8 +2848,10 @@ function renderGuitar() {
         const cx = fretCenterX(fret);
         const isRoot = chordRootPc !== null && pc === chordRootPc;
         const isCurrentGeneration = isChordGenerationLikeMode()
-          && generationCurrentMidi != null
-          && Number(note) === Number(generationCurrentMidi);
+          && (
+            (generationCurrentMidi != null && Number(note) === Number(generationCurrentMidi))
+            || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+          );
         const finger = Number(displayFingers[i] || 0);
         const coveredByBarre = fret > 0 && barreCovered.has(i);
         state.guitarHitRegions.push({ note, x: cx, y, r: 12, tonic: false });
@@ -4491,8 +2881,10 @@ function renderGuitar() {
         && state.scaleCurrentNote != null
         && Number(note) === Number(state.scaleCurrentNote);
       const isCurrentGeneration = isChordGenerationLikeMode()
-        && generationCurrentMidi != null
-        && Number(note) === generationCurrentMidi;
+        && (
+          (generationCurrentMidi != null && Number(note) === generationCurrentMidi)
+          || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+        );
 
       if (detectionMode && !inSet) {
         ctx.fillStyle = "#e5e7eb";
@@ -4561,8 +2953,10 @@ function renderGuitar() {
       const y = top + (stringIdx * yGap);
       const isRoot = chordRootPc !== null && pc === chordRootPc;
       const isCurrentGeneration = isChordGenerationLikeMode()
-        && generationCurrentMidi != null
-        && Number(note) === Number(generationCurrentMidi);
+        && (
+          (generationCurrentMidi != null && Number(note) === Number(generationCurrentMidi))
+          || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
+        );
       ctx.fillStyle = isCurrentGeneration ? "#2faeff" : (isRoot ? "#b35f00" : "#f4a742");
       ctx.strokeStyle = isCurrentGeneration ? "#4fd4ff" : "#2e2e2e";
       ctx.lineWidth = 1.2;
@@ -4609,9 +3003,14 @@ function renderGuitar() {
   const triggerGuitarPress = (event) => {
     const rect = canvas.getBoundingClientRect();
     const point = event.touches && event.touches.length ? event.touches[0] : event;
-    const x = ((point.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((point.clientY - rect.top) / rect.height) * canvas.height;
-    return state.guitarHitRegions.find((h) => ((x - h.x) ** 2) + ((y - h.y) ** 2) <= (h.r ** 2)) || null;
+    const scaled = scaleClientPoint(
+      point.clientX,
+      point.clientY,
+      rect,
+      canvas.width,
+      canvas.height,
+    );
+    return findCircularHitRegion(state.guitarHitRegions, scaled.x, scaled.y);
   };
   canvas.onmousedown = (event) => {
     if (Number(event.button) !== 0) return;
@@ -4862,91 +3261,25 @@ function detectionManualRelease(note) {
   stopHeldInputNote(noteInt);
 }
 
-function keySignatureSharpFlatCounts(tonicPc, isMinor) {
-  const pc = ((Number(tonicPc) % 12) + 12) % 12;
-  const sharpMap = isMinor
-    ? { 4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7 }
-    : { 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7 };
-  const flatMap = isMinor
-    ? { 2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6 }
-    : { 5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6 };
-  return { pc, sharpCount: sharpMap[pc], flatCount: flatMap[pc] };
-}
+const {
+  MODE_RELATIVE_MAJOR_OFFSET,
+  keySignatureSharpFlatCounts,
+  chordSymbolPreferFlat,
+  keySignatureCountForTonic,
+  applyFlatKeySignatureTie,
+  keySignatureIndexForMidi,
+  isMinorSuffix,
+  scalePrefersMinor,
+} = globalThis.MidiChordsKeySignature;
 
-/** Misma regla que el nombre del acorde en API/worker: menos alteraciones; empate → bemoles. */
-function chordSymbolPreferFlat(rootPc, isMinor) {
-  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(rootPc, isMinor);
-  if (sharpCount == null && flatCount == null) return false;
-  if (sharpCount == null) return true;
-  if (flatCount == null) return false;
-  if (flatCount < sharpCount) return true;
-  if (sharpCount < flatCount) return false;
-  return true;
-}
-
-// tiePreferFlat: null/undefined → empate enarmónico a sostenidos. true/false → empate explícito (#/♭ o convención armónica).
-function keySignatureCountForTonic(tonicPc, isMinor, tiePreferFlat = null) {
-  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(tonicPc, isMinor);
-  if (sharpCount == null && flatCount == null) return { count: 0, preferFlats: false };
-  if (sharpCount == null) return { count: flatCount, preferFlats: true };
-  if (flatCount == null) return { count: sharpCount, preferFlats: false };
-  if (flatCount < sharpCount) return { count: flatCount, preferFlats: true };
-  if (sharpCount < flatCount) return { count: sharpCount, preferFlats: false };
-  if (tiePreferFlat === true) return { count: flatCount, preferFlats: true };
-  return { count: sharpCount, preferFlats: false };
-}
-
-/** Empate enarmónico (mismo nº de # y ♭): armadura bemol si el usuario eligió ♭ en el desplegable. */
 function applyFlatKeySigIfUiFlatAndTie(sig, tonicPc, isMinor) {
-  if (currentAccidentalValue() !== "flat") return sig;
-  const { sharpCount, flatCount } = keySignatureSharpFlatCounts(tonicPc, isMinor);
-  if (sharpCount != null && flatCount != null && sharpCount === flatCount) {
-    return { count: flatCount, preferFlats: true };
-  }
-  return sig;
+  return applyFlatKeySignatureTie(
+    sig,
+    tonicPc,
+    isMinor,
+    currentAccidentalValue() === "flat",
+  );
 }
-
-function isMinorSuffix(suffix) {
-  return String(suffix || "").startsWith("m") && !String(suffix || "").startsWith("maj");
-}
-
-function scalePrefersMinor(patternName) {
-  const minorNames = new Set([
-    "Aeolian",
-    "Dorian",
-    "Phrygian",
-    "Locrian",
-    "Super Locrian",
-    "Half Diminished",
-    "Minor Pentatonic",
-    "Minor Blues",
-    "Dorian b2",
-  ]);
-  return String(patternName || "").includes("Minor") || minorNames.has(String(patternName || ""));
-}
-
-// Semitonos que hay que SUMAR a la tónica del modo para llegar a su mayor
-// relativo real (el que comparte exactamente las mismas notas). Verificado
-// nota a nota: Do Dórico = Sib Mayor (+10), Do Frigio = Lab Mayor (+8), Do
-// Locrio = Reb Mayor (+1), Do Eolio = Mib Mayor (+3, ya era el
-// comportamiento previo/correcto), Fa Lidio = Do Mayor (+7), Sol
-// Mixolidio = Do Mayor (+5). Ionian/Mayor no necesita entrada (offset 0).
-// Sin esto, cada modo "no jónico" heredaba o bien la armadura del menor
-// natural (los de sabor menor) o la de su propia tónica como si fuera
-// Mayor normal (los de sabor mayor: Lidio, Mixolidio), ambas incorrectas
-// salvo casualidad.
-const MODE_RELATIVE_MAJOR_OFFSET = {
-  Dorian: 10,
-  Phrygian: 8,
-  Locrian: 1,
-  Aeolian: 3,
-  Lydian: 7,
-  Mixolydian: 5,
-  Minor: 3,
-  "Natural Minor": 3,
-  "Minor Pentatonic": 3,
-  "Minor Blues": 3,
-};
 
 function getStaffContext() {
   const tieFromSelect = currentAccidentalValue() === "flat";
@@ -5088,6 +3421,19 @@ function activeScaleKeySignatureIndex(sig) {
   return keySignatureIndexForScaleNote(label, state.scaleCurrentNote, sig);
 }
 
+function activeChordKeySignatureIndex(sig) {
+  if (!isChordGenerationLikeMode()) return -1;
+  const candidates = [];
+  if (state.generationCurrentNote != null) candidates.push(state.generationCurrentNote);
+  candidates.push(...Array.from(state.generationPlayingNotes || []));
+  candidates.push(...Array.from(state.generationMidiHeldNotes || []));
+  for (const midi of candidates) {
+    const index = keySignatureIndexForMidi(midi, sig);
+    if (index >= 0) return index;
+  }
+  return -1;
+}
+
 function drawKeySignatureOnStaff(ctx, x0, trebleTop, bassTop, gap, sig, bassClef, activeIndex = -1) {
   if (!sig || !sig.count) return x0;
   const staffTop = bassClef ? bassTop : trebleTop;
@@ -5127,47 +3473,15 @@ function drawGrandKeySignature(ctx, trebleTop, bassTop, gap, sig, activeIndex = 
   return Math.max(xTrebleEnd, xBassEnd) + 10;
 }
 
-function midiToDiatonicIndex(midi, preferFlat = false) {
-  const note = Number(midi);
-  const pc = ((note % 12) + 12) % 12;
-  const octave = Math.floor(note / 12) - 1;
-  const map = preferFlat ? PC_TO_DIATONIC_FLAT : PC_TO_DIATONIC_LETTER;
-  return (octave * 7) + map[pc];
-}
-
-function midiToTrebleY(midi, trebleTop, gap, preferFlat = false) {
-  const trebleBottomLineDiatonic = (4 * 7) + 2; // E4
-  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
-  const staffBaseY = trebleTop + (4 * gap);
-  return staffBaseY - ((diatonicIdx - trebleBottomLineDiatonic) * (gap / 2));
-}
-
-function midiToBassY(midi, bassTop, gap, preferFlat = false) {
-  const bassBottomLineDiatonic = (2 * 7) + 4; // G2
-  const diatonicIdx = midiToDiatonicIndex(midi, preferFlat);
-  const staffBaseY = bassTop + (4 * gap);
-  return staffBaseY - ((diatonicIdx - bassBottomLineDiatonic) * (gap / 2));
-}
-
 function drawLedgerLines(ctx, x, y, staffTop, gap, strokeColor = "#cad3e0") {
-  const staffBottom = staffTop + gap * 4;
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 1;
-  if (y < staffTop - 1) {
-    for (let ly = staffTop - gap; ly >= y - 1; ly -= gap) {
-      ctx.beginPath();
-      ctx.moveTo(x - 13, ly);
-      ctx.lineTo(x + 13, ly);
-      ctx.stroke();
-    }
-  } else if (y > staffBottom + 1) {
-    for (let ly = staffBottom + gap; ly <= y + 1; ly += gap) {
-      ctx.beginPath();
-      ctx.moveTo(x - 13, ly);
-      ctx.lineTo(x + 13, ly);
-      ctx.stroke();
-    }
-  }
+  ledgerLineYs(y, staffTop, gap).forEach((lineY) => {
+    ctx.beginPath();
+    ctx.moveTo(x - 13, lineY);
+    ctx.lineTo(x + 13, lineY);
+    ctx.stroke();
+  });
 }
 
 /**
@@ -5308,41 +3622,18 @@ function drawRest(ctx, x, staffTop, gap, duration, stroke) {
  */
 function drawBeam(ctx, positions, stroke) {
   if (positions.length < 2) return;
-  const p0 = positions[0];
-  const pN = positions[positions.length - 1];
   const bh = 4;    // grosor de cada barra
   const bGap = 3;  // separación entre barras
-  const dir = p0.stemUp ? 1 : -1; // 1 = barras hacia el pentagrama (abajo); -1 = hacia arriba
 
-  const drawBar = (xa, ya, xb, yb) => {
+  beamSegments(positions, bh, bGap).forEach(({ xa, ya, xb, yb, direction }) => {
     ctx.fillStyle = stroke;
     ctx.beginPath();
     ctx.moveTo(xa, ya);
     ctx.lineTo(xb, yb);
-    ctx.lineTo(xb, yb + dir * bh);
-    ctx.lineTo(xa, ya + dir * bh);
+    ctx.lineTo(xb, yb + direction * bh);
+    ctx.lineTo(xa, ya + direction * bh);
     ctx.closePath();
     ctx.fill();
-  };
-
-  // Barra primaria: recorre todo el grupo
-  drawBar(p0.stemX, p0.stemEndY, pN.stemX, pN.stemEndY);
-
-  // Barras secundarias: para semicorcheas (2 banderas → 2 barras)
-  const dx = pN.stemX - p0.stemX;
-  const dy = pN.stemEndY - p0.stemEndY;
-  positions.forEach((p, i) => {
-    if (p.base !== "s") return;
-    const adj = i > 0 ? positions[i - 1] : positions[i + 1];
-    const halfX = (p.stemX + adj.stemX) / 2;
-    const t = dx !== 0 ? (halfX - p0.stemX) / dx : 0;
-    const halfY = p0.stemEndY + t * dy;
-    const off = dir * (bh + bGap);
-    if (i > 0) {
-      drawBar(halfX, halfY + off, p.stemX, p.stemEndY + off);
-    } else {
-      drawBar(p.stemX, p.stemEndY + off, halfX, halfY + off);
-    }
   });
 }
 
@@ -5875,7 +4166,9 @@ function renderStaff() {
   drawBassClef(ctx, 108, bassTop + gap * 2.25);
 
   const staffCtx = getStaffContext();
-  const activeKeySignatureIndex = activeScaleKeySignatureIndex(staffCtx.signature);
+  const activeKeySignatureIndex = state.mode === "scales"
+    ? activeScaleKeySignatureIndex(staffCtx.signature)
+    : activeChordKeySignatureIndex(staffCtx.signature);
   const startX = drawGrandKeySignature(
     ctx,
     trebleTop,
@@ -5912,20 +4205,9 @@ function renderStaff() {
     ctx.fillText(tr("detection_staff_shift_hint"), width / 2, height - 10);
   }
   const scaleCurrentMidi = state.mode === "scales" ? state.scaleCurrentNote : null;
-  let scaleCurrentDisplayMidi = scaleCurrentMidi;
-  if (state.mode === "scales" && scaleCurrentDisplayMidi != null) {
-    const current = Number(scaleCurrentDisplayMidi);
-    const samePc = notes
-      .map((n) => Number(n))
-      .filter((n) => ((n % 12) + 12) % 12 === ((current % 12) + 12) % 12);
-    if (samePc.length) {
-      scaleCurrentDisplayMidi = samePc.reduce((best, n) => (
-        Math.abs(n - current) < Math.abs(best - current) ? n : best
-      ), samePc[0]);
-    } else {
-      scaleCurrentDisplayMidi = current;
-    }
-  }
+  const scaleCurrentDisplayMidi = state.mode === "scales"
+    ? closestPitchClassMidi(notes, scaleCurrentMidi)
+    : scaleCurrentMidi;
   const generationCurrentMidi = isChordGenerationLikeMode() ? state.generationCurrentNote : null;
   const generationPlaying = isChordGenerationLikeMode() ? state.generationPlayingNotes : new Set();
   const generationPlayingDisplay = new Set(Array.from(generationPlaying).map((n) => Number(n)));
@@ -5936,31 +4218,19 @@ function renderStaff() {
     ? new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) - 12).filter((n) => n >= 0))
     : new Set();
   let generationCurrentDisplayMidi = generationCurrentMidi;
-  if (isChordGenerationLikeMode() && state.instrument === "piano" && generationCurrentDisplayMidi != null) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    // Keyboard LH taps are an octave lower than the LH voice drawn in staff.
-    if (!staffSet.has(Number(generationCurrentDisplayMidi)) && staffSet.has(Number(generationCurrentDisplayMidi) + 12)) {
-      generationCurrentDisplayMidi = Number(generationCurrentDisplayMidi) + 12;
-    }
+  if (isChordGenerationLikeMode() && state.instrument === "piano") {
+    generationCurrentDisplayMidi = mapPianoInputToStaffMidi(notes, generationCurrentMidi);
   }
   if (isChordGenerationLikeMode() && state.instrument === "piano" && generationPlayingDisplay.size) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    Array.from(generationPlayingDisplay).forEach((note) => {
-      const lhNote = Number(note) - 12;
-      if (staffSet.has(lhNote)) generationPlayingDisplay.add(lhNote);
-    });
+    const mapped = expandPianoPlayingNotesForStaff(notes, generationPlayingDisplay);
+    generationPlayingDisplay.clear();
+    mapped.forEach((note) => generationPlayingDisplay.add(note));
   }
-  const generationMidiHeldDisplay = new Set(
+  let generationMidiHeldDisplay = new Set(
     isChordGenerationLikeMode() ? Array.from(state.generationMidiHeldNotes).map((n) => Number(n)) : []
   );
   if (isChordGenerationLikeMode() && state.instrument === "piano" && generationMidiHeldDisplay.size) {
-    const staffSet = new Set(notes.map((n) => Number(n)));
-    Array.from(generationMidiHeldDisplay).forEach((note) => {
-      if (!staffSet.has(note) && staffSet.has(note + 12)) {
-        generationMidiHeldDisplay.delete(note);
-        generationMidiHeldDisplay.add(note + 12);
-      }
-    });
+    generationMidiHeldDisplay = mapPianoHeldNotesToStaff(notes, generationMidiHeldDisplay);
   }
 
   const xByLine = new Map();
@@ -5970,18 +4240,9 @@ function renderStaff() {
   const scaleRhLh = scaleStaff ? getScaleRhLhDisplayNotes() : { rh: [], lh: [], display: [] };
   const scaleRhSet = new Set(scaleRhLh.rh);
   const scaleLhSet = new Set(scaleRhLh.lh);
-  const scaleStaffEntries = [];
-  if (scaleStaff || detectionStaff) {
-    const pairCount = Math.min(scaleRhLh.rh.length, scaleRhLh.lh.length);
-    for (let idx = 0; idx < pairCount; idx += 1) {
-      const bass = Number(scaleRhLh.rh[idx]) - 12;
-      if (scaleLhSet.has(bass)) scaleStaffEntries.push({ midi: bass, degree: idx });
-      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
-    }
-    for (let idx = pairCount; idx < scaleRhLh.rh.length; idx += 1) {
-      scaleStaffEntries.push({ midi: Number(scaleRhLh.rh[idx]), degree: idx });
-    }
-  }
+  const scaleStaffEntries = (scaleStaff || detectionStaff)
+    ? buildScaleStaffEntries(scaleRhLh.rh, scaleRhLh.lh)
+    : [];
   const scaleLabels = scaleStaff && Array.isArray(state.generatedScale?.notes)
     ? state.generatedScale.notes.map(scaleLabelWithoutOctave)
     : [];
@@ -6039,6 +4300,24 @@ function renderStaff() {
   })();
   const beamedIdxSet = new Set(melodyBeamGroups.flat());
   const beamStemData = new Map(); // idx → {stemX, stemEndY, stemUp, base}
+  const beamStemDirection = new Map();
+  melodyBeamGroups.forEach((group) => {
+    const firstMidi = notes[group[0]];
+    if (firstMidi == null) return;
+    const treble = Number(firstMidi) >= 60;
+    const staffTop = treble ? trebleTop : bassTop;
+    const noteYs = group
+      .map((index) => notes[index])
+      .filter((midi) => midi != null)
+      .map((midi) => {
+        const preferFlat = getNoteAccidental(Number(midi), staffCtx.signature) === "♭";
+        return treble
+          ? midiToTrebleY(Number(midi), trebleTop, gap, preferFlat)
+          : midiToBassY(Number(midi), bassTop, gap, preferFlat);
+      });
+    const stemUp = commonStemUp(noteYs, staffTop + gap * 2);
+    group.forEach((index) => beamStemDirection.set(index, stemUp));
+  });
 
   // Espaciado adaptativo: reduce el paso si la melodía tiene muchas notas
   const intervalNoteStep = intervalDetectionStaff && notes.length > 1
@@ -6163,7 +4442,7 @@ function renderStaff() {
     // Registrar datos de stem para notas barradas
     if (beamedNote) {
       const bStaffMiddle = staffTop + gap * 2;
-      const bStemUp = y >= bStaffMiddle;
+      const bStemUp = beamStemDirection.get(idx) ?? (y >= bStaffMiddle);
       const bStemX = bStemUp ? x + 8 : x - 8;
       const bStemEndY = bStemUp ? y - gap * 3.5 : y + gap * 3.5;
       const bBase = typeof duration === "string" && duration.endsWith(".") ? duration.slice(0, -1) : duration;
@@ -6699,17 +4978,20 @@ function repopulateScaleTypeSelect(prevValue) {
   const scaleType = el("scaleType");
   if (!scaleType) return;
   const prev = prevValue != null ? prevValue : (scaleType.value || "Ionian");
-  const scaleAliases = getScaleAliases();
   const visiblePatterns = state.scaleFilterMode === "basic"
     ? state.scalePatterns.filter((p) => SCALE_BASIC_NAMES.has(p.name))
     : state.scalePatterns;
   scaleType.innerHTML = "";
-  visiblePatterns.forEach((p) => {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    const alias = scaleAliases[p.name];
-    opt.textContent = alias ? `${alias} (${p.localized_name})` : p.localized_name;
-    scaleType.appendChild(opt);
+  groupScalePatterns(visiblePatterns).forEach((group) => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = tr(group.labelKey);
+    group.patterns.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = scaleDisplayLabel(p.name, p.localized_name, state.language);
+      optgroup.appendChild(opt);
+    });
+    scaleType.appendChild(optgroup);
   });
   if (visiblePatterns.length > 0) {
     const keepCurrent = visiblePatterns.some((p) => p.name === prev);
@@ -6831,9 +5113,8 @@ async function runGenerateScale() {
   // explícita elegida en el combo (p. ej. Re# se mostraría como Mib).
   const tonicFromNotes = Array.isArray(out.notes) && out.notes.length ? scaleLabelWithoutOctave(out.notes[0]) : null;
   const tonic = tonicFromNotes || noteNameFromPc(out.tonic_pc || 0);
-  const scaleAlias = getScaleAliases()[out.pattern_name];
   const patternLabel = out.pattern_localized_name || out.pattern_name || "";
-  const patternWithAlias = scaleAlias ? `${scaleAlias} (${patternLabel})` : patternLabel;
+  const patternWithAlias = scaleDisplayLabel(out.pattern_name, patternLabel, state.language);
   el("scaleName").textContent = `${tonic} ${patternWithAlias}`.trim();
   el("scaleNotes").textContent = (out.notes || []).map(scaleLabelWithoutOctave).join(" - ") || "-";
   el("scaleIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
@@ -6867,8 +5148,10 @@ function bindAudioUnlockGestures() {
     if (state.metronomeCtx && state.metronomeCtx.state === "running") return;
     void unlockAudioFromUserGesture();
   };
-  document.addEventListener("pointerdown", unlock, { passive: true });
-  document.addEventListener("keydown", unlock);
+  bindAudioUnlockEvents(uiLifecycle, {
+    documentTarget: document,
+    onUnlock: unlock,
+  });
 }
 
 function ensureAudioBus(ctx) {
@@ -6901,78 +5184,12 @@ function ensureMetronomeNoiseBuffer(ctx) {
   return buffer;
 }
 
-function nearestSampleRoot(note, sampleMap) {
-  const midi = Number(note);
-  const roots = Object.keys(sampleMap || {}).map((k) => Number(k)).filter((n) => Number.isFinite(n));
-  if (!roots.length) return null;
-  return roots.reduce((best, cur) => (
-    best == null || Math.abs(cur - midi) < Math.abs(best - midi) ? cur : best
-  ), null);
-}
-
-async function decodeSampleBuffer(ctx, url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`sample fetch failed: ${url} (${response.status})`);
-  const bytes = await response.arrayBuffer();
-  return await ctx.decodeAudioData(bytes.slice(0));
-}
-
-function normalizeAudioBuffer(ctx, buffer, { targetPeak = 0.98, extraGain = 1.0 } = {}) {
-  if (!buffer) return buffer;
-  const channels = buffer.numberOfChannels || 1;
-  const length = buffer.length || 0;
-  if (!length) return buffer;
-  let peak = 0;
-  for (let ch = 0; ch < channels; ch += 1) {
-    const data = buffer.getChannelData(ch);
-    for (let i = 0; i < data.length; i += 1) {
-      const v = Math.abs(data[i]);
-      if (v > peak) peak = v;
-    }
-  }
-  const safePeak = Math.max(1e-6, peak);
-  const gain = Math.max(0, (targetPeak / safePeak) * Math.max(0, Number(extraGain) || 1));
-  const out = ctx.createBuffer(channels, length, buffer.sampleRate);
-  for (let ch = 0; ch < channels; ch += 1) {
-    const src = buffer.getChannelData(ch);
-    const dst = out.getChannelData(ch);
-    for (let i = 0; i < src.length; i += 1) {
-      const v = src[i] * gain;
-      dst[i] = Math.max(-1, Math.min(1, v));
-    }
-  }
-  return out;
-}
-
-async function preloadAudioSamples() {
-  const ctx = ensureAudioCtx();
-  if (state.audioSampleLoadPromise) return state.audioSampleLoadPromise;
-  state.audioSampleLoadPromise = (async () => {
-    const urls = new Set([
-      METRONOME_SAMPLE_URL,
-      ...Object.values(PIANO_SAMPLE_URLS),
-      ...Object.values(GUITAR_SAMPLE_URLS),
-    ]);
-    const out = {};
-    await Promise.all(Array.from(urls).map(async (url) => {
-      try {
-        const decoded = await decodeSampleBuffer(ctx, url);
-        out[url] = url === METRONOME_SAMPLE_URL
-          ? normalizeAudioBuffer(ctx, decoded, { targetPeak: 0.98, extraGain: 1.8 })
-          : decoded;
-      } catch (err) {
-        console.warn("Sample load failed:", url, err);
-      }
-    }));
-    state.audioSampleCache = out;
-    return out;
-  })();
-  return state.audioSampleLoadPromise;
+function preloadAudioSamples() {
+  return audioSampleLoader.preload();
 }
 
 function sampleBuffer(url) {
-  if (!state.audioSampleCache || typeof state.audioSampleCache !== "object") return null;
-  return state.audioSampleCache[url] || null;
+  return audioSampleLoader.get(url);
 }
 
 function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, instrument = "piano") {
@@ -6990,19 +5207,18 @@ function playInstrumentSampleAt(midi, startTime = null, durationSeconds = 0.46, 
   const t = startTime == null ? ctx.currentTime : Number(startTime);
   const src = ctx.createBufferSource();
   src.buffer = buffer;
-  src.playbackRate.setValueAtTime(2 ** ((Number(midi) - Number(root)) / 12), t);
+  src.playbackRate.setValueAtTime(samplePlaybackRate(midi, root), t);
 
   const gain = ctx.createGain();
-  const baseDur = Math.max(0.16, Number(durationSeconds) || 0.46);
-  const sustainEnd = t + (instrument === "guitar" ? (baseDur * 1.9) : (baseDur * 1.7));
-  gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(instrument === "guitar" ? 0.96 : 0.88, t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + (instrument === "guitar" ? 0.62 : 0.48));
+  const envelope = instrumentSampleEnvelope(t, durationSeconds, instrument);
+  gain.gain.setValueAtTime(0.0001, envelope.start);
+  gain.gain.exponentialRampToValueAtTime(envelope.attackPeak, envelope.attackEnd);
+  gain.gain.exponentialRampToValueAtTime(0.0001, envelope.releaseEnd);
 
   src.connect(gain);
   gain.connect(ensureAudioBus(ctx));
-  src.start(t);
-  src.stop(sustainEnd + 0.75);
+  src.start(envelope.start);
+  src.stop(envelope.sourceStop);
   return { source: src, gain };
 }
 
@@ -7093,12 +5309,8 @@ function playChordMidi(notes, options = {}) {
   const normalizedNotes = Array.from(new Set((notes || []).map((midi) => Number(midi))))
     .filter((midi) => Number.isFinite(midi));
   if (isChordGenerationLikeMode()) {
-    if (state.generationPlayClearTimer != null) {
-      clearTimeout(state.generationPlayClearTimer);
-      state.generationPlayClearTimer = null;
-    }
-    state.generationPlayingNotes = new Set(normalizedNotes);
-    renderStaff();
+    const clearMs = instrument === "guitar" ? 1700 : 1500;
+    generationPlaybackHighlight.showFor(normalizedNotes, clearMs);
   }
   const t = ctx.currentTime + 0.005;
   if (instrument === "guitar") {
@@ -7107,45 +5319,21 @@ function playChordMidi(notes, options = {}) {
   } else {
     normalizedNotes.forEach((midi) => playSingleAt(Number(midi), t, 1.65, "piano"));
   }
-  if (isChordGenerationLikeMode() && normalizedNotes.length) {
-    const clearMs = instrument === "guitar" ? 1700 : 1500;
-    state.generationPlayClearTimer = setTimeout(() => {
-      state.generationPlayingNotes.clear();
-      state.generationPlayClearTimer = null;
-      if (isChordGenerationLikeMode()) renderStaff();
-    }, clearMs);
-  }
 }
 
 function stopHeldChord() {
   stopAllHeldMidiOutputNotes();
-  if (state.generationPlayClearTimer != null) {
-    clearTimeout(state.generationPlayClearTimer);
-    state.generationPlayClearTimer = null;
-  }
-  if (state.generationPlayingNotes.size) {
-    state.generationPlayingNotes.clear();
-    if (isChordGenerationLikeMode()) renderStaff();
-  }
+  generationPlaybackHighlight.clear();
   if (!(state.heldChordVoices instanceof Map) || !state.heldChordVoices.size) return;
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
+  const timing = heldVoiceReleaseTiming("piano", {
+    releaseSeconds: 0.09,
+    sourceTail: 0.11,
+    noiseTail: 0.04,
+  });
   state.heldChordVoices.forEach((voice) => {
-    try {
-      const gain = voice?.gain;
-      if (gain?.gain) {
-        const now = t;
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || 0.001), now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
-      }
-      (voice?.oscs || []).forEach((osc) => {
-        try { osc.stop(t + 0.11); } catch (_e) {}
-      });
-      if (voice?.noise) {
-        try { voice.noise.stop(t + 0.04); } catch (_e) {}
-      }
-    } catch (_e) {}
+    releaseAudioVoice(voice, t, timing);
   });
   state.heldChordVoices.clear();
 }
@@ -7162,22 +5350,7 @@ function stopHeldInputNote(midi) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
   const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
-  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
-  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
-  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
-  try {
-    if (voice.gain?.gain) {
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
-      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
-    }
-    (voice.oscs || []).forEach((osc) => {
-      try { osc.stop(t + oscTail); } catch (_e) {}
-    });
-    if (voice.noise) {
-      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
-    }
-  } catch (_e) {}
+  releaseAudioVoice(voice, t, heldVoiceReleaseTiming(instrument));
   state.heldInputVoices.delete(note);
 }
 
@@ -7216,22 +5389,7 @@ function stopHeldMidiInputNote(midi) {
   const ctx = ensureAudioCtx();
   const t = ctx.currentTime;
   const instrument = voice.instrument === "guitar" ? "guitar" : "piano";
-  const releaseSeconds = instrument === "guitar" ? 0.52 : 0.40;
-  const oscTail = instrument === "guitar" ? 0.60 : 0.48;
-  const noiseTail = instrument === "guitar" ? 0.14 : 0.10;
-  try {
-    if (voice.gain?.gain) {
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value || 0.001), t);
-      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + releaseSeconds);
-    }
-    (voice.oscs || []).forEach((osc) => {
-      try { osc.stop(t + oscTail); } catch (_e) {}
-    });
-    if (voice.noise) {
-      try { voice.noise.stop(t + noiseTail); } catch (_e) {}
-    }
-  } catch (_e) {}
+  releaseAudioVoice(voice, t, heldVoiceReleaseTiming(instrument));
   state.heldMidiInputVoices.delete(note);
 }
 
@@ -7352,8 +5510,7 @@ function startHeldChord(notes, instrument = "piano") {
     .filter((midi) => Number.isFinite(midi));
   normalizedNotes.forEach((midi) => startHeldVoice(midi, instrument));
   if (isChordGenerationLikeMode() && normalizedNotes.length) {
-    state.generationPlayingNotes = new Set(normalizedNotes);
-    renderStaff();
+    generationPlaybackHighlight.show(normalizedNotes);
   }
 }
 
@@ -7680,31 +5837,6 @@ async function toggleMetronome() {
   metronomeTick();
   startMetronomeAnimation();
   setMetronomeToggleButtonState(true);
-}
-
-function autoCorrelate(buffer, sampleRate) {
-  let bestOffset = -1;
-  let bestCorrelation = 0;
-  const size = buffer.length;
-  for (let offset = 8; offset < 1200; offset += 1) {
-    let corr = 0;
-    for (let i = 0; i < size - offset; i += 1) corr += buffer[i] * buffer[i + offset];
-    corr /= (size - offset);
-    if (corr > bestCorrelation) {
-      bestCorrelation = corr;
-      bestOffset = offset;
-    }
-  }
-  if (bestOffset === -1 || bestCorrelation < 0.01) return null;
-  return sampleRate / bestOffset;
-}
-
-function freqToMidi(freq) {
-  return 69 + 12 * Math.log2(freq / 440);
-}
-
-function midiToFreq(midi) {
-  return 440 * (2 ** ((Number(midi) - 69) / 12));
 }
 
 function updateTunerNeedle(cents) {
@@ -8228,152 +6360,83 @@ async function toggleMidi() {
 
 function bindEvents() {
   bindAudioUnlockGestures();
+  const listen = (target, type, handler, options) =>
+    uiLifecycle.listen(target, type, handler, options);
 
-  const bindImmediatePress = (button, action, options = {}) => {
-    if (!button || typeof action !== "function") return;
-    const highlightWhilePressed = !!options.highlightWhilePressed;
-    const onPress = typeof options.onPress === "function" ? options.onPress : null;
-    const onRelease = typeof options.onRelease === "function" ? options.onRelease : null;
-    let suppressNextClick = false;
-    let pointerPressed = false;
-
-    const setPressedVisual = (pressed) => {
-      if (!highlightWhilePressed) return;
-      button.classList.toggle("active", !!pressed);
-      if (pressed) button.classList.remove("stop-mode");
-    };
-
-    const onPointerStart = (event) => {
-      if (button.disabled) return;
-      if (event.type === "mousedown" && Number(event.button) !== 0) return;
-      event.preventDefault();
-      suppressNextClick = true;
-      pointerPressed = true;
-      setPressedVisual(true);
-      if (onPress) onPress();
-      else action();
-    };
-
-    const onPointerEnd = () => {
-      if (!pointerPressed) return;
-      pointerPressed = false;
-      setPressedVisual(false);
-      if (onRelease) onRelease();
-    };
-
-    button.addEventListener("mousedown", onPointerStart);
-    button.addEventListener("touchstart", onPointerStart, { passive: false });
-    document.addEventListener("mouseup", onPointerEnd);
-    document.addEventListener("touchend", onPointerEnd, { passive: true });
-    document.addEventListener("touchcancel", onPointerEnd, { passive: true });
-    button.addEventListener("click", (event) => {
-      if (button.disabled) {
-        event.preventDefault();
-        return;
-      }
-      if (suppressNextClick) {
-        suppressNextClick = false;
-        event.preventDefault();
-        return;
-      }
-      if (onPress) {
-        onPress();
-        if (onRelease) setTimeout(() => onRelease(), 140);
-      } else {
-        action();
-      }
-      if (highlightWhilePressed) {
-        setPressedVisual(true);
-        setTimeout(() => setPressedVisual(false), 140);
-      }
+  const bindImmediatePress = (button, action, options = {}) =>
+    bindImmediatePressControl(uiLifecycle, button, action, {
+      ...options,
+      documentTarget: document,
     });
-  };
 
   const modeSelect = el("modeSelect");
   if (modeSelect) {
-    modeSelect.addEventListener("change", (e) => setMode(e.target.value));
+    listen(modeSelect, "change", (e) => setMode(e.target.value));
   }
   document.querySelectorAll(".inst-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    listen(btn, "click", () => {
       setInstrument(btn.dataset.inst);
       renderInstrument();
     });
   });
 
-  el("midiToggle").addEventListener("click", toggleMidi);
+  listen(el("midiToggle"), "click", toggleMidi);
   const helpToggle = el("helpToggle");
   if (helpToggle) {
-    helpToggle.addEventListener("click", () => {
+    listen(helpToggle, "click", () => {
       setHelpActive(!state.help.active);
     });
   }
   const genVariantHelp = el("genVariantHelp");
-  if (genVariantHelp) genVariantHelp.addEventListener("click", () => showChordVariantHelpModal("generation"));
+  if (genVariantHelp) listen(genVariantHelp, "click", () => showChordVariantHelpModal("generation"));
   const detectVariantHelp = el("detectVariantHelp");
-  if (detectVariantHelp) detectVariantHelp.addEventListener("click", () => showChordVariantHelpModal("detection"));
+  if (detectVariantHelp) listen(detectVariantHelp, "click", () => showChordVariantHelpModal("detection"));
   const chordVariantHelpCloseBtn = el("chordVariantHelpCloseBtn");
-  if (chordVariantHelpCloseBtn) chordVariantHelpCloseBtn.addEventListener("click", hideChordVariantHelpModal);
   const chordVariantHelpModal = el("chordVariantHelpModal");
-  if (chordVariantHelpModal) {
-    chordVariantHelpModal.addEventListener("click", (event) => {
-      if (event.target === chordVariantHelpModal) hideChordVariantHelpModal();
-    });
-  }
+  bindModalControls(uiLifecycle, {
+    modal: chordVariantHelpModal,
+    closeButton: chordVariantHelpCloseBtn,
+    onClose: hideChordVariantHelpModal,
+  });
   const midiStartupEnableBtn = el("midiStartupEnableBtn");
   if (midiStartupEnableBtn) {
-    midiStartupEnableBtn.addEventListener("click", async () => {
+    listen(midiStartupEnableBtn, "click", async () => {
       await toggleMidi();
       if (state.midi.enabled) hideMidiStartupModal();
     });
   }
   const midiStartupCloseBtn = el("midiStartupCloseBtn");
   if (midiStartupCloseBtn) {
-    midiStartupCloseBtn.addEventListener("click", () => {
+    listen(midiStartupCloseBtn, "click", () => {
       saveMidiEnabledPref(false);
       hideMidiStartupModal();
     });
   }
   const feedbackOpenBtn = el("feedbackOpenBtn");
-  if (feedbackOpenBtn) {
-    feedbackOpenBtn.addEventListener("click", () => {
-      showFeedbackModal();
-    });
-  }
   const downloadsOpenBtn = el("downloadsOpenBtn");
-  if (downloadsOpenBtn) {
-    downloadsOpenBtn.addEventListener("click", () => {
-      showDownloadsModal();
-    });
-  }
   const feedbackCloseBtn = el("feedbackCloseBtn");
-  if (feedbackCloseBtn) {
-    feedbackCloseBtn.addEventListener("click", () => {
-      hideFeedbackModal();
-    });
-  }
   const downloadsCloseBtn = el("downloadsCloseBtn");
-  if (downloadsCloseBtn) {
-    downloadsCloseBtn.addEventListener("click", () => {
-      hideDownloadsModal();
-    });
-  }
   const feedbackModal = el("feedbackModal");
-  if (feedbackModal) {
-    feedbackModal.addEventListener("click", (event) => {
-      if (event.target === feedbackModal) hideFeedbackModal();
-    });
-  }
   const downloadsModal = el("downloadsModal");
-  if (downloadsModal) {
-    downloadsModal.addEventListener("click", (event) => {
-      if (event.target === downloadsModal) hideDownloadsModal();
-    });
-  }
-  el("guitarHandedness").addEventListener("change", (e) => {
+  bindModalControls(uiLifecycle, {
+    modal: feedbackModal,
+    openButton: feedbackOpenBtn,
+    closeButton: feedbackCloseBtn,
+    onOpen: showFeedbackModal,
+    onClose: hideFeedbackModal,
+  });
+  bindModalControls(uiLifecycle, {
+    modal: downloadsModal,
+    openButton: downloadsOpenBtn,
+    closeButton: downloadsCloseBtn,
+    onOpen: showDownloadsModal,
+    onClose: hideDownloadsModal,
+  });
+  listen(el("guitarHandedness"), "change", (e) => {
     state.guitarHandedness = e.target.value;
     if (state.instrument === "guitar") renderInstrument();
   });
-  el("language").addEventListener("change", async (e) => {
+  listen(el("language"), "change", async (e) => {
     state.language = e.target.value;
     await loadMeta();
     applyTranslations();
@@ -8391,7 +6454,7 @@ function bindEvents() {
     renderStaff();
   });
 
-  el("accidental").addEventListener("change", async (e) => {
+  listen(el("accidental"), "change", async (e) => {
     state.accidental = e.target.value;
     await loadMeta();
     renderInstrument();
@@ -8403,7 +6466,7 @@ function bindEvents() {
     renderStaff();
   });
 
-  el("detectClear").addEventListener("click", () => {
+  listen(el("detectClear"), "click", () => {
     stopHeldChord();
     stopAllHeldInputNotes();
     stopAllHeldMidiInputNotes();
@@ -8417,7 +6480,7 @@ function bindEvents() {
     runDetection();
   });
   const soundOutputToggle = el("soundOutputToggle");
-  if (soundOutputToggle) soundOutputToggle.addEventListener("click", async () => {
+  if (soundOutputToggle) listen(soundOutputToggle, "click", async () => {
     state.soundOutput = state.soundOutput === "midi" ? "audio" : "midi";
     if (state.soundOutput === "audio") {
       stopAllHeldMidiOutputNotes();
@@ -8433,14 +6496,14 @@ function bindEvents() {
   });
   const midiStartupSoundAudio = el("midiStartupSoundAudio");
   const midiStartupSoundMidi = el("midiStartupSoundMidi");
-  if (midiStartupSoundAudio) midiStartupSoundAudio.addEventListener("click", () => {
+  if (midiStartupSoundAudio) listen(midiStartupSoundAudio, "click", () => {
     state.soundOutput = "audio";
     stopAllHeldMidiOutputNotes();
     saveSoundOutputPref();
     refreshMidiStartupSoundChoice();
     refreshSoundOutputToggle();
   });
-  if (midiStartupSoundMidi) midiStartupSoundMidi.addEventListener("click", () => {
+  if (midiStartupSoundMidi) listen(midiStartupSoundMidi, "click", () => {
     state.soundOutput = "midi";
     stopAllHeldMidiInputNotes();
     saveSoundOutputPref();
@@ -8462,7 +6525,7 @@ function bindEvents() {
     },
   });
 
-  el("intervalClear").addEventListener("click", () => {
+  listen(el("intervalClear"), "click", () => {
     state.intervalPlayGeneration++;
     if (state.intervalPreviewClearTimer != null) {
       clearTimeout(state.intervalPreviewClearTimer);
@@ -8498,7 +6561,7 @@ function bindEvents() {
 
   const intervalRecuerdaBtn = el("intervalRecuerdaBtn");
   if (intervalRecuerdaBtn) {
-    intervalRecuerdaBtn.addEventListener("click", () => {
+    listen(intervalRecuerdaBtn, "click", () => {
       if (state.intervalNotes.length < 2) return;
       if (!INTERVAL_MELODIES[getIntervalSemitones()]) return;
       state.intervalMelodyActive = !state.intervalMelodyActive;
@@ -8526,55 +6589,46 @@ function bindEvents() {
     });
   }
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !el("chordVariantHelpModal")?.classList.contains("hidden")) {
-      hideChordVariantHelpModal();
-      return;
-    }
-    if (event.key === "Escape" && !el("downloadsModal")?.classList.contains("hidden")) {
-      hideDownloadsModal();
-      return;
-    }
-    if (event.key === "Escape" && !el("feedbackModal")?.classList.contains("hidden")) {
-      hideFeedbackModal();
-      return;
-    }
-    if (event.key === "Escape" && state.help.active) {
-      setHelpActive(false);
-      return;
-    }
-    if (event.key !== "Shift") return;
-    if (event.repeat) return;
-    state.shiftPressed = true;
-    if (state.mode !== "detection") return;
-    state.detectionShiftPressed = true;
-  });
-  document.addEventListener("keyup", (event) => {
-    if (event.key !== "Shift") return;
-    state.shiftPressed = false;
-    if (state.mode !== "detection") return;
-    state.detectionShiftPressed = false;
-  });
-  window.addEventListener("blur", () => {
-    state.shiftPressed = false;
-    state.detectionShiftPressed = false;
+  bindKeyboardUiEvents(uiLifecycle, {
+    documentTarget: document,
+    windowTarget: window,
+    onEscape: () => {
+      if (!el("chordVariantHelpModal")?.classList.contains("hidden")) {
+        hideChordVariantHelpModal();
+        return;
+      }
+      if (!el("downloadsModal")?.classList.contains("hidden")) {
+        hideDownloadsModal();
+        return;
+      }
+      if (!el("feedbackModal")?.classList.contains("hidden")) {
+        hideFeedbackModal();
+        return;
+      }
+      if (state.help.active) setHelpActive(false);
+    },
+    onShiftChange: (pressed) => {
+      state.shiftPressed = pressed;
+      state.detectionShiftPressed = pressed && state.mode === "detection";
+    },
   });
 
-  el("genRootLetter").addEventListener("change", (e) => {
+  listen(el("genRootLetter"), "change", (e) => {
     populateAccidentalSelect("genRootAccidental", Number(e.target.value));
     state.genRootLetterPc = Number(e.target.value);
     state.genRootAccidental = el("genRootAccidental")?.value || "natural";
     runGenerateChord();
   });
-  el("genRootAccidental").addEventListener("change", (e) => {
+  listen(el("genRootAccidental"), "change", (e) => {
     state.genRootAccidental = e.target.value;
     runGenerateChord();
   });
-  el("genVariant").addEventListener("change", () => {
+  listen(el("genVariant"), "change", () => {
+    state.guitarSelectedVariationIdx = 0;
     updateInversionMax();
     runGenerateChord();
   });
-  el("genInversion").addEventListener("change", () => {
+  listen(el("genInversion"), "change", () => {
     runGenerateChord();
   });
   bindImmediatePress(el("genPlay"), () => {
@@ -8619,27 +6673,27 @@ function bindEvents() {
 
   const scaleModeMetronome = el("scaleModeMetronome");
   if (scaleModeMetronome) {
-    scaleModeMetronome.addEventListener("click", () => {
+    listen(scaleModeMetronome, "click", () => {
       state.scaleMetronomeEnabled = !state.scaleMetronomeEnabled;
       renderScaleModeButtons();
       // Metronome mode only changes sound source; playback starts/stops with Play/Stop.
     });
   }
-  el("scaleRootLetter").addEventListener("change", (e) => {
+  listen(el("scaleRootLetter"), "change", (e) => {
     populateAccidentalSelect("scaleRootAccidental", Number(e.target.value));
     state.scaleRootLetterPc = Number(e.target.value);
     state.scaleRootAccidental = el("scaleRootAccidental")?.value || "natural";
     runGenerateScale();
   });
-  el("scaleRootAccidental").addEventListener("change", (e) => {
+  listen(el("scaleRootAccidental"), "change", (e) => {
     state.scaleRootAccidental = e.target.value;
     runGenerateScale();
   });
-  el("scaleType").addEventListener("change", runGenerateScale);
-  el("scaleFilterToggle").addEventListener("click", () => {
+  listen(el("scaleType"), "change", runGenerateScale);
+  listen(el("scaleFilterToggle"), "click", () => {
     setScaleFilterMode(state.scaleFilterMode === "basic" ? "advanced" : "basic");
   });
-  el("scaleBpm").addEventListener("input", (e) => {
+  listen(el("scaleBpm"), "input", (e) => {
     const v = String(e.target.value || "120");
     el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;
     const metroBpm = el("bpm");
@@ -8651,16 +6705,16 @@ function bindEvents() {
   });
 
   document.querySelectorAll(".scale-oct-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setScaleOctaves(Number(btn.dataset.oct)));
+    listen(btn, "click", () => setScaleOctaves(Number(btn.dataset.oct)));
   });
 
   document.querySelectorAll("input[name='scaleFingering']").forEach((inp) => {
-    inp.addEventListener("change", () => {
+    listen(inp, "change", () => {
       if (inp.checked) setScaleFingeringMode(inp.value);
     });
   });
 
-  el("sharedPiano").addEventListener("scroll", updateFingeringStrip);
+  listen(el("sharedPiano"), "scroll", updateFingeringStrip);
 
   const syncMeterDisplay = () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4));
@@ -8670,7 +6724,7 @@ function bindEvents() {
   };
   syncMeterDisplay();
 
-  el("bpm").addEventListener("input", (e) => {
+  listen(el("bpm"), "input", (e) => {
     const v = String(e.target.value || "120");
     refreshMetronomeTempoInfo();
     if (el("scaleBpm")) {
@@ -8678,41 +6732,41 @@ function bindEvents() {
       el("scaleBpmValue").textContent = `${v} ${tempoUnitLabel()}`;
     }
   });
-  el("metroVolume").addEventListener("input", () => {
+  listen(el("metroVolume"), "input", () => {
     refreshMetronomeVolumeInfo();
   });
   const scaleMetroVolume = el("scaleMetroVolume");
   if (scaleMetroVolume) {
-    scaleMetroVolume.addEventListener("input", () => {
+    listen(scaleMetroVolume, "input", () => {
       refreshMetronomeVolumeInfo();
     });
   }
 
-  el("metroBpmMinus").addEventListener("click", () => {
+  listen(el("metroBpmMinus"), "click", () => {
     const bpm = Math.max(1, Math.min(300, Number(el("bpm").value) || 120) - 1);
     el("bpm").value = String(bpm);
     el("bpm").dispatchEvent(new Event("input"));
   });
-  el("metroBpmPlus").addEventListener("click", () => {
+  listen(el("metroBpmPlus"), "click", () => {
     const bpm = Math.max(1, Math.min(300, Number(el("bpm").value) || 120) + 1);
     el("bpm").value = String(bpm);
     el("bpm").dispatchEvent(new Event("input"));
   });
 
-  el("metroMeter").addEventListener("input", syncMeterDisplay);
-  el("metroMeterMinus").addEventListener("click", () => {
+  listen(el("metroMeter"), "input", syncMeterDisplay);
+  listen(el("metroMeterMinus"), "click", () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4) - 1);
     el("metroMeter").value = String(meter);
     syncMeterDisplay();
   });
-  el("metroMeterPlus").addEventListener("click", () => {
+  listen(el("metroMeterPlus"), "click", () => {
     const meter = Math.max(1, Math.min(16, Number(el("metroMeter").value) || 4) + 1);
     el("metroMeter").value = String(meter);
     syncMeterDisplay();
   });
 
   document.querySelectorAll(".metro-figure").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    listen(btn, "click", () => {
       state.clicksPerBeat = Math.max(1, Math.min(16, Number(btn.dataset.clicks) || 1));
       renderMetronomeFigures();
       renderMetronomeDots();
@@ -8721,11 +6775,11 @@ function bindEvents() {
   });
   renderMetronomeFigures();
 
-  el("metroBarAccent").addEventListener("change", (e) => {
+  listen(el("metroBarAccent"), "change", (e) => {
     state.metronomeBarAccentEnabled = !!e.target.checked;
     if (state.mode === "metronome") renderStaff();
   });
-  el("metroTimerEnabled").addEventListener("change", (e) => {
+  listen(el("metroTimerEnabled"), "change", (e) => {
     state.metronomeTimerEnabled = !!e.target.checked;
     if (!state.metronomeRunning) {
       state.metronomeTimerRemaining = (Number(el("metroTimerMinutes").value) * 60) + Number(el("metroTimerSeconds").value);
@@ -8742,14 +6796,14 @@ function bindEvents() {
     }
     if (state.mode === "metronome") renderStaff();
   };
-  el("metroTimerMinutes").addEventListener("change", syncTimerInputs);
-  el("metroTimerSeconds").addEventListener("change", syncTimerInputs);
+  listen(el("metroTimerMinutes"), "change", syncTimerInputs);
+  listen(el("metroTimerSeconds"), "change", syncTimerInputs);
   syncTimerInputs();
 
   if (TUNER_FEATURE_ENABLED) {
     const tunerTuning = el("tunerTuning");
     if (tunerTuning) {
-      tunerTuning.addEventListener("change", (e) => {
+      listen(tunerTuning, "change", (e) => {
         const key = String(e.target.value || "standard_e");
         state.tuner.tuningKey = TUNER_TUNINGS.some((t) => t.key === key) ? key : "standard_e";
         state.tuner.currentStringIdx = null;
@@ -8760,7 +6814,7 @@ function bindEvents() {
     }
     const tunerInput = el("tunerInput");
     if (tunerInput) {
-      tunerInput.addEventListener("change", async (e) => {
+      listen(tunerInput, "change", async (e) => {
         state.tuner.inputDeviceId = String(e.target.value || "");
         if (state.tuner.running) {
           await toggleTuner();
@@ -8773,12 +6827,12 @@ function bindEvents() {
       el("tunerGain").value = String(state.tuner.inputGain);
       updateTunerGainValue();
     };
-    el("tunerGain").addEventListener("input", syncTunerGain);
-    el("tunerGainMinus").addEventListener("click", () => {
+    listen(el("tunerGain"), "input", syncTunerGain);
+    listen(el("tunerGainMinus"), "click", () => {
       el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) - 1)));
       syncTunerGain();
     });
-    el("tunerGainPlus").addEventListener("click", () => {
+    listen(el("tunerGainPlus"), "click", () => {
       el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) + 1)));
       syncTunerGain();
     });
@@ -8788,41 +6842,43 @@ function bindEvents() {
       clampTunerRange(el("tunerRangeMin").value, el("tunerRangeMax").value);
       if (state.mode === "tuner") renderStaff();
     };
-    el("tunerRangeMin").addEventListener("change", syncTunerRange);
-    el("tunerRangeMax").addEventListener("change", syncTunerRange);
+    listen(el("tunerRangeMin"), "change", syncTunerRange);
+    listen(el("tunerRangeMax"), "change", syncTunerRange);
     syncTunerRange();
   } else {
     const panelTuner = el("panelTuner");
     if (panelTuner) panelTuner.classList.add("hidden");
   }
 
-  window.addEventListener("resize", () => {
-    if (activeModeSupportsStaff()) renderStaff();
-    if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
-    if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
-    if (state.help.active) refreshHelpOverlay();
-  });
-  window.addEventListener("scroll", () => {
-    if (state.help.active) refreshHelpOverlay();
-  }, true);
-  window.addEventListener("blur", () => {
-    stopHeldChord();
-    stopAllHeldInputNotes();
-    if (state.help.active) setHelpActive(false);
+  bindGlobalUiEvents(uiLifecycle, {
+    windowTarget: window,
+    documentTarget: document,
+    onResize: () => {
+      if (activeModeSupportsStaff()) renderStaff();
+      if (state.mode === "circle_fifths") scheduleCircleFifthsLayout();
+      if (TUNER_FEATURE_ENABLED && state.mode === "tuner") renderTunerSpectrumPanel();
+      if (state.help.active) refreshHelpOverlay();
+    },
+    onScroll: () => {
+      if (state.help.active) refreshHelpOverlay();
+    },
+    onBlur: () => {
+      stopHeldChord();
+      stopAllHeldInputNotes();
+      if (state.help.active) setHelpActive(false);
+    },
+    onVisible: () => {
+      if (state.midiScreenWakeLockWanted) void acquireMidiScreenWakeLock();
+    },
   });
 
-  el("metroToggle").addEventListener("click", toggleMetronome);
+  listen(el("metroToggle"), "click", toggleMetronome);
   if (TUNER_FEATURE_ENABLED) {
-    el("tunerToggle").addEventListener("click", toggleTuner);
+    listen(el("tunerToggle"), "click", toggleTuner);
   }
   const feedbackForm = el("feedbackForm");
-  if (feedbackForm) feedbackForm.addEventListener("submit", submitFeedbackForm);
+  if (feedbackForm) listen(feedbackForm, "submit", submitFeedbackForm);
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && state.midiScreenWakeLockWanted) {
-      void acquireMidiScreenWakeLock();
-    }
-  });
 }
 
 async function main() {

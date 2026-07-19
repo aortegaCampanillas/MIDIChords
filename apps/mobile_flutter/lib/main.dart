@@ -7,22 +7,37 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_audio_capture/flutter_audio_capture.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'circle_of_fifths.dart';
+import 'app_preferences.dart';
+import 'audio_player_port.dart';
 import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'interval_data.dart';
 import 'key_signature_highlight.dart';
+import 'music_catalog.dart';
+import 'music_service.dart';
+import 'midi_activity_guard.dart';
+import 'midi_input_lifecycle.dart';
+import 'midi_output_controller.dart';
+import 'native_audio_bridge.dart';
+import 'piano_layout.dart';
 import 'piano_scroll_centering.dart';
 import 'scale_guitar_marker.dart';
+import 'scale_dropdown.dart';
 import 'scale_staff_interaction.dart';
+import 'sample_tone_plan.dart';
+import 'staff_beam_geometry.dart';
+import 'tuner_capture_session.dart';
+import 'transient_player_lifecycle.dart';
+
+part 'main_painters.dart';
+part 'main_pages.dart';
+part 'main_help.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,759 +48,15 @@ void main() {
   runApp(const MidiChordsMobileApp());
 }
 
-const List<Map<String, dynamic>> _kChordPatternDefs = <Map<String, dynamic>>[
-  <String, dynamic>{
-    'suffix': '',
-    'intervals': <int>[0, 4, 7],
-  },
-  <String, dynamic>{
-    'suffix': '5',
-    'intervals': <int>[0, 7],
-  },
-  <String, dynamic>{
-    'suffix': '-5',
-    'intervals': <int>[0, 4, 6],
-  },
-  <String, dynamic>{
-    'suffix': 'm',
-    'intervals': <int>[0, 3, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'dim',
-    'intervals': <int>[0, 3, 6],
-  },
-  <String, dynamic>{
-    'suffix': 'aug',
-    'intervals': <int>[0, 4, 8],
-  },
-  <String, dynamic>{
-    'suffix': 'sus2',
-    'intervals': <int>[0, 2, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'sus4',
-    'intervals': <int>[0, 5, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'sus2sus4',
-    'intervals': <int>[0, 2, 5, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'add2',
-    'intervals': <int>[0, 2, 4, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'add4',
-    'intervals': <int>[0, 4, 5, 7],
-  },
-  <String, dynamic>{
-    'suffix': 'add9',
-    'intervals': <int>[0, 4, 7, 14],
-  },
-  <String, dynamic>{
-    'suffix': 'madd9',
-    'intervals': <int>[0, 3, 7, 14],
-  },
-  <String, dynamic>{
-    'suffix': '6',
-    'intervals': <int>[0, 4, 7, 9],
-  },
-  <String, dynamic>{
-    'suffix': '6add9',
-    'intervals': <int>[0, 4, 7, 9, 14],
-  },
-  <String, dynamic>{
-    'suffix': 'm6',
-    'intervals': <int>[0, 3, 7, 9],
-  },
-  <String, dynamic>{
-    'suffix': 'm6add9',
-    'intervals': <int>[0, 3, 7, 9, 14],
-  },
-  <String, dynamic>{
-    'suffix': '7',
-    'intervals': <int>[0, 4, 7, 10],
-  },
-  <String, dynamic>{
-    'suffix': '7sus4',
-    'intervals': <int>[0, 5, 7, 10],
-  },
-  <String, dynamic>{
-    'suffix': '7#5',
-    'intervals': <int>[0, 4, 8, 10],
-  },
-  <String, dynamic>{
-    'suffix': '7b5',
-    'intervals': <int>[0, 4, 6, 10],
-  },
-  <String, dynamic>{
-    'suffix': '7#9',
-    'intervals': <int>[0, 4, 7, 10, 15],
-  },
-  <String, dynamic>{
-    'suffix': '7b9',
-    'intervals': <int>[0, 4, 7, 10, 13],
-  },
-  <String, dynamic>{
-    'suffix': '7(#5,#9)',
-    'intervals': <int>[0, 4, 8, 10, 15],
-  },
-  <String, dynamic>{
-    'suffix': '7(#5,b9)',
-    'intervals': <int>[0, 4, 8, 10, 13],
-  },
-  <String, dynamic>{
-    'suffix': '7(b5,#9)',
-    'intervals': <int>[0, 4, 6, 10, 15],
-  },
-  <String, dynamic>{
-    'suffix': '7(b5,b9)',
-    'intervals': <int>[0, 4, 6, 10, 13],
-  },
-  <String, dynamic>{
-    'suffix': '9',
-    'intervals': <int>[0, 4, 7, 10, 14],
-  },
-  <String, dynamic>{
-    'suffix': '9#5',
-    'intervals': <int>[0, 4, 8, 10, 14],
-  },
-  <String, dynamic>{
-    'suffix': '9b5',
-    'intervals': <int>[0, 4, 6, 10, 14],
-  },
-  <String, dynamic>{
-    'suffix': '11',
-    'intervals': <int>[0, 4, 7, 10, 14, 17],
-  },
-  <String, dynamic>{
-    'suffix': '11b9',
-    'intervals': <int>[0, 4, 7, 10, 13, 17],
-  },
-  <String, dynamic>{
-    'suffix': '13',
-    'intervals': <int>[0, 4, 7, 10, 14, 21],
-  },
-  <String, dynamic>{
-    'suffix': '13b9',
-    'intervals': <int>[0, 4, 7, 10, 13, 21],
-  },
-  <String, dynamic>{
-    'suffix': '13#11',
-    'intervals': <int>[0, 4, 7, 10, 14, 18, 21],
-  },
-  <String, dynamic>{
-    'suffix': 'maj7',
-    'intervals': <int>[0, 4, 7, 11],
-  },
-  <String, dynamic>{
-    'suffix': 'maj7#5',
-    'intervals': <int>[0, 4, 8, 11],
-  },
-  <String, dynamic>{
-    'suffix': 'maj7b5',
-    'intervals': <int>[0, 4, 6, 11],
-  },
-  <String, dynamic>{
-    'suffix': 'maj9',
-    'intervals': <int>[0, 4, 7, 11, 14],
-  },
-  <String, dynamic>{
-    'suffix': 'maj11',
-    'intervals': <int>[0, 4, 7, 11, 14, 17],
-  },
-  <String, dynamic>{
-    'suffix': 'maj13',
-    'intervals': <int>[0, 4, 7, 11, 14, 21],
-  },
-  <String, dynamic>{
-    'suffix': 'maj9#11',
-    'intervals': <int>[0, 4, 7, 11, 14, 18],
-  },
-  <String, dynamic>{
-    'suffix': 'maj13#11',
-    'intervals': <int>[0, 4, 7, 11, 14, 18, 21],
-  },
-  <String, dynamic>{
-    'suffix': 'm7',
-    'intervals': <int>[0, 3, 7, 10],
-  },
-  <String, dynamic>{
-    'suffix': 'm7#5',
-    'intervals': <int>[0, 3, 8, 10],
-  },
-  <String, dynamic>{
-    'suffix': 'm9',
-    'intervals': <int>[0, 3, 7, 10, 14],
-  },
-  <String, dynamic>{
-    'suffix': 'm11',
-    'intervals': <int>[0, 3, 7, 10, 14, 17],
-  },
-  <String, dynamic>{
-    'suffix': 'm13',
-    'intervals': <int>[0, 3, 7, 10, 14, 21],
-  },
-  <String, dynamic>{
-    'suffix': 'mMaj7',
-    'intervals': <int>[0, 3, 7, 11],
-  },
-  <String, dynamic>{
-    'suffix': 'mMaj9',
-    'intervals': <int>[0, 3, 7, 11, 14],
-  },
-  <String, dynamic>{
-    'suffix': 'dim7',
-    'intervals': <int>[0, 3, 6, 9],
-  },
-  <String, dynamic>{
-    'suffix': 'm7b5',
-    'intervals': <int>[0, 3, 6, 10],
-  },
-];
-
-const Set<String> _kScaleBasicNames = <String>{
-  'Ionian',
-  'Aeolian',
-  'Harmonic Minor',
-  'Melodic Minor',
-  'Dorian',
-  'Phrygian',
-  'Lydian',
-  'Mixolydian',
-  'Locrian',
-  'Major Pentatonic',
-  'Minor Pentatonic',
-  'Blues Pentatonic',
-  'Minor Blues',
-  'Chromatic',
-  'Whole Tone (WT)',
-};
-
-const List<Map<String, dynamic>> _kScalePatternDefs = <Map<String, dynamic>>[
-  <String, dynamic>{
-    'name': 'Ionian',
-    'intervals': <int>[0, 2, 4, 5, 7, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Dorian',
-    'intervals': <int>[0, 2, 3, 5, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Phrygian',
-    'intervals': <int>[0, 1, 3, 5, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Lydian',
-    'intervals': <int>[0, 2, 4, 6, 7, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Mixolydian',
-    'intervals': <int>[0, 2, 4, 5, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Aeolian',
-    'intervals': <int>[0, 2, 3, 5, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Locrian',
-    'intervals': <int>[0, 1, 3, 5, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Chromatic',
-    'intervals': <int>[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Locrian #2',
-    'intervals': <int>[0, 2, 3, 5, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Harmonic Minor',
-    'intervals': <int>[0, 2, 3, 5, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Melodic Minor',
-    'intervals': <int>[0, 2, 3, 5, 7, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Major Pentatonic',
-    'intervals': <int>[0, 2, 4, 7, 9, 12],
-  },
-  <String, dynamic>{
-    'name': 'Minor Pentatonic',
-    'intervals': <int>[0, 3, 5, 7, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Blues Pentatonic',
-    'intervals': <int>[0, 3, 5, 7, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Neutral Pentatonic',
-    'intervals': <int>[0, 2, 5, 7, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Bebop',
-    'intervals': <int>[0, 2, 4, 5, 7, 9, 10, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Bebop Major',
-    'intervals': <int>[0, 2, 4, 5, 7, 8, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Bebop Minor',
-    'intervals': <int>[0, 2, 3, 4, 5, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Half Diminished',
-    'intervals': <int>[0, 2, 3, 5, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Diminished',
-    'intervals': <int>[0, 2, 3, 5, 6, 8, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Whole Tone (WT)',
-    'intervals': <int>[0, 2, 4, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Diminished WT',
-    'intervals': <int>[0, 1, 3, 4, 6, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Minor Blues',
-    'intervals': <int>[0, 3, 5, 6, 7, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Super Locrian',
-    'intervals': <int>[0, 1, 3, 4, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Romanian Minor',
-    'intervals': <int>[0, 2, 3, 6, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Spanish Gypsy',
-    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Eight Tone Spanish',
-    'intervals': <int>[0, 1, 3, 4, 5, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Enigmatic',
-    'intervals': <int>[0, 1, 4, 6, 8, 10, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Neapolitan Major',
-    'intervals': <int>[0, 1, 3, 5, 7, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Neapolitan Minor',
-    'intervals': <int>[0, 1, 3, 5, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Pelog',
-    'intervals': <int>[0, 1, 3, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Prometheus',
-    'intervals': <int>[0, 2, 4, 6, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Prometheus Neapolitan',
-    'intervals': <int>[0, 1, 4, 6, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Six Tone Symmetric',
-    'intervals': <int>[0, 1, 4, 5, 8, 9, 12],
-  },
-  <String, dynamic>{
-    'name': 'Lydian Minor',
-    'intervals': <int>[0, 2, 3, 6, 7, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Lydian Augmented',
-    'intervals': <int>[0, 2, 4, 6, 8, 9, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Lydian Diminished',
-    'intervals': <int>[0, 2, 3, 6, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Lydian Augmented #6',
-    'intervals': <int>[0, 2, 4, 6, 8, 10, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Hungarian Major',
-    'intervals': <int>[0, 3, 4, 6, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Hungarian Minor',
-    'intervals': <int>[0, 2, 3, 6, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Ichikosucho',
-    'intervals': <int>[0, 2, 4, 5, 6, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Persian',
-    'intervals': <int>[0, 1, 4, 5, 6, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Flamenco',
-    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Hawaiian',
-    'intervals': <int>[0, 2, 3, 5, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Maqam',
-    'intervals': <int>[0, 1, 4, 5, 7, 8, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Oriental',
-    'intervals': <int>[0, 1, 4, 5, 6, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Iwato',
-    'intervals': <int>[0, 1, 5, 6, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Raga Malakosh',
-    'intervals': <int>[0, 3, 5, 7, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Balinese',
-    'intervals': <int>[0, 1, 3, 7, 8, 12],
-  },
-  <String, dynamic>{
-    'name': 'Kafi Raga',
-    'intervals': <int>[0, 2, 3, 5, 7, 9, 10, 12],
-  },
-  <String, dynamic>{
-    'name': 'Todi Raga',
-    'intervals': <int>[0, 1, 3, 6, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'Purvi Raga',
-    'intervals': <int>[0, 1, 4, 6, 7, 8, 11, 12],
-  },
-  <String, dynamic>{
-    'name': 'In Sen',
-    'intervals': <int>[0, 1, 5, 7, 10, 12],
-  },
-];
-
-const List<String> _kCommonChordSuffixOrder = <String>[
-  '',
-  'm',
-  '7',
-  'maj7',
-  'm7',
-  'add2',
-  'add4',
-  'sus2',
-  'sus4',
-  'dim',
-  'aug',
-  '5',
-  '6',
-  'm6',
-  'add9',
-  'madd9',
-  '9',
-  'maj9',
-  'm9',
-  '11',
-  'm11',
-  '13',
-  'm13',
-  'dim7',
-  'm7b5',
-];
-
-const Map<String, String> _kChordSuffixNamesEs = <String, String>{
-  '': 'Mayor',
-  'm': 'Menor',
-  '5': 'Quinta (power chord)',
-  '-5': 'Mayor quinta disminuida',
-  'dim': 'Disminuido',
-  'aug': 'Aumentado',
-  'sus2': 'Suspendido 2ª',
-  'sus4': 'Suspendido 4ª',
-  'sus2sus4': 'Suspendido 2ª y 4ª',
-  'add2': 'Mayor con 2ª añadida',
-  'add4': 'Mayor con 4ª añadida',
-  'add9': 'Mayor con 9ª añadida',
-  'madd9': 'Menor con 9ª añadida',
-  '6': 'Mayor con 6ª',
-  '6add9': 'Mayor con 6ª y 9ª',
-  'm6': 'Menor con 6ª',
-  'm6add9': 'Menor con 6ª y 9ª',
-  '7': 'Mayor dominante (7ª menor)',
-  '7sus4': 'Dominante suspendido 4ª',
-  '7#5': 'Dominante aumentado',
-  '7b5': 'Dominante quinta disminuida',
-  '7#9': 'Dominante con 9ª aumentada',
-  '7b9': 'Dominante con 9ª disminuida',
-  '7(#5,#9)': 'Dominante aumentado con 9ª aumentada',
-  '7(#5,b9)': 'Dominante aumentado con 9ª disminuida',
-  '7(b5,#9)': 'Dominante quinta disminuida con 9ª aumentada',
-  '7(b5,b9)': 'Dominante quinta disminuida con 9ª disminuida',
-  '9': 'Dominante con 9ª',
-  '9#5': 'Dominante aumentado con 9ª',
-  '9b5': 'Dominante quinta disminuida con 9ª',
-  '11': 'Dominante con 11ª',
-  '11b9': 'Dominante con 11ª y 9ª disminuida',
-  '13': 'Dominante con 13ª',
-  '13b9': 'Dominante con 13ª y 9ª disminuida',
-  '13#11': 'Dominante con 13ª y 11ª aumentada',
-  'maj7': 'Mayor con 7ª mayor',
-  'maj7#5': 'Mayor aumentado con 7ª mayor',
-  'maj7b5': 'Mayor quinta disminuida con 7ª mayor',
-  'maj9': 'Mayor con 9ª y 7ª mayor',
-  'maj11': 'Mayor con 11ª y 7ª mayor',
-  'maj13': 'Mayor con 13ª y 7ª mayor',
-  'maj9#11': 'Mayor con 9ª, 11ª aumentada y 7ª mayor',
-  'maj13#11': 'Mayor con 13ª, 11ª aumentada y 7ª mayor',
-  'm7': 'Menor con 7ª menor',
-  'm7#5': 'Menor aumentado con 7ª menor',
-  'm9': 'Menor con 9ª y 7ª menor',
-  'm11': 'Menor con 11ª y 7ª menor',
-  'm13': 'Menor con 13ª y 7ª menor',
-  'mMaj7': 'Menor con 7ª mayor',
-  'mMaj9': 'Menor con 9ª y 7ª mayor',
-  'dim7': 'Disminuido con 7ª disminuida',
-  'm7b5': 'Semidisminuido (menor con quinta disminuida)',
-};
-
-const Map<String, String> _kChordSuffixNamesEn = <String, String>{
-  '': 'Major',
-  'm': 'Minor',
-  '5': 'Power chord',
-  '-5': 'Major flat five',
-  'dim': 'Diminished',
-  'aug': 'Augmented',
-  'sus2': 'Suspended 2nd',
-  'sus4': 'Suspended 4th',
-  'sus2sus4': 'Suspended 2nd and 4th',
-  'add2': 'Major add 2nd',
-  'add4': 'Major add 4th',
-  'add9': 'Major add 9th',
-  'madd9': 'Minor add 9th',
-  '6': 'Major 6th',
-  '6add9': 'Major 6th add 9th',
-  'm6': 'Minor 6th',
-  'm6add9': 'Minor 6th add 9th',
-  '7': 'Dominant 7th (major with minor 7th)',
-  '7sus4': 'Dominant suspended 4th',
-  '7#5': 'Augmented dominant',
-  '7b5': 'Dominant flat five',
-  '7#9': 'Dominant sharp 9th',
-  '7b9': 'Dominant flat 9th',
-  '7(#5,#9)': 'Augmented dominant sharp 9th',
-  '7(#5,b9)': 'Augmented dominant flat 9th',
-  '7(b5,#9)': 'Dominant flat five sharp 9th',
-  '7(b5,b9)': 'Dominant flat five flat 9th',
-  '9': 'Dominant 9th',
-  '9#5': 'Augmented dominant 9th',
-  '9b5': 'Dominant flat five 9th',
-  '11': 'Dominant 11th',
-  '11b9': 'Dominant 11th flat 9th',
-  '13': 'Dominant 13th',
-  '13b9': 'Dominant 13th flat 9th',
-  '13#11': 'Dominant 13th sharp 11th',
-  'maj7': 'Major 7th',
-  'maj7#5': 'Augmented major 7th',
-  'maj7b5': 'Major flat five major 7th',
-  'maj9': 'Major 9th',
-  'maj11': 'Major 11th',
-  'maj13': 'Major 13th',
-  'maj9#11': 'Major 9th sharp 11th',
-  'maj13#11': 'Major 13th sharp 11th',
-  'm7': 'Minor 7th',
-  'm7#5': 'Augmented minor 7th',
-  'm9': 'Minor 9th',
-  'm11': 'Minor 11th',
-  'm13': 'Minor 13th',
-  'mMaj7': 'Minor major 7th',
-  'mMaj9': 'Minor major 9th',
-  'dim7': 'Diminished 7th',
-  'm7b5': 'Half-diminished (minor flat five)',
-};
-
-const List<String> _kInversionNamesEs = <String>[
-  '',
-  'primera inversión',
-  'segunda inversión',
-  'tercera inversión',
-];
-
-const List<String> _kInversionNamesEn = <String>[
-  '',
-  'first inversion',
-  'second inversion',
-  'third inversion',
-];
-
-const Map<String, String> _kScaleNameEs = <String, String>{
-  'Ionian': 'Jónica',
-  'Dorian': 'Dórica',
-  'Phrygian': 'Frigia',
-  'Lydian': 'Lidia',
-  'Mixolydian': 'Mixolidia',
-  'Aeolian': 'Eólica',
-  'Locrian': 'Locria',
-  'Chromatic': 'Cromática',
-  'Locrian #2': 'Locria #2',
-  'Harmonic Minor': 'Menor armónica',
-  'Melodic Minor': 'Menor melódica',
-  'Major Pentatonic': 'Pentatónica mayor',
-  'Minor Pentatonic': 'Pentatónica menor',
-  'Blues Pentatonic': 'Pentatónica blues',
-  'Neutral Pentatonic': 'Pentatónica neutral',
-  'Bebop': 'Bebop',
-  'Bebop Major': 'Bebop mayor',
-  'Bebop Minor': 'Bebop menor',
-  'Half Diminished': 'Semidisminuida',
-  'Diminished': 'Disminuida',
-  'Whole Tone (WT)': 'Tonos enteros (WT)',
-  'Diminished WT': 'Disminuida WT',
-  'Minor Blues': 'Blues menor',
-  'Super Locrian': 'Superlocria',
-  'Romanian Minor': 'Menor rumana',
-  'Spanish Gypsy': 'Gitana española',
-  'Eight Tone Spanish': 'Española de ocho tonos',
-  'Enigmatic': 'Enigmática',
-  'Neapolitan Major': 'Napolitana mayor',
-  'Neapolitan Minor': 'Napolitana menor',
-  'Prometheus': 'Prometeo',
-  'Prometheus Neapolitan': 'Prometeo napolitana',
-  'Six Tone Symmetric': 'Simétrica de seis tonos',
-  'Lydian Minor': 'Lidia menor',
-  'Lydian Augmented': 'Lidia aumentada',
-  'Lydian Diminished': 'Lidia disminuida',
-  'Lydian Augmented #6': 'Lidia aumentada #6',
-  'Hungarian Major': 'Húngara mayor',
-  'Hungarian Minor': 'Menor húngara',
-  'Ichikosucho': 'Ichikosucho',
-  'Pelog': 'Pelog',
-  'Persian': 'Persa',
-  'Flamenco': 'Flamenca',
-  'Hawaiian': 'Hawaiana',
-  'Maqam': 'Maqam',
-  'Oriental': 'Oriental',
-  'Iwato': 'Iwato',
-  'Raga Malakosh': 'Raga Malakosh',
-  'Balinese': 'Balinesa',
-  'Kafi Raga': 'Raga Kafi',
-  'Todi Raga': 'Raga Todi',
-  'Purvi Raga': 'Raga Purvi',
-  'In Sen': 'In Sen',
-};
-
-const Map<int, String> _kGrandPianoSamples = <int, String>{
-  48: 'samples/grand_piano/C3.mp3',
-  52: 'samples/grand_piano/E3.mp3',
-  55: 'samples/grand_piano/G3.mp3',
-  60: 'samples/grand_piano/C4.mp3',
-  64: 'samples/grand_piano/E4.mp3',
-  67: 'samples/grand_piano/G4.mp3',
-  72: 'samples/grand_piano/C5.mp3',
-};
-
-const Map<int, String> _kGuitarNylonSamples = <int, String>{
-  40: 'samples/guitar_nylon/E2.mp3',
-  45: 'samples/guitar_nylon/A2.mp3',
-  50: 'samples/guitar_nylon/D3.mp3',
-  52: 'samples/guitar_nylon/E3.mp3',
-  55: 'samples/guitar_nylon/G3.mp3',
-  59: 'samples/guitar_nylon/B3.mp3',
-  64: 'samples/guitar_nylon/E4.mp3',
-};
 const String _kMetronomeSample = 'metronome.mp3';
 const MethodChannel _kPlatformChannel = MethodChannel('midichords/platform');
 const bool _kEnableMobileTuner = false;
 const double _kTabletMinShortestSide = 600.0;
 
-/// Teclado móvil: proporción web (`style.css` 124px / 36px).
-const double _kPianoMinWhiteKeyWidth = 28.0;
-const double _kPianoMaxWhiteKeyWidth = 36.0;
-const double _kPianoWhiteKeyHeight = 124.0;
-const double _kPianoKeyAspect = _kPianoWhiteKeyHeight / _kPianoMaxWhiteKeyWidth;
-
-/// Teclas visibles en viewport cuando hay scroll (recorte lateral).
-const double _kPianoTargetVisibleWhiteKeys = 9.5;
-
 /// Piano estándar 88 teclas: A0 (21) … C8 (108), como escritorio/web.
 const int _kPianoLowMidi = 21;
 const int _kPianoHighMidi = 108;
 const int _kPianoMiddleCMidi = 60;
-
-class _PianoKeyMetrics {
-  const _PianoKeyMetrics({
-    required this.whiteW,
-    required this.whiteH,
-    required this.scrollable,
-  });
-
-  final double whiteW;
-  final double whiteH;
-  final bool scrollable;
-}
-
-_PianoKeyMetrics _computePianoKeyMetrics({
-  required double viewportW,
-  required double viewportH,
-  required int whiteKeyCount,
-}) {
-  final availH = math.max(88.0, viewportH - 6.0);
-  final n = whiteKeyCount.toDouble();
-
-  // 1) Caben todas las teclas: rellenar ancho del panel (poco habitual con 88 teclas).
-  var whiteW = (viewportW / n).clamp(
-    _kPianoMinWhiteKeyWidth,
-    _kPianoMaxWhiteKeyWidth,
-  );
-  var whiteH = whiteW * _kPianoKeyAspect;
-  if (whiteH <= availH && whiteW * n <= viewportW) {
-    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
-  }
-
-  // 2) Altura del panel manda; scroll horizontal si hace falta.
-  whiteH = availH;
-  whiteW = math.max(_kPianoMinWhiteKeyWidth, whiteH / _kPianoKeyAspect);
-  var keyboardW = whiteW * n;
-  if (keyboardW <= viewportW) {
-    whiteW = viewportW / n;
-    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
-    return _PianoKeyMetrics(whiteW: whiteW, whiteH: whiteH, scrollable: false);
-  }
-
-  // 3) Scroll: priorizar altura y dejar ~media tecla cortada al borde.
-  final targetW = (viewportW / _kPianoTargetVisibleWhiteKeys).clamp(
-    0.0,
-    _kPianoMaxWhiteKeyWidth,
-  );
-  if (targetW > whiteW) {
-    whiteW = targetW;
-    whiteH = math.min(availH, whiteW * _kPianoKeyAspect);
-    keyboardW = whiteW * n;
-  }
-  return _PianoKeyMetrics(
-    whiteW: whiteW,
-    whiteH: whiteH,
-    scrollable: keyboardW > viewportW + 1,
-  );
-}
-
-class _ChordAnalysis {
-  const _ChordAnalysis(this.rootPc, this.pattern, this.bassPc);
-  final int? rootPc;
-  final Map<String, dynamic>? pattern;
-  final int? bassPc;
-}
 
 class MidiChordsMobileApp extends StatelessWidget {
   const MidiChordsMobileApp({super.key});
@@ -1035,7 +306,6 @@ class _HomeScreenState extends State<HomeScreen>
   int _tabIndex = 0;
   bool _requestInFlight = false;
   String _instrumentView = 'piano';
-  int? _midiOutProgram;
 
   String _language = 'es';
   String _accidental = 'sharp';
@@ -1071,12 +341,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Limpia el resalte del acorde en pentagrama si no llega pointer-up (p. ej. iOS).
   Timer? _heldChordPlaybackEndTimer;
-  final Map<int, AudioPlayer> _heldChordPlayers = <int, AudioPlayer>{};
+  final Map<int, AudioPlayerPort> _heldChordPlayers = <int, AudioPlayerPort>{};
 
   /// Invalida reproducciones async (p. ej. `Future.wait` de samples) si hubo `_stopHeldChord` entretanto.
   int _heldChordPlayToken = 0;
-  final Map<int, AudioPlayer> _heldInputPlayers = <int, AudioPlayer>{};
-  final Map<int, AudioPlayer> _heldMidiInputPlayers = <int, AudioPlayer>{};
+  final Map<int, AudioPlayerPort> _heldInputPlayers = <int, AudioPlayerPort>{};
+  final Map<int, AudioPlayerPort> _heldMidiInputPlayers =
+      <int, AudioPlayerPort>{};
 
   /// Notas actualmente sonando vía salida MIDI (sin AudioPlayer asociado).
   final Set<int> _midiOutHeldNotes = <int>{};
@@ -1086,10 +357,17 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, List<Map<String, dynamic>>> _guitarChordCacheByKey =
       <String, List<Map<String, dynamic>>>{};
   bool _audioPlaybackAvailable = true;
-  bool _midiInputSoundEnabled = true;
+  final NativeAudioBridge _nativeAudioBridge = NativeAudioBridge.plugin();
+  final AudioPlayerPortFactory _audioPlayerFactory =
+      AudioPlayerPortFactory.plugin();
+  late final TransientPlayerLifecycle<AudioPlayerPort> _audioPlayerLifecycle =
+      TransientPlayerLifecycle<AudioPlayerPort>(
+        disposePlayer: (player) => player.dispose(),
+      );
+  final bool _midiInputSoundEnabled = true;
   final MidiCommand _midiCommand = MidiCommand();
-  StreamSubscription<MidiPacket>? _midiDataSub;
-  StreamSubscription<dynamic>? _midiSetupSub;
+  late final MidiOutputController _midiOutputController;
+  MidiInputLifecycle? _midiInputLifecycle;
   final Map<String, MidiDevice> _midiConnectedDevices = <String, MidiDevice>{};
   final Set<int> _detectionMidiHeldNotes = <int>{};
   final Set<int> _detectionPlayHeldNotes = <int>{};
@@ -1101,7 +379,10 @@ class _HomeScreenState extends State<HomeScreen>
   /// Tras el último evento de nota MIDI en detección, mantenemos la pantalla activa este
   /// tiempo (iOS/Android no exponen “reiniciar el temporizador de reposo” como un toque).
   static const Duration _kMidiResetsIdleDuration = Duration(minutes: 3);
-  Timer? _midiIdleExtensionTimer;
+  final MidiActivityGuard _midiActivityGuard = MidiActivityGuard(
+    wakeLock: const PluginWakeLockPort(),
+    idleDuration: _kMidiResetsIdleDuration,
+  );
   String _soundOutput =
       'audio'; // 'audio' or 'midi' - controls note playback routing
 
@@ -1121,10 +402,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _scaleLoopDirection = 1;
 
   // Interval detection state
-  List<int> _intervalNotes = <int>[]; // Last 2 notes for interval pair
-  int? _intervalPlayingNote;
+  final List<int> _intervalNotes = <int>[]; // Last 2 notes for interval pair
   int? _intervalPlayingIdx;
-  bool _intervalMelodyPlaying = false;
   bool _intervalMelodyMode =
       false; // false = play 2 notes, true = play reference melody
   Timer? _intervalMelodyPlaybackTimer;
@@ -1153,7 +432,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _metroDirection = 1;
   int _metroTickCount = 0;
   DateTime _metroMotionStartAt = DateTime.fromMillisecondsSinceEpoch(0);
-  FlutterAudioCapture? _audioCapture;
+  late final TunerCaptureSession _tunerCaptureSession =
+      TunerCaptureSession.plugin();
   bool _tunerRunning = false;
   String _tunerNote = '-';
   int _tunerCents = 0;
@@ -1215,1089 +495,11 @@ class _HomeScreenState extends State<HomeScreen>
     final patterns = _scalePatterns.cast<Map<String, dynamic>>();
     if (_scaleFilterMode == 'basic') {
       return patterns
-          .where((p) => _kScaleBasicNames.contains(p['name'] as String?))
+          .where((p) => scaleBasicNames.contains(p['name'] as String?))
           .toList();
     }
     return patterns;
   }
-
-  List<int> _getScaleNotesForOctaves(List<int> noteMidi, int octaves) {
-    if (noteMidi.isEmpty || octaves <= 1) {
-      return noteMidi;
-    }
-
-    final result = <int>[...noteMidi];
-
-    if (octaves >= 2) {
-      // Add lower octave
-      final lowerOctave = noteMidi
-          .where((note) => note - 12 >= 0)
-          .map((note) => note - 12)
-          .toList();
-      result.insertAll(0, lowerOctave);
-    }
-
-    if (octaves >= 3) {
-      // Add upper octave
-      final upperOctave = noteMidi.map((note) => note + 12).toList();
-      result.addAll(upperOctave);
-    }
-
-    return result;
-  }
-
-  GlobalKey _helpAnchorKey(String id) =>
-      _helpAnchors.putIfAbsent(id, () => GlobalKey(debugLabel: 'help_$id'));
-
-  Widget _helpAnchor(String id, Widget child) {
-    return KeyedSubtree(key: _helpAnchorKey(id), child: child);
-  }
-
-  List<_HelpStep> _helpStepsForCurrentMode() {
-    final modeSelectBodyEs = _kEnableMobileTuner
-        ? 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
-              'generacion, circulo de quintas, escalas, metronomo y afinador.'
-        : 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
-              'generacion, circulo de quintas, escalas y metronomo.';
-    final modeSelectBodyEn = _kEnableMobileTuner
-        ? 'Switch between chord detection, interval detection, generation, '
-              'circle of fifths, scales, metronome, and tuner here.'
-        : 'Switch between chord detection, interval detection, generation, '
-              'circle of fifths, scales, and metronome here.';
-    final common = <_HelpStep>[
-      _HelpStep(
-        id: 'mode_select',
-        titleEs: 'Selector de modo',
-        titleEn: 'Mode selector',
-        bodyEs: modeSelectBodyEs,
-        bodyEn: modeSelectBodyEn,
-        highlightPadding: 4,
-      ),
-      _HelpStep(
-        id: 'midi_toggle',
-        titleEs: 'Entrada MIDI',
-        titleEn: 'MIDI input',
-        bodyEs:
-            'Activa o desactiva la entrada de un teclado o controlador MIDI.',
-        bodyEn: 'Enable or disable input from a MIDI keyboard or controller.',
-        highlightPadding: -3,
-      ),
-      _HelpStep(
-        id: 'sound_output',
-        titleEs: 'Salida Audio/MIDI',
-        titleEn: 'Audio/MIDI output',
-        bodyEs:
-            'Con MIDI activado, elige si las notas suenan con el audio local '
-            'de la app o se envían al dispositivo MIDI conectado.',
-        bodyEn:
-            'With MIDI enabled, choose whether notes play through the app\'s '
-            'local audio or get sent to the connected MIDI device.',
-        highlightPadding: -3,
-      ),
-      _HelpStep(
-        id: 'accidental',
-        titleEs: 'Sostenidos o bemoles',
-        titleEn: 'Sharps or flats',
-        bodyEs:
-            'Elige si prefieres nombres de notas con sostenidos (#) o bemoles (b).',
-        bodyEn:
-            'Choose whether note names should prefer sharps (#) or flats (b).',
-        highlightPadding: -3,
-      ),
-      _HelpStep(
-        id: 'settings',
-        titleEs: 'Configuracion',
-        titleEn: 'Settings',
-        bodyEs:
-            'Abre el panel de configuracion general, incluido el idioma de la interfaz.',
-        bodyEn:
-            'Open the general settings panel, including interface language.',
-        side: _HelpCalloutSide.left,
-        highlightPadding: -2,
-      ),
-    ];
-    final modeSpecific = switch (_tabIndex) {
-      0 => <_HelpStep>[
-        _HelpStep(
-          id: 'detection_staff',
-          titleEs: 'Pentagrama de deteccion',
-          titleEn: 'Detection staff',
-          bodyEs:
-              'Muestra las notas activas, las extras y el resultado detectado.',
-          bodyEn: 'Shows active notes, extras, and the detected result.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'detection_controls',
-          titleEs: 'Panel de deteccion',
-          titleEn: 'Detection panel',
-          bodyEs:
-              'Aqui se ve el resultado y los controles principales del modo deteccion.',
-          bodyEn:
-              'This panel contains the current result and main detection controls.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'detection_play_button',
-          titleEs: 'Boton reproducir',
-          titleEn: 'Play button',
-          bodyEs:
-              'Reproduce o mantiene sonando las notas detectadas mientras mantienes pulsado.',
-          bodyEn:
-              'Plays or sustains the detected notes while you keep it pressed.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'detection_variant_theory',
-          titleEs: 'Teoría de la variante',
-          titleEn: 'Variant theory',
-          bodyEs:
-              'Abre la fórmula, la explicación teórica y la descripción de la inversión del acorde detectado.',
-          bodyEn:
-              'Opens the formula, theory explanation, and inversion description for the detected chord.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'detection_clear_button',
-          titleEs: 'Boton limpiar',
-          titleEn: 'Clear button',
-          bodyEs:
-              'Borra las notas introducidas y recalcula la deteccion desde cero.',
-          bodyEn:
-              'Clears the entered notes and recalculates detection from scratch.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'detection_midi_sound_button',
-          titleEs: 'Boton MIDI',
-          titleEn: 'MIDI button',
-          bodyEs:
-              'Activa o silencia el sonido local al tocar notas desde MIDI o desde el piano en pantalla.',
-          bodyEn:
-              'Enables or mutes local sound when you play notes from MIDI or the on-screen piano.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'detection_result_chord',
-          titleEs: 'Fila de acorde',
-          titleEn: 'Chord row',
-          bodyEs: 'Muestra el acorde detectado actualmente.',
-          bodyEn: 'Shows the currently detected chord.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'detection_result_notes',
-          titleEs: 'Fila de notas',
-          titleEn: 'Notes row',
-          bodyEs: 'Muestra el listado de notas que participan en el resultado.',
-          bodyEn: 'Shows the list of notes that make up the result.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'detection_result_extras',
-          titleEs: 'Fila de sobrantes',
-          titleEn: 'Extras row',
-          bodyEs: 'Muestra las notas que no encajan en el acorde principal.',
-          bodyEn: 'Shows notes that do not fit the main chord.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'detection_result_intervals',
-          titleEs: 'Fila de intervalos',
-          titleEn: 'Intervals row',
-          bodyEs: 'Muestra la distancia entre las notas detectadas.',
-          bodyEn: 'Shows the spacing between detected notes.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'detection_instrument',
-          titleEs: 'Piano interactivo',
-          titleEn: 'Interactive piano',
-          bodyEs:
-              'Toca en el piano para introducir notas y reflejarlas en el pentagrama.',
-          bodyEn: 'Play the piano to enter notes and mirror them on the staff.',
-          side: _HelpCalloutSide.top,
-        ),
-      ],
-      1 => <_HelpStep>[
-        _HelpStep(
-          id: 'generation_staff',
-          titleEs: 'Pentagrama del acorde',
-          titleEn: 'Chord staff',
-          bodyEs:
-              'Muestra el acorde generado y resalta lo que estas reproduciendo.',
-          bodyEn:
-              'Shows the generated chord and highlights what is being played.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'generation_controls',
-          titleEs: 'Panel de generacion',
-          titleEn: 'Generation panel',
-          bodyEs:
-              'Configura tonica, tipo e inversion del acorde que quieres generar.',
-          bodyEn:
-              'Configure root, type, and inversion of the chord you want to generate.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'generation_play_button',
-          titleEs: 'Boton reproducir',
-          titleEn: 'Play button',
-          bodyEs:
-              'Reproduce o mantiene sonando el acorde generado mientras mantienes pulsado.',
-          bodyEn:
-              'Plays or sustains the generated chord while you keep it pressed.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_tonic',
-          titleEs: 'Tonica',
-          titleEn: 'Tonic',
-          bodyEs: 'Aqui eliges la nota base del acorde que quieres generar.',
-          bodyEn:
-              'Choose the root note of the chord you want to generate here.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_variant',
-          titleEs: 'Variante',
-          titleEn: 'Variant',
-          bodyEs:
-              'Define el tipo de acorde, como mayor, menor, disminuido o sus variaciones.',
-          bodyEn:
-              'Defines the chord type, such as major, minor, diminished, or its variations.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_variant_theory',
-          titleEs: 'Teoría de la variante',
-          titleEn: 'Variant theory',
-          bodyEs:
-              'Abre la fórmula, la explicación teórica y la descripción de la inversión seleccionada.',
-          bodyEn:
-              'Opens the formula, theory explanation, and description of the selected inversion.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_inversion',
-          titleEs: 'Inversion',
-          titleEn: 'Inversion',
-          bodyEs:
-              'Cambia el orden de las notas del acorde manteniendo su misma funcion armonica.',
-          bodyEn:
-              'Changes the order of chord notes while keeping the same harmonic function.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_result_chord',
-          titleEs: 'Resultado del acorde',
-          titleEn: 'Chord result',
-          bodyEs: 'Muestra el nombre del acorde generado actualmente.',
-          bodyEn: 'Shows the currently generated chord name.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'generation_result_notes',
-          titleEs: 'Notas del acorde',
-          titleEn: 'Chord notes',
-          bodyEs: 'Muestra las notas que forman el acorde generado.',
-          bodyEn: 'Shows the notes that make up the generated chord.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'generation_result_intervals',
-          titleEs: 'Intervalos del acorde',
-          titleEn: 'Chord intervals',
-          bodyEs: 'Muestra la distancia entre las notas del acorde generado.',
-          bodyEn: 'Shows the spacing between the notes of the generated chord.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'generation_instrument_piano',
-          titleEs: 'Boton Piano',
-          titleEn: 'Piano button',
-          bodyEs: 'Cambia la vista y la reproduccion del acorde al piano.',
-          bodyEn: 'Switches the chord view and playback to piano.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_instrument_guitar',
-          titleEs: 'Boton Guitarra',
-          titleEn: 'Guitar button',
-          bodyEs: 'Cambia la vista y la reproduccion del acorde a la guitarra.',
-          bodyEn: 'Switches the chord view and playback to guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_guitar_hand',
-          titleEs: 'Mano de la guitarra',
-          titleEn: 'Guitar handedness',
-          bodyEs:
-              'Ajusta la visualizacion para diestro o zurdo en la guitarra.',
-          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_guitar_variant',
-          titleEs: 'Variantes de acorde',
-          titleEn: 'Chord variations',
-          bodyEs:
-              'Permite recorrer distintas posiciones o variantes del mismo acorde en la guitarra.',
-          bodyEn:
-              'Lets you cycle through different positions or variants of the same chord on guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'generation_instrument',
-          titleEs: 'Piano o guitarra',
-          titleEn: 'Piano or guitar',
-          bodyEs:
-              'Visualiza y prueba el acorde generado en el instrumento seleccionado.',
-          bodyEn:
-              'Visualize and try the generated chord on the selected instrument.',
-          side: _HelpCalloutSide.top,
-        ),
-      ],
-      2 => <_HelpStep>[
-        _HelpStep(
-          id: 'circle_staff',
-          titleEs: 'Pentagrama',
-          titleEn: 'Staff',
-          bodyEs:
-              'Muestra el acorde generado desde el circulo segun la tonalidad elegida.',
-          bodyEn:
-              'Shows the chord generated from the circle for the selected key.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'circle_canvas',
-          titleEs: 'Circulo de quintas',
-          titleEn: 'Circle of fifths',
-          bodyEs:
-              'Toca el anillo: elige un acorde diatónico (triada sobre un '
-              'grado de la escala); no cambia la tónica. Mantén pulsado: '
-              'fija la tónica y la tonalidad (mayor en el exterior, menor '
-              'natural relativa en el interior; misma armadura).',
-          bodyEn:
-              'Tap: choose a diatonic chord—a triad on a scale degree '
-              '(major, minor, or diminished); does not change the tonic. '
-              'Long-press: sets the tonic and key (major on the outer '
-              'ring, relative natural minor on the inner; same key '
-              'signature).',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'circle_play',
-          titleEs: 'Reproducir',
-          titleEn: 'Play',
-          bodyEs:
-              'Mantén pulsado el botón de reproducción para oír el acorde en el instrumento.',
-          bodyEn: 'Hold the play button to hear the chord on the instrument.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'circle_instrument_piano_btn',
-          titleEs: 'Piano',
-          titleEn: 'Piano',
-          bodyEs: 'Muestra el teclado de piano en el círculo de quintas.',
-          bodyEn: 'Show the piano keyboard in the circle of fifths.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'circle_instrument_guitar_btn',
-          titleEs: 'Guitarra',
-          titleEn: 'Guitar',
-          bodyEs: 'Muestra el diapasón de guitarra en el círculo de quintas.',
-          bodyEn: 'Show the guitar fretboard in the circle of fifths.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'circle_instrument',
-          titleEs: 'Instrumento del círculo',
-          titleEn: 'Circle instrument',
-          bodyEs:
-              'Al tocar una nota se resalta en el círculo la tonalidad correspondiente.',
-          bodyEn:
-              'Playing a note highlights the corresponding key in the circle.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'circle_guitar_hand',
-          titleEs: 'Mano de la guitarra',
-          titleEn: 'Guitar handedness',
-          bodyEs:
-              'Ajusta la visualizacion para diestro o zurdo en la guitarra.',
-          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'circle_guitar_variant',
-          titleEs: 'Variantes de acorde',
-          titleEn: 'Chord variations',
-          bodyEs:
-              'Permite recorrer distintas posiciones o variantes del mismo acorde en la guitarra.',
-          bodyEn:
-              'Lets you cycle through different positions or variants of the same chord on guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-      ],
-      3 => <_HelpStep>[
-        _HelpStep(
-          id: 'scales_staff',
-          titleEs: 'Pentagrama de escala',
-          titleEn: 'Scale staff',
-          bodyEs:
-              'Muestra las notas de la escala y la nota actual durante la reproduccion.',
-          bodyEn: 'Shows scale notes and the current note during playback.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'scales_controls',
-          titleEs: 'Panel de escalas',
-          titleEn: 'Scales panel',
-          bodyEs:
-              'Configura tonica, tipo, velocidad y reproduccion de la escala.',
-          bodyEn: 'Configure tonic, type, speed, and playback of the scale.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'scales_tonic',
-          titleEs: 'Tonica',
-          titleEn: 'Tonic',
-          bodyEs: 'Aqui eliges la nota base de la escala.',
-          bodyEn: 'Choose the root note of the scale here.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_pattern',
-          titleEs: 'Tipo de escala',
-          titleEn: 'Scale type',
-          bodyEs:
-              'Selecciona el patron o modo de escala que quieres estudiar o reproducir.',
-          bodyEn: 'Select the scale pattern or mode you want to study or play.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_filter',
-          titleEs: 'Básicas / Todas',
-          titleEn: 'Basic / All',
-          bodyEs:
-              'Alterna entre el conjunto de escalas más habituales (Básicas) '
-              'y la lista completa (Todas).',
-          bodyEn:
-              'Toggle between the most common scales (Basic) and the full '
-              'list (All).',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_play_button',
-          titleEs: 'Boton reproducir',
-          titleEn: 'Play button',
-          bodyEs: 'Inicia o detiene la reproduccion automatica de la escala.',
-          bodyEn: 'Starts or stops automatic scale playback.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_metronome_only',
-          titleEs: 'Modo metrico',
-          titleEn: 'Metronome mode',
-          bodyEs:
-              'Activa un modo simplificado para practicar la escala con pulso y tempo.',
-          bodyEn:
-              'Enables a simplified mode to practice the scale with pulse and tempo.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_volume',
-          titleEs: 'Volumen',
-          titleEn: 'Volume',
-          bodyEs:
-              'Controla el volumen cuando el modo metrico de escalas esta activo.',
-          bodyEn: 'Controls volume when scale metronome mode is active.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_bpm',
-          titleEs: 'Velocidad',
-          titleEn: 'Speed',
-          bodyEs: 'Ajusta la velocidad de reproduccion de la escala en BPM.',
-          bodyEn: 'Adjusts scale playback speed in BPM.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_result_scale',
-          titleEs: 'Resultado de la escala',
-          titleEn: 'Scale result',
-          bodyEs: 'Muestra la escala seleccionada actualmente.',
-          bodyEn: 'Shows the currently selected scale.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'scales_result_notes',
-          titleEs: 'Notas de la escala',
-          titleEn: 'Scale notes',
-          bodyEs: 'Muestra las notas que forman la escala.',
-          bodyEn: 'Shows the notes that make up the scale.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'scales_result_intervals',
-          titleEs: 'Intervalos de la escala',
-          titleEn: 'Scale intervals',
-          bodyEs: 'Muestra la distancia entre las notas de la escala.',
-          bodyEn: 'Shows the spacing between the notes of the scale.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: -2,
-        ),
-        _HelpStep(
-          id: 'scales_instrument_piano',
-          titleEs: 'Boton Piano',
-          titleEn: 'Piano button',
-          bodyEs: 'Cambia la vista de la escala al piano.',
-          bodyEn: 'Switches the scale view to piano.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_instrument_guitar',
-          titleEs: 'Boton Guitarra',
-          titleEn: 'Guitar button',
-          bodyEs: 'Cambia la vista de la escala a la guitarra.',
-          bodyEn: 'Switches the scale view to guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_guitar_hand',
-          titleEs: 'Mano de la guitarra',
-          titleEn: 'Guitar handedness',
-          bodyEs:
-              'Ajusta la visualizacion de la guitarra para diestro o zurdo.',
-          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_instrument',
-          titleEs: 'Instrumento de escala',
-          titleEn: 'Scale instrument',
-          bodyEs:
-              'Permite tocar y seguir visualmente la escala en piano o guitarra.',
-          bodyEn:
-              'Lets you play and visually follow the scale on piano or guitar.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'scales_octaves',
-          titleEs: 'Número de octavas',
-          titleEn: 'Number of octaves',
-          bodyEs:
-              'Muestra la escala en 1, 2 o 3 octavas sobre el teclado. Con 2 octavas se añade la octava inferior; con 3 también la superior.',
-          bodyEn:
-              'Displays the scale over 1, 2, or 3 octaves on the keyboard. With 2 octaves a lower octave is added; with 3 also an upper one.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_fingering',
-          titleEs: 'Digitación',
-          titleEn: 'Fingering',
-          bodyEs:
-              'Selecciona la mano para ver la numeración de los dedos encima (subida) y debajo (bajada) del teclado. Los números en rojo/azul oscuro indican un cruce de dedos.',
-          bodyEn:
-              'Select a hand to see finger numbers above (ascending) and below (descending) the keyboard. Numbers in dark red/blue indicate a finger crossing.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-      ],
-      4 => <_HelpStep>[
-        _HelpStep(
-          id: 'metronome_bead_row',
-          titleEs: 'Bolas de pulso',
-          titleEn: 'Beat balls',
-          bodyEs:
-              'Muestran los pulsos del compas y resaltan el pulso actual mientras corre el metronomo.',
-          bodyEn:
-              'They show the beats of the bar and highlight the current beat while the metronome runs.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_motion_axis',
-          titleEs: 'Eje de movimiento',
-          titleEn: 'Motion axis',
-          bodyEs:
-              'Marca el recorrido de la bola roja que acompasa visualmente el pulso.',
-          bodyEn:
-              'Marks the path of the red ball that visually follows the pulse.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_timer_display',
-          titleEs: 'Zona del temporizador',
-          titleEn: 'Timer area',
-          bodyEs:
-              'Aqui aparece la cuenta atras cuando activas el temporizador del metronomo.',
-          bodyEn:
-              'The countdown appears here when you enable the metronome timer.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_toggle_left',
-          titleEs: 'Boton del metronomo',
-          titleEn: 'Metronome button',
-          bodyEs:
-              'Inicia o detiene el metronomo directamente desde la vista principal.',
-          bodyEn: 'Starts or stops the metronome directly from the main view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_controls',
-          titleEs: 'Panel del metronomo',
-          titleEn: 'Metronome panel',
-          bodyEs:
-              'Aqui ajustas tempo, compas, subdivision, acento y temporizador.',
-          bodyEn: 'Adjust tempo, meter, subdivision, accent, and timer here.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'metronome_volume',
-          titleEs: 'Volumen',
-          titleEn: 'Volume',
-          bodyEs: 'Controla el volumen general del metronomo.',
-          bodyEn: 'Controls the overall metronome volume.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_tempo',
-          titleEs: 'Tempo',
-          titleEn: 'Tempo',
-          bodyEs: 'Ajusta la velocidad del metronomo en BPM.',
-          bodyEn: 'Adjusts metronome speed in BPM.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_beats',
-          titleEs: 'Pulsos por compas',
-          titleEn: 'Beats per bar',
-          bodyEs: 'Define cuantas pulsaciones tiene cada compas.',
-          bodyEn: 'Defines how many beats there are in each bar.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_subdivision',
-          titleEs: 'Subdivision',
-          titleEn: 'Subdivision',
-          bodyEs: 'Elige cuantas subdivisiones sonaran dentro de cada pulso.',
-          bodyEn: 'Choose how many subdivisions sound within each beat.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_accent',
-          titleEs: 'Acento',
-          titleEn: 'Accent',
-          bodyEs:
-              'Activa o desactiva el acento del primer pulso de cada compas.',
-          bodyEn:
-              'Enables or disables the accent on the first beat of each bar.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_timer',
-          titleEs: 'Temporizador',
-          titleEn: 'Timer',
-          bodyEs:
-              'Permite limitar la duracion del metronomo con minutos y segundos.',
-          bodyEn: 'Lets you limit metronome duration with minutes and seconds.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'metronome_instrument',
-          titleEs: 'Piano del metronomo',
-          titleEn: 'Metronome piano',
-          bodyEs:
-              'Mientras corre el metronomo puedes seguir viendo y tocando notas en el piano.',
-          bodyEn:
-              'While the metronome runs you can still view and play notes on the piano.',
-          side: _HelpCalloutSide.top,
-        ),
-      ],
-      5 => <_HelpStep>[
-        _HelpStep(
-          id: 'interval_detection_staff',
-          titleEs: 'Pentagrama de intervalos',
-          titleEn: 'Interval staff',
-          bodyEs: 'Muestra las dos últimas notas pulsadas.',
-          bodyEn: 'Shows the two latest pressed notes.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'interval_notes_row',
-          titleEs: 'Notas',
-          titleEn: 'Notes',
-          bodyEs: 'Las dos últimas notas pulsadas.',
-          bodyEn: 'The two latest pressed notes.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_name_row',
-          titleEs: 'Intervalo',
-          titleEn: 'Interval',
-          bodyEs: 'Nombre del intervalo detectado.',
-          bodyEn: 'Name of the detected interval.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_semitones_row',
-          titleEs: 'Semitonos',
-          titleEn: 'Semitones',
-          bodyEs: 'Número de semitonos entre las dos notas.',
-          bodyEn: 'Number of semitones between the two notes.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_melody_row',
-          titleEs: 'Canción mnemotécnica',
-          titleEn: 'Mnemonic song',
-          bodyEs:
-              'Pulsa el nombre para activar la melodía de referencia y reproducirla.',
-          bodyEn: 'Tap the name to activate the reference melody and play it.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_play_btn',
-          titleEs: 'Reproducir',
-          titleEn: 'Play',
-          bodyEs: 'Reproduce las dos notas del intervalo de forma melódica.',
-          bodyEn: 'Play the two interval notes melodically.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_play_reverse_btn',
-          titleEs: 'Descendente',
-          titleEn: 'Reverse',
-          bodyEs:
-              'Reproduce el intervalo de forma descendente (nota alta → nota baja).',
-          bodyEn: 'Play the interval descending (high note → low note).',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_clear_btn',
-          titleEs: 'Limpiar',
-          titleEn: 'Clear',
-          bodyEs: 'Limpia las notas activas para comenzar de nuevo.',
-          bodyEn: 'Clear active notes and start over.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_detection_instrument',
-          titleEs: 'Teclado interactivo',
-          titleEn: 'Interactive keyboard',
-          bodyEs:
-              'Pulsa notas para detectar intervalos (también vía MIDI). '
-              'Cada pulsación añade la nota al par; la más antigua se '
-              'descarta automáticamente.',
-          bodyEn:
-              'Press notes to detect intervals (also via MIDI). Each '
-              'press adds a note to the pair; the oldest is '
-              'automatically discarded.',
-          side: _HelpCalloutSide.top,
-        ),
-      ],
-      6 => <_HelpStep>[
-        _HelpStep(
-          id: 'tuner_staff',
-          titleEs: 'Vista del afinador',
-          titleEn: 'Tuner view',
-          bodyEs: 'Muestra afinacion, desviacion en cents y cuerda objetivo.',
-          bodyEn: 'Shows tuning, cents deviation, and target string.',
-          side: _HelpCalloutSide.top,
-        ),
-        _HelpStep(
-          id: 'tuner_controls',
-          titleEs: 'Panel del afinador',
-          titleEn: 'Tuner panel',
-          bodyEs: 'Configura la afinacion, la entrada y el rango del analisis.',
-          bodyEn: 'Configure tuning, input, and analysis range here.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'tuner_toggle',
-          titleEs: 'Boton del afinador',
-          titleEn: 'Tuner button',
-          bodyEs: 'Inicia o detiene la escucha del microfono para afinar.',
-          bodyEn: 'Starts or stops microphone listening for tuning.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'tuner_tuning_select',
-          titleEs: 'Afinacion',
-          titleEn: 'Tuning',
-          bodyEs: 'Selecciona la afinacion objetivo del instrumento.',
-          bodyEn: 'Selects the target tuning of the instrument.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'tuner_gain',
-          titleEs: 'Ganancia',
-          titleEn: 'Gain',
-          bodyEs: 'Ajusta la sensibilidad de entrada del afinador.',
-          bodyEn: 'Adjusts the tuner input sensitivity.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'tuner_range',
-          titleEs: 'Rango de frecuencia',
-          titleEn: 'Frequency range',
-          bodyEs: 'Define el rango de frecuencias que el afinador analizara.',
-          bodyEn: 'Defines the frequency range the tuner will analyze.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'tuner_readout',
-          titleEs: 'Lectura del afinador',
-          titleEn: 'Tuner readout',
-          bodyEs:
-              'Muestra la nota detectada, la desviacion y la frecuencia actual.',
-          bodyEn: 'Shows the detected note, deviation, and current frequency.',
-          side: _HelpCalloutSide.left,
-          highlightPadding: 2,
-        ),
-      ],
-      _ => const <_HelpStep>[],
-    };
-    return <_HelpStep>[...common, ...modeSpecific];
-  }
-
-  bool _helpAvailableForCurrentMode() => _helpStepsForCurrentMode().isNotEmpty;
-
-  void _setHelpMode(bool enabled) {
-    _helpActive = enabled && _helpAvailableForCurrentMode();
-    _helpSelectedId = null;
-    _helpBannerTimer?.cancel();
-    if (_helpActive) {
-      _helpBannerVisible = true;
-      _helpOverlayController.repeat();
-      _helpBannerTimer = Timer(const Duration(seconds: 15), () {
-        if (mounted) setState(() => _helpBannerVisible = false);
-      });
-    } else {
-      _helpOverlayController.stop();
-      _helpOverlayController.value = 0;
-    }
-  }
-
-  void _toggleHelpMode() {
-    setState(() {
-      _setHelpMode(!_helpActive);
-    });
-  }
-
-  Rect? _helpRectFor(BuildContext overlayContext, String id) {
-    final key = _helpAnchors[id];
-    if (key == null) return null;
-    final targetContext = key.currentContext;
-    if (targetContext == null) return null;
-    final targetBox = targetContext.findRenderObject();
-    final overlayBox = overlayContext.findRenderObject();
-    if (targetBox is! RenderBox ||
-        overlayBox is! RenderBox ||
-        !targetBox.hasSize) {
-      return null;
-    }
-    final offset = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
-    return offset & targetBox.size;
-  }
-
-  List<_ResolvedHelpStep> _resolvedHelpSteps(BuildContext overlayContext) {
-    return _helpStepsForCurrentMode()
-        .map((step) {
-          final rect = _helpRectFor(overlayContext, step.id);
-          if (rect == null || rect.width <= 0 || rect.height <= 0) {
-            return null;
-          }
-          return _ResolvedHelpStep(
-            step: step,
-            rect: rect,
-            highlightRect: rect.inflate(step.highlightPadding),
-          );
-        })
-        .whereType<_ResolvedHelpStep>()
-        .toList(growable: false);
-  }
-
-  _ResolvedHelpStep? _selectedHelpStep(List<_ResolvedHelpStep> resolved) {
-    if (resolved.isEmpty) return null;
-    if (_helpSelectedId == null) return null;
-    for (final item in resolved) {
-      if (item.step.id == _helpSelectedId) return item;
-    }
-    return null;
-  }
-
-  Rect _helpCalloutRect({
-    required Rect target,
-    required Size screenSize,
-    required _HelpCalloutSide side,
-    required EdgeInsets safePadding,
-  }) {
-    const margin = 16.0;
-    const gap = 12.0;
-    final width = math.min(screenSize.width - (margin * 2), 344.0);
-    final largeScreen = screenSize.shortestSide >= 700.0;
-    final height = math.min(
-      math.max(
-        screenSize.height * (largeScreen ? 0.255 : 0.225),
-        largeScreen ? 232.0 : 196.0,
-      ),
-      largeScreen ? 300.0 : 248.0,
-    );
-    var left = target.left;
-    var top = target.bottom + gap;
-    switch (side) {
-      case _HelpCalloutSide.top:
-        left = target.center.dx - (width / 2);
-        top = target.top - height - gap;
-      case _HelpCalloutSide.right:
-        left = target.right + gap;
-        top = target.center.dy - (height / 2);
-      case _HelpCalloutSide.bottom:
-        left = target.center.dx - (width / 2);
-        top = target.bottom + gap;
-      case _HelpCalloutSide.left:
-        left = target.left - width - gap;
-        top = target.center.dy - (height / 2);
-    }
-    left = left.clamp(margin, screenSize.width - width - margin);
-    top = top.clamp(
-      safePadding.top + margin,
-      screenSize.height - height - safePadding.bottom - margin,
-    );
-    return Rect.fromLTWH(left, top, width, height);
-  }
-
-  Rect _metronomeBeatRowRect(Size size) {
-    final count = math.max(1, _metroBeatsPerBar);
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final spacing = count == 1 ? (right - left) : (right - left) / (count - 1);
-    final baseR = (30 - (count * 0.75)).clamp(7.0, 24.0);
-    final maxRBySpacing = (spacing * 0.42 - 2).clamp(6.0, 1000.0);
-    final normalR = math.min(baseR, maxRBySpacing);
-    final activeR = math.min(normalR + 2.0, maxRBySpacing + 1.5);
-    return Rect.fromLTRB(
-      left - activeR,
-      yTop - activeR,
-      right + activeR,
-      yTop + activeR,
-    );
-  }
-
-  Rect _metronomeMotionAxisRect(Size size) {
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
-    return Rect.fromLTRB(left - 12, axisY - 16, right + 12, axisY + 16);
-  }
-
-  Rect _metronomeTimerRect(Size size) {
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
-    final fontSize = math.min(44.0, size.height * 0.24);
-    final centerY = axisY + ((size.height - axisY) * 0.5);
-    final rectHeight = math.max(52.0, fontSize + 10.0);
-    final rawTop = centerY - (rectHeight / 2);
-    final minTop = axisY + 56.0;
-    final maxTop = size.height - rectHeight - 16.0;
-    // En algunos dispositivos/tamaños (Android 14) el rango puede invertirse
-    // y `clamp` lanza ArgumentError si min > max.
-    final top = maxTop >= minTop
-        ? rawTop.clamp(minTop, maxTop)
-        : math.max(0.0, math.min(rawTop, maxTop));
-    final rectWidth = math.min(220.0, math.max(160.0, size.width * 0.26));
-    final centerX = (left + right) / 2;
-    return Rect.fromLTWH(centerX - (rectWidth / 2), top, rectWidth, rectHeight);
-  }
-
-  Rect _metronomeCenterButtonRect(Size size) {
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final axisRect = _metronomeMotionAxisRect(size);
-    final timerRect = _metronomeTimerRect(size);
-    final buttonHeight = 46.0;
-    final buttonWidth = math.min(286.0, math.max(210.0, size.width * 0.34));
-    final centerY = (axisRect.bottom + timerRect.top) / 2;
-    final minTop = axisRect.bottom + 6.0;
-    final maxTop = timerRect.top - buttonHeight - 6.0;
-    final idealTop = centerY - (buttonHeight / 2);
-    final top = maxTop >= minTop
-        ? idealTop.clamp(minTop, maxTop)
-        : math.max(axisRect.bottom + 2.0, idealTop);
-    final leftPos = ((left + right) / 2) - (buttonWidth / 2);
-    return Rect.fromLTWH(leftPos, top, buttonWidth, buttonHeight);
-  }
-
-  String _staffHelpIdForCurrentMode() => switch (_tabIndex) {
-    0 => 'detection_staff',
-    1 => 'generation_staff',
-    2 => 'circle_staff',
-    3 => 'scales_staff',
-    4 => 'metronome_bead_row',
-    5 => 'interval_detection_staff',
-    6 => 'tuner_staff',
-    _ => 'detection_staff',
-  };
 
   String _ui(String es, String en) => _language == 'en' ? en : es;
 
@@ -2355,9 +557,7 @@ class _HomeScreenState extends State<HomeScreen>
       inversion: inversion,
       language: _language,
     );
-    final names = _language == 'en'
-        ? _kChordSuffixNamesEn
-        : _kChordSuffixNamesEs;
+    final names = _language == 'en' ? chordSuffixNamesEn : chordSuffixNamesEs;
     final variant = names[suffix] ?? (suffix.isEmpty ? 'maj' : suffix);
     await showDialog<void>(
       context: context,
@@ -2507,8 +707,9 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                         onChanged: (value) {
-                          if (value != null)
+                          if (value != null) {
                             setDialogState(() => selectedLanguage = value);
+                          }
                         },
                       ),
                       const SizedBox(height: 4),
@@ -2519,7 +720,7 @@ class _HomeScreenState extends State<HomeScreen>
                           style: const TextStyle(color: _text),
                         ),
                         value: selectedShowKeyNames,
-                        activeColor: _accent,
+                        activeThumbColor: _accent,
                         onChanged: (v) =>
                             setDialogState(() => selectedShowKeyNames = v),
                       ),
@@ -2628,6 +829,9 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _midiOutputController = MidiOutputController(
+      MidiCommandOutputPort(_midiCommand),
+    );
     _helpOverlayController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -2639,22 +843,18 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadPrefsAndStart() async {
-    final prefs = await SharedPreferences.getInstance();
+    final repository = AppPreferencesRepository(
+      await SharedPreferencesPort.create(),
+    );
+    final prefs = repository.load();
     setState(() {
-      _language = prefs.getString('language') ?? 'es';
-      _showKeyNames = prefs.getBool('showKeyNames') ?? true;
-      _lastSeenChangelogVersion =
-          prefs.getString('lastSeenChangelogVersion') ?? '';
-      _changelogDontShow = prefs.getBool('changelogDontShow') ?? false;
-      _scaleOctaves = prefs.getInt('scaleOctaves') ?? 1;
-      final finger = prefs.getString('scaleFingeringHand');
-      _scaleFingeringHand = (finger == 'left' || finger == 'right')
-          ? finger
-          : null;
-      final savedTab = prefs.getInt('tabIndex');
-      if (savedTab != null && savedTab >= 0 && savedTab <= 6) {
-        _tabIndex = savedTab;
-      }
+      _language = prefs.language;
+      _showKeyNames = prefs.showKeyNames;
+      _lastSeenChangelogVersion = prefs.lastSeenChangelogVersion;
+      _changelogDontShow = prefs.changelogDontShow;
+      _scaleOctaves = prefs.scaleOctaves;
+      _scaleFingeringHand = prefs.scaleFingeringHand;
+      _tabIndex = prefs.tabIndex;
     });
     await _loadMeta();
     await _loadChangelog();
@@ -2662,21 +862,20 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _savePrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', _language);
-    await prefs.setBool('showKeyNames', _showKeyNames);
-    await prefs.setString(
-      'lastSeenChangelogVersion',
-      _lastSeenChangelogVersion,
+    final repository = AppPreferencesRepository(
+      await SharedPreferencesPort.create(),
     );
-    await prefs.setBool('changelogDontShow', _changelogDontShow);
-    await prefs.setInt('scaleOctaves', _scaleOctaves);
-    if (_scaleFingeringHand != null) {
-      await prefs.setString('scaleFingeringHand', _scaleFingeringHand!);
-    } else {
-      await prefs.remove('scaleFingeringHand');
-    }
-    await prefs.setInt('tabIndex', _tabIndex);
+    await repository.save(
+      AppPreferences(
+        language: _language,
+        showKeyNames: _showKeyNames,
+        lastSeenChangelogVersion: _lastSeenChangelogVersion,
+        changelogDontShow: _changelogDontShow,
+        scaleOctaves: _scaleOctaves,
+        scaleFingeringHand: _scaleFingeringHand,
+        tabIndex: _tabIndex,
+      ),
+    );
   }
 
   Future<void> _loadChangelog() async {
@@ -2904,28 +1103,25 @@ class _HomeScreenState extends State<HomeScreen>
     _stopHeldChord();
     _stopHeldInputs();
     _stopHeldMidiInputs();
+    unawaited(_audioPlayerLifecycle.disposeAll());
     unawaited(_disableMidiInput(notify: false));
-    _midiDataSub?.cancel();
-    _midiSetupSub?.cancel();
+    unawaited(_midiInputLifecycle?.dispose());
     for (final t in _forbiddenFlashTimers.values) {
       t.cancel();
     }
     _forbiddenFlashTimers.clear();
-    _audioCapture?.stop();
+    unawaited(_tunerCaptureSession.dispose());
     _detectionOutputController.dispose();
     _chordOutputController.dispose();
     _scaleOutputController.dispose();
     _helpOverlayController.dispose();
     _pianoScrollController.dispose();
     _scaleControlsScrollController.dispose();
-    _cancelMidiScreenActivityExtension();
+    _midiActivityGuard.dispose();
     super.dispose();
   }
 
-  int _positiveMod12(int value) {
-    final m = value % 12;
-    return m < 0 ? m + 12 : m;
-  }
+  int _positiveMod12(int value) => positiveMod12(value);
 
   bool get _preferFlat => _accidental == 'flat';
 
@@ -2941,237 +1137,17 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (_) {}
   }
 
-  String _noteNameLocal(
-    int midiNote, {
-    required String language,
-    required bool preferFlat,
-    bool withOctave = true,
-  }) {
-    const sharpEs = <String>[
-      'Do',
-      'Do#',
-      'Re',
-      'Re#',
-      'Mi',
-      'Fa',
-      'Fa#',
-      'Sol',
-      'Sol#',
-      'La',
-      'La#',
-      'Si',
-    ];
-    const sharpEn = <String>[
-      'C',
-      'C#',
-      'D',
-      'D#',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'G#',
-      'A',
-      'A#',
-      'B',
-    ];
-    const flatAliasesEs = <int, String>{
-      1: 'Re♭',
-      3: 'Mi♭',
-      6: 'Sol♭',
-      8: 'La♭',
-      10: 'Si♭',
-    };
-    const flatAliasesEn = <int, String>{
-      1: 'D♭',
-      3: 'E♭',
-      6: 'G♭',
-      8: 'A♭',
-      10: 'B♭',
-    };
-    final names = language == 'en' ? sharpEn : sharpEs;
-    final flatAliases = language == 'en' ? flatAliasesEn : flatAliasesEs;
-    final pc = _positiveMod12(midiNote);
-    final name = preferFlat ? (flatAliases[pc] ?? names[pc]) : names[pc];
-    if (!withOctave) {
-      return name;
-    }
-    final octave = (midiNote ~/ 12) - 1;
-    return '$name$octave';
-  }
+  bool _isMinorChordSuffix(String suffix) => isMinorChordSuffix(suffix);
 
-  int _tonicLetterIndex(int tonicPc, bool preferFlats, [int? tonicLetterPc]) {
-    if (tonicLetterPc != null) {
-      final idx = _kRootLetterPcs.indexOf(_positiveMod12(tonicLetterPc));
-      if (idx >= 0) return idx;
-    }
-    const mapSharp = <int, int>{
-      0: 0,
-      1: 0,
-      2: 1,
-      3: 1,
-      4: 2,
-      5: 3,
-      6: 3,
-      7: 4,
-      8: 4,
-      9: 5,
-      10: 5,
-      11: 6,
-    };
-    const mapFlat = <int, int>{
-      0: 0,
-      1: 1,
-      2: 1,
-      3: 2,
-      4: 2,
-      5: 3,
-      6: 4,
-      7: 4,
-      8: 5,
-      9: 5,
-      10: 6,
-      11: 6,
-    };
-    final map = preferFlats ? mapFlat : mapSharp;
-    return map[_positiveMod12(tonicPc)] ?? 0;
-  }
-
-  String? _applyAccidental(String base, int diff) {
-    switch (diff) {
-      case 0:
-        return base;
-      case 1:
-        return '$base#';
-      case -1:
-        return '$base♭';
-      case 2:
-        return '$base##';
-      case -2:
-        return '$base♭♭';
-      default:
-        return null;
-    }
-  }
-
-  String _spellByDegree({
-    required int rootPc,
-    required int targetPc,
-    required int degree,
-    required String language,
-    required bool preferFlats,
-    int? midiNote,
-    bool withOctave = false,
-    int? tonicLetterPc,
-  }) {
-    const letterEs = <String>['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
-    const letterEn = <String>['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    const basePcs = <int>[0, 2, 4, 5, 7, 9, 11];
-    final letters = language == 'en' ? letterEn : letterEs;
-    final tonicLetter = _tonicLetterIndex(rootPc, preferFlats, tonicLetterPc);
-    final letterIdx = (tonicLetter + degree) % 7;
-    final naturalPc = basePcs[letterIdx];
-    var diff = _positiveMod12(targetPc - naturalPc);
-    if (diff > 6) {
-      diff -= 12;
-    }
-    final spelled = _applyAccidental(letters[letterIdx], diff);
-    if (spelled == null) {
-      final fallback = midiNote ?? targetPc;
-      return _noteNameLocal(
-        fallback,
-        language: language,
-        preferFlat: preferFlats,
-        withOctave: withOctave,
-      );
-    }
-    if (!withOctave) {
-      return spelled;
-    }
-    if (midiNote == null) {
-      return spelled;
-    }
-    final octave = (midiNote ~/ 12) - 1;
-    return '$spelled$octave';
-  }
-
-  int _chordIntervalDegree(int interval, String suffix) {
-    final value = interval;
-    if (value == 0 || value == 12) return 0;
-    if (value == 1 || value == 2 || value == 13 || value == 14) return 1;
-    if (value == 3 || value == 4 || value == 15) return 2;
-    if (value == 5 || value == 17) return 3;
-    if (value == 6 || value == 18) {
-      if (suffix.contains('b5') || suffix.contains('dim')) return 4;
-      return 3;
-    }
-    if (value == 7) return 4;
-    if (value == 8) {
-      if (suffix.contains('#5') || suffix.contains('aug')) return 4;
-      return 5;
-    }
-    if (value == 9 || value == 21) return 5;
-    if (value == 10 || value == 11) return 6;
-    return math.max(0, math.min(6, value % 7));
-  }
-
-  /// Igual que `isMinorSuffix` / worker: `m…` pero no `maj…`.
-  bool _isMinorChordSuffix(String suffix) {
-    return suffix.startsWith('m') && !suffix.startsWith('maj');
-  }
-
-  /// Recuentos de #/♭ de armadura por tónica (misma tabla que la web).
   ({int? sharpCount, int? flatCount}) _keySignatureSharpFlatCounts(
     int tonicPc,
     bool isMinor,
-  ) {
-    final pc = _positiveMod12(tonicPc);
-    final sharpMap = isMinor
-        ? const <int, int>{4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: 6, 10: 7}
-        : const <int, int>{7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7};
-    final flatMap = isMinor
-        ? const <int, int>{2: 1, 7: 2, 0: 3, 5: 4, 10: 5, 3: 6}
-        : const <int, int>{5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6};
-    return (sharpCount: sharpMap[pc], flatCount: flatMap[pc]);
-  }
+  ) => keySignatureSharpFlatCounts(tonicPc, isMinor);
 
-  /// Misma regla que API/worker y `chordSymbolPreferFlat` en app.js: menos
-  /// alteraciones; empate enarmónico → bemoles.
-  bool _chordSymbolPreferFlat(int rootPc, bool isMinor) {
-    final c = _keySignatureSharpFlatCounts(rootPc, isMinor);
-    final sc = c.sharpCount;
-    final fc = c.flatCount;
-    if (sc == null && fc == null) {
-      return false;
-    }
-    if (sc == null) {
-      return true;
-    }
-    if (fc == null) {
-      return false;
-    }
-    if (fc < sc) {
-      return true;
-    }
-    if (sc < fc) {
-      return false;
-    }
-    return true;
-  }
+  bool _chordSymbolPreferFlat(int rootPc, bool isMinor) =>
+      chordSymbolPreferFlat(rootPc, isMinor);
 
-  bool _scalePrefersMinor(String patternName) {
-    const minorNames = <String>{
-      'Aeolian',
-      'Dorian',
-      'Phrygian',
-      'Locrian',
-      'Super Locrian',
-      'Half Diminished',
-      'Minor Pentatonic',
-      'Minor Blues',
-    };
-    return patternName.contains('Minor') || minorNames.contains(patternName);
-  }
+  bool _scalePrefersMinor(String patternName) => scalePrefersMinor(patternName);
 
   /// Semitonos que hay que SUMAR a la tónica del modo para llegar a su mayor
   /// relativo real (comparte exactamente las mismas notas). Verificado nota
@@ -3317,502 +1293,12 @@ class _HomeScreenState extends State<HomeScreen>
     return (count: 0, preferFlats: false);
   }
 
-  List<int> _voicedIntervalsForInversion(List<int> intervals, int inversion) {
-    if (intervals.isEmpty) {
-      return <int>[];
-    }
-    final total = intervals.length;
-    final inversionIdx = inversion.clamp(0, total - 1);
-    final rotated = List<int>.generate(
-      total,
-      (i) => intervals[(inversionIdx + i) % total],
-    );
-    final voiced = <int>[];
-    for (final raw in rotated) {
-      var value = raw;
-      if (voiced.isNotEmpty) {
-        while (value <= voiced.last) {
-          value += 12;
-        }
-      }
-      voiced.add(value);
-    }
-    return voiced;
-  }
-
-  List<Map<String, dynamic>> _chordPatternsForUi() {
-    final priority = <String, int>{
-      for (int i = 0; i < _kCommonChordSuffixOrder.length; i += 1)
-        _kCommonChordSuffixOrder[i]: i,
-    };
-    final sorted = _kChordPatternDefs
-        .map(
-          (p) => <String, dynamic>{
-            'suffix': p['suffix'],
-            'intervals': List<int>.from(
-              p['intervals'] as List<dynamic>? ?? const <dynamic>[],
-            ),
-          },
-        )
-        .toList();
-    sorted.sort((a, b) {
-      final aSuffix = (a['suffix'] as String? ?? '');
-      final bSuffix = (b['suffix'] as String? ?? '');
-      final aIntervals =
-          (a['intervals'] as List<dynamic>? ?? const <dynamic>[]).length;
-      final bIntervals =
-          (b['intervals'] as List<dynamic>? ?? const <dynamic>[]).length;
-      final aPrio = priority[aSuffix] ?? _kCommonChordSuffixOrder.length;
-      final bPrio = priority[bSuffix] ?? _kCommonChordSuffixOrder.length;
-      if (aPrio != bPrio) return aPrio.compareTo(bPrio);
-      if (aIntervals != bIntervals) return aIntervals.compareTo(bIntervals);
-      return aSuffix.compareTo(bSuffix);
-    });
-    return sorted;
-  }
-
-  List<Map<String, dynamic>> _scalePatternsLocal(String language) {
-    return _kScalePatternDefs
-        .map((pattern) {
-          final name = pattern['name'] as String? ?? 'Ionian';
-          final localized = language == 'es'
-              ? (_kScaleNameEs[name] ?? name)
-              : name;
-          return <String, dynamic>{
-            'name': name,
-            'localized_name': localized,
-            'intervals': List<int>.from(
-              pattern['intervals'] as List<dynamic>? ?? const <dynamic>[],
-            ),
-          };
-        })
-        .toList(growable: false);
-  }
-
-  _ChordAnalysis _analyzeChordNotes(Set<int> notes) {
-    if (notes.isEmpty) {
-      return const _ChordAnalysis(null, null, null);
-    }
-    final pcs = notes.map(_positiveMod12).toSet();
-    final bassPc = notes.reduce(math.min) % 12;
-    final suffixPriority = <String, int>{
-      for (int i = 0; i < _kCommonChordSuffixOrder.length; i += 1)
-        _kCommonChordSuffixOrder[i]: i,
-    };
-    var bestScore = -999;
-    var bestComplexity = -999;
-    var bestRootIsBass = false;
-    var bestPriority = _kCommonChordSuffixOrder.length;
-    int? bestRoot;
-    Map<String, dynamic>? bestPattern;
-    for (int root = 0; root < 12; root += 1) {
-      for (final pattern in _kChordPatternDefs) {
-        final intervals =
-            (pattern['intervals'] as List<dynamic>? ?? const <dynamic>[])
-                .map((e) => e as int)
-                .toList(growable: false);
-        final template = intervals.map((i) => (root + i) % 12).toSet();
-        final extra = pcs.difference(template).length;
-        final missing = template.difference(pcs).length;
-        int score;
-        if (extra == 0 && missing == 0) {
-          score = 100;
-        } else if (missing == 0) {
-          score = 70 - extra;
-        } else if (extra == 0) {
-          score = 40 - missing;
-        } else {
-          continue;
-        }
-        final complexity = -intervals.length;
-        // Distintos acordes pueden compartir exactamente las mismas notas
-        // (p. ej. Do sus2 = Do-Re-Sol y Sol sus4 = Sol-Do-Re son el mismo
-        // conjunto de pitch-classes). En ese empate exacto, la nota más
-        // grave realmente tocada (bassPc) es la señal más fuerte de cuál
-        // es la raíz percibida, y debe primar sobre la prioridad fija de
-        // sufijos (que si no, siempre elegía "sus4" sobre "sus2").
-        final rootIsBass = root == bassPc;
-        final suffix = pattern['suffix'] as String? ?? '';
-        final priority =
-            suffixPriority[suffix] ?? _kCommonChordSuffixOrder.length;
-        final better =
-            score > bestScore ||
-            (score == bestScore && complexity > bestComplexity) ||
-            (score == bestScore &&
-                complexity == bestComplexity &&
-                rootIsBass &&
-                !bestRootIsBass) ||
-            (score == bestScore &&
-                complexity == bestComplexity &&
-                rootIsBass == bestRootIsBass &&
-                priority < bestPriority);
-        if (better) {
-          bestScore = score;
-          bestComplexity = complexity;
-          bestRootIsBass = rootIsBass;
-          bestPriority = priority;
-          bestRoot = root;
-          bestPattern = pattern;
-        }
-      }
-    }
-    return _ChordAnalysis(bestRoot, bestPattern, bassPc);
-  }
-
-  Map<String, dynamic> _generateChordLocal({
-    required int rootPc,
-    required String suffix,
-    required int inversion,
-    required String language,
-    required bool preferFlat,
-    int? tonicLetterPc,
-  }) {
-    final selected = _kChordPatternDefs.firstWhere(
-      (p) => (p['suffix'] as String? ?? '') == suffix,
-      orElse: () => _kChordPatternDefs.first,
-    );
-    final intervals = List<int>.from(
-      selected['intervals'] as List<dynamic>? ?? const <dynamic>[],
-    );
-    if (intervals.isEmpty) {
-      return <String, dynamic>{
-        'root_pc': _positiveMod12(rootPc),
-        'suffix': selected['suffix'] as String? ?? '',
-        'inversion': 0,
-        'name': '-',
-        'notes_midi': <int>[],
-        'notes': <String>[],
-      };
-    }
-    final safeInversion = inversion.clamp(0, intervals.length - 1);
-    final rootMidi = 60 + _positiveMod12(rootPc);
-    final voicedIntervals = _voicedIntervalsForInversion(
-      intervals,
-      safeInversion,
-    );
-    final notesMidi = voicedIntervals.map((i) => rootMidi + i).toList();
-    final noteLabels = <String>[];
-    final noteLabelsNoOct = <String>[];
-    for (int i = 0; i < notesMidi.length; i += 1) {
-      final interval = voicedIntervals[i];
-      final midiNote = notesMidi[i];
-      final degree = _chordIntervalDegree(interval, suffix);
-      final pc = _positiveMod12(midiNote);
-      noteLabels.add(
-        _spellByDegree(
-          rootPc: rootPc,
-          targetPc: pc,
-          degree: degree,
-          language: language,
-          preferFlats: preferFlat,
-          midiNote: midiNote,
-          withOctave: true,
-          tonicLetterPc: tonicLetterPc,
-        ),
-      );
-      noteLabelsNoOct.add(
-        _spellByDegree(
-          rootPc: rootPc,
-          targetPc: pc,
-          degree: degree,
-          language: language,
-          preferFlats: preferFlat,
-          midiNote: midiNote,
-          withOctave: false,
-          tonicLetterPc: tonicLetterPc,
-        ),
-      );
-    }
-    final rootName = _spellByDegree(
-      rootPc: rootPc,
-      targetPc: _positiveMod12(rootPc),
-      degree: 0,
-      language: language,
-      preferFlats: preferFlat,
-      midiNote: rootPc,
-      withOctave: false,
-      tonicLetterPc: tonicLetterPc,
-    );
-    var chordName = '$rootName$suffix';
-    String? bassName;
-    if (safeInversion > 0 && noteLabelsNoOct.isNotEmpty) {
-      bassName = noteLabelsNoOct.first;
-      chordName = '$chordName/$bassName';
-    }
-    final suffixNames = language == 'es'
-        ? _kChordSuffixNamesEs
-        : _kChordSuffixNamesEn;
-    final inversionNames = language == 'es'
-        ? _kInversionNamesEs
-        : _kInversionNamesEn;
-    final baseDesc = suffixNames[suffix];
-    String? description;
-    if (baseDesc != null) {
-      if (bassName != null) {
-        description = safeInversion > 0 && safeInversion < inversionNames.length
-            ? '$baseDesc, ${inversionNames[safeInversion]}'
-            : '$baseDesc, ${language == 'es' ? 'bajo en' : 'bass on'} $bassName';
-      } else {
-        description = baseDesc;
-      }
-    }
-    return <String, dynamic>{
-      'root_pc': _positiveMod12(rootPc),
-      'suffix': suffix,
-      'inversion': safeInversion,
-      'name': chordName,
-      'notes_midi': notesMidi,
-      'notes': noteLabels,
-      'notes_no_octave': noteLabelsNoOct,
-      'intervals': voicedIntervals,
-      if (description case final String d) 'description': d,
-    };
-  }
-
-  Map<String, dynamic> _detectChordLocal({
-    required List<int> notes,
-    required String language,
-    required bool preferFlat,
-  }) {
-    final midiNotes = notes.toSet().toList()..sort();
-    if (midiNotes.isEmpty) {
-      return <String, dynamic>{
-        'name': '-',
-        'extras_midi': <int>[],
-        'notes_midi': <int>[],
-        'notes': <String>[],
-        'extras': <String>[],
-      };
-    }
-    final pcs = midiNotes.map(_positiveMod12).toSet();
-    if (pcs.length == 1) {
-      final single = midiNotes.first;
-      final namePf = _chordSymbolPreferFlat(_positiveMod12(single), false);
-      return <String, dynamic>{
-        'name': _noteNameLocal(
-          single,
-          language: language,
-          preferFlat: namePf,
-          withOctave: false,
-        ),
-        'notes_midi': midiNotes,
-        'notes': midiNotes
-            .map(
-              (n) => _noteNameLocal(
-                n,
-                language: language,
-                preferFlat: preferFlat,
-                withOctave: true,
-              ),
-            )
-            .toList(),
-        'extras_midi': <int>[],
-        'extras': <String>[],
-      };
-    }
-    final analysis = _analyzeChordNotes(midiNotes.toSet());
-    final root = analysis.rootPc;
-    final pattern = analysis.pattern;
-    final bassPc = analysis.bassPc;
-    if (root == null || pattern == null) {
-      return <String, dynamic>{
-        'name': midiNotes
-            .map(
-              (n) => _noteNameLocal(
-                n,
-                language: language,
-                preferFlat: preferFlat,
-                withOctave: false,
-              ),
-            )
-            .join(' + '),
-        'notes_midi': midiNotes,
-        'notes': midiNotes
-            .map(
-              (n) => _noteNameLocal(
-                n,
-                language: language,
-                preferFlat: preferFlat,
-                withOctave: true,
-              ),
-            )
-            .toList(),
-        'extras_midi': <int>[],
-        'extras': <String>[],
-      };
-    }
-    final suffix = pattern['suffix'] as String? ?? '';
-    final intervals = List<int>.from(
-      pattern['intervals'] as List<dynamic>? ?? const <dynamic>[],
-    );
-    final inversionIndex = bassPc == null
-        ? 0
-        : math
-              .max(
-                0,
-                intervals.indexWhere(
-                  (interval) => _positiveMod12(root + interval) == bassPc,
-                ),
-              )
-              .toInt();
-    final degreeByPc = <int, int>{};
-    for (final interval in intervals) {
-      final pc = _positiveMod12(root + interval);
-      degreeByPc.putIfAbsent(pc, () => _chordIntervalDegree(interval, suffix));
-    }
-    final namePf = _chordSymbolPreferFlat(root, _isMinorChordSuffix(suffix));
-    final rootName = _spellByDegree(
-      rootPc: root,
-      targetPc: root,
-      degree: 0,
-      language: language,
-      preferFlats: namePf,
-      midiNote: root,
-      withOctave: false,
-    );
-    var chordName = '$rootName$suffix';
-    String? resolvedBassName;
-    if (bassPc != null && bassPc != root) {
-      final bassDegree = degreeByPc[bassPc];
-      resolvedBassName = bassDegree == null
-          ? _noteNameLocal(
-              bassPc,
-              language: language,
-              preferFlat: namePf,
-              withOctave: false,
-            )
-          : _spellByDegree(
-              rootPc: root,
-              targetPc: bassPc,
-              degree: bassDegree,
-              language: language,
-              preferFlats: namePf,
-              midiNote: bassPc,
-              withOctave: false,
-            );
-      chordName = '$chordName/$resolvedBassName';
-    }
-    final suffixNames = language == 'es'
-        ? _kChordSuffixNamesEs
-        : _kChordSuffixNamesEn;
-    final inversionNames = language == 'es'
-        ? _kInversionNamesEs
-        : _kInversionNamesEn;
-    final baseDesc = suffixNames[suffix];
-    String? description;
-    if (baseDesc != null) {
-      if (bassPc != null && bassPc != root && resolvedBassName != null) {
-        if (inversionIndex > 0 && inversionIndex < inversionNames.length) {
-          description = '$baseDesc, ${inversionNames[inversionIndex]}';
-        } else {
-          final bassWord = language == 'es' ? 'bajo en' : 'bass on';
-          description = '$baseDesc, $bassWord $resolvedBassName';
-        }
-      } else {
-        description = baseDesc;
-      }
-    }
-    final expectedPcs = intervals.map((i) => _positiveMod12(root + i)).toSet();
-    final extras = midiNotes
-        .where((n) => !expectedPcs.contains(n % 12))
-        .toList();
-    // Notas dentro del acorde reconocido: ortografía diatónica fija respecto a
-    // su tónica (p. ej. la 3ª de Mi mayor siempre es Sol#, nunca Lab) — el
-    // ajuste #/♭ del usuario solo decide notas "extra" fuera del acorde.
-    final noteLabels = midiNotes.map((n) {
-      final pc = _positiveMod12(n);
-      final degree = degreeByPc[pc];
-      return degree == null
-          ? _noteNameLocal(
-              n,
-              language: language,
-              preferFlat: preferFlat,
-              withOctave: true,
-            )
-          : _spellByDegree(
-              rootPc: root,
-              targetPc: pc,
-              degree: degree,
-              language: language,
-              preferFlats: namePf,
-              midiNote: n,
-              withOctave: true,
-            );
-    }).toList();
-    return <String, dynamic>{
-      'name': chordName,
-      'notes_midi': midiNotes,
-      'notes': noteLabels,
-      'extras_midi': extras,
-      'extras': extras
-          .map(
-            (n) => _noteNameLocal(
-              n,
-              language: language,
-              preferFlat: preferFlat,
-              withOctave: true,
-            ),
-          )
-          .toList(),
-      'root_pc': root,
-      'suffix': suffix,
-      'inversion': inversionIndex,
-      if (description case final String d) 'description': d,
-    };
-  }
-
-  Map<String, dynamic> _generateScaleLocal({
-    required int tonicPc,
-    required String patternName,
-    required String language,
-    required bool preferFlat,
-    int? tonicLetterPc,
-  }) {
-    final selected = _kScalePatternDefs.firstWhere(
-      (p) => (p['name'] as String? ?? '') == patternName,
-      orElse: () => _kScalePatternDefs.first,
-    );
-    final intervals = List<int>.from(
-      selected['intervals'] as List<dynamic>? ?? const <dynamic>[],
-    );
-    final rootMidi = 60 + _positiveMod12(tonicPc);
-    final notesMidi = intervals.map((i) => rootMidi + i).toList();
-    final names = <String>[];
-    for (int idx = 0; idx < notesMidi.length; idx += 1) {
-      final midiNote = notesMidi[idx];
-      names.add(
-        _spellByDegree(
-          rootPc: tonicPc,
-          targetPc: _positiveMod12(midiNote),
-          degree: idx,
-          language: language,
-          preferFlats: preferFlat,
-          midiNote: midiNote,
-          withOctave: true,
-          tonicLetterPc: tonicLetterPc,
-        ),
-      );
-    }
-    final selectedName = selected['name'] as String? ?? patternName;
-    final localized = language == 'es'
-        ? (_kScaleNameEs[selectedName] ?? selectedName)
-        : selectedName;
-    return <String, dynamic>{
-      'tonic_pc': _positiveMod12(tonicPc),
-      'pattern_name': selectedName,
-      'pattern_localized_name': localized,
-      'notes_midi': notesMidi,
-      'notes': names,
-      'intervals': intervals,
-    };
-  }
-
   Future<void> _loadMeta() async {
     try {
       await _loadGuitarChordCache();
       await _loadChordTheoryCatalog();
-      final chordPatterns = _chordPatternsForUi();
-      final scalePatterns = _scalePatternsLocal(_language);
+      final chordPatterns = chordPatternsForUi();
+      final scalePatterns = scalePatternsLocal(_language);
       setState(() {
         _chordPatterns = chordPatterns;
         _scalePatterns = scalePatterns;
@@ -3939,13 +1425,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _cancelMidiScreenActivityExtension() {
-    _midiIdleExtensionTimer?.cancel();
-    _midiIdleExtensionTimer = null;
-    unawaited(() async {
-      try {
-        await WakelockPlus.disable();
-      } catch (_) {}
-    }());
+    _midiActivityGuard.cancel();
   }
 
   /// Cada nota MIDI (u off) renueva la ventana: equivale a “hubo interacción” para no
@@ -3954,37 +1434,23 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_midiInputEnabled || _tabIndex != 0) {
       return;
     }
-    _midiIdleExtensionTimer?.cancel();
-    unawaited(() async {
-      try {
-        await WakelockPlus.enable();
-      } catch (_) {}
-    }());
-    _midiIdleExtensionTimer = Timer(_kMidiResetsIdleDuration, () {
-      _midiIdleExtensionTimer = null;
-      if (!mounted) {
-        return;
-      }
-      unawaited(() async {
-        try {
-          await WakelockPlus.disable();
-        } catch (_) {}
-      }());
-    });
+    _midiActivityGuard.bump();
   }
 
   void _initMidiInput() {
-    _midiDataSub = _midiCommand.onMidiDataReceived?.listen(_onMidiPacket);
-    _midiSetupSub = _midiCommand.onMidiSetupChanged?.listen((_) {
-      if (_midiInputEnabled) {
-        unawaited(_refreshMidiConnections());
-      }
-    });
+    _midiInputLifecycle = MidiInputLifecycle.fromCommand(
+      command: _midiCommand,
+      onMidiBytes: _onMidiBytes,
+      onSetupChanged: () {
+        if (_midiInputEnabled) {
+          unawaited(_refreshMidiConnections());
+        }
+      },
+    )..start();
   }
 
-  void _onMidiPacket(MidiPacket packet) {
+  void _onMidiBytes(List<int> bytes) {
     if (!_midiInputEnabled) return;
-    final bytes = packet.data;
     var hadNoteChannelMessage = false;
     for (var i = 0; i + 2 < bytes.length; i += 3) {
       final status = bytes[i] & 0xF0;
@@ -4116,6 +1582,7 @@ class _HomeScreenState extends State<HomeScreen>
       } catch (_) {}
     }
     _midiConnectedDevices.clear();
+    _midiOutputController.resetProgram();
     _detectionMidiHeldNotes.clear();
     _generationMidiHeldNotes.clear();
     _scaleMidiHeldNotes.clear();
@@ -4150,6 +1617,12 @@ class _HomeScreenState extends State<HomeScreen>
       return fallback[idx].toSet();
     }
     return <int>{};
+  }
+
+  void _selectChordGuitarVariant(int variant) {
+    if (variant == _chordGuitarVariant) return;
+    setState(() => _chordGuitarVariant = variant);
+    unawaited(_playChordPreviewFromSelection());
   }
 
   Set<int> _staffNotesForCurrentTab() {
@@ -4737,7 +2210,7 @@ class _HomeScreenState extends State<HomeScreen>
     return byteData.buffer.asUint8List();
   }
 
-  Future<AudioPlayer?> _playTone({
+  Future<AudioPlayerPort?> _playTone({
     required int midi,
     required String instrument,
     double durationSeconds = 0.6,
@@ -4750,7 +2223,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (Platform.isAndroid) {
       final targetVolume = ((lowVolume ? 0.68 : 1.0) * gain).clamp(0.0, 1.0);
-      final ok = await _playAndroidSynthTone(
+      final ok = await _nativeAudioBridge.playTone(
+        platform: 'android',
         midi: _safeMidi(midi),
         instrument: instrument,
         durationMs: (durationSeconds.clamp(0.1, 2.2) * 1000).round(),
@@ -4767,7 +2241,8 @@ class _HomeScreenState extends State<HomeScreen>
       // Atenuamos un poco para evitar clipping percibido.
       final instrumentAttenuation = instrument == 'piano' ? 0.72 : 0.82;
       final targetVolume = (baseVolume * instrumentAttenuation).clamp(0.0, 1.0);
-      final ok = await _playIosSynthTone(
+      final ok = await _nativeAudioBridge.playTone(
+        platform: 'ios',
         midi: _safeMidi(midi),
         instrument: instrument,
         durationMs: (durationSeconds.clamp(0.05, 2.2) * 1000).round(),
@@ -4801,24 +2276,20 @@ class _HomeScreenState extends State<HomeScreen>
         debugPrint('Instrument sample playback unavailable: $err');
       }
     }
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        context: Platform.isAndroid
+            ? AudioContext(
+                android: const AudioContextAndroid(
+                  contentType: AndroidContentType.sonification,
+                  usageType: AndroidUsageType.assistanceSonification,
+                  audioFocus: AndroidAudioFocus.none,
+                ),
+              )
+            : null,
       );
-      await player.setReleaseMode(ReleaseMode.release);
-      if (Platform.isAndroid) {
-        await player.setAudioContext(
-          AudioContext(
-            android: const AudioContextAndroid(
-              contentType: AndroidContentType.sonification,
-              usageType: AndroidUsageType.assistanceSonification,
-              audioFocus: AndroidAudioFocus.none,
-            ),
-          ),
-        );
-      }
       final seconds = durationSeconds.clamp(0.12, 2.2);
       final wavBytes = _buildWavTone(
         midi: _safeMidi(midi),
@@ -4839,12 +2310,12 @@ class _HomeScreenState extends State<HomeScreen>
           volume: targetVolume,
         );
       }
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
       return player;
     } catch (err) {
       _audioPlaybackAvailable = false;
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       debugPrint('Audio playback unavailable on this device/runtime: $err');
       SystemSound.play(SystemSoundType.click);
@@ -4852,7 +2323,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<AudioPlayer?> _playMetronomeClick({
+  Future<AudioPlayerPort?> _playMetronomeClick({
     bool accent = false,
     bool bar = false,
     double volumeScale = 1.0,
@@ -4861,7 +2332,8 @@ class _HomeScreenState extends State<HomeScreen>
     if (gain <= 0.0) return null;
     final level = bar ? 2 : (accent ? 1 : 0);
     if (Platform.isAndroid) {
-      final ok = await _playAndroidMetronomeClick(
+      final ok = await _nativeAudioBridge.playMetronomeClick(
+        platform: 'android',
         level: level,
         volume: gain.clamp(0.0, 1.0),
       );
@@ -4872,12 +2344,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
     if (Platform.isIOS) {
       try {
-        final ok =
-            await _kPlatformChannel.invokeMethod<bool>(
-              'playIosMetronomeClick',
-              {'level': level, 'volume': gain.clamp(0.0, 1.0)},
-            ) ??
-            false;
+        final ok = await _nativeAudioBridge.playMetronomeClick(
+          platform: 'ios',
+          level: level,
+          volume: gain,
+        );
         if (ok) {
           return null;
         }
@@ -4895,18 +2366,16 @@ class _HomeScreenState extends State<HomeScreen>
       _ => 0.68,
     };
     if (!Platform.isIOS && _metronomeSampleAvailable) {
-      final samplePlayer = AudioPlayer();
-      samplePlayer.positionUpdater = null;
+      AudioPlayerPort? samplePlayer;
       final baseRate = switch (level) {
         2 => 1.68,
         1 => 1.24,
         _ => 0.94,
       };
       try {
-        await samplePlayer.setPlayerMode(
-          Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        samplePlayer = await _audioPlayerFactory.create(
+          mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
         );
-        await samplePlayer.setReleaseMode(ReleaseMode.release);
         if ((baseRate - 1.0).abs() > 0.001) {
           await samplePlayer.setPlaybackRate(baseRate);
         }
@@ -4917,33 +2386,31 @@ class _HomeScreenState extends State<HomeScreen>
         if (level > 0) {
           unawaited(_playMetronomeAccentTransient(level: level, gain: gain));
         }
-        _bindAutoDisposeOnComplete(samplePlayer);
+        _audioPlayerLifecycle.watch(samplePlayer, samplePlayer.onComplete);
         return samplePlayer;
       } catch (err) {
         _metronomeSampleAvailable = false;
         try {
-          await samplePlayer.dispose();
+          await samplePlayer?.dispose();
         } catch (_) {}
         debugPrint('Metronome sample playback unavailable: $err');
       }
     }
     final clickWav = _buildMetronomeClickWav(level: level);
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
       );
-      await player.setReleaseMode(ReleaseMode.release);
       await player.play(
         BytesSource(clickWav, mimeType: 'audio/wav'),
         volume: (baseGain * gain).clamp(0.0, 1.0),
       );
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
       return player;
     } catch (err) {
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       debugPrint('Metronome synthesized click unavailable: $err');
     }
@@ -4961,20 +2428,19 @@ class _HomeScreenState extends State<HomeScreen>
     if (Platform.isAndroid) {
       final overlay = level >= 2 ? 0.52 : 0.34;
       unawaited(
-        _playAndroidMetronomeClick(
+        _nativeAudioBridge.playMetronomeClick(
+          platform: 'android',
           level: level,
           volume: (overlay * gain).clamp(0.0, 1.0),
         ),
       );
       return;
     }
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    AudioPlayerPort? player;
     try {
-      await player.setPlayerMode(
-        Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: Platform.isIOS ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
       );
-      await player.setReleaseMode(ReleaseMode.release);
       await player.play(
         BytesSource(
           _buildMetronomeClickWav(level: level),
@@ -4982,15 +2448,15 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         volume: ((level >= 2 ? 0.48 : 0.32) * gain).clamp(0.0, 1.0),
       );
-      _bindAutoDisposeOnComplete(player);
+      _audioPlayerLifecycle.watch(player, player.onComplete);
     } catch (_) {
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
     }
   }
 
-  Future<AudioPlayer?> _playSampleTone({
+  Future<AudioPlayerPort?> _playSampleTone({
     required int midi,
     required String instrument,
     required double volume,
@@ -5002,214 +2468,66 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_samplePlaybackAvailable) {
       return null;
     }
-    final bank = instrument == 'guitar'
-        ? _kGuitarNylonSamples
-        : _kGrandPianoSamples;
-    if (bank.isEmpty) {
-      return null;
-    }
-    // Keep metronome click notes and out-of-range tones on synthesis fallback.
-    final safe = _safeMidi(midi);
-    if (instrument == 'piano' && (safe < 48 || safe > 84)) {
-      return null;
-    }
-    if (instrument == 'guitar' && (safe < 40 || safe > 76)) {
-      return null;
-    }
-    final sampleMidi = bank.keys.reduce(
-      (a, b) => (a - safe).abs() <= (b - safe).abs() ? a : b,
-    );
-    final assetPath = bank[sampleMidi];
-    if (assetPath == null) {
-      return null;
-    }
-    final semitones = safe - sampleMidi;
-    final targetRate = math.pow(2.0, semitones / 12.0).toDouble();
-    final clampedRate = targetRate.clamp(0.5, 2.0);
-    final player = AudioPlayer();
-    player.positionUpdater = null;
+    final plan = planSampleTone(midi: midi, instrument: instrument);
+    if (plan == null) return null;
+    AudioPlayerPort? player;
     try {
       final useLowLatency = Platform.isAndroid;
-      await player.setPlayerMode(
-        useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+      player = await _audioPlayerFactory.create(
+        mode: useLowLatency ? PlayerMode.lowLatency : PlayerMode.mediaPlayer,
+        context: Platform.isAndroid
+            ? AudioContext(
+                android: const AudioContextAndroid(
+                  contentType: AndroidContentType.music,
+                  usageType: AndroidUsageType.media,
+                  audioFocus: AndroidAudioFocus.none,
+                ),
+              )
+            : null,
       );
-      await player.setReleaseMode(ReleaseMode.release);
-      await player.setSource(AssetSource(assetPath));
-      if ((clampedRate - 1.0).abs() > 0.001) {
+      final activePlayer = player;
+      await activePlayer.setSource(AssetSource(plan.assetPath));
+      if ((plan.playbackRate - 1.0).abs() > 0.001) {
         try {
-          await player.setPlaybackRate(clampedRate);
+          await activePlayer.setPlaybackRate(plan.playbackRate);
         } catch (_) {
           // Keep sample playback even if transposition is unsupported.
         }
       }
-      await player.setVolume(volume);
+      await activePlayer.setVolume(volume);
       if (Platform.isAndroid) {
-        await player.setAudioContext(
-          AudioContext(
-            android: const AudioContextAndroid(
-              contentType: AndroidContentType.music,
-              usageType: AndroidUsageType.media,
-              audioFocus: AndroidAudioFocus.none,
-            ),
-          ),
-        );
-        await player.resume();
+        await activePlayer.resume();
         final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
             .round()
             .clamp(220, 3200);
         Timer(Duration(milliseconds: ttlMs), () {
-          unawaited(_safeStopDispose(player));
+          unawaited(_safeStopDispose(activePlayer));
         });
-        return player;
+        return activePlayer;
       }
-      await player.resume();
+      await activePlayer.resume();
       if (useLowLatency) {
         final ttlMs = ((durationSeconds.clamp(0.1, 2.2) * 1000) + 320)
             .round()
             .clamp(220, 3200);
         Timer(Duration(milliseconds: ttlMs), () {
-          unawaited(_safeStopDispose(player));
+          unawaited(_safeStopDispose(activePlayer));
         });
       } else {
-        _bindAutoDisposeOnComplete(player);
+        _audioPlayerLifecycle.watch(activePlayer, activePlayer.onComplete);
       }
-      return player;
+      return activePlayer;
     } catch (err) {
       debugPrint('Instrument sample playback unavailable: $err');
       try {
-        await player.dispose();
+        await player?.dispose();
       } catch (_) {}
       return null;
     }
   }
 
-  Future<bool> _playAndroidSynthTone({
-    required int midi,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playAndroidSynthTone', <String, dynamic>{
-                'midi': midi,
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(80, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('Android synth tone unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playAndroidSynthChord({
-    required List<int> notes,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    if (notes.isEmpty) return false;
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playAndroidSynthChord', <String, dynamic>{
-                'notes': notes.map(_safeMidi).toList(growable: false),
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(80, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('Android synth chord unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playAndroidMetronomeClick({
-    required int level,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel.invokeMethod<bool>(
-            'playAndroidMetronomeClick',
-            <String, dynamic>{
-              'level': level.clamp(0, 2),
-              'durationMs': 55,
-              'volume': volume.clamp(0.0, 1.0),
-            },
-          ) ??
-          false;
-    } catch (err) {
-      debugPrint('Android metronome click unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playIosSynthTone({
-    required int midi,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playIosSynthTone', <String, dynamic>{
-                'midi': midi,
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(40, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('iOS synth tone unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<bool> _playIosSynthChord({
-    required List<int> notes,
-    required String instrument,
-    required int durationMs,
-    required double volume,
-  }) async {
-    if (notes.isEmpty) return false;
-    try {
-      return await _kPlatformChannel
-              .invokeMethod<bool>('playIosSynthChord', <String, dynamic>{
-                'notes': notes.map(_safeMidi).toList(growable: false),
-                'instrument': instrument,
-                'durationMs': durationMs.clamp(40, 2600),
-                'volume': volume.clamp(0.0, 1.0),
-              }) ??
-          false;
-    } catch (err) {
-      debugPrint('iOS synth chord unavailable: $err');
-      return false;
-    }
-  }
-
-  Future<void> _stopIosSynth() async {
-    try {
-      await _kPlatformChannel.invokeMethod<bool>('stopIosSynth');
-    } catch (err) {
-      debugPrint('iOS synth stop unavailable: $err');
-    }
-  }
-
-  void _bindAutoDisposeOnComplete(AudioPlayer player) {
-    late StreamSubscription<void> completeSub;
-    completeSub = player.onPlayerComplete.listen((_) {
-      completeSub.cancel();
-      unawaited(_safeStopDispose(player));
-    });
-  }
-
-  Future<void> _safeStopDispose(AudioPlayer player) async {
-    try {
-      await player.dispose();
-    } catch (_) {}
-  }
+  Future<void> _safeStopDispose(AudioPlayerPort player) =>
+      _audioPlayerLifecycle.dispose(player);
 
   void _showForbiddenOnPiano(int midi) {
     final note = _safeMidi(midi);
@@ -5711,7 +3029,8 @@ class _HomeScreenState extends State<HomeScreen>
       // más empezar. El temporizador de _scheduleHeldChordPlaybackAutoClear
       // ya se encarga de limpiarlo cuando el acorde termina de sonar.
       unawaited(
-        _playAndroidSynthChord(
+        _nativeAudioBridge.playChord(
+          platform: 'android',
           notes: chordNotes,
           instrument: instrument,
           durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
@@ -5730,7 +3049,8 @@ class _HomeScreenState extends State<HomeScreen>
       // termina de sonar de verdad.
       if (chordNotes.length > 1) {
         unawaited(
-          _playIosSynthChord(
+          _nativeAudioBridge.playChord(
+            platform: 'ios',
             notes: chordNotes,
             instrument: instrument,
             durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
@@ -5739,7 +3059,8 @@ class _HomeScreenState extends State<HomeScreen>
         );
       } else {
         unawaited(
-          _playIosSynthTone(
+          _nativeAudioBridge.playTone(
+            platform: 'ios',
             midi: chordNotes.first,
             instrument: instrument,
             durationMs: ((instrument == 'guitar' ? 1.45 : 1.35) * 1000).round(),
@@ -5755,7 +3076,7 @@ class _HomeScreenState extends State<HomeScreen>
         instrument: instrument,
         durationSeconds: instrument == 'guitar' ? 1.45 : 1.35,
       );
-      return MapEntry<int, AudioPlayer?>(midi, player);
+      return MapEntry<int, AudioPlayerPort?>(midi, player);
     }).toList();
     final started = await Future.wait(starts);
     if (!mounted || playToken != _heldChordPlayToken) {
@@ -5847,7 +3168,7 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _requestInFlight = true);
     try {
       final notes = _activeDetectionNotes.toList()..sort();
-      final json = _detectChordLocal(
+      final json = detectChordLocal(
         notes: notes,
         language: _language,
         preferFlat: _preferFlat,
@@ -6058,10 +3379,12 @@ class _HomeScreenState extends State<HomeScreen>
     }
     switch (key) {
       case 'name':
-        final name = (json['pattern_localized_name'] ?? json['pattern_name'])
-            ?.toString()
-            .trim();
-        return (name?.isNotEmpty ?? false) ? name! : '-';
+        final patternName = json['pattern_name']?.toString().trim() ?? '';
+        final localizedName =
+            json['pattern_localized_name']?.toString().trim() ?? patternName;
+        return localizedName.isEmpty
+            ? '-'
+            : scaleDisplayName(patternName, localizedName);
       case 'notes':
         final notes = (json['notes'] as List<dynamic>? ?? const <dynamic>[])
             .map((e) => e.toString())
@@ -6222,7 +3545,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
     setState(() => _requestInFlight = true);
     try {
-      final json = _generateChordLocal(
+      final json = generateChordLocal(
         rootPc: _chordRootPc,
         suffix: _chordSuffix,
         inversion: _chordInversion,
@@ -6284,7 +3607,7 @@ class _HomeScreenState extends State<HomeScreen>
         _chordInversion = 0;
         _recomputeMaxInversion();
       });
-      final json = _generateChordLocal(
+      final json = generateChordLocal(
         rootPc: rootPc,
         suffix: suffix,
         inversion: 0,
@@ -6366,7 +3689,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
     setState(() => _requestInFlight = true);
     try {
-      final json = _generateScaleLocal(
+      final json = generateScaleLocal(
         tonicPc: _scaleTonicPc,
         patternName: _scalePatternName,
         language: _language,
@@ -6382,7 +3705,7 @@ class _HomeScreenState extends State<HomeScreen>
       _scaleCurrentNote = null;
       _scaleCurrentIsLeft = null;
       _scaleOutputController.text =
-          '${_ui('Escala', 'Scale')}: ${json['pattern_localized_name'] ?? json['pattern_name']}\n'
+          '${_ui('Escala', 'Scale')}: ${scaleDisplayName(json['pattern_name']?.toString() ?? '', json['pattern_localized_name']?.toString() ?? json['pattern_name']?.toString() ?? '')}\n'
           '${_ui('Notas', 'Notes')}: ${(json['notes'] as List<dynamic>? ?? <dynamic>[]).join(' - ')}\n'
           '${_ui('Intervalos', 'Intervals')}: ${_intervalTextFromMidiList(scaleMidi)}';
       if (Platform.isIOS && scaleMidi.isNotEmpty) {
@@ -6608,6 +3931,22 @@ class _HomeScreenState extends State<HomeScreen>
       signatureCount: signature.count,
       preferFlats: signature.preferFlats,
     );
+  }
+
+  int _activeChordKeySignatureIndex(
+    ({int count, bool preferFlats}) signature,
+    Iterable<int> activeNotes,
+  ) {
+    if (_tabIndex != 1 && _tabIndex != 2) return -1;
+    for (final midi in activeNotes) {
+      final index = keySignatureIndexForMidi(
+        midi: midi,
+        signatureCount: signature.count,
+        preferFlats: signature.preferFlats,
+      );
+      if (index >= 0) return index;
+    }
+    return -1;
   }
 
   /// pc de cada letra natural (Do..Si) para el combo de tónica dividido en
@@ -6858,7 +4197,7 @@ class _HomeScreenState extends State<HomeScreen>
           ? _ui('Fundamental', 'Root')
           : _ui('Posición fundamental', 'Root position');
     }
-    final names = _language == 'en' ? _kInversionNamesEn : _kInversionNamesEs;
+    final names = _language == 'en' ? inversionNamesEn : inversionNamesEs;
     if (inversion < names.length) {
       final name = names[inversion];
       return _language == 'en'
@@ -7160,10 +4499,8 @@ class _HomeScreenState extends State<HomeScreen>
         .map((s) => (s * _tunerInputGain).clamp(-1.0, 1.0))
         .toList(growable: false);
     final effectiveSampleRate =
-        (_audioCapture?.actualSampleRate?.round() ?? _tunerSampleRate).clamp(
-          8000,
-          96000,
-        );
+        (_tunerCaptureSession.actualSampleRate?.round() ?? _tunerSampleRate)
+            .clamp(8000, 96000);
     final spectrum = _computeTunerSpectrum(
       scaled,
       effectiveSampleRate,
@@ -7255,15 +4592,10 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     try {
-      _audioCapture ??= FlutterAudioCapture();
-      final initialized = await _audioCapture!.init();
-      if (initialized != true) {
-        throw Exception('No se pudo inicializar FlutterAudioCapture');
-      }
       _tunerError = '';
       _tunerSmoothedFreq = 0.0;
       _tunerSpectrumBins = List<double>.filled(96, 0.0);
-      await _audioCapture!.start(
+      await _tunerCaptureSession.start(
         _onTunerAudio,
         _onTunerError,
         sampleRate: _tunerSampleRate,
@@ -7289,7 +4621,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _stopTuner() async {
     try {
-      await _audioCapture?.stop();
+      await _tunerCaptureSession.stop();
     } catch (_) {}
     if (!mounted) {
       return;
@@ -7852,7 +5184,12 @@ class _HomeScreenState extends State<HomeScreen>
         ? staffMidi(_scaleCurrentNote!)
         : null;
     final staffKeySig = _staffKeySignatureForCurrentTab();
-    final activeScaleKeySigIndex = _activeScaleKeySignatureIndex(staffKeySig);
+    final activeKeySigIndex = _tabIndex == 3
+        ? _activeScaleKeySignatureIndex(staffKeySig)
+        : _activeChordKeySignatureIndex(
+            staffKeySig,
+            displayGenerationPlayingNotes,
+          );
     final imelMode = _tabIndex == 5 && _intervalMelodyMode;
     final imelSemitones = _tabIndex == 5 ? _getIntervalSemitones() : null;
     final imelMelody = imelSemitones != null
@@ -8085,7 +5422,7 @@ class _HomeScreenState extends State<HomeScreen>
                               _tabIndex == 3 && _instrumentView == 'guitar',
                           keySignatureCount: staffKeySig.count,
                           keySignaturePreferFlats: staffKeySig.preferFlats,
-                          activeKeySignatureIndex: activeScaleKeySigIndex,
+                          activeKeySignatureIndex: activeKeySigIndex,
                           intervalMelodyMode: imelMode,
                           intervalMelodyNotes: imelNotes,
                           intervalMelodyDurations: imelDurations,
@@ -8461,9 +5798,8 @@ class _HomeScreenState extends State<HomeScreen>
                                 children: <Widget>[
                                   OutlinedButton(
                                     onPressed: safeVariant > 0
-                                        ? () => setState(
-                                            () => _chordGuitarVariant =
-                                                safeVariant - 1,
+                                        ? () => _selectChordGuitarVariant(
+                                            safeVariant - 1,
                                           )
                                         : null,
                                     child: const Icon(Icons.chevron_left),
@@ -8472,9 +5808,8 @@ class _HomeScreenState extends State<HomeScreen>
                                   OutlinedButton(
                                     onPressed:
                                         safeVariant < chordVoicings.length - 1
-                                        ? () => setState(
-                                            () => _chordGuitarVariant =
-                                                safeVariant + 1,
+                                        ? () => _selectChordGuitarVariant(
+                                            safeVariant + 1,
                                           )
                                         : null,
                                     child: const Icon(Icons.chevron_right),
@@ -8615,9 +5950,7 @@ class _HomeScreenState extends State<HomeScreen>
                 children: <Widget>[
                   OutlinedButton(
                     onPressed: chordVoicings.length > 1 && safeVariant > 0
-                        ? () => setState(
-                            () => _chordGuitarVariant = safeVariant - 1,
-                          )
+                        ? () => _selectChordGuitarVariant(safeVariant - 1)
                         : null,
                     child: const Icon(Icons.chevron_left),
                   ),
@@ -8639,9 +5972,7 @@ class _HomeScreenState extends State<HomeScreen>
                     onPressed:
                         chordVoicings.length > 1 &&
                             safeVariant < chordVoicings.length - 1
-                        ? () => setState(
-                            () => _chordGuitarVariant = safeVariant + 1,
-                          )
+                        ? () => _selectChordGuitarVariant(safeVariant + 1)
                         : null,
                     child: const Icon(Icons.chevron_right),
                   ),
@@ -8775,7 +6106,7 @@ class _HomeScreenState extends State<HomeScreen>
         final viewportW = constraints.maxWidth;
         final pianoViewH = (constraints.maxHeight - 2 * (stripH + gap)).clamp(
           60.0,
-          (_kPianoWhiteKeyHeight + 12).toDouble(),
+          (pianoWhiteKeyHeight + 12).toDouble(),
         );
 
         final allWhite = List<int>.generate(
@@ -8783,7 +6114,7 @@ class _HomeScreenState extends State<HomeScreen>
           (i) => _kPianoLowMidi + i,
         ).where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12)).toList();
 
-        final effectiveW = _computePianoKeyMetrics(
+        final effectiveW = computePianoKeyMetrics(
           viewportW: viewportW,
           viewportH: pianoViewH,
           whiteKeyCount: allWhite.length,
@@ -8971,16 +6302,16 @@ class _HomeScreenState extends State<HomeScreen>
         final viewportH =
             (constraints.maxHeight.isFinite
                     ? constraints.maxHeight
-                    : _kPianoWhiteKeyHeight + 12)
-                .clamp(0.0, _kPianoWhiteKeyHeight + 12);
-        final metrics = _computePianoKeyMetrics(
+                    : pianoWhiteKeyHeight + 12)
+                .clamp(0.0, pianoWhiteKeyHeight + 12);
+        final metrics = computePianoKeyMetrics(
           viewportW: viewportW,
           viewportH: viewportH,
           whiteKeyCount: whiteMidi.length,
         );
         final whiteW = forcedWhiteW ?? metrics.whiteW;
         final whiteH = forcedWhiteW != null
-            ? (forcedWhiteW * _kPianoKeyAspect).clamp(0.0, viewportH)
+            ? (forcedWhiteW * pianoKeyAspect).clamp(0.0, viewportH)
             : metrics.whiteH;
         final blackW = whiteW * 0.64;
         final blackH = whiteH * 0.58;
@@ -9496,7 +6827,7 @@ class _HomeScreenState extends State<HomeScreen>
         ? physicalTuning.reversed
               .toList() // 1 -> 6 (arriba -> abajo)
         : physicalTuning;
-    const fretCount = 14;
+    const fretCount = 16; // cuerda al aire (0) + trastes 1..15
     const fretW = 78.0;
     const openFretW = fretW / 2;
     const stringGap = 25.0;
@@ -9805,2070 +7136,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildDetectionPage() {
-    final hasNotes = _hasDetectionNotes;
-    final detectedSuffix = _detectionResultJson?['suffix'];
-    final hasDetectedChord =
-        detectedSuffix is String && _detectionResultJson?['root_pc'] is num;
-    final detectedInversion =
-        (_detectionResultJson?['inversion'] as num?)?.toInt() ?? 0;
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          final compactPhone = _isCompactPhone(context);
-          final compactLandscape = _isCompactLandscapePhoneForConstraints(
-            context,
-            constraints,
-          );
-          final resultHeight = compactLandscape
-              ? math.max(132.0, constraints.maxHeight - 116.0)
-              : _compactResultHeight(constraints, minHeight: 140);
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                _ui('Detección de acordes', 'Chord detection'),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: <Widget>[
-                  _helpAnchor(
-                    'detection_play_button',
-                    _holdPlayButton(
-                      enabled: hasNotes,
-                      active: _detectionPlayPressed,
-                      label: null,
-                      onDown: () async {
-                        final notes = _activeDetectionNotes.toList()..sort();
-                        if (notes.isEmpty) return;
-                        setState(() {
-                          _detectionPlayPressed = true;
-                          _detectionPlayHeldNotes
-                            ..clear()
-                            ..addAll(notes);
-                        });
-                        await _startHeldChord(notes, instrument: 'piano');
-                      },
-                      onUp: () {
-                        _stopHeldChord();
-                        if (mounted) {
-                          setState(() {
-                            _detectionPlayPressed = false;
-                            _detectionPlayHeldNotes.clear();
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  _buildChordVariantTheoryButton(
-                    helpId: 'detection_variant_theory',
-                    suffix: detectedSuffix is String ? detectedSuffix : '',
-                    inversion: detectedInversion,
-                    enabled: hasDetectedChord,
-                  ),
-                  _helpAnchor(
-                    'detection_clear_button',
-                    OutlinedButton.icon(
-                      onPressed: !hasNotes
-                          ? null
-                          : () {
-                              setState(() => _detectionSelectedNotes.clear());
-                              _detectionMidiHeldNotes.clear();
-                              _stopHeldMidiInputs();
-                              if (!_requestInFlight) {
-                                unawaited(_callDetect());
-                              }
-                            },
-                      icon: const Icon(Icons.clear_all),
-                      label: Text(_ui('Limpiar', 'Clear')),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (compactPhone)
-                SizedBox(
-                  height: resultHeight,
-                  child: _buildDetectionResultBlock(),
-                )
-              else
-                Expanded(child: _buildDetectionResultBlock()),
-            ],
-          );
-          if (!compactLandscape) {
-            return content;
-          }
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: content,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildChordGenerationPage() {
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          final compactPhone = _isCompactPhone(context);
-          final compactLandscape = _isCompactLandscapePhoneForConstraints(
-            context,
-            constraints,
-          );
-          final resultHeight = compactLandscape
-              ? math.max(84.0, constraints.maxHeight - 156.0)
-              : _compactResultHeight(constraints);
-          final compactGenerationLayout =
-              compactPhone && constraints.maxWidth < 700;
-          final content = Column(
-            children: <Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _ui('Generación de acordes', 'Chord generation'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (compactGenerationLayout)
-                Column(
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        _helpAnchor(
-                          'generation_play_button',
-                          _holdPlayButton(
-                            enabled:
-                                _generatedChordJson != null &&
-                                _extractMidiList(_generatedChordJson!, <String>[
-                                  'notes_midi',
-                                ]).isNotEmpty,
-                            active: _generationPlayPressed,
-                            label: null,
-                            onDown: () async {
-                              final notes = <int>[
-                                if (_generatedChordJson != null)
-                                  ...(_instrumentView == 'guitar'
-                                      ? _selectedChordGuitarNotes()
-                                      : _extractMidiList(
-                                          _generatedChordJson!,
-                                          <String>['notes_midi'],
-                                        )),
-                              ]..sort();
-                              if (notes.isEmpty) return;
-                              setState(() => _generationPlayPressed = true);
-                              await _startHeldChord(
-                                notes,
-                                instrument: _instrumentView == 'guitar'
-                                    ? 'guitar'
-                                    : 'piano',
-                              );
-                            },
-                            onUp: () {
-                              _stopHeldChord();
-                              if (mounted) {
-                                setState(() => _generationPlayPressed = false);
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildChordVariantTheoryButton(),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _helpAnchor(
-                            'generation_tonic',
-                            _buildTonicLetterAccidentalDropdowns(
-                              rootPc: _chordRootPc,
-                              savedLetterPc: _chordRootLetterPc,
-                              savedAccidental: _chordRootAccidental,
-                              onPc: (pc, letterPc, accidental) {
-                                setState(() {
-                                  _chordRootPc = pc;
-                                  _chordRootLetterPc = letterPc;
-                                  _chordRootAccidental = accidental;
-                                });
-                                if (!_requestInFlight) {
-                                  unawaited(_callGenerateChord());
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          flex: 2,
-                          child: _helpAnchor(
-                            'generation_variant',
-                            DropdownButtonFormField<String>(
-                              key: ValueKey<String>('suffix_$_chordSuffix'),
-                              initialValue: _chordSuffix,
-                              dropdownColor: _surfaceDark,
-                              style: const TextStyle(color: _text),
-                              decoration: InputDecoration(
-                                labelText: _ui('Variante', 'Variant'),
-                              ),
-                              items: buildChordVariantDropdownItems(
-                                catalog: _chordTheoryCatalog,
-                                patterns: _chordPatterns,
-                                language: _language,
-                              ),
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _chordSuffix = value;
-                                  _recomputeMaxInversion();
-                                });
-                                if (!_requestInFlight) {
-                                  unawaited(_callGenerateChord());
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _helpAnchor(
-                            'generation_inversion',
-                            DropdownButtonFormField<int>(
-                              key: ValueKey<String>(
-                                'inv_$_chordInversion/$_chordMaxInversion',
-                              ),
-                              initialValue: _chordInversion.clamp(
-                                0,
-                                _chordMaxInversion,
-                              ),
-                              isExpanded: true,
-                              dropdownColor: _surfaceDark,
-                              style: const TextStyle(color: _text),
-                              decoration: InputDecoration(
-                                labelText: _ui('Inversión', 'Inversion'),
-                              ),
-                              items: List<DropdownMenuItem<int>>.generate(
-                                _chordMaxInversion + 1,
-                                (i) => DropdownMenuItem<int>(
-                                  value: i,
-                                  child: Text(_inversionLabel(i)),
-                                ),
-                              ),
-                              selectedItemBuilder: (context) =>
-                                  List<Widget>.generate(
-                                    _chordMaxInversion + 1,
-                                    (i) => Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        _inversionLabel(i, compact: true),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ),
-                                  ),
-                              onChanged: _instrumentView == 'guitar'
-                                  ? null
-                                  : (value) {
-                                      if (value == null) return;
-                                      setState(() => _chordInversion = value);
-                                      if (!_requestInFlight) {
-                                        unawaited(_callGenerateChord());
-                                      }
-                                    },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              else
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _helpAnchor(
-                        'generation_tonic',
-                        _buildTonicLetterAccidentalDropdowns(
-                          rootPc: _chordRootPc,
-                          savedLetterPc: _chordRootLetterPc,
-                          savedAccidental: _chordRootAccidental,
-                          onPc: (pc, letterPc, accidental) {
-                            setState(() {
-                              _chordRootPc = pc;
-                              _chordRootLetterPc = letterPc;
-                              _chordRootAccidental = accidental;
-                            });
-                            if (!_requestInFlight) {
-                              unawaited(_callGenerateChord());
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: _helpAnchor(
-                        'generation_variant',
-                        DropdownButtonFormField<String>(
-                          key: ValueKey<String>('suffix_$_chordSuffix'),
-                          initialValue: _chordSuffix,
-                          dropdownColor: _surfaceDark,
-                          style: const TextStyle(color: _text),
-                          decoration: InputDecoration(
-                            labelText: _ui('Variante', 'Variant'),
-                          ),
-                          items: buildChordVariantDropdownItems(
-                            catalog: _chordTheoryCatalog,
-                            patterns: _chordPatterns,
-                            language: _language,
-                          ),
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setState(() {
-                              _chordSuffix = value;
-                              _recomputeMaxInversion();
-                            });
-                            if (!_requestInFlight) {
-                              unawaited(_callGenerateChord());
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 12),
-              if (!compactGenerationLayout) ...<Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _helpAnchor(
-                        'generation_inversion',
-                        DropdownButtonFormField<int>(
-                          key: ValueKey<String>(
-                            'inv_$_chordInversion/$_chordMaxInversion',
-                          ),
-                          initialValue: _chordInversion.clamp(
-                            0,
-                            _chordMaxInversion,
-                          ),
-                          isExpanded: true,
-                          dropdownColor: _surfaceDark,
-                          style: const TextStyle(color: _text),
-                          decoration: InputDecoration(
-                            labelText: _ui('Inversión', 'Inversion'),
-                          ),
-                          items: List<DropdownMenuItem<int>>.generate(
-                            _chordMaxInversion + 1,
-                            (i) => DropdownMenuItem<int>(
-                              value: i,
-                              child: Text(_inversionLabel(i)),
-                            ),
-                          ),
-                          selectedItemBuilder: (context) =>
-                              List<Widget>.generate(
-                                _chordMaxInversion + 1,
-                                (i) => Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    _inversionLabel(i, compact: true),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ),
-                          onChanged: _instrumentView == 'guitar'
-                              ? null
-                              : (value) {
-                                  if (value == null) return;
-                                  setState(() => _chordInversion = value);
-                                  if (!_requestInFlight) {
-                                    unawaited(_callGenerateChord());
-                                  }
-                                },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _helpAnchor(
-                        'generation_play_button',
-                        _holdPlayButton(
-                          enabled:
-                              _generatedChordJson != null &&
-                              _extractMidiList(_generatedChordJson!, <String>[
-                                'notes_midi',
-                              ]).isNotEmpty,
-                          active: _generationPlayPressed,
-                          label: null,
-                          onDown: () async {
-                            final notes = <int>[
-                              if (_generatedChordJson != null)
-                                ...(_instrumentView == 'guitar'
-                                    ? _selectedChordGuitarNotes()
-                                    : _extractMidiList(
-                                        _generatedChordJson!,
-                                        <String>['notes_midi'],
-                                      )),
-                            ]..sort();
-                            if (notes.isEmpty) return;
-                            setState(() => _generationPlayPressed = true);
-                            await _startHeldChord(
-                              notes,
-                              instrument: _instrumentView == 'guitar'
-                                  ? 'guitar'
-                                  : 'piano',
-                            );
-                          },
-                          onUp: () {
-                            _stopHeldChord();
-                            if (mounted) {
-                              setState(() => _generationPlayPressed = false);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildChordVariantTheoryButton(),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              if (compactPhone)
-                SizedBox(height: resultHeight, child: _buildChordResultBlock())
-              else
-                Expanded(child: _buildChordResultBlock()),
-            ],
-          );
-          if (!compactLandscape) {
-            return content;
-          }
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: content,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCircleOfFifthsPage() {
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          final compactPhone = _isCompactPhone(context);
-          final circleBox = math.min(
-            520.0,
-            math.max(
-              200.0,
-              math.min(constraints.maxWidth, constraints.maxHeight),
-            ),
-          );
-          final media = MediaQuery.of(context);
-          final dpr = media.devicePixelRatio;
-          final circleStack = Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: LayoutBuilder(
-                  builder: (context, c) {
-                    final sz = Size(c.maxWidth, c.maxHeight);
-                    Offset? downLocal;
-                    return GestureDetector(
-                      onTapDown: (TapDownDetails d) =>
-                          downLocal = d.localPosition,
-                      onTap: () {
-                        if (downLocal != null) {
-                          _onCircleCanvasInteraction(
-                            downLocal!,
-                            sz,
-                            longPress: false,
-                          );
-                        }
-                      },
-                      onLongPress: () {
-                        if (downLocal != null) {
-                          _onCircleCanvasInteraction(
-                            downLocal!,
-                            sz,
-                            longPress: true,
-                          );
-                        }
-                      },
-                      child: CustomPaint(
-                        painter: CircleOfFifthsPainter(
-                          devicePixelRatio: dpr,
-                          circleTonicPc: _circleTonicPc,
-                          circleKeyMode: _circleKeyMode,
-                          circleChordRootPc: _circleChordRootPc,
-                          generatedChord: _generatedChordJson,
-                          noteNameFromPc: _pcLabel,
-                        ),
-                        child: const SizedBox.expand(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                top: 4,
-                left: 4,
-                child: _helpAnchor(
-                  'circle_play',
-                  _holdPlayButton(
-                    enabled:
-                        _generatedChordJson != null &&
-                        _extractMidiList(_generatedChordJson!, <String>[
-                          'notes_midi',
-                        ]).isNotEmpty,
-                    active: _generationPlayPressed,
-                    label: null,
-                    onDown: () async {
-                      final notes = <int>[
-                        if (_generatedChordJson != null)
-                          ...(_instrumentView == 'guitar'
-                              ? _selectedChordGuitarNotes()
-                              : _extractMidiList(_generatedChordJson!, <String>[
-                                  'notes_midi',
-                                ])),
-                      ]..sort();
-                      if (notes.isEmpty) return;
-                      setState(() => _generationPlayPressed = true);
-                      await _startHeldChord(
-                        notes,
-                        instrument: _instrumentView == 'guitar'
-                            ? 'guitar'
-                            : 'piano',
-                      );
-                    },
-                    onUp: () {
-                      _stopHeldChord();
-                      if (mounted) {
-                        setState(() => _generationPlayPressed = false);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          );
-          final content = Center(
-            child: _helpAnchor(
-              'circle_canvas',
-              SizedBox(width: circleBox, height: circleBox, child: circleStack),
-            ),
-          );
-          if (compactPhone) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: content,
-            );
-          }
-          return SizedBox(height: constraints.maxHeight, child: content);
-        },
-      ),
-    );
-  }
-
-  Widget _buildScaleGenerationPage() {
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 760;
-          final metroLabelWidth = compact ? 96.0 : 110.0;
-          final resultHeight = _scaleMetronomeOnly
-              ? math.max(80.0, constraints.maxHeight - 310.0)
-              : math.max(80.0, constraints.maxHeight - 270.0);
-          final filteredPatterns = _getFilteredScalePatterns();
-          // Ensure current pattern is valid for current filter
-          final currentPatternValid = filteredPatterns.any(
-            (p) => (p['name'] as String?) == _scalePatternName,
-          );
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: _scaleControlsScrollController,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const SizedBox(height: 8),
-                        // Row 1: Tonic selector
-                        _helpAnchor(
-                          'scales_tonic',
-                          _buildTonicLetterAccidentalDropdowns(
-                            rootPc: _scaleTonicPc,
-                            savedLetterPc: _scaleTonicLetterPc,
-                            savedAccidental: _scaleTonicAccidental,
-                            onPc: (pc, letterPc, accidental) {
-                              setState(() {
-                                _scaleTonicPc = pc;
-                                _scaleTonicLetterPc = letterPc;
-                                _scaleTonicAccidental = accidental;
-                              });
-                              if (!_requestInFlight) {
-                                unawaited(_callGenerateScale());
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Row 2: Scale type + Básicas/Todas toggle
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: _helpAnchor(
-                                'scales_pattern',
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey<String>(
-                                    'scale_${_scalePatternName}_${_scaleFilterMode}',
-                                  ),
-                                  initialValue: currentPatternValid
-                                      ? _scalePatternName
-                                      : (filteredPatterns.isNotEmpty
-                                            ? (filteredPatterns.first['name']
-                                                      as String? ??
-                                                  'Ionian')
-                                            : 'Ionian'),
-                                  isExpanded: true,
-                                  dropdownColor: _surfaceDark,
-                                  style: const TextStyle(color: _text),
-                                  decoration: InputDecoration(
-                                    labelText: _ui('Tipo', 'Type'),
-                                  ),
-                                  items: filteredPatterns
-                                      .map(
-                                        (p) => DropdownMenuItem<String>(
-                                          value:
-                                              (p['name'] as String? ??
-                                              'Ionian'),
-                                          child: Text(
-                                            (p['localized_name'] as String? ??
-                                                p['name'] as String? ??
-                                                'Ionian'),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  selectedItemBuilder: (context) =>
-                                      filteredPatterns
-                                          .map(
-                                            (p) => Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                (p['localized_name']
-                                                        as String? ??
-                                                    p['name'] as String? ??
-                                                    'Ionian'),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setState(() => _scalePatternName = value);
-                                    if (!_requestInFlight)
-                                      unawaited(_callGenerateScale());
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _helpAnchor(
-                              'scales_filter',
-                              OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: _scaleFilterMode == 'basic'
-                                      ? _accent
-                                      : _surfaceDark,
-                                  foregroundColor: _scaleFilterMode == 'basic'
-                                      ? const Color(0xFF1A222D)
-                                      : _text,
-                                  side: BorderSide(
-                                    color: _scaleFilterMode == 'basic'
-                                        ? _accent
-                                        : _border,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _scaleFilterMode =
-                                        _scaleFilterMode == 'basic'
-                                        ? 'all'
-                                        : 'basic';
-                                  });
-                                },
-                                child: Text(
-                                  _scaleFilterMode == 'basic'
-                                      ? _ui('Básicas', 'Basic')
-                                      : _ui('Todas', 'All'),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // Row 3: Play + Metro buttons (left) + Octaves selector (right)
-                        Row(
-                          children: <Widget>[
-                            _helpAnchor(
-                              'scales_play_button',
-                              OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: _scaleLoopRunning
-                                      ? _accent
-                                      : _surfaceDark,
-                                  foregroundColor: _scaleLoopRunning
-                                      ? const Color(0xFF1A222D)
-                                      : _text,
-                                  side: BorderSide(
-                                    color: _scaleLoopRunning
-                                        ? _accent
-                                        : _border,
-                                  ),
-                                  padding: const EdgeInsets.all(10),
-                                  minimumSize: const Size(40, 40),
-                                ),
-                                onPressed: _toggleScaleLoop,
-                                child: Icon(
-                                  _scaleLoopRunning
-                                      ? Icons.stop
-                                      : Icons.play_arrow,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            _helpAnchor(
-                              'scales_metronome_only',
-                              OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: _scaleMetronomeOnly
-                                      ? _accent
-                                      : _surfaceDark,
-                                  foregroundColor: _scaleMetronomeOnly
-                                      ? const Color(0xFF1A222D)
-                                      : _text,
-                                  side: BorderSide(
-                                    color: _scaleMetronomeOnly
-                                        ? _accent
-                                        : _border,
-                                  ),
-                                  padding: const EdgeInsets.all(10),
-                                  minimumSize: const Size(40, 40),
-                                ),
-                                onPressed: () => setState(
-                                  () => _scaleMetronomeOnly =
-                                      !_scaleMetronomeOnly,
-                                ),
-                                child: const Text(
-                                  '⏱',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            // Octaves: 1 / 2 / 3 — only for piano
-                            if (_instrumentView != 'guitar')
-                              _helpAnchor(
-                                'scales_octaves',
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Text(
-                                      _ui('Octavas:', 'Octaves:'),
-                                      style: const TextStyle(
-                                        color: _muted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    ...List<Widget>.generate(3, (i) {
-                                      final oct = i + 1;
-                                      final active = _scaleOctaves == oct;
-                                      return Padding(
-                                        padding: const EdgeInsets.only(left: 4),
-                                        child: SizedBox(
-                                          width: 32,
-                                          height: 32,
-                                          child: OutlinedButton(
-                                            style: OutlinedButton.styleFrom(
-                                              backgroundColor: active
-                                                  ? _accent
-                                                  : _surfaceDark,
-                                              foregroundColor: active
-                                                  ? const Color(0xFF1A222D)
-                                                  : _text,
-                                              side: BorderSide(
-                                                color: active
-                                                    ? _accent
-                                                    : _border,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                            ),
-                                            onPressed: () {
-                                              if (_scaleOctaves == oct) return;
-                                              setState(() {
-                                                _scaleOctaves = oct;
-                                                _updateScaleFingeringsMap();
-                                                _needsPianoScrollSync = true;
-                                              });
-                                              _savePrefs();
-                                              if (_scaleLoopRunning) {
-                                                _stopScaleLoop();
-                                                unawaited(
-                                                  Future<void>.delayed(
-                                                    const Duration(
-                                                      milliseconds: 50,
-                                                    ),
-                                                    _toggleScaleLoop,
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            child: Text(
-                                              '$oct',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (_scaleMetronomeOnly) ...<Widget>[
-                          const SizedBox(height: 8),
-                          _helpAnchor(
-                            'scales_volume',
-                            Row(
-                              children: <Widget>[
-                                SizedBox(
-                                  width: metroLabelWidth,
-                                  child: Text(
-                                    _ui('Volumen', 'Volume'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: _muted),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Slider(
-                                    min: 0,
-                                    max: 100,
-                                    divisions: 100,
-                                    value: _metroVolume.toDouble(),
-                                    onChanged: (value) => setState(
-                                      () => _metroVolume = value.round(),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: compact ? 72 : 80,
-                                  child: Text(
-                                    '$_metroVolume%',
-                                    textAlign: TextAlign.right,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 2),
-                        _helpAnchor(
-                          'scales_bpm',
-                          Row(
-                            children: <Widget>[
-                              SizedBox(
-                                width: metroLabelWidth,
-                                child: const Text(
-                                  'BPM',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Expanded(
-                                child: Slider(
-                                  min: 1,
-                                  max: 300,
-                                  divisions: 299,
-                                  value: _scaleBpm.toDouble(),
-                                  onChanged: (value) =>
-                                      setState(() => _scaleBpm = value.round()),
-                                ),
-                              ),
-                              SizedBox(
-                                width: compact ? 92 : 100,
-                                child: Text(
-                                  '$_scaleBpm BPM',
-                                  textAlign: TextAlign.right,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: resultHeight),
-                          child: _buildScaleResultBlock(),
-                        ),
-                        if (_instrumentView != 'guitar') ...<Widget>[
-                          const SizedBox(height: 10),
-                          _helpAnchor(
-                            'scales_fingering',
-                            _buildScaleFingeringRow(),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 8,
-                child: RawScrollbar(
-                  controller: _scaleControlsScrollController,
-                  thumbVisibility: true,
-                  thickness: 5,
-                  radius: const Radius.circular(3),
-                  thumbColor: const Color(0xFF6B7A99),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildScaleFingeringRow() {
-    const options = <(String, String, String)>[
-      ('none', 'Sin digitación', 'No fingering'),
-      ('left', 'Mano izquierda', 'Left hand'),
-      ('right', 'Mano derecha', 'Right hand'),
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: _surfaceDark,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: <Widget>[
-          Text(
-            _ui('Digitación:', 'Fingering:'),
-            style: const TextStyle(color: _muted, fontSize: 12),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: options.map(((String, String, String) opt) {
-                final value = opt.$1;
-                final label = _language == 'en' ? opt.$3 : opt.$2;
-                final active = (_scaleFingeringHand ?? 'none') == value;
-                return GestureDetector(
-                  onTap: () {
-                    final hand = value == 'none' ? null : value;
-                    setState(() {
-                      _scaleFingeringHand = hand;
-                      _updateScaleFingeringsMap();
-                      // Activar/desactivar las tiras cambia la altura
-                      // disponible del piano y por tanto el ancho de tecla;
-                      // hay que recentrar el scroll para que las tiras y
-                      // las teclas queden alineadas de nuevo.
-                      _needsPianoScrollSync = true;
-                    });
-                    _savePrefs();
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: active ? _accent : Colors.transparent,
-                            border: Border.all(
-                              color: active ? _accent : _muted,
-                              width: active ? 2 : 1.5,
-                            ),
-                          ),
-                          child: active
-                              ? const Center(
-                                  child: SizedBox(
-                                    width: 8,
-                                    height: 8,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFF1A222D),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(label, style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIntervalDetectionPage() {
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    _ui('Detección de Intervalos', 'Interval Detection'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _surfaceDark,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _border, width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // Notes display
-                        _helpAnchor(
-                          'interval_notes_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Notas', 'Notes'),
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.isEmpty
-                                    ? '-'
-                                    : (List<int>.from(_intervalNotes)..sort())
-                                          .map(_midiNoteWithOctave)
-                                          .join(' – '),
-                                style: const TextStyle(
-                                  color: _accent,
-                                  fontSize: 14,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Interval name
-                        _helpAnchor(
-                          'interval_name_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Intervalo', 'Interval'),
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.length >= 2
-                                    ? _getIntervalName()
-                                    : '-',
-                                style: const TextStyle(
-                                  color: _accent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Semitones
-                        _helpAnchor(
-                          'interval_semitones_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Semitonos', 'Semitones'),
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.length >= 2
-                                    ? (_getIntervalSemitones()?.toString() ??
-                                          '-')
-                                    : '-',
-                                style: const TextStyle(
-                                  color: _accent,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Melody name — tappable toggle
-                        _helpAnchor(
-                          'interval_melody_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Ejemplo', 'Example'),
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _intervalNotes.length >= 2
-                                    ? _toggleIntervalMelodyMode
-                                    : null,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _intervalMelodyMode
-                                        ? const Color(0x26F3BF2F)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: _intervalMelodyMode
-                                          ? _accent
-                                          : _border,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _intervalNotes.length >= 2
-                                        ? _getIntervalMelodyName()
-                                        : '-',
-                                    style: TextStyle(
-                                      color: _intervalMelodyMode
-                                          ? _accent
-                                          : const Color(0xFFE9EDF2),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Buttons
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: <Widget>[
-                      _helpAnchor(
-                        'interval_play_btn',
-                        ElevatedButton.icon(
-                          onPressed: _intervalNotes.length >= 2
-                              ? () => _playIntervalMelody()
-                              : null,
-                          icon: const Icon(Icons.play_arrow),
-                          label: Text(_ui('Reproducir', 'Play')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _accent,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: _panelA,
-                          ),
-                        ),
-                      ),
-                      _helpAnchor(
-                        'interval_play_reverse_btn',
-                        ElevatedButton.icon(
-                          onPressed:
-                              _intervalNotes.length >= 2 && !_intervalMelodyMode
-                              ? () => _playIntervalMelody(reversed: true)
-                              : null,
-                          icon: const Icon(Icons.play_arrow),
-                          label: Text(_ui('Desc.', 'Rev.')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _accent,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: _panelA,
-                          ),
-                        ),
-                      ),
-                      _helpAnchor(
-                        'interval_clear_btn',
-                        OutlinedButton(
-                          onPressed: _intervalNotes.isEmpty
-                              ? null
-                              : _clearIntervalNotes,
-                          child: Text(_ui('Limpiar', 'Clear')),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _ui(
-                      'Pulsa dos notas en el piano para detectar el intervalo',
-                      'Press two notes on the piano to detect the interval',
-                    ),
-                    style: const TextStyle(color: _muted, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  String _midiNoteWithOctave(int midiNote) {
-    final octave = (midiNote ~/ 12) - 1;
-    return '${_pcLabel(midiNote % 12)}$octave';
-  }
-
-  Widget _buildMetronomePage() {
-    return _buildModeScaffold(
-      controls: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 760;
-          final iphoneCompact = Platform.isIOS && _isCompactPhone(context);
-          final sliderWidth = math.max(
-            60.0,
-            compact ? constraints.maxWidth - 24 : constraints.maxWidth - 170,
-          );
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    _ui('Configuración de Metrónomo', 'Metronome settings'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  _helpAnchor(
-                    'metronome_volume',
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        SizedBox(
-                          width: compact ? constraints.maxWidth : 84,
-                          child: Text(
-                            _ui('Volumen', 'Volume'),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: _muted,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: sliderWidth,
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Slider(
-                                  min: 0,
-                                  max: 100,
-                                  divisions: 100,
-                                  value: _metroVolume.toDouble(),
-                                  onChanged: (value) {
-                                    setState(
-                                      () => _metroVolume = value.round(),
-                                    );
-                                  },
-                                ),
-                              ),
-                              SizedBox(
-                                width: 72,
-                                child: Text(
-                                  '$_metroVolume%',
-                                  textAlign: TextAlign.right,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _helpAnchor(
-                    'metronome_tempo',
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          _ui('Tempo (BPM)', 'Tempo (BPM)'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _muted,
-                          ),
-                        ),
-                        Row(
-                          children: <Widget>[
-                            IconButton(
-                              onPressed: () {
-                                setState(
-                                  () => _metroBpm = (_metroBpm - 1).clamp(
-                                    40,
-                                    220,
-                                  ),
-                                );
-                                if (_metroRunning) _startMetronome();
-                              },
-                              icon: const Icon(Icons.remove),
-                            ),
-                            Expanded(
-                              child: Slider(
-                                min: 40,
-                                max: 220,
-                                divisions: 180,
-                                value: _metroBpm.toDouble(),
-                                onChanged: (value) {
-                                  setState(() => _metroBpm = value.round());
-                                  if (_metroRunning) {
-                                    _startMetronome();
-                                  }
-                                },
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(
-                                  () => _metroBpm = (_metroBpm + 1).clamp(
-                                    40,
-                                    220,
-                                  ),
-                                );
-                                if (_metroRunning) _startMetronome();
-                              },
-                              icon: const Icon(Icons.add),
-                            ),
-                            SizedBox(
-                              width: 72,
-                              child: Text(
-                                '$_metroBpm',
-                                textAlign: TextAlign.right,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _helpAnchor(
-                    'metronome_beats',
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        Text(_ui('Pulsos por compás:', 'Beats per bar:')),
-                        if (!iphoneCompact)
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _metroBeatsPerBar = (_metroBeatsPerBar - 1)
-                                    .clamp(1, 16);
-                                _metroCurrentBeat = -1;
-                              });
-                              if (_metroRunning) _startMetronome();
-                            },
-                            icon: const Icon(Icons.remove),
-                          ),
-                        SizedBox(
-                          width: 72,
-                          child: DropdownButton<int>(
-                            isExpanded: true,
-                            value: _metroBeatsPerBar,
-                            items: List<DropdownMenuItem<int>>.generate(
-                              16,
-                              (i) => DropdownMenuItem<int>(
-                                value: i + 1,
-                                child: Text('${i + 1}'),
-                              ),
-                            ),
-                            onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-                              setState(() {
-                                _metroBeatsPerBar = value;
-                                _metroCurrentBeat = -1;
-                              });
-                              if (_metroRunning) {
-                                _startMetronome();
-                              }
-                            },
-                          ),
-                        ),
-                        if (!iphoneCompact)
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _metroBeatsPerBar = (_metroBeatsPerBar + 1)
-                                    .clamp(1, 16);
-                                _metroCurrentBeat = -1;
-                              });
-                              if (_metroRunning) _startMetronome();
-                            },
-                            icon: const Icon(Icons.add),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _helpAnchor(
-                    'metronome_subdivision',
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Text(_ui('Subdivisión:', 'Subdivision:')),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: <Widget>[
-                                ...<int>[1, 2, 3, 4, 6].map((n) {
-                                  final active = _metroClicksPerBeat == n;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: ChoiceChip(
-                                      selected: active,
-                                      label: _metronomeSubdivisionFigure(
-                                        n,
-                                        active: active,
-                                      ),
-                                      labelPadding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      onSelected: (_) {
-                                        setState(() => _metroClicksPerBeat = n);
-                                        if (_metroRunning) _startMetronome();
-                                      },
-                                    ),
-                                  );
-                                }),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _helpAnchor(
-                    'metronome_accent',
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Checkbox(
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          value: _metroBarAccent,
-                          onChanged: (value) {
-                            setState(() => _metroBarAccent = value ?? true);
-                          },
-                        ),
-                        Flexible(
-                          child: Text(_ui('Acento de compás', 'Bar accent')),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _helpAnchor(
-                    'metronome_timer',
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Checkbox(
-                              visualDensity: VisualDensity.compact,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              value: _metroTimerEnabled,
-                              onChanged: (value) {
-                                setState(
-                                  () => _metroTimerEnabled = value ?? false,
-                                );
-                              },
-                            ),
-                            Text(
-                              _isCompactPhone(context)
-                                  ? _ui('Timer', 'Timer')
-                                  : _ui('Temporizador', 'Timer'),
-                            ),
-                          ],
-                        ),
-                        SizedBox(
-                          width: 78,
-                          child: DropdownButton<int>(
-                            isExpanded: true,
-                            value: _metroTimerMinutes.clamp(0, 99),
-                            items: List<DropdownMenuItem<int>>.generate(
-                              100,
-                              (i) => DropdownMenuItem<int>(
-                                value: i,
-                                child: Text(i.toString().padLeft(2, '0')),
-                              ),
-                            ),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _metroTimerMinutes = value);
-                              }
-                            },
-                          ),
-                        ),
-                        const Text(':'),
-                        SizedBox(
-                          width: 78,
-                          child: DropdownButton<int>(
-                            isExpanded: true,
-                            value: _metroTimerSeconds.clamp(0, 59),
-                            items: List<DropdownMenuItem<int>>.generate(
-                              60,
-                              (i) => DropdownMenuItem<int>(
-                                value: i,
-                                child: Text(i.toString().padLeft(2, '0')),
-                              ),
-                            ),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _metroTimerSeconds = value);
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _metronomeSubdivisionFigure(int clicks, {required bool active}) {
-    final fg = active ? const Color(0xFF1A222D) : _text;
-    if (clicks == 3 || clicks == 6) {
-      final glyph = clicks == 3 ? '♪♪♪' : '♬♬';
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 2),
-            child: Text(
-              '$clicks',
-              style: TextStyle(
-                color: fg,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                height: 1.0,
-              ),
-            ),
-          ),
-          Text(
-            glyph,
-            style: TextStyle(
-              color: fg,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              height: 1.0,
-            ),
-          ),
-        ],
-      );
-    }
-    final glyph = switch (clicks) {
-      1 => '♩',
-      2 => '♪♪',
-      4 => '♬',
-      _ => '$clicks',
-    };
-    return Text(
-      glyph,
-      style: TextStyle(
-        color: fg,
-        fontSize: 17,
-        fontWeight: FontWeight.w700,
-        height: 1.0,
-      ),
-    );
-  }
-
-  Widget _buildTunerPage() {
-    final meter = (_tunerCents + 50) / 100.0;
-    return _buildModeScaffold(
-      showInstrument: false,
-      bottomPanel: _buildTunerSpectrumPanel(),
-      controls: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  _ui('Configuración de Afinador', 'Tuner settings'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_toggle',
-                  FilledButton.icon(
-                    onPressed: _toggleTuner,
-                    icon: Icon(_tunerRunning ? Icons.stop : Icons.play_arrow),
-                    label: Text(
-                      _tunerRunning
-                          ? _ui('Detener afinador', 'Stop tuner')
-                          : _ui('Iniciar afinador', 'Start tuner'),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_tuning_select',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Afinación', 'Tuning'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _muted,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey<String>('tuner_tuning_$_tunerTuning'),
-                          initialValue: _tunerTuning,
-                          dropdownColor: _surfaceDark,
-                          decoration: const InputDecoration(isDense: true),
-                          items: <DropdownMenuItem<String>>[
-                            DropdownMenuItem<String>(
-                              value: 'standard_e',
-                              child: Text(
-                                _language == 'en' ? 'Standard E' : 'E estándar',
-                              ),
-                            ),
-                            const DropdownMenuItem<String>(
-                              value: 'drop_d',
-                              child: Text('Drop D'),
-                            ),
-                            DropdownMenuItem<String>(
-                              value: 'half_step_down',
-                              child: Text(
-                                _language == 'en'
-                                    ? 'Half-step down'
-                                    : '1/2 tono abajo',
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _tunerTuning = value);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_gain',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Ganancia', 'Gain'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _muted,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(
-                          () => _tunerInputGain = (_tunerInputGain - 0.01)
-                              .clamp(0.0, 2.0),
-                        ),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          min: 0.0,
-                          max: 2.0,
-                          divisions: 200,
-                          value: _tunerInputGain,
-                          onChanged: (value) =>
-                              setState(() => _tunerInputGain = value),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(
-                          () => _tunerInputGain = (_tunerInputGain + 0.01)
-                              .clamp(0.0, 2.0),
-                        ),
-                        icon: const Icon(Icons.add),
-                      ),
-                      SizedBox(
-                        width: 54,
-                        child: Text('${(_tunerInputGain * 100).round()}%'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _helpAnchor(
-                  'tuner_range',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Rango Hz', 'Hz range'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _muted,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 74,
-                        child: DropdownButton<int>(
-                          value: _tunerRangeMin,
-                          dropdownColor: _surfaceDark,
-                          items: List<DropdownMenuItem<int>>.generate(
-                            300,
-                            (i) => DropdownMenuItem<int>(
-                              value: i * 10,
-                              child: Text('${i * 10}'),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _tunerRangeMin = value.clamp(0, 2990);
-                              if (_tunerRangeMax <= _tunerRangeMin) {
-                                _tunerRangeMax = (_tunerRangeMin + 10).clamp(
-                                  10,
-                                  3000,
-                                );
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('-'),
-                      ),
-                      SizedBox(
-                        width: 74,
-                        child: DropdownButton<int>(
-                          value: _tunerRangeMax,
-                          dropdownColor: _surfaceDark,
-                          items: List<DropdownMenuItem<int>>.generate(
-                            300,
-                            (i) => DropdownMenuItem<int>(
-                              value: (i + 1) * 10,
-                              child: Text('${(i + 1) * 10}'),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _tunerRangeMax = value.clamp(
-                                _tunerRangeMin + 1,
-                                3000,
-                              );
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text('Hz', style: TextStyle(color: _muted)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _helpAnchor(
-                  'tuner_readout',
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _surfaceDark,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _border),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text('Nota: $_tunerNote'),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Desviación: ${_tunerCents >= 0 ? '+' : ''}$_tunerCents cents',
-                        ),
-                        const SizedBox(height: 4),
-                        Text('Frecuencia: ${_tunerFreq.toStringAsFixed(1)} Hz'),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 20,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: const Color(0xFFCBD3DD),
-                  ),
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              final knobX = (constraints.maxWidth - 16) * meter;
-                              return Stack(
-                                children: <Widget>[
-                                  Positioned(
-                                    left: knobX,
-                                    top: 2,
-                                    child: Container(
-                                      width: 16,
-                                      height: 16,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_tunerError.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Error: $_tunerError',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTunerSpectrumPanel() {
-    return _panel(
-      child: SizedBox(
-        height: 220,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF0B1018),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF2F3743)),
-          ),
-          child: CustomPaint(
-            painter: _MiniTunerSpectrumPainter(
-              rangeMinHz: _tunerRangeMin.toDouble(),
-              rangeMaxHz: _tunerRangeMax.toDouble(),
-              currentFreq: _tunerFreq,
-              currentStringIdx: _tunerCurrentStringIdx,
-              tuningLabels: _tunerOpenLabelsForCurrentTuning(),
-              tuningFreqs: _tunerOpenFreqsForCurrentTuning(),
-              spectrumBins: _tunerSpectrumBins,
-            ),
-            child: const SizedBox.expand(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _panel({required Widget child}) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[_panelA, _panelB],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: child,
-    );
-  }
-
-  Widget _holdPlayButton({
-    required bool enabled,
-    required bool active,
-    required Future<void> Function() onDown,
-    required VoidCallback onUp,
-    String? label,
-  }) {
-    final hasLabel = (label != null && label.trim().isNotEmpty);
-    return Listener(
-      onPointerDown: (_) {
-        if (!enabled) return;
-        unawaited(onDown());
-      },
-      onPointerUp: (_) {
-        if (!enabled) return;
-        onUp();
-      },
-      onPointerCancel: (_) {
-        if (!enabled) return;
-        onUp();
-      },
-      child: hasLabel
-          ? FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: active ? _accent : _surfaceDark,
-                foregroundColor: active ? const Color(0xFF1A222D) : _text,
-              ),
-              onPressed: enabled ? () {} : null,
-              icon: const Icon(Icons.play_arrow),
-              label: Text(label),
-            )
-          : FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(46, 42),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                backgroundColor: active ? _accent : _surfaceDark,
-                foregroundColor: active ? const Color(0xFF1A222D) : _text,
-              ),
-              onPressed: enabled ? () {} : null,
-              child: const Icon(Icons.play_arrow),
-            ),
-    );
-  }
+  void _updateState(VoidCallback update) => setState(update);
 
   // General MIDI: 0 = Acoustic Grand Piano, 25 = Steel String Guitar. Sin un
   // Program Change el dispositivo receptor se queda con el timbre por
@@ -11876,38 +7144,23 @@ class _HomeScreenState extends State<HomeScreen>
   static const int _kMidiOutProgramPiano = 0;
   static const int _kMidiOutProgramGuitar = 25;
 
-  void _ensureMidiOutProgram(int program) {
-    if (_midiOutProgram == program) return;
-    try {
-      _midiCommand.sendData(Uint8List.fromList(<int>[0xC0, program & 0x7F]));
-      _midiOutProgram = program;
-    } catch (_) {}
-  }
-
   /// Send a MIDI note_on (0x90) message to all connected MIDI devices.
   /// Envía primero un Program Change si el instrumento visible ha cambiado
   /// (piano/guitarra), para que el dispositivo receptor use el timbre
   /// correcto en vez de quedarse con el que tuviera por defecto.
   void _sendMidiNoteOn(int midiNote, int velocity) {
-    _ensureMidiOutProgram(
-      _instrumentView == 'guitar'
+    _midiOutputController.noteOn(
+      note: midiNote,
+      velocity: velocity,
+      program: _instrumentView == 'guitar'
           ? _kMidiOutProgramGuitar
           : _kMidiOutProgramPiano,
     );
-    try {
-      _midiCommand.sendData(
-        Uint8List.fromList(<int>[0x90, midiNote & 0x7F, velocity & 0x7F]),
-      );
-    } catch (_) {}
   }
 
   /// Send a MIDI note_off (0x80) message to all connected MIDI devices.
   void _sendMidiNoteOff(int midiNote) {
-    try {
-      _midiCommand.sendData(
-        Uint8List.fromList(<int>[0x80, midiNote & 0x7F, 0]),
-      );
-    } catch (_) {}
+    _midiOutputController.noteOff(midiNote);
   }
 
   /// Play a note via audio or MIDI output based on _soundOutput setting.
@@ -11937,14 +7190,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
     // Default: audio playback (note will naturally decay based on duration parameter)
     // No explicit stop needed for synthesized tones with fixed duration
-  }
-
-  /// Set scale fingering hand preference (none, right, left)
-  void _setScaleFingeringHand(String? hand) {
-    setState(() {
-      _scaleFingeringHand = hand;
-      _updateScaleFingeringsMap();
-    });
   }
 
   /// Update fingerings map based on current scale and hand
@@ -12017,7 +7262,6 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _intervalNotes.clear();
       _intervalMelodyMode = false;
-      _intervalPlayingNote = null;
       _intervalPlayingIdx = null;
       _intervalMelodyPlaybackTimer?.cancel();
       _intervalMelodyPlaybackTimer = null;
@@ -12031,7 +7275,6 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _intervalMelodyMode = !_intervalMelodyMode;
       if (!_intervalMelodyMode) {
-        _intervalPlayingNote = null;
         _intervalPlayingIdx = null;
       }
     });
@@ -12070,7 +7313,6 @@ class _HomeScreenState extends State<HomeScreen>
       if (semitones == null) return;
       final melody = getIntervalMelody(semitones);
       if (melody == null) return;
-      setState(() => _intervalMelodyPlaying = true);
       _playMelodySequence(notes, melody, 0);
     } else {
       // Normal mode: play the two interval notes (reversible)
@@ -12084,7 +7326,6 @@ class _HomeScreenState extends State<HomeScreen>
         offsets: [0, 0],
         durations: ['q', 'q'],
       );
-      setState(() => _intervalMelodyPlaying = true);
       _playMelodySequence(ordered, dummyMelody, 0);
     }
   }
@@ -12092,8 +7333,6 @@ class _HomeScreenState extends State<HomeScreen>
   void _playMelodySequence(List<int?> notes, IntervalMelody melody, int index) {
     if (index >= notes.length) {
       setState(() {
-        _intervalMelodyPlaying = false;
-        _intervalPlayingNote = null;
         _intervalPlayingIdx = null;
       });
       return;
@@ -12103,7 +7342,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (note != null) {
       unawaited(playNote(note, instrument: _instrumentView));
       setState(() {
-        _intervalPlayingNote = note;
         _intervalPlayingIdx = index;
       });
     }
@@ -12118,1657 +7356,5 @@ class _HomeScreenState extends State<HomeScreen>
         _playMelodySequence(notes, melody, index + 1);
       },
     );
-  }
-}
-
-class _MiniStaffPainter extends CustomPainter {
-  _MiniStaffPainter({
-    required this.notes,
-    required this.extras,
-    this.detectionActiveNotes = const <int>{},
-    this.generationRhNotes = const <int>[],
-    this.generationLhNotes = const <int>[],
-    this.generationPlayingNotes = const <int>{},
-    this.generationGuitarMode = false,
-    this.scaleRhNotes = const <int>[],
-    this.scaleLhNotes = const <int>[],
-    this.scaleCurrentNote,
-    this.scaleCurrentIsLeft,
-    this.scaleGuitarMode = false,
-    this.keySignatureCount = 0,
-    this.keySignaturePreferFlats = false,
-    this.activeKeySignatureIndex = -1,
-    this.intervalMelodyMode = false,
-    this.intervalMelodyNotes = const <int?>[],
-    this.intervalMelodyDurations = const <String>[],
-    this.intervalPlayingIdx,
-    this.intervalBeatsPerBar = 4,
-    this.intervalAnacrusis = 0.0,
-  });
-
-  /// Orden F# C# G# D# A# E# B# — mismos MIDI que `app.js`.
-  static const List<double> _keySigTrebleSharpMidis = <double>[
-    78,
-    73,
-    80,
-    75,
-    70,
-    76,
-    71,
-  ];
-  static const List<double> _keySigBassSharpMidis = <double>[
-    54,
-    49,
-    56,
-    51,
-    46,
-    52,
-    47,
-  ];
-  static const List<double> _keySigTrebleFlatOffsets = <double>[
-    2,
-    0.5,
-    2.5,
-    1,
-    3,
-    1.5,
-    3.5,
-  ];
-  static const List<double> _keySigBassFlatOffsets = <double>[
-    3,
-    1.5,
-    3.5,
-    2,
-    4,
-    2.5,
-    4.5,
-  ];
-
-  final List<int> notes;
-  final Set<int> extras;
-  final Set<int> detectionActiveNotes;
-  final List<int> generationRhNotes;
-  final List<int> generationLhNotes;
-  final Set<int> generationPlayingNotes;
-  final bool generationGuitarMode;
-  final List<int> scaleRhNotes;
-  final List<int> scaleLhNotes;
-  final int? scaleCurrentNote;
-  final bool? scaleCurrentIsLeft;
-  final bool scaleGuitarMode;
-  final int keySignatureCount;
-  final bool keySignaturePreferFlats;
-  final int activeKeySignatureIndex;
-  final bool intervalMelodyMode;
-  final List<int?> intervalMelodyNotes;
-  final List<String> intervalMelodyDurations;
-  final int? intervalPlayingIdx;
-  final int intervalBeatsPerBar;
-  final double intervalAnacrusis;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFF0F1621);
-    canvas.drawRect(Offset.zero & size, bg);
-
-    final linePaint = Paint()
-      ..color = const Color(0xFFCAD3E0)
-      ..strokeWidth = 1.4;
-    final noteOutline = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-
-    final compactWidth = size.width < 520;
-    final left = compactWidth ? 28.0 : 52.0;
-    final right = size.width - 16;
-    final gap = math.max(10.0, math.min(16.0, size.height / 24));
-    final grandGap = math.max(64.0, gap * 6.2);
-    final systemH = grandGap + (4 * gap);
-    final trebleTop = (size.height - systemH) / 2;
-    final bassTop = trebleTop + grandGap;
-    final clefInset = compactWidth ? 6.0 : 12.0;
-    final clefBassInset = compactWidth ? 8.0 : 14.0;
-    var noteStartX = left + (compactWidth ? 72.0 : 110.0);
-    final scaleStepX = compactWidth ? 24.0 : 32.0;
-    final noteW = compactWidth ? 13.0 : 16.0;
-    final noteH = compactWidth ? 10.0 : 12.0;
-    final noteColumnStep = compactWidth ? noteW * 1.4 : noteW * 1.8;
-
-    for (int i = 0; i < 5; i += 1) {
-      final yT = trebleTop + i * gap;
-      final yB = bassTop + i * gap;
-      canvas.drawLine(Offset(left, yT), Offset(right, yT), linePaint);
-      canvas.drawLine(Offset(left, yB), Offset(right, yB), linePaint);
-    }
-    canvas.drawLine(
-      Offset(left, trebleTop),
-      Offset(left, bassTop + 4 * gap),
-      linePaint..strokeWidth = 1.6,
-    );
-
-    final clefStyle = TextStyle(
-      color: const Color(0xFFE9EDF2),
-      fontSize: gap * 3.5,
-      fontWeight: FontWeight.w700,
-    );
-    final tpTreble = TextPainter(
-      text: TextSpan(text: '𝄞', style: clefStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tpTreble.paint(canvas, Offset(left + clefInset, trebleTop + gap * 0.6));
-    final tpBass = TextPainter(
-      text: TextSpan(text: '𝄢', style: clefStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tpBass.paint(canvas, Offset(left + clefBassInset, bassTop + gap * 0.5));
-
-    if (keySignatureCount > 0) {
-      final sigStep = compactWidth ? 13.5 : 18.0;
-      final keyX0 = left + (compactWidth ? 54.0 : 82.0);
-      final accBase = math.max(15.0, gap * 1.55);
-      final accStyleSharp = TextStyle(
-        color: const Color(0xFFE9EDF2),
-        fontSize: accBase,
-      );
-      final accStyleFlat = accStyleSharp.copyWith(fontSize: accBase * 1.14);
-      var xKey = keyX0;
-      final n = keySignatureCount.clamp(0, 7);
-      for (int i = 0; i < n; i += 1) {
-        final sym = keySignaturePreferFlats ? '♭' : '♯';
-        final double yTreble;
-        final double yBass;
-        if (keySignaturePreferFlats) {
-          yTreble = trebleTop + gap * _keySigTrebleFlatOffsets[i];
-          yBass = bassTop + gap * _keySigBassFlatOffsets[i];
-        } else {
-          yTreble = _midiToTrebleY(_keySigTrebleSharpMidis[i], trebleTop, gap);
-          yBass = _midiToBassY(_keySigBassSharpMidis[i], bassTop, gap);
-        }
-        final active = i == activeKeySignatureIndex;
-        final baseStyle = keySignaturePreferFlats
-            ? accStyleFlat
-            : accStyleSharp;
-        final accStyle = active
-            ? baseStyle.copyWith(
-                color: const Color(0xFF6FE0FF),
-                fontWeight: FontWeight.bold,
-                shadows: const <Shadow>[
-                  Shadow(color: Color(0x996FE0FF), blurRadius: 7),
-                ],
-              )
-            : baseStyle;
-        final tpAcc = TextPainter(
-          text: TextSpan(text: sym, style: accStyle),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final ox = xKey + sigStep / 2 - tpAcc.width / 2;
-        final oyOff = tpAcc.height / 2;
-        tpAcc.paint(canvas, Offset(ox, yTreble - oyOff));
-        tpAcc.paint(canvas, Offset(ox, yBass - oyOff));
-        xKey += sigStep;
-      }
-      noteStartX = xKey + (compactWidth ? 8.0 : 12.0);
-    }
-
-    if (intervalMelodyMode && intervalMelodyNotes.isNotEmpty) {
-      _drawIntervalMelody(
-        canvas,
-        trebleTop,
-        bassTop,
-        gap,
-        noteStartX,
-        right,
-        noteW,
-        noteH,
-        keySignatureCount,
-        keySignaturePreferFlats,
-      );
-    } else if (scaleRhNotes.isNotEmpty) {
-      final noteFill = Paint()..style = PaintingStyle.fill;
-      final pairCount = math.min(scaleRhNotes.length, scaleLhNotes.length);
-      for (int degree = 0; degree < scaleRhNotes.length; degree += 1) {
-        final x = noteStartX + (degree * scaleStepX);
-        if (degree < pairCount) {
-          final bassMidi = scaleLhNotes[degree];
-          final yBass = _midiToBassY(bassMidi.toDouble(), bassTop, gap);
-          final currentBass =
-              scaleCurrentNote != null &&
-              scaleCurrentNote == bassMidi &&
-              (scaleCurrentIsLeft != false);
-          noteOutline.color = currentBass
-              ? const Color(0xFFFF8A2B)
-              : const Color(0xFFE9EDF2);
-          _drawLedgerLines(
-            canvas,
-            x: x,
-            midi: bassMidi.toDouble(),
-            top: bassTop,
-            gap: gap,
-            treble: false,
-            color: noteOutline.color,
-          );
-          final bassRect = Rect.fromCenter(
-            center: Offset(x, yBass),
-            width: noteW,
-            height: noteH,
-          );
-          if (currentBass) {
-            noteFill.color = const Color(0xFFFF8A2B);
-            canvas.drawOval(bassRect, noteFill);
-          }
-          canvas.drawOval(bassRect, noteOutline);
-        }
-        final trebleMidi = scaleRhNotes[degree];
-        final yTreble = _midiToTrebleY(trebleMidi.toDouble(), trebleTop, gap);
-        final currentTreble =
-            scaleCurrentNote != null &&
-            scaleCurrentNote == trebleMidi &&
-            (scaleCurrentIsLeft != true);
-        noteOutline.color = currentTreble
-            ? const Color(0xFF4DA3EA)
-            : const Color(0xFFE9EDF2);
-        _drawLedgerLines(
-          canvas,
-          x: x,
-          midi: trebleMidi.toDouble(),
-          top: trebleTop,
-          gap: gap,
-          treble: true,
-          color: noteOutline.color,
-        );
-        if (currentTreble) {
-          noteFill.color = const Color(0xFF4DA3EA);
-          canvas.drawOval(
-            Rect.fromCenter(
-              center: Offset(x, yTreble),
-              width: noteW,
-              height: noteH,
-            ),
-            noteFill,
-          );
-        }
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(x, yTreble),
-            width: noteW,
-            height: noteH,
-          ),
-          noteOutline,
-        );
-      }
-    } else {
-      final list = notes.toList()..sort();
-      final placedTrebleCols = <int, List<double>>{};
-      final placedBassCols = <int, List<double>>{};
-      final rhSet = generationRhNotes.toSet();
-      final lhSet = generationLhNotes.toSet();
-      final overlapThreshold = math.max(1.0, noteH - 1.0);
-      for (int i = 0; i < list.length; i += 1) {
-        final midi = list[i];
-        final y = midi >= 60
-            ? _midiToTrebleY(
-                midi.toDouble(),
-                trebleTop,
-                gap,
-                keySignaturePreferFlats,
-              )
-            : _midiToBassY(
-                midi.toDouble(),
-                bassTop,
-                gap,
-                keySignaturePreferFlats,
-              );
-        final placedCols = midi >= 60 ? placedTrebleCols : placedBassCols;
-        var col = 0;
-        while (true) {
-          final ys = placedCols[col] ?? const <double>[];
-          final overlaps = ys.any(
-            (prevY) => (y - prevY).abs() < overlapThreshold,
-          );
-          if (!overlaps) break;
-          col += 1;
-        }
-        final x = noteStartX + (col * noteColumnStep);
-        final ys = List<double>.from(placedCols[col] ?? const <double>[])
-          ..add(y);
-        placedCols[col] = ys;
-        Color? fillColor;
-        noteOutline.strokeWidth = 1.8;
-        if (detectionActiveNotes.contains(midi)) {
-          fillColor = const Color(0xFF4DA3EA);
-          noteOutline.color = const Color(0xFFE9EDF2);
-        } else if (generationPlayingNotes.contains(midi)) {
-          noteOutline.strokeWidth = 2.45;
-          if (!generationGuitarMode &&
-              lhSet.contains(midi) &&
-              !rhSet.contains(midi)) {
-            fillColor = const Color(0xFFFFA040);
-            noteOutline.color = const Color(0xFFFFE0C2);
-          } else {
-            fillColor = const Color(0xFF5ECEFF);
-            noteOutline.color = const Color(0xFFE9EDF2);
-          }
-        } else if (rhSet.contains(midi) || lhSet.contains(midi)) {
-          // Mismo criterio que piano: contorno del acorde sin relleno en reposo.
-          // En guitarra, si además rellenábamos todas las notas en rhSet, al
-          // alinear rhSet con el pentagrama quedaban todas “marcadas”.
-          fillColor = null;
-          noteOutline.strokeWidth = 2.05;
-          if (lhSet.contains(midi) && !rhSet.contains(midi)) {
-            noteOutline.color = const Color(0xFFFF8A2B);
-          } else {
-            noteOutline.color = const Color(0xFF6FE0FF);
-          }
-        } else if (extras.contains(midi)) {
-          fillColor = const Color(0xFFBF2F2F);
-          noteOutline.color = const Color(0xFFF48F8F);
-        } else {
-          fillColor = null;
-          noteOutline.color = const Color(0xFFE9EDF2);
-        }
-        final oval = Rect.fromCenter(
-          center: Offset(x, y),
-          width: noteW,
-          height: noteH,
-        );
-        _drawLedgerLines(
-          canvas,
-          x: x,
-          midi: midi.toDouble(),
-          top: midi >= 60 ? trebleTop : bassTop,
-          gap: gap,
-          treble: midi >= 60,
-          color: noteOutline.color,
-        );
-        if (fillColor != null) {
-          canvas.drawOval(oval, Paint()..color = fillColor);
-        }
-        canvas.drawOval(oval, noteOutline);
-        final accSym = _noteAccidentalSymbol(
-          midi,
-          keySignatureCount: keySignatureCount,
-          keySignaturePreferFlats: keySignaturePreferFlats,
-        );
-        if (accSym != null) {
-          final accStyle = TextStyle(
-            color: noteOutline.color,
-            fontSize: math.max(11.0, noteH * (accSym == '♭' ? 1.35 : 1.05)),
-          );
-          final tpAcc = TextPainter(
-            text: TextSpan(text: accSym, style: accStyle),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          tpAcc.paint(
-            canvas,
-            Offset(x - noteW / 2 - tpAcc.width - 2, y - tpAcc.height / 2),
-          );
-        }
-      }
-    }
-  }
-
-  double _midiToTrebleY(
-    double midi,
-    double top,
-    double gap, [
-    bool preferFlat = false,
-  ]) {
-    const bottomLineDiatonic = 30.0; // E4
-    final d = _midiToDiatonic(midi, preferFlat);
-    final baseY = top + 4 * gap;
-    return baseY - ((d - bottomLineDiatonic) * (gap / 2));
-  }
-
-  double _midiToBassY(
-    double midi,
-    double top,
-    double gap, [
-    bool preferFlat = false,
-  ]) {
-    const bottomLineDiatonic = 18.0; // G2
-    final d = _midiToDiatonic(midi, preferFlat);
-    final baseY = top + 4 * gap;
-    return baseY - ((d - bottomLineDiatonic) * (gap / 2));
-  }
-
-  /// pc -> índice de letra diatónica (C..B) con convención de sostenidos.
-  static const List<int> _pcToDiatonicSharp = <int>[
-    0,
-    0,
-    1,
-    1,
-    2,
-    3,
-    3,
-    4,
-    4,
-    5,
-    5,
-    6,
-  ];
-
-  /// Igual pero con convención de bemoles (p. ej. pc=1 -> Re, no Do), para
-  /// que la posición en el pentagrama también "se mueva" al cambiar el
-  /// ajuste global #/♭, no solo el símbolo dibujado junto a la nota.
-  static const List<int> _pcToDiatonicFlat = <int>[
-    0,
-    1,
-    1,
-    2,
-    2,
-    3,
-    4,
-    4,
-    5,
-    5,
-    6,
-    6,
-  ];
-
-  double _midiToDiatonic(double midi, [bool preferFlat = false]) {
-    final table = preferFlat ? _pcToDiatonicFlat : _pcToDiatonicSharp;
-    final n = midi.round();
-    final pc = ((n % 12) + 12) % 12;
-    final octave = (n ~/ 12) - 1;
-    return (octave * 7 + table[pc]).toDouble();
-  }
-
-  /// Símbolo de alteración a dibujar junto a una nota concreta (null si es
-  /// natural o si ya está cubierta por la armadura). Análogo a
-  /// `getNoteAccidental` en apps/web/static/app.js.
-  String? _noteAccidentalSymbol(
-    int midi, {
-    required int keySignatureCount,
-    required bool keySignaturePreferFlats,
-  }) {
-    final pc = ((midi % 12) + 12) % 12;
-    const naturalPcs = <int>{0, 2, 4, 5, 7, 9, 11};
-    if (naturalPcs.contains(pc)) return null;
-    const sharpPcOrder = <int>[6, 1, 8, 3, 10]; // F# C# G# D# A#
-    const flatPcOrder = <int>[10, 3, 8, 1, 6]; // Bb Eb Ab Db Gb
-    if (keySignaturePreferFlats) {
-      final covered = flatPcOrder.take(keySignatureCount).toSet();
-      if (covered.contains(pc)) return null;
-      return '♭';
-    }
-    final covered = sharpPcOrder.take(keySignatureCount).toSet();
-    if (covered.contains(pc)) return null;
-    return '♯';
-  }
-
-  void _drawLedgerLines(
-    Canvas canvas, {
-    required double x,
-    required double midi,
-    required double top,
-    required double gap,
-    required bool treble,
-    required Color color,
-  }) {
-    final d = _midiToDiatonic(midi).round();
-    final bottomLineD = treble ? 30 : 18;
-    final topLineD = bottomLineD + 8;
-    if (d >= bottomLineD && d <= topLineD) return;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round;
-    final lineLeft = x - 11.0;
-    final lineRight = x + 11.0;
-    if (d < bottomLineD) {
-      for (int ld = bottomLineD - 2; ld >= d; ld -= 2) {
-        final y = _staffYForDiatonic(
-          diatonic: ld.toDouble(),
-          bottomLineDiatonic: bottomLineD.toDouble(),
-          top: top,
-          gap: gap,
-        );
-        canvas.drawLine(Offset(lineLeft, y), Offset(lineRight, y), paint);
-      }
-      return;
-    }
-    for (int ld = topLineD + 2; ld <= d; ld += 2) {
-      final y = _staffYForDiatonic(
-        diatonic: ld.toDouble(),
-        bottomLineDiatonic: bottomLineD.toDouble(),
-        top: top,
-        gap: gap,
-      );
-      canvas.drawLine(Offset(lineLeft, y), Offset(lineRight, y), paint);
-    }
-  }
-
-  double _staffYForDiatonic({
-    required double diatonic,
-    required double bottomLineDiatonic,
-    required double top,
-    required double gap,
-  }) {
-    final baseY = top + 4 * gap;
-    return baseY - ((diatonic - bottomLineDiatonic) * (gap / 2));
-  }
-
-  void _drawIntervalMelody(
-    Canvas canvas,
-    double trebleTop,
-    double bassTop,
-    double gap,
-    double noteStartX,
-    double right,
-    double noteW,
-    double noteH,
-    int keySignatureCount,
-    bool keySignaturePreferFlats,
-  ) {
-    final n = intervalMelodyNotes.length;
-    if (n == 0) return;
-
-    const noteColor = Color(0xFFD7DDE7);
-    const playColor = Color(0xFF4DA3EA);
-    final stemLen = gap * 3.5;
-    final dotR = math.max(1.5, gap * 0.18);
-
-    // Time signature
-    final tsFontSize = math.max(14.0, gap * 1.7);
-    TextPainter makeTp(String text) => TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: const Color(0xFFFFFFFF),
-          fontSize: tsFontSize,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final tpNum = makeTp(intervalBeatsPerBar.toString());
-    final tpDen = makeTp('4');
-    final tsHW = math.max(tpNum.width, tpDen.width) / 2;
-    final tsX = noteStartX + tsHW;
-    tpNum.paint(canvas, Offset(tsX - tpNum.width / 2, trebleTop + gap * 0.3));
-    tpDen.paint(canvas, Offset(tsX - tpDen.width / 2, trebleTop + gap * 2.3));
-    tpNum.paint(canvas, Offset(tsX - tpNum.width / 2, bassTop + gap * 0.3));
-    tpDen.paint(canvas, Offset(tsX - tpDen.width / 2, bassTop + gap * 2.3));
-    final melLeft = tsX + tsHW + 10.0;
-
-    // Tick durations
-    const qt = 1000;
-    int tickFor(String d) {
-      final dotted = d.endsWith('.');
-      final code = dotted ? d.substring(0, d.length - 1) : d;
-      const tmap = <String, int>{
-        'w': 4 * qt,
-        'h': 2 * qt,
-        'q': qt,
-        'e': qt ~/ 2,
-        'et': qt ~/ 3,
-        's': qt ~/ 4,
-      };
-      var t = tmap[code] ?? qt;
-      if (dotted) t = t * 3 ~/ 2;
-      return t;
-    }
-
-    final ticks = List<int>.generate(n, (i) {
-      final d = i < intervalMelodyDurations.length
-          ? intervalMelodyDurations[i]
-          : 'q';
-      return tickFor(d);
-    });
-    final totalTicks = ticks.fold(0, (a, b) => a + b);
-    if (totalTicks == 0) return;
-    final availW = (right - 16.0) - melLeft;
-    final xPos = List<double>.generate(n, (i) {
-      final cum = ticks.sublist(0, i).fold(0, (a, b) => a + b);
-      return melLeft + cum / totalTicks * availW;
-    });
-    // El espaciado proporcional puro deja las notas que siguen a un
-    // tresillo (duración muy corta) pegadas a la última nota del tresillo.
-    // Forzamos una separación mínima entre notas consecutivas, empujando
-    // el resto de posiciones hacia la derecha cuando haga falta.
-    final minGap = math.max(noteW * 1.15, gap * 1.3);
-    for (int i = 1; i < n; i++) {
-      if (xPos[i] - xPos[i - 1] < minGap) {
-        xPos[i] = xPos[i - 1] + minGap;
-      }
-    }
-
-    // Bar lines
-    final barTicks = intervalBeatsPerBar * qt;
-    var barRun = -(intervalAnacrusis * qt).round();
-    final blPaint = Paint()
-      ..color = const Color(0xFF5A6A7A)
-      ..strokeWidth = 1.0;
-    for (int i = 0; i < n; i++) {
-      final prev = barRun;
-      barRun += ticks[i];
-      if (i > 0 && (prev ~/ barTicks) < (barRun ~/ barTicks)) {
-        final bx = (xPos[i - 1] + xPos[i]) / 2;
-        canvas.drawLine(
-          Offset(bx, trebleTop),
-          Offset(bx, bassTop + 4 * gap),
-          blPaint,
-        );
-      }
-    }
-
-    // Beam groups
-    final beamGroupOf = <int, int>{};
-    final beamGroups = <List<int>>[];
-    var tickPos = 0;
-    var bgCurrent = <int>[];
-    var bgBeat = 0;
-    var bgIsTreble = true;
-    for (int i = 0; i < n; i++) {
-      final dur = i < intervalMelodyDurations.length
-          ? intervalMelodyDurations[i]
-          : 'q';
-      final durBase = dur.endsWith('.')
-          ? dur.substring(0, dur.length - 1)
-          : dur;
-      final isSubQ =
-          (durBase == 'e' || durBase == 'et' || durBase == 's') &&
-          intervalMelodyNotes[i] != null;
-      final beat = tickPos ~/ qt;
-      // Una nota puede estar en clave de sol o de fa; no unimos con barra
-      // notas que caen en pentagramas distintos, aunque sean corcheas
-      // consecutivas del mismo grupo rítmico (se vería como una línea
-      // cruzando de un pentagrama a otro, como una ligadura fuera de lugar).
-      final noteIsTreble = isSubQ
-          ? (intervalMelodyNotes[i]! >= 60)
-          : bgIsTreble;
-      if (isSubQ) {
-        if (bgCurrent.isNotEmpty &&
-            (beat != bgBeat || noteIsTreble != bgIsTreble)) {
-          if (bgCurrent.length > 1) {
-            final gid = beamGroups.length;
-            for (final g in bgCurrent) {
-              beamGroupOf[g] = gid;
-            }
-            beamGroups.add(List<int>.from(bgCurrent));
-          }
-          bgCurrent = [];
-        }
-        if (bgCurrent.isEmpty) {
-          bgBeat = beat;
-          bgIsTreble = noteIsTreble;
-        }
-        bgCurrent.add(i);
-      } else {
-        if (bgCurrent.length > 1) {
-          final gid = beamGroups.length;
-          for (final g in bgCurrent) {
-            beamGroupOf[g] = gid;
-          }
-          beamGroups.add(List<int>.from(bgCurrent));
-        }
-        bgCurrent = [];
-      }
-      tickPos += ticks[i];
-    }
-    if (bgCurrent.length > 1) {
-      final gid = beamGroups.length;
-      for (final g in bgCurrent) {
-        beamGroupOf[g] = gid;
-      }
-      beamGroups.add(List<int>.from(bgCurrent));
-    }
-
-    // Draw notes and rests
-    final stemData =
-        <int, ({double x, double yEnd, bool stemUp, int flagCount})>{};
-    for (int i = 0; i < n; i++) {
-      final midiNull = intervalMelodyNotes[i];
-      final dur = i < intervalMelodyDurations.length
-          ? intervalMelodyDurations[i]
-          : 'q';
-      final durBase = dur.endsWith('.')
-          ? dur.substring(0, dur.length - 1)
-          : dur;
-      final isDotted = dur.endsWith('.');
-      final x = xPos[i];
-      final flagCount = (durBase == 'e' || durBase == 'et')
-          ? 1
-          : (durBase == 's' ? 2 : 0);
-      final hasStem = durBase != 'w';
-      final isHollow = durBase == 'w' || durBase == 'h';
-      final col = intervalPlayingIdx == i ? playColor : noteColor;
-
-      if (midiNull == null) {
-        _drawRestSymbolMelody(
-          canvas,
-          x,
-          trebleTop + 2 * gap,
-          durBase,
-          gap,
-          noteColor,
-          trebleTop,
-        );
-      } else {
-        final midi = midiNull;
-        final isT = midi >= 60;
-        final y = isT
-            ? _midiToTrebleY(
-                midi.toDouble(),
-                trebleTop,
-                gap,
-                keySignaturePreferFlats,
-              )
-            : _midiToBassY(
-                midi.toDouble(),
-                bassTop,
-                gap,
-                keySignaturePreferFlats,
-              );
-        final staffTop = isT ? trebleTop : bassTop;
-        _drawLedgerLines(
-          canvas,
-          x: x,
-          midi: midi.toDouble(),
-          top: staffTop,
-          gap: gap,
-          treble: isT,
-          color: col,
-        );
-        final nw = durBase == 'w' ? noteW * 1.25 : noteW;
-        canvas.drawOval(
-          Rect.fromCenter(center: Offset(x, y), width: nw, height: noteH),
-          Paint()
-            ..style = isHollow ? PaintingStyle.stroke : PaintingStyle.fill
-            ..color = col
-            ..strokeWidth = 2.0,
-        );
-        final accSym = _noteAccidentalSymbol(
-          midi,
-          keySignatureCount: keySignatureCount,
-          keySignaturePreferFlats: keySignaturePreferFlats,
-        );
-        if (accSym != null) {
-          final accStyle = TextStyle(
-            color: col,
-            fontSize: math.max(11.0, noteH * (accSym == '♭' ? 1.35 : 1.05)),
-          );
-          final tpAcc = TextPainter(
-            text: TextSpan(text: accSym, style: accStyle),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          tpAcc.paint(
-            canvas,
-            Offset(x - nw / 2 - tpAcc.width - 2, y - tpAcc.height / 2),
-          );
-        }
-        if (isDotted) {
-          canvas.drawCircle(
-            Offset(x + nw / 2 + dotR * 2.5, y),
-            dotR,
-            Paint()..color = col,
-          );
-        }
-        if (hasStem) {
-          final stemMid = staffTop + 2 * gap;
-          final stemUp = y > stemMid;
-          final sx = stemUp ? x + nw / 2 - 1 : x - nw / 2 + 1;
-          final syEnd = stemUp ? y - stemLen : y + stemLen;
-          canvas.drawLine(
-            Offset(sx, y),
-            Offset(sx, syEnd),
-            Paint()
-              ..color = col
-              ..strokeWidth = 1.8,
-          );
-          if (flagCount > 0) {
-            if (beamGroupOf.containsKey(i)) {
-              stemData[i] = (
-                x: sx,
-                yEnd: syEnd,
-                stemUp: stemUp,
-                flagCount: flagCount,
-              );
-            } else {
-              _drawMelodyFlag(canvas, sx, syEnd, flagCount, stemUp, gap, col);
-            }
-          }
-        }
-      }
-    }
-
-    // Beams
-    final beamW = math.max(2.5, gap * 0.25);
-    for (final group in beamGroups) {
-      final data = <({double x, double yEnd, bool stemUp, int flagCount})>[];
-      for (final gi in group) {
-        if (stemData.containsKey(gi)) data.add(stemData[gi]!);
-      }
-      if (data.length < 2) continue;
-      final nPrim = data.map((d) => d.flagCount).reduce(math.min);
-      final su = data.first.stemUp;
-      // Pendiente de la barra principal (une la primera y última nota del
-      // grupo): los "stubs" de las notas con más banderas (p. ej. una
-      // semicorchea junto a una corchea) deben seguir esta misma pendiente
-      // en vez de salir horizontales desde su propia plica.
-      final dx = data.last.x - data.first.x;
-      final slope = dx.abs() < 0.001
-          ? 0.0
-          : (data.last.yEnd - data.first.yEnd) / dx;
-      for (int bar = 0; bar < nPrim; bar++) {
-        final bOff = bar * gap * 0.3;
-        final y0 = su ? data.first.yEnd + bOff : data.first.yEnd - bOff;
-        final y1 = su ? data.last.yEnd + bOff : data.last.yEnd - bOff;
-        canvas.drawLine(
-          Offset(data.first.x, y0),
-          Offset(data.last.x, y1),
-          Paint()
-            ..color = noteColor
-            ..strokeWidth = beamW,
-        );
-      }
-      final grpLast = group.length - 1;
-      for (int gi = 0; gi < group.length; gi++) {
-        final idx = group[gi];
-        if (!stemData.containsKey(idx)) continue;
-        final d = stemData[idx]!;
-        final extra = d.flagCount - nPrim;
-        if (extra <= 0) continue;
-        final stubDir = gi == grpLast ? -1.0 : 1.0;
-        final stubW = math.max(gap * 1.2, 14.0);
-        // Punto sobre la barra principal en la X de esta nota (en vez de
-        // d.yEnd, que ignoraría la inclinación del grupo).
-        final baseY = data.first.yEnd + slope * (d.x - data.first.x);
-        for (int be = 0; be < extra; be++) {
-          final stubOff = (nPrim + be) * gap * 0.3;
-          final sy = su ? baseY + stubOff : baseY - stubOff;
-          final sxEnd = d.x + stubDir * stubW;
-          final syEnd = sy + slope * (stubDir * stubW);
-          canvas.drawLine(
-            Offset(d.x, sy),
-            Offset(sxEnd, syEnd),
-            Paint()
-              ..color = noteColor
-              ..strokeWidth = beamW,
-          );
-        }
-      }
-    }
-  }
-
-  void _drawMelodyFlag(
-    Canvas canvas,
-    double sx,
-    double syEnd,
-    int flagCount,
-    bool stemUp,
-    double gap,
-    Color col,
-  ) {
-    // Bandera de corchea: trazo curvo fino (no relleno) desde la punta de la
-    // plica (p0) hacia el lado de la cabeza de nota, con extremos
-    // redondeados — evita las siluetas rellenas anchas de los intentos
-    // anteriores.
-    final fw = gap * 0.62;
-    final fh = gap * 1.15;
-    final sign = stemUp ? 1.0 : -1.0;
-    final paint = Paint()
-      ..color = col
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = gap * 0.32
-      ..strokeCap = StrokeCap.round;
-    for (int fi = 0; fi < flagCount; fi++) {
-      final fy0 = syEnd + sign * fi * gap * 0.55;
-      final p0 = Offset(sx, fy0);
-      final p1 = Offset(sx + fw, fy0 + sign * fh);
-      final ctrl = Offset(sx + fw * 1.15, fy0 + sign * fh * 0.25);
-      final path = Path()
-        ..moveTo(p0.dx, p0.dy)
-        ..quadraticBezierTo(ctrl.dx, ctrl.dy, p1.dx, p1.dy);
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  void _drawRestSymbolMelody(
-    Canvas canvas,
-    double x,
-    double cy,
-    String dur,
-    double gap,
-    Color col,
-    double trebleTop,
-  ) {
-    final paint = Paint()..color = col;
-    if (dur == 'w') {
-      final rw = gap * 1.3;
-      canvas.drawRect(
-        Rect.fromLTWH(x - rw / 2, trebleTop + gap, rw, gap * 0.48),
-        paint,
-      );
-    } else if (dur == 'h') {
-      final rw = gap * 1.3;
-      final rh = gap * 0.48;
-      canvas.drawRect(Rect.fromLTWH(x - rw / 2, cy - rh, rw, rh), paint);
-    } else if (dur == 'q') {
-      final lp = Paint()
-        ..color = col
-        ..strokeWidth = 1.8
-        ..style = PaintingStyle.stroke;
-      final r = gap * 0.35;
-      final y0 = cy - gap * 0.75;
-      final pts = [
-        Offset(x + r, y0),
-        Offset(x - r * 0.4, y0 + gap * 0.5),
-        Offset(x + r * 0.8, y0 + gap * 0.9),
-        Offset(x, y0 + gap * 1.25),
-        Offset(x - r * 0.5, y0 + gap * 1.55),
-      ];
-      for (int k = 0; k < pts.length - 1; k++) {
-        canvas.drawLine(pts[k], pts[k + 1], lp);
-      }
-    } else if (dur == 'e' || dur == 'et') {
-      final dr = math.max(3.5, gap * 0.43);
-      final span = gap * 2.4;
-      final xt = x + gap * 0.3;
-      final yt = cy - span * 0.5;
-      final xb = x - gap * 0.2;
-      final yb = cy + span * 0.5;
-      canvas.drawLine(
-        Offset(xt, yt),
-        Offset(xb, yb),
-        Paint()
-          ..color = col
-          ..strokeWidth = 2.2,
-      );
-      const t = 0.24;
-      canvas.drawCircle(
-        Offset(xt + (xb - xt) * t - dr * 0.65, yt + (yb - yt) * t),
-        dr,
-        paint,
-      );
-    } else if (dur == 's') {
-      final dr = math.max(2.8, gap * 0.35);
-      final span = gap * 3.0;
-      final xt = x + gap * 0.3;
-      final yt = cy - span * 0.5;
-      final xb = x - gap * 0.2;
-      final yb = cy + span * 0.5;
-      canvas.drawLine(
-        Offset(xt, yt),
-        Offset(xb, yb),
-        Paint()
-          ..color = col
-          ..strokeWidth = 2.2,
-      );
-      for (final t in [0.18, 0.44]) {
-        canvas.drawCircle(
-          Offset(xt + (xb - xt) * t - dr * 0.65, yt + (yb - yt) * t),
-          dr,
-          paint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
-    if (oldDelegate.intervalMelodyMode != intervalMelodyMode) return true;
-    if (oldDelegate.intervalPlayingIdx != intervalPlayingIdx) return true;
-    if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length)
-      return true;
-    if (oldDelegate.keySignatureCount != keySignatureCount) return true;
-    if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
-      return true;
-    }
-    if (oldDelegate.activeKeySignatureIndex != activeKeySignatureIndex) {
-      return true;
-    }
-    if (oldDelegate.notes.length != notes.length) return true;
-    if (oldDelegate.extras.length != extras.length) return true;
-    if (oldDelegate.generationRhNotes.length != generationRhNotes.length) {
-      return true;
-    }
-    if (oldDelegate.generationLhNotes.length != generationLhNotes.length) {
-      return true;
-    }
-    if (!setEquals(
-      oldDelegate.generationPlayingNotes,
-      generationPlayingNotes,
-    )) {
-      return true;
-    }
-    if (oldDelegate.generationGuitarMode != generationGuitarMode) return true;
-    if (oldDelegate.scaleRhNotes.length != scaleRhNotes.length) return true;
-    if (oldDelegate.scaleLhNotes.length != scaleLhNotes.length) return true;
-    if (oldDelegate.scaleCurrentNote != scaleCurrentNote) return true;
-    if (oldDelegate.scaleCurrentIsLeft != scaleCurrentIsLeft) return true;
-    if (oldDelegate.scaleGuitarMode != scaleGuitarMode) return true;
-    for (int i = 0; i < notes.length; i += 1) {
-      if (oldDelegate.notes[i] != notes[i]) return true;
-    }
-    for (int i = 0; i < scaleRhNotes.length; i += 1) {
-      if (oldDelegate.scaleRhNotes[i] != scaleRhNotes[i]) return true;
-    }
-    for (int i = 0; i < scaleLhNotes.length; i += 1) {
-      if (oldDelegate.scaleLhNotes[i] != scaleLhNotes[i]) return true;
-    }
-    for (int i = 0; i < generationRhNotes.length; i += 1) {
-      if (oldDelegate.generationRhNotes[i] != generationRhNotes[i]) return true;
-    }
-    for (int i = 0; i < generationLhNotes.length; i += 1) {
-      if (oldDelegate.generationLhNotes[i] != generationLhNotes[i]) return true;
-    }
-    return false;
-  }
-}
-
-class _MiniMetronomePainter extends CustomPainter {
-  _MiniMetronomePainter({
-    required this.beatsPerBar,
-    required this.clicksPerBeat,
-    required this.currentBeat,
-    required this.running,
-    required this.direction,
-    required this.motionProgress,
-    required this.timerEnabled,
-    required this.timerRemaining,
-    required this.idleLabel,
-  });
-
-  final int beatsPerBar;
-  final int clicksPerBeat;
-  final int currentBeat;
-  final bool running;
-  final int direction;
-  final double motionProgress;
-  final bool timerEnabled;
-  final Duration timerRemaining;
-  final String idleLabel;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFF0F1621);
-    canvas.drawRect(Offset.zero & size, bg);
-    final count = math.max(1, beatsPerBar);
-    final clicks = math.max(1, clicksPerBeat);
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
-    final spacing = count == 1 ? (right - left) : (right - left) / (count - 1);
-    final xs = count == 1
-        ? <double>[(left + right) * 0.5]
-        : List<double>.generate(count, (i) => left + i * spacing);
-
-    final rail = Paint()
-      ..color = const Color(0xFF8F98A3)
-      ..strokeWidth = 3;
-    canvas.drawLine(Offset(left, axisY), Offset(right, axisY), rail);
-
-    for (int k = 0; k <= clicks; k += 1) {
-      final xTick = left + ((right - left) * (k / clicks));
-      final isEnd = k == 0 || k == clicks;
-      final tickH = isEnd ? 18.0 : 13.0;
-      final tickPaint = Paint()
-        ..color = isEnd ? const Color(0xFF9AA6B2) : const Color(0xFF747F8D)
-        ..strokeWidth = isEnd ? 2.8 : 2.0;
-      canvas.drawLine(
-        Offset(xTick, axisY - (tickH / 2)),
-        Offset(xTick, axisY + (tickH / 2)),
-        tickPaint,
-      );
-    }
-
-    final current = count > 0 ? ((currentBeat % count) + count) % count : 0;
-    final baseR = (30 - (count * 0.75)).clamp(7.0, 24.0);
-    final maxRBySpacing = (spacing * 0.42 - 2).clamp(6.0, 1000.0);
-    final normalR = math.min(baseR, maxRBySpacing);
-    final activeR = math.min(normalR + 2.0, maxRBySpacing + 1.5);
-    for (int i = 0; i < xs.length; i += 1) {
-      final x = xs[i];
-      final active = running && i == current && currentBeat >= 0;
-      final r = active ? activeR : normalR;
-      canvas.drawCircle(
-        Offset(x, yTop),
-        r,
-        Paint()
-          ..color = active ? const Color(0xFFFFD24A) : const Color(0xFFC8A832),
-      );
-      canvas.drawCircle(
-        Offset(x, yTop),
-        r,
-        Paint()
-          ..color = active ? const Color(0xFFF3DA7A) : const Color(0xFF9F8427)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${i + 1}',
-          style: TextStyle(
-            color: const Color(0xFF1A1A1A),
-            fontSize: (normalR * 0.82).clamp(8.0, 12.0),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(x - (tp.width / 2), yTop - (tp.height / 2)));
-    }
-
-    final p = motionProgress.clamp(0.0, 1.0);
-    final ballX = direction >= 0
-        ? left + ((right - left) * p)
-        : right - ((right - left) * p);
-    final redBall = Paint()..color = const Color(0xFFFF4D4D);
-    final redBallOutline = Paint()
-      ..color = const Color(0xFFB61F1F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    canvas.drawCircle(Offset(ballX, axisY), 11, redBall);
-    canvas.drawCircle(Offset(ballX, axisY), 11, redBallOutline);
-
-    if (timerEnabled) {
-      final total = math.max(0, timerRemaining.inSeconds);
-      final mm = (total ~/ 60).toString().padLeft(2, '0');
-      final ss = (total % 60).toString().padLeft(2, '0');
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '$mm:$ss',
-          style: TextStyle(
-            color: const Color(0xFFFFB17A),
-            fontSize: math.min(44.0, size.height * 0.24),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.width - 24);
-      tp.paint(
-        canvas,
-        Offset(
-          (size.width - tp.width) / 2,
-          axisY + ((size.height - axisY) * 0.5) - (tp.height / 2),
-        ),
-      );
-    } else if (!running) {
-      final idle = TextPainter(
-        text: TextSpan(
-          text: idleLabel,
-          style: const TextStyle(
-            color: Color(0xFF8090A8),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.width - 24);
-      idle.paint(canvas, Offset((size.width - idle.width) / 2, axisY + 44));
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniMetronomePainter oldDelegate) {
-    return oldDelegate.beatsPerBar != beatsPerBar ||
-        oldDelegate.clicksPerBeat != clicksPerBeat ||
-        oldDelegate.currentBeat != currentBeat ||
-        oldDelegate.running != running ||
-        oldDelegate.direction != direction ||
-        oldDelegate.timerEnabled != timerEnabled ||
-        oldDelegate.timerRemaining.inSeconds != timerRemaining.inSeconds ||
-        oldDelegate.idleLabel != idleLabel ||
-        (oldDelegate.motionProgress - motionProgress).abs() > 0.001;
-  }
-}
-
-class _MiniTunerPainter extends CustomPainter {
-  _MiniTunerPainter({
-    required this.noteLabel,
-    required this.cents,
-    required this.currentFreq,
-    required this.currentStringIdx,
-    required this.tuningLabels,
-  });
-
-  final String noteLabel;
-  final int cents;
-  final double currentFreq;
-  final int? currentStringIdx;
-  final List<String> tuningLabels;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFF000000);
-    canvas.drawRect(Offset.zero & size, bg);
-
-    final labels = tuningLabels.isEmpty
-        ? const <String>['Mi', 'La', 'Re', 'Sol', 'Si', 'Mi']
-        : tuningLabels;
-    const ordinals = <String>['6', '5', '4', '3', '2', '1'];
-
-    final padX = 20.0;
-    final cardGap = math.max(6.0, math.min(12.0, size.width * 0.012));
-    final cardsH = math.max(68.0, math.min(114.0, size.height * 0.34));
-    final cardW = (size.width - (padX * 2) - (cardGap * 5)) / 6;
-    final cardsY = 16.0;
-
-    for (int i = 0; i < 6; i += 1) {
-      final x = padX + i * (cardW + cardGap);
-      final active = currentStringIdx == i;
-      final fill = Paint()
-        ..color = active ? const Color(0xFFF39C12) : const Color(0xFFD2D8DF);
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, cardsY, cardW, cardsH),
-        Radius.circular(math.min(cardsH / 2, math.max(10, cardW * 0.26))),
-      );
-      canvas.drawRRect(rect, fill);
-
-      final top = TextPainter(
-        text: TextSpan(
-          text: ordinals[i],
-          style: TextStyle(
-            color: active ? Colors.white : const Color(0xFF2B2E34),
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: cardW - 4);
-      top.paint(
-        canvas,
-        Offset(x + (cardW - top.width) / 2, cardsY + cardsH * 0.22),
-      );
-
-      final mid = TextPainter(
-        text: TextSpan(
-          text: labels[i % labels.length],
-          style: TextStyle(
-            color: active ? Colors.white : const Color(0xFF2B2E34),
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: cardW - 4);
-      mid.paint(
-        canvas,
-        Offset(
-          x + (cardW - mid.width) / 2,
-          cardsY + cardsH * 0.54 - mid.height / 2,
-        ),
-      );
-    }
-
-    final liveText = currentFreq > 0.0
-        ? '$noteLabel (${currentFreq.toStringAsFixed(1)} Hz)'
-        : noteLabel;
-    final live = TextPainter(
-      text: TextSpan(
-        text: liveText,
-        style: const TextStyle(
-          color: Color(0xFFFF9E34),
-          fontSize: 30,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: size.width - 24);
-    live.paint(
-      canvas,
-      Offset((size.width - live.width) / 2, cardsY + cardsH + 18),
-    );
-
-    final meterTop = cardsY + cardsH + 68;
-    final meterBottom = meterTop + 46;
-    final meterLeft = 24.0;
-    final meterRight = size.width - 24.0;
-    final meterRect = RRect.fromRectAndRadius(
-      Rect.fromLTRB(meterLeft, meterTop, meterRight, meterBottom),
-      const Radius.circular(23),
-    );
-    canvas.drawRRect(meterRect, Paint()..color = const Color(0xFFC8C8CA));
-    final centerX = (meterLeft + meterRight) / 2;
-    canvas.drawLine(
-      Offset(centerX, meterTop + 2),
-      Offset(centerX, meterBottom - 2),
-      Paint()
-        ..color = const Color(0xFF16A05F)
-        ..strokeWidth = 4,
-    );
-    final limited = cents.clamp(-50, 50).toDouble();
-    final knobX = meterLeft + ((limited + 50) / 100) * (meterRight - meterLeft);
-    canvas.drawCircle(
-      Offset(knobX, (meterTop + meterBottom) / 2),
-      12,
-      Paint()..color = const Color(0xFFFF5A2F),
-    );
-
-    if (currentStringIdx != null) {
-      final cText = TextPainter(
-        text: TextSpan(
-          text: '${cents >= 0 ? '+' : ''}$cents cents',
-          style: const TextStyle(
-            color: Color(0xFF9FB2C8),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.width - 24);
-      cText.paint(
-        canvas,
-        Offset((size.width - cText.width) / 2, meterBottom + 10),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniTunerPainter oldDelegate) {
-    if (oldDelegate.noteLabel != noteLabel) return true;
-    if (oldDelegate.cents != cents) return true;
-    if ((oldDelegate.currentFreq - currentFreq).abs() > 0.01) return true;
-    if (oldDelegate.currentStringIdx != currentStringIdx) return true;
-    if (oldDelegate.tuningLabels.length != tuningLabels.length) return true;
-    for (int i = 0; i < tuningLabels.length; i += 1) {
-      if (oldDelegate.tuningLabels[i] != tuningLabels[i]) return true;
-    }
-    return false;
-  }
-}
-
-class _MiniTunerSpectrumPainter extends CustomPainter {
-  _MiniTunerSpectrumPainter({
-    required this.rangeMinHz,
-    required this.rangeMaxHz,
-    required this.currentFreq,
-    required this.currentStringIdx,
-    required this.tuningLabels,
-    required this.tuningFreqs,
-    required this.spectrumBins,
-  });
-
-  final double rangeMinHz;
-  final double rangeMaxHz;
-  final double currentFreq;
-  final int? currentStringIdx;
-  final List<String> tuningLabels;
-  final List<double> tuningFreqs;
-  final List<double> spectrumBins;
-
-  double _midiToFreq(int midi) => 440.0 * math.pow(2.0, (midi - 69) / 12.0);
-  double _freqToMidi(double freq) =>
-      69 + 12 * (math.log(freq / 440.0) / math.ln2);
-
-  String _noteNameFromPc(int pc) {
-    const names = <String>[
-      'C',
-      'C#',
-      'D',
-      'D#',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'G#',
-      'A',
-      'A#',
-      'B',
-    ];
-    return names[((pc % 12) + 12) % 12];
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFF0F1621),
-    );
-    final outer = RRect.fromRectAndRadius(
-      Rect.fromLTWH(10, 10, size.width - 20, size.height - 20),
-      const Radius.circular(10),
-    );
-    canvas.drawRRect(outer, Paint()..color = const Color(0xFF0B1018));
-    canvas.drawRRect(
-      outer,
-      Paint()
-        ..color = const Color(0xFF2F3743)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
-
-    final x1 = 42.0;
-    final y1 = 12.0;
-    final x2 = math.max(x1 + 1.0, size.width - 14.0);
-    final y2 = math.max(y1 + 1.0, size.height - 30.0);
-    final frameRect = Rect.fromLTRB(x1, y1, x2, y2);
-    canvas.drawRect(frameRect, Paint()..color = const Color(0xFF10131A));
-    canvas.drawRect(
-      frameRect,
-      Paint()
-        ..color = const Color(0xFF465062)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-
-    final fmin = math.max(1.0, rangeMinHz);
-    final fmaxRaw = math.max(10.0, rangeMaxHz);
-    final fmax = fmaxRaw <= fmin + 1 ? (fmin + 1) : fmaxRaw;
-    final logMin = math.log(fmin) / math.ln10;
-    final logMax = math.log(fmax) / math.ln10;
-    final hzTicks = <int>[
-      70,
-      80,
-      90,
-      100,
-      120,
-      140,
-      160,
-      200,
-      250,
-      315,
-      400,
-      500,
-      630,
-      800,
-      1000,
-      1250,
-      1400,
-      1600,
-      2000,
-      2500,
-      3000,
-    ];
-    final majorHz = <int>{100, 200, 400, 800, 1000};
-
-    double fx(double hz) {
-      final safe = hz.clamp(fmin, fmax);
-      final logHz = math.log(safe) / math.ln10;
-      final ratio = (logHz - logMin) / math.max(1e-6, (logMax - logMin));
-      return x1 + ratio.clamp(0.0, 1.0) * (x2 - x1);
-    }
-
-    for (final hz in hzTicks) {
-      final h = hz.toDouble();
-      if (h < fmin || h > fmax) continue;
-      final x = fx(h);
-      final isMajor = majorHz.contains(hz);
-      canvas.drawLine(
-        Offset(x, y1),
-        Offset(x, y2),
-        Paint()
-          ..color = isMajor ? const Color(0xFF293140) : const Color(0xFF1F2531)
-          ..strokeWidth = 1,
-      );
-      if (isMajor) {
-        final tp = TextPainter(
-          text: TextSpan(
-            text: '$hz',
-            style: const TextStyle(color: Color(0xFF8F98A8), fontSize: 8),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        tp.paint(canvas, Offset(x - (tp.width / 2), y2 + 4));
-      }
-    }
-
-    const whitePcs = <int>{0, 2, 4, 5, 7, 9, 11};
-    final minMidi = math.max(0, _freqToMidi(fmin).floor() - 1);
-    final maxMidi = math.min(127, _freqToMidi(fmax).ceil() + 1);
-    for (int midi = minMidi; midi <= maxMidi; midi += 1) {
-      final hz = _midiToFreq(midi);
-      if (hz < fmin || hz > fmax) continue;
-      final x = fx(hz);
-      final isNatural = whitePcs.contains(midi % 12);
-      final lineColor = isNatural
-          ? const Color(0xFFFF9F2A)
-          : const Color(0xFF8A5F22);
-      canvas.drawLine(
-        Offset(x, y1),
-        Offset(x, y2),
-        Paint()
-          ..color = lineColor
-          ..strokeWidth = 1.0,
-      );
-      final label = _noteNameFromPc(midi % 12);
-      final tp = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: TextStyle(
-            color: isNatural
-                ? const Color(0xFFFFBF6C)
-                : const Color(0xFFB58A4F),
-            fontSize: 7,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 14);
-      final labelY = y1 + (midi.isEven ? 8 : 18);
-      tp.paint(canvas, Offset(x - (tp.width / 2), labelY));
-    }
-
-    if (spectrumBins.isNotEmpty) {
-      final innerW = x2 - x1;
-      final innerH = y2 - y1 - 6;
-      final bars = spectrumBins.length;
-      final barW = math.max(1.2, innerW / math.max(40, bars * 1.35));
-      for (int i = 0; i < bars; i += 1) {
-        final v = spectrumBins[i].clamp(0.0, 1.0);
-        if (v <= 0.005) continue;
-        final x = x1 + (innerW * (i / math.max(1, bars - 1)));
-        final h = v * innerH;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y2 - h, barW, h),
-          Paint()..color = const Color(0xFF49B5FF),
-        );
-      }
-    }
-
-    final n = math.min(tuningLabels.length, tuningFreqs.length);
-    for (int i = 0; i < n; i += 1) {
-      final hz = tuningFreqs[i];
-      if (hz < fmin || hz > fmax) continue;
-      final x = fx(hz);
-      final active = currentStringIdx == i;
-      final color = active ? const Color(0xFFFFBF6C) : const Color(0xFFB58A4F);
-      canvas.drawLine(
-        Offset(x, y1 + 2),
-        Offset(x, y2 - 2),
-        Paint()
-          ..color = color
-          ..strokeWidth = active ? 2.0 : 1.2,
-      );
-      final tp = TextPainter(
-        text: TextSpan(
-          text: tuningLabels[i],
-          style: TextStyle(
-            color: color,
-            fontSize: 9,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 22);
-      tp.paint(canvas, Offset(x - (tp.width / 2), y1 + (i.isEven ? 8 : 18)));
-    }
-
-    if (currentFreq > 0.0 && currentFreq >= fmin && currentFreq <= fmax) {
-      final x = fx(currentFreq);
-      final markerColor = const Color(0xFF49B5FF);
-      canvas.drawLine(
-        Offset(x, y1),
-        Offset(x, y2),
-        Paint()
-          ..color = markerColor
-          ..strokeWidth = 2.2,
-      );
-      canvas.drawCircle(Offset(x, y1 + 8), 3.5, Paint()..color = markerColor);
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${currentFreq.toStringAsFixed(1)} Hz',
-          style: const TextStyle(
-            color: Color(0xFF7CC8FF),
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: math.max(80.0, x2 - x1));
-      final dx = (x - (tp.width / 2)).clamp(x1, x2 - tp.width);
-      tp.paint(canvas, Offset(dx, y1 + 2));
-    } else if (spectrumBins.isEmpty || spectrumBins.every((v) => v < 0.01)) {
-      final tp = TextPainter(
-        text: const TextSpan(
-          text: '-',
-          style: TextStyle(
-            color: Color(0xFF8796AB),
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(
-        canvas,
-        Offset((x1 + x2 - tp.width) / 2, (y1 + y2 - tp.height) / 2),
-      );
-    }
-
-    final hzLabel = TextPainter(
-      text: const TextSpan(
-        text: 'Hz',
-        style: TextStyle(
-          color: Color(0xFFA0A8B7),
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    hzLabel.paint(
-      canvas,
-      Offset(((x1 + x2) / 2) - (hzLabel.width / 2), size.height - 16),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniTunerSpectrumPainter oldDelegate) {
-    if ((oldDelegate.rangeMinHz - rangeMinHz).abs() > 0.01) return true;
-    if ((oldDelegate.rangeMaxHz - rangeMaxHz).abs() > 0.01) return true;
-    if ((oldDelegate.currentFreq - currentFreq).abs() > 0.01) return true;
-    if (oldDelegate.currentStringIdx != currentStringIdx) return true;
-    if (oldDelegate.tuningLabels.length != tuningLabels.length) return true;
-    if (oldDelegate.tuningFreqs.length != tuningFreqs.length) return true;
-    if (oldDelegate.spectrumBins.length != spectrumBins.length) return true;
-    for (int i = 0; i < tuningLabels.length; i += 1) {
-      if (oldDelegate.tuningLabels[i] != tuningLabels[i]) return true;
-    }
-    for (int i = 0; i < tuningFreqs.length; i += 1) {
-      if ((oldDelegate.tuningFreqs[i] - tuningFreqs[i]).abs() > 0.001) {
-        return true;
-      }
-    }
-    for (int i = 0; i < spectrumBins.length; i += 1) {
-      if ((oldDelegate.spectrumBins[i] - spectrumBins[i]).abs() > 0.01) {
-        return true;
-      }
-    }
-    return false;
   }
 }

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "product": "PianoPilot",
+  "supported_model": "Roland FP-30X",
+  "version": "1.0.1",
+  "tone_count": 153,
+  "platforms": {
+    "macos": "10.15+",
+    "windows": "10/11 (64-bit)"
+  },
+  "downloads": {
+    "macos": "https://github.com/aortegaCampanillas/RolandFP30xController/releases/latest",
+    "windows": "https://apps.microsoft.com/detail/9mtt67vb0g74?ocid=webpdpshare",
+    "source": "https://github.com/aortegaCampanillas/RolandFP30xController"
+  },
+  "connections": {
+    "recommended": "USB MIDI",
+    "supported": ["USB MIDI", "system-paired Bluetooth MIDI"],
+    "bluetooth_audio": false
+  },
+  "capabilities": [
+    "piano_settings",
+    "single_mode",
+    "split_mode",
+    "dual_mode",
+    "twin_mode",
+    "tone_selection",
+    "metronome",
+    "presets",
+    "preset_import_export",
+    "optional_two_way_sync",
+    "english_spanish_ui"
+  ],
+  "release_notes": [
+    {
+      "version": "1.0.1",
+      "date": "2026-07-06",
+      "en": [
+        "New Presets tab: save, apply, edit and delete tone configurations for Single, Split, Dual and Twin modes",
+        "Import and export presets to a JSON file, with conflict handling when importing duplicate names",
+        "Expanded Help dialog with detailed guides for every tab, plus an About section"
+      ],
+      "es": [
+        "Nueva pestaña de Presets: guarda, aplica, edita y borra configuraciones de tono para los modos Single, Split, Dual y Twin",
+        "Importa y exporta presets a un fichero JSON, con gestión de conflictos al importar nombres duplicados",
+        "Diálogo de Ayuda ampliado con guías detalladas de cada pestaña, y una sección Acerca de"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-07-06",
+      "en": [
+        "Full control of Single, Split, Dual and Twin tone modes",
+        "Tone selection by category and preset, aligned with the FP-30X tone map",
+        "Split mode: left/right tones, balance, split point and octave shifts",
+        "Dual mode: two layered tones with balance and octave shifts",
+        "Twin mode: tone selection with Pair / Individual mode",
+        "Piano settings: master volume, master tuning, key touch, brilliance, transpose and ambience",
+        "Metronome control: tempo, volume, tone, rhythm pattern and time signature",
+        "Bilingual interface (English / Spanish)",
+        "USB and Bluetooth MIDI connection support"
+      ],
+      "es": [
+        "Control completo de los modos de tono Single, Split, Dual y Twin",
+        "Selección de tono por categoría y preset, alineada con el mapa de tonos del FP-30X",
+        "Modo Split: tonos izquierdo/derecho, balance, punto de división y desplazamientos de octava",
+        "Modo Dual: dos tonos superpuestos con balance y desplazamientos de octava",
+        "Modo Twin: selección de tono con modo Pareja / Individual",
+        "Ajustes del piano: volumen general, afinación general, key touch, brillo, transposición y ambiencia",
+        "Control del metrónomo: tempo, volumen, tono, patrón rítmico y compás",
+        "Interfaz bilingüe (inglés / español)",
+        "Soporte de conexión MIDI por USB y Bluetooth"
+      ]
+    }
+  ]
+}

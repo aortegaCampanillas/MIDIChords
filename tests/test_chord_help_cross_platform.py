@@ -19,7 +19,7 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
 
         self.assertEqual(shared, mobile)
         self.assertEqual(suffixes, set(shared["theory"]))
-        self.assertEqual(52, len(shared["theory"]))
+        self.assertEqual(54, len(shared["theory"]))
 
     def test_every_desktop_variant_and_inversion_has_help(self):
         for language in ("es", "en"):
@@ -45,15 +45,22 @@ class ChordHelpCrossPlatformTests(unittest.TestCase):
     def test_flutter_bundle_declares_and_uses_theory_catalog(self):
         pubspec = (PROJECT_ROOT / "apps" / "mobile_flutter" / "pubspec.yaml").read_text(encoding="utf-8")
         main = (PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main.dart").read_text(encoding="utf-8")
+        pages = (
+            PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main_pages.dart"
+        ).read_text(encoding="utf-8")
+        music_service = (
+            PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "music_service.dart"
+        ).read_text(encoding="utf-8")
         helper = (PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "chord_variant_help.dart").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("assets/chord_variant_theory.json", pubspec)
-        self.assertIn("buildChordVariantDropdownItems", main)
+        self.assertIn("part 'main_pages.dart'", main)
+        self.assertIn("buildChordVariantDropdownItems", pages)
         self.assertIn("_showChordVariantHelpDialog", main)
-        self.assertIn("helpId: 'detection_variant_theory'", main)
-        self.assertIn("'inversion': inversionIndex", main)
+        self.assertIn("helpId: 'detection_variant_theory'", pages)
+        self.assertIn("'inversion': inversionIndex", music_service)
         self.assertIn("enabled: false", helper)
 
     def test_desktop_detection_reuses_variant_help_dialog(self):

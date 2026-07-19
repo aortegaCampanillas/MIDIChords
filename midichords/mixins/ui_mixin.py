@@ -7,6 +7,15 @@ import midichords.qt.ttk_compat as ttk
 from typing import Any, Optional
 
 from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, PlayTransportButton, RoundedChoiceButton, RoundedPanel
+from midichords.ui.desktop_ui_builders import (
+    build_generation_action_row,
+    build_generation_choice_selectors,
+    build_generation_root_selector,
+    build_main_panel_shell,
+    build_scale_tonic_selector,
+    build_scale_type_selector,
+    build_top_bar,
+)
 
 from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import Qt, QPoint, QObject, QEvent
@@ -487,343 +496,10 @@ class UiMixin:
         unified_green_height = 46
         unified_green_radius = 22
 
+        build_top_bar(self, container)
         topbar_bg = self.cget("background")
-        mode_bar = tk.Frame(container, bg=topbar_bg, bd=0, highlightthickness=0)
-        mode_bar.pack(fill=tk.X, pady=(0, 6))
-        mode_bar.columnconfigure(0, weight=1)
-        mode_bar.columnconfigure(1, weight=1)
-        mode_bar.columnconfigure(2, weight=1)
 
-        title_col = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        title_col.grid(row=0, column=0, sticky="w")
-        self.top_title_label = tk.Label(
-            title_col,
-            text="",
-            bg=topbar_bg,
-            fg=self.color_text,
-            font=(self.ui_font_family, 20, "bold"),
-        )
-        self.top_title_label.pack(side=tk.LEFT, padx=(16, 0))
-
-        mode_center = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        mode_center.grid(row=0, column=1, sticky="ns")
-
-        self.mode_trigger_var = tk.StringVar(value="")
-        self._mode_picker_hover = False
-        self.mode_picker_trigger = tk.Canvas(
-            mode_center,
-            width=240,
-            height=40,
-            bg="transparent",
-            highlightthickness=0,
-            bd=0,
-            cursor="hand2",
-        )
-        self.mode_picker_trigger.pack(side=tk.LEFT)
-        try:
-            self.mode_picker_trigger.setMaximumWidth(280)
-        except Exception:
-            pass
-
-        # Aplicar el mismo estilo redondeado que los combos de configuración
-        try:
-            card = getattr(self, "color_card", "#3a4452")
-            border = getattr(self, "color_border", "#56627a")
-            hover_border = getattr(self, "color_border_hover", "#6a7a98")
-            fg = getattr(self, "color_text", "#e9edf2")
-            self.mode_picker_trigger.setStyleSheet(f"""
-                background-color: {card};
-                border: 1px solid {border};
-                border-radius: 8px;
-                color: {fg};
-            """)
-            self._mode_picker_border = border
-            self._mode_picker_hover_border = hover_border
-            self._mode_picker_card = card
-        except Exception:
-            pass
-
-        self._mode_picker_text_id = self.mode_picker_trigger.create_text(
-            120,
-            20,
-            anchor="center",
-            text="",
-            fill=self.color_text,
-            font=(self.ui_font_family, 15, "bold"),
-        )
-        self._mode_picker_arrow_id = self.mode_picker_trigger.create_text(
-            0,
-            20,
-            anchor="e",
-            text="▼",
-            fill=self.color_muted,
-            font=(self.ui_font_family, 11),
-        )
-
-        def _redraw_mode_picker(_event: Optional[tk.Event] = None) -> None:
-            w = max(120, int(self.mode_picker_trigger.winfo_width()))
-            h = max(34, int(self.mode_picker_trigger.winfo_height()))
-            self.mode_picker_trigger.delete("mode_picker_bg")
-            self.mode_picker_trigger.coords(self._mode_picker_text_id, w / 2, h / 2)
-            self.mode_picker_trigger.coords(self._mode_picker_arrow_id, w - 14, h / 2)
-            # Actualizar borde en hover via stylesheet
-            try:
-                b = self._mode_picker_hover_border if self._mode_picker_hover else self._mode_picker_border
-                self.mode_picker_trigger.setStyleSheet(f"""
-                    background-color: {self._mode_picker_card};
-                    border: 1px solid {b};
-                    border-radius: 8px;
-                """)
-            except Exception:
-                pass
-
-        def _refresh_mode_picker_text(*_args: object) -> None:
-            self.mode_picker_trigger.itemconfigure(self._mode_picker_text_id, text=self.mode_trigger_var.get())
-
-        self.mode_picker_trigger.bind("<Configure>", _redraw_mode_picker)
-        self.mode_picker_trigger.bind("<Button-1>", self._toggle_mode_selector)
-        self.mode_picker_trigger.bind("<Enter>", lambda _e: (setattr(self, "_mode_picker_hover", True), _redraw_mode_picker()))
-        self.mode_picker_trigger.bind("<Leave>", lambda _e: (setattr(self, "_mode_picker_hover", False), _redraw_mode_picker()))
-        self.mode_trigger_var.trace_add("write", _refresh_mode_picker_text)
-        _refresh_mode_picker_text()
-        _redraw_mode_picker()
-
-        self.top_right_controls = tk.Frame(mode_bar, bg=topbar_bg, bd=0, highlightthickness=0)
-        self.top_right_controls.grid(row=0, column=2, sticky="e")
-
-        self.top_right_mode_controls = tk.Frame(self.top_right_controls, bg=topbar_bg, bd=0, highlightthickness=0)
-        self.top_right_mode_controls.pack(side=tk.LEFT, padx=(0, 8))
-
-        self._help_active = False
-
-        self.help_icon_btn = tk.Label(
-            self.top_right_controls,
-            text="?",
-            fg=self.color_muted,
-            bg=topbar_bg,
-            font=(self.ui_font_family, 18, "bold"),
-            cursor="hand2",
-        )
-        self.help_icon_btn.pack(side=tk.LEFT, padx=(0, 8))
-        self.help_icon_btn.bind("<Button-1>", lambda _e: self._toggle_help_mode())
-        self.help_icon_btn.bind("<Enter>", lambda _e: self._on_help_btn_enter())
-        self.help_icon_btn.bind("<Leave>", lambda _e: self._on_help_btn_leave())
-
-        self.config_icon_btn = tk.Label(
-            self.top_right_controls,
-            text="⚙",
-            fg=self.color_accent,
-            bg=topbar_bg,
-            font=(self.ui_font_family, 22, "bold"),
-            cursor="hand2",
-        )
-        self.config_icon_btn.pack(side=tk.LEFT, padx=(0, 16))
-        self.config_icon_btn.bind("<Button-1>", lambda _e: self.open_settings_dialog())
-        self.config_icon_btn.bind("<Enter>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent_soft))
-        self.config_icon_btn.bind("<Leave>", lambda _e: self.config_icon_btn.configure(fg=self.color_accent))
-
-        top_area = tk.Canvas(container, bg=self.color_bg, bd=0, highlightthickness=0)
-        top_area.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
-
-        # Layout superior similar a web: panel izquierdo dominante y derecho secundario.
-        self.left_panel = RoundedPanel(
-            top_area,
-            radius=12,
-            bg_color=self.color_surface_alt,
-            border_color=self.color_border,
-            border_width=1.2,
-            padding=(12, 12, 12, 12),
-        )
-        self.right_panel = RoundedPanel(
-            top_area,
-            radius=12,
-            bg_color=self.color_surface_alt,
-            border_color=self.color_border,
-            border_width=1.2,
-            # Un poco menos de aire vertical que el panel izquierdo (panel de acordes más compacto).
-            padding=(10, 8, 10, 8),
-        )
-        def _layout_top_panels(_event: Optional[tk.Event] = None) -> None:
-            self._draw_vertical_gradient(
-                top_area,
-                self.color_bg_gradient_top,
-                self.color_bg_gradient_bottom,
-            )
-            w = max(1, int(top_area.winfo_width()))
-            h = max(1, int(top_area.winfo_height()))
-            gap = 12
-            usable_w = max(1, w - gap)
-            left_w = max(1, int(usable_w * 0.58))
-            # Ancho mínimo panel derecho para que no se corten Notas ni Intervalos en Escalas.
-            right_w = max(480, usable_w - left_w)
-            left_w = max(1, usable_w - right_w)
-            self.left_panel.place(x=0, y=0, width=left_w, height=h)
-            self.right_panel.place(x=left_w + gap, y=0, width=right_w, height=h)
-
-        top_area.bind("<Configure>", _layout_top_panels)
-        _layout_top_panels()
-
-        self.staff_canvas = tk.Canvas(
-            self.left_panel.content,
-            bg="#0f1621",
-            highlightthickness=1,
-            highlightbackground="#3a4558",
-        )
-        self.left_panel_title_label = tk.Label(
-            self.left_panel.content,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
-            anchor="w",
-        )
-        self.left_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
-
-        # Build staff_generated_chord_frame here so Qt layout order is: frame → canvas.
-        # (pack before= is not honored by Qt's VBoxLayout; order of first pack() wins.)
-        self.generated_chord_var = tk.StringVar(value="-")
-        self.staff_generated_chord_frame = tk.Frame(
-            self.left_panel.content,
-            bg="#1a2330",
-            bd=0,
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption = tk.Label(
-            self.staff_generated_chord_frame,
-            text="",
-            bg="transparent",
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14),
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_caption.pack(side=tk.LEFT, padx=(2, 4), pady=2)
-        self.staff_generated_chord_value = tk.Label(
-            self.staff_generated_chord_frame,
-            textvariable=self.generated_chord_var,
-            bg="transparent",
-            fg=self.color_accent,
-            font=(self.ui_font_family, 20, "bold"),
-            anchor="w",
-            highlightthickness=0,
-        )
-        self.staff_generated_chord_value.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=2, padx=(0, 2))
-        try:
-            _sf = self.staff_generated_chord_frame
-            if hasattr(_sf, "setStyleSheet"):
-                _sf.setStyleSheet(
-                    "background-color: #1a2330; border: 1px solid #4a5668;"
-                )
-            from PySide6.QtWidgets import QHBoxLayout
-            _lay = _sf.layout()
-            if isinstance(_lay, QHBoxLayout):
-                _lay.setContentsMargins(8, 4, 8, 4)
-        except Exception:
-            pass
-        # Pack now (hidden) to register position in Qt layout before staff_canvas.
-        # Must use setVisible(False) — pack_forget() removes from layout and loses position.
-        # retainSizeWhenHidden=False prevents the hidden frame from consuming vertical space.
-        self.staff_generated_chord_frame.pack(fill=tk.X, anchor="w", pady=(0, 8))
-        try:
-            sp = self.staff_generated_chord_frame.sizePolicy()
-            sp.setRetainSizeWhenHidden(False)
-            self.staff_generated_chord_frame.setSizePolicy(sp)
-            self.staff_generated_chord_frame.setVisible(False)
-        except Exception:
-            self.staff_generated_chord_frame.pack_forget()
-
-        self.staff_canvas.pack(fill=tk.BOTH, expand=True)
-
-        self.right_panel_title_label = tk.Label(
-            self.right_panel.content,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_muted,
-            font=(self.ui_font_family, 14, "bold"),
-            anchor="w",
-        )
-        self.right_panel_title_label.pack(fill=tk.X, anchor="w", pady=(0, 5))
-        self.right_side_panel = tk.Frame(self.right_panel.content, bg=self.color_surface_alt, bd=0, highlightthickness=0, padx=0)
-        self.right_side_panel.pack(fill=tk.BOTH, expand=True)
-        self.right_side_panel.columnconfigure(0, weight=1)
-
-        self.chord_panel = tk.Frame(
-            self.right_side_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=0,
-            pady=0,
-        )
-        self.chord_panel.grid(row=0, column=0, sticky="nsew")
-        self.right_side_panel.rowconfigure(0, weight=1)
-
-        self.tab_detection_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=0,
-            pady=3,
-        )
-        self.tab_generation_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_circle_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_scale_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_metronome_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=6,
-        )
-        self.tab_tuner_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=6,
-        )
-        self.tab_interval_frame = tk.Frame(
-            self.chord_panel,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-            padx=6,
-            pady=4,
-        )
-        self.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
-        # Qt: los frames hijos no empaquetados siguen visibles por defecto y taparían la pestaña activa.
-        for _hidden_tab in (
-            self.tab_generation_frame,
-            self.tab_circle_frame,
-            self.tab_scale_frame,
-            self.tab_metronome_frame,
-            self.tab_tuner_frame,
-            self.tab_interval_frame,
-        ):
-            _hidden_tab.setVisible(False)
+        build_main_panel_shell(self, container)
 
         self.chord_title_label = tk.Label(
             self.tab_detection_frame,
@@ -1095,114 +771,10 @@ class UiMixin:
         )
         self.generated_title_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(2, 6))
 
-        self.generation_root_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_root_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_root_row = tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt)
-        self.generation_root_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
-        self.generation_root_var = tk.StringVar(value="-")
-        self.generation_root_combo = ttk.Combobox(
-            self.generation_root_row,
-            textvariable=self.generation_root_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_root_combo.pack(side=tk.LEFT, padx=(0, 6))
-        self.generation_root_combo.bind("<<ComboboxSelected>>", self._on_generation_root_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_root_combo)
-        if hasattr(self.generation_root_combo, "setMaxVisibleItems"):
-            self.generation_root_combo.setMaxVisibleItems(12)
+        build_generation_root_selector(self)
+        build_generation_choice_selectors(self)
 
-        self.generation_root_accidental_var = tk.StringVar(value="♮")
-        self.generation_root_accidental_combo = ttk.Combobox(
-            self.generation_root_row,
-            textvariable=self.generation_root_accidental_var,
-            state="readonly",
-            values=["♮"],
-            width=3,
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_root_accidental_combo.pack(side=tk.LEFT)
-        self.generation_root_accidental_combo.bind(
-            "<<ComboboxSelected>>", self._on_generation_root_accidental_combo_changed
-        )
-        self._qt_apply_dark_combobox_style(self.generation_root_accidental_combo)
-
-        self.generation_variant_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_variant_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.generation_variant_var = tk.StringVar(value="-")
-        self.generation_variant_combo = ttk.Combobox(
-            self.tab_generation_frame,
-            textvariable=self.generation_variant_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_variant_combo.grid(row=2, column=1, sticky="ew", pady=(0, 5))
-        self.generation_variant_combo.bind("<<ComboboxSelected>>", self._on_generation_variant_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_variant_combo)
-        if hasattr(self.generation_variant_combo, "setMaxVisibleItems"):
-            self.generation_variant_combo.setMaxVisibleItems(16)
-
-        self.generation_inversion_label = tk.Label(
-            self.tab_generation_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.generation_inversion_label.grid(row=3, column=0, sticky="w", pady=(0, 4), padx=(0, 8))
-        self.generation_inversion_var = tk.StringVar(value="-")
-        self.generation_inversion_combo = ttk.Combobox(
-            self.tab_generation_frame,
-            textvariable=self.generation_inversion_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-        )
-        self.generation_inversion_combo.grid(row=3, column=1, sticky="ew", pady=(0, 4))
-        self.generation_inversion_combo.bind("<<ComboboxSelected>>", self._on_generation_inversion_combo_changed)
-        self._qt_apply_dark_combobox_style(self.generation_inversion_combo)
-
-        self.generated_chord_row = tk.Frame(
-            self.tab_generation_frame,
-            bg=self.color_surface_alt,
-            bd=0,
-            highlightthickness=0,
-        )
-        self.generated_chord_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 3))
-
-        self.generation_play_btn = PlayTransportButton(
-            self.generated_chord_row,
-            command=lambda: None,
-            width=58,
-            height=34,
-        )
-        self.generation_play_btn.pack(side=tk.LEFT)
-        self.generation_play_btn.bind("<ButtonPress-1>", self._on_generation_play_press)
-        self.generation_variant_help_btn = GrayRoundedButton(
-            self.generated_chord_row,
-            text="?",
-            command=self.open_generation_variant_help_dialog,
-            font_family=self.ui_font_family,
-            width=34,
-            height=34,
-            radius=17,
-            font_size=18,
-        )
-        self.generation_variant_help_btn.pack(side=tk.LEFT, padx=(8, 0))
+        build_generation_action_row(self)
         self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
 
         self.generation_result_canvas = tk.Canvas(
@@ -1574,84 +1146,9 @@ class UiMixin:
         self.scale_bpm_value_label.grid(row=0, column=3, sticky="e")
         self._set_scale_bpm(self.scale_bpm_value, save=False)
 
-        self.scale_tonic_selector_label = tk.Label(
-            self.tab_scale_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.scale_tonic_selector_label.grid(row=1, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        self.scale_tonic_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt)
-        self.scale_tonic_row.grid(row=1, column=1, columnspan=2, sticky="w", pady=(0, 5))
-        self.scale_tonic_var = tk.StringVar(value="C")
-        self.scale_tonic_combo = ttk.Combobox(
-            self.scale_tonic_row,
-            textvariable=self.scale_tonic_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-            height=15,
-        )
-        self.scale_tonic_combo.pack(side=tk.LEFT, padx=(0, 6))
-        self.scale_tonic_combo.bind("<<ComboboxSelected>>", self._on_scale_tonic_combo_changed)
-        self._qt_apply_dark_combobox_style(self.scale_tonic_combo)
+        build_scale_tonic_selector(self)
 
-        self.scale_tonic_accidental_var = tk.StringVar(value="♮")
-        self.scale_tonic_accidental_combo = ttk.Combobox(
-            self.scale_tonic_row,
-            textvariable=self.scale_tonic_accidental_var,
-            state="readonly",
-            values=["♮"],
-            width=3,
-            font=(self.ui_font_family, 15),
-        )
-        self.scale_tonic_accidental_combo.pack(side=tk.LEFT)
-        self.scale_tonic_accidental_combo.bind(
-            "<<ComboboxSelected>>", self._on_scale_tonic_accidental_combo_changed
-        )
-        self._qt_apply_dark_combobox_style(self.scale_tonic_accidental_combo)
-
-        self.scale_type_selector_label = tk.Label(
-            self.tab_scale_frame,
-            text="",
-            bg=self.color_surface_alt,
-            fg=self.color_text,
-            font=(self.ui_font_family, 14),
-        )
-        self.scale_type_selector_label.grid(row=2, column=0, sticky="w", pady=(0, 5), padx=(0, 8))
-        scale_type_row = tk.Frame(self.tab_scale_frame, bg=self.color_surface_alt, bd=0, highlightthickness=0)
-        scale_type_row.grid(row=2, column=1, sticky="w", pady=(0, 5))
-        self.scale_type_var = tk.StringVar(value=self.scale_pattern_name)
-        self.scale_type_combo = ttk.Combobox(
-            scale_type_row,
-            textvariable=self.scale_type_var,
-            state="readonly",
-            values=["-"],
-            font=(self.ui_font_family, 15),
-            height=20,
-        )
-        self.scale_type_combo.grid(row=0, column=0, sticky="ew")
-        self.scale_type_combo.bind("<<ComboboxSelected>>", self._on_scale_type_combo_changed)
-        self._qt_apply_dark_combobox_style(self.scale_type_combo)
-        if not hasattr(self, "scale_filter_mode"):
-            self.scale_filter_mode = "basic"
-        self.scale_inline_filter_btn = GrayRoundedButton(
-            scale_type_row,
-            text="",
-            command=self._toggle_scale_filter_mode,
-            font_family=self.ui_font_family,
-            width=76,
-            height=34,
-            radius=12,
-            font_size=12,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
-            selected_fill_color="#f3bf2f",
-            selected_outline_color="#c9961f",
-        )
-        self.scale_inline_filter_btn.grid(row=0, column=1, sticky="e", padx=(6, 0))
-        self.scale_inline_filter_btn.set_selected(self.scale_filter_mode == "basic")
+        scale_type_row = build_scale_type_selector(self)
 
         # Etiqueta "Volumen" + porcentaje: en la misma fila que "Escala" (a
         # la derecha del botón "Básicas"), alineada verticalmente con el
@@ -3567,7 +3064,22 @@ class UiMixin:
         if mode_key not in self._available_mode_keys():
             mode_key = "detection"
         self.mode_var.set(self._mode_label(mode_key))
-        self._on_mode_combo_changed(None)
+        self._schedule_mode_change()
+
+    def _schedule_mode_change(self) -> None:
+        """Let Qt close/repaint the selector before running the heavy transition."""
+        pending = getattr(self, "_mode_change_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except Exception:
+                pass
+
+        def apply_change() -> None:
+            self._mode_change_after_id = None
+            self._on_mode_combo_changed(None)
+
+        self._mode_change_after_id = self.after(0, apply_change)
     def _open_mode_selector_overlay(self) -> None:
         if self.mode_selector_overlay is not None:
             self._close_mode_selector_overlay()
@@ -3792,7 +3304,7 @@ class UiMixin:
             mode_key = "detection"
         self.mode_var.set(self._mode_label(mode_key))
         self._close_mode_selector_overlay()
-        self._on_mode_combo_changed(None)
+        self._schedule_mode_change()
     def _on_mode_combo_changed(self, _event: tk.Event) -> None:
         self._close_mode_selector_overlay()
         self._close_scale_tonic_overlay()
@@ -3921,7 +3433,6 @@ class UiMixin:
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
-            self.update_music_views()
         elif self.metronome_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
@@ -3982,7 +3493,6 @@ class UiMixin:
             if hasattr(self, '_clear_interval_notes'):
                 self._clear_interval_notes()
             self.active_notes = set()
-            self.update_music_views()
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()

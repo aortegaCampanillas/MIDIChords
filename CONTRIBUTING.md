@@ -6,13 +6,16 @@ Thanks for contributing.
 
 1. Create a branch from `main`.
 2. Keep changes small and self-contained.
-3. Run tests from the **project root**:
+3. Install development dependencies and run the relevant checks from the **project root**:
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+python -m pip install -r requirements-dev.txt
+python scripts/check.py python
+python scripts/check.py web
+python scripts/check.py mobile
 ```
 
-Optionally verify that `app.py` compiles: `python3 -m py_compile app.py`.
+Use `python scripts/check.py all` when Python, web and Flutter tooling are all installed.
 
 4. Open a Pull Request with a clear description:
 
@@ -29,4 +32,4 @@ Optionally verify that `app.py` compiles: `python3 -m py_compile app.py`.
 ## For AI agents
 
 - Prefer Spanish for user-facing strings and default UI language (`es` in `midichords.core.i18n`).
-- Run the test command above before considering a change complete. See **AGENTS.md** for project structure and **PROJECT_SPEC.md** for product spec.
+- Run the applicable check profiles above before considering a change complete. See **AGENTS.md** for project structure and **PROJECT_SPEC.md** for product spec.

@@ -12,6 +12,21 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 class RenderMixin:
     @staticmethod
+    def _parallel_beam_endpoint(
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        beam_start_x: float,
+        beam_start_y: float,
+        beam_end_x: float,
+        beam_end_y: float,
+    ) -> tuple[float, float]:
+        """Return an endpoint whose segment follows the primary beam slope."""
+        beam_dx = beam_end_x - beam_start_x
+        slope = (beam_end_y - beam_start_y) / beam_dx if beam_dx else 0.0
+        return end_x, start_y + slope * (end_x - start_x)
+
+    @staticmethod
     def _staff_clef_sizes_px(line_space: int) -> tuple[int, int]:
         """Tamaño de clave de sol / fa alineado con la web (gap≈17 → 𝄞 82px, 𝄢 72px)."""
         ls = float(line_space)
@@ -60,6 +75,23 @@ class RenderMixin:
         order = [11, 4, 9, 2, 7, 0, 5] if prefer_flats else [5, 0, 7, 2, 9, 4, 11]
         try:
             index = order.index(natural_pc)
+        except ValueError:
+            return -1
+        return index if index < int(signature_count) else -1
+
+    @staticmethod
+    def _key_signature_index_for_midi(
+        midi_note: int,
+        signature_count: int,
+        prefer_flats: bool,
+    ) -> int:
+        """Índice de la alteración de armadura que representa el pitch pulsado."""
+        if signature_count <= 0:
+            return -1
+        pitch_class = int(midi_note) % 12
+        order = [10, 3, 8, 1, 6, 11, 4] if prefer_flats else [6, 1, 8, 3, 10, 5, 0]
+        try:
+            index = order.index(pitch_class)
         except ValueError:
             return -1
         return index if index < int(signature_count) else -1
@@ -1466,6 +1498,19 @@ class RenderMixin:
                     if signature_index >= 0:
                         active_signature_indices.add(signature_index)
                     break
+        elif self.generation_tab_active and use_key_signature:
+            active_generation_notes = (
+                set(self.generated_playing_notes)
+                | set(self.generation_midi_held_notes)
+            )
+            for active_note in active_generation_notes:
+                signature_index = self._key_signature_index_for_midi(
+                    int(active_note),
+                    signature_count,
+                    prefer_flat_signature,
+                )
+                if signature_index >= 0:
+                    active_signature_indices.add(signature_index)
         signature_end_x = 132.0
         if use_key_signature:
             accidental_text = "♭" if prefer_flat_signature else "#"
@@ -2070,7 +2115,16 @@ class RenderMixin:
                             _bsy_s = _by_n + _stub_off
                         else:
                             _bsy_s = _by_n - _stub_off
-                        canvas.create_line(_bx_n, _bsy_s, _bx_n + _stub_dir * _stub_w, _bsy_s,
+                        _stub_x, _stub_y = self._parallel_beam_endpoint(
+                            _bx_n,
+                            _bsy_s,
+                            _bx_n + _stub_dir * _stub_w,
+                            _bdata[0][0],
+                            _bdata[0][1],
+                            _bdata[-1][0],
+                            _bdata[-1][1],
+                        )
+                        canvas.create_line(_bx_n, _bsy_s, _stub_x, _stub_y,
                                            fill=_bsd[4], width=_bw_beam)
 
         # Interval melody: draw rests for None positions

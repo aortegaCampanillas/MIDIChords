@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from midichords.core.changelog import get_changelog_path
+from midichords.core.music_theory import CHORD_PATTERNS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +30,184 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
         for relative_path in ("guitar_chord_cache.json", "metronome.mp3"):
             with self.subTest(relative_path=relative_path):
                 self.assert_same_copy(relative_path)
+
+    def test_guitar_cache_covers_every_chord_pattern(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        for pattern in CHORD_PATTERNS:
+            for root_pc in range(12):
+                key = f"{root_pc}|{pattern.suffix}"
+                with self.subTest(key=key):
+                    self.assertTrue(cache.get(key), f"Faltan digitaciones para {key}")
+
+    def test_added_note_voicings_show_one_playable_shape(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        patterns = {
+            pattern.suffix: pattern.intervals
+            for pattern in CHORD_PATTERNS
+            if pattern.suffix in {"add2", "add4", "madd2", "madd4"}
+        }
+        for suffix, intervals in patterns.items():
+            for root_pc in range(12):
+                expected_pcs = {(root_pc + interval) % 12 for interval in intervals}
+                for variation in cache[f"{root_pc}|{suffix}"]:
+                    frets = variation["frets"]
+                    notes = variation["notes"]
+                    with self.subTest(suffix=suffix, root_pc=root_pc, frets=frets):
+                        self.assertEqual(6, len(frets))
+                        self.assertLessEqual(len(notes), 6)
+                        self.assertEqual(expected_pcs, {note % 12 for note in notes})
+
+    def test_add2_exposes_the_three_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[-1, 3, 2, 0, 3, -1], [-1, 3, 5, 7, 5, 3], [-1, -1, 10, 9, 8, 10]],
+            1: [[-1, 4, 3, 1, 4, -1], [-1, 4, 6, 8, 6, 4], [-1, -1, 11, 10, 9, 11]],
+            2: [[-1, 5, 4, 2, 5, -1], [-1, 5, 7, 9, 7, 5], [-1, -1, 12, 11, 10, 12]],
+            3: [[-1, 6, 5, 3, 6, -1], [-1, 6, 8, 10, 8, 6], [-1, -1, 13, 12, 11, 13]],
+            4: [[-1, -1, 2, 1, 0, 2], [-1, 7, 6, 4, 7, -1], [-1, 7, 9, 11, 9, 7]],
+            5: [[-1, 8, 7, 5, 8, -1], [-1, 8, 10, 12, 10, 8], [-1, -1, 3, 2, 1, 3]],
+            6: [[-1, 9, 8, 6, 9, -1], [-1, 9, 11, 13, 11, 9], [-1, -1, 4, 3, 2, 4]],
+            7: [[-1, 10, 9, 7, 10, -1], [-1, 10, 12, 14, 12, 10], [-1, -1, 5, 4, 3, 5]],
+            8: [[-1, 11, 10, 8, 11, -1], [-1, 11, 13, 15, 13, 11], [-1, -1, 6, 5, 4, 6]],
+            9: [[-1, 0, 2, 4, 2, 0], [-1, 12, 11, 9, 12, -1], [-1, -1, 7, 6, 5, 7]],
+            10: [[-1, 13, 12, 10, 13, -1], [-1, 1, 3, 5, 3, 1], [-1, -1, 8, 7, 6, 8]],
+            11: [[-1, 14, 13, 11, 14, -1], [-1, 2, 4, 6, 4, 2], [-1, -1, 9, 8, 7, 9]],
+        }
+        standard_fingers = [[0, 3, 2, 1, 4, 0], [0, 1, 2, 4, 3, 1], [0, 0, 3, 2, 1, 4]]
+        expected_fingers = {root_pc: standard_fingers for root_pc in range(12)}
+        expected_fingers[0] = [[0, 2, 1, 0, 3, 0], standard_fingers[1], standard_fingers[2]]
+        expected_fingers[4] = [[0, 0, 2, 1, 0, 3], standard_fingers[0], standard_fingers[1]]
+        expected_fingers[9] = [[0, 0, 1, 4, 2, 0], standard_fingers[0], standard_fingers[2]]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                self.assertEqual(
+                    frets,
+                    [variation["frets"] for variation in cache[f"{root_pc}|add2"]],
+                )
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in cache[f"{root_pc}|add2"]],
+                )
+
+    def test_add4_exposes_the_two_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[8, 8, 10, 9, 8, 8], [-1, 3, 3, 5, 5, 3]],
+            1: [[9, 9, 11, 10, 9, 9], [-1, 4, 4, 6, 6, 4]],
+            2: [[10, 10, 12, 11, 10, 10], [-1, 5, 5, 7, 7, 5]],
+            3: [[11, 11, 13, 12, 11, 11], [-1, 6, 6, 8, 8, 6]],
+            4: [[0, 0, 2, 1, 0, 0], [-1, 7, 7, 9, 9, 7]],
+            5: [[1, 1, 3, 2, 1, 1], [-1, 8, 8, 10, 10, 8]],
+            6: [[2, 2, 4, 3, 2, 2], [-1, 9, 9, 11, 11, 9]],
+            7: [[3, 3, 5, 4, 3, 3], [-1, 10, 10, 12, 12, 10]],
+            8: [[4, 4, 6, 5, 4, 4], [-1, 11, 11, 13, 13, 11]],
+            9: [[-1, 0, 0, 2, 2, 0], [5, 5, 7, 6, 5, 5]],
+            10: [[6, 6, 8, 7, 6, 6], [-1, 1, 1, 3, 3, 1]],
+            11: [[7, 7, 9, 8, 7, 7], [-1, 2, 2, 4, 4, 2]],
+        }
+        e_fingers = [1, 1, 3, 2, 1, 1]
+        a_fingers = [0, 1, 1, 3, 4, 1]
+        expected_fingers = {root_pc: [e_fingers, a_fingers] for root_pc in range(12)}
+        expected_fingers[4] = [[0, 0, 2, 1, 0, 0], a_fingers]
+        expected_fingers[9] = [[0, 0, 0, 2, 3, 0], e_fingers]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                variations = cache[f"{root_pc}|add4"]
+                self.assertEqual(frets, [variation["frets"] for variation in variations])
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in variations],
+                )
+
+    def test_minor_add2_exposes_the_two_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[-1, 3, 1, 0, 3, -1], [-1, -1, 10, 8, 8, 10]],
+            1: [[-1, 4, 2, 1, 4, -1], [-1, -1, 11, 9, 9, 11]],
+            2: [[-1, 5, 3, 2, 5, -1], [-1, -1, 12, 10, 10, 12]],
+            3: [[-1, 6, 4, 3, 6, -1], [-1, -1, 13, 11, 11, 13]],
+            4: [[-1, -1, 2, 0, 0, 2], [-1, 7, 5, 4, 7, -1]],
+            5: [[-1, 8, 6, 5, 8, -1], [-1, -1, 3, 1, 1, 3]],
+            6: [[-1, 9, 7, 6, 9, -1], [-1, -1, 4, 2, 2, 4]],
+            7: [[-1, 10, 8, 7, 10, -1], [-1, -1, 5, 3, 3, 5]],
+            8: [[-1, 11, 9, 8, 11, -1], [-1, -1, 6, 4, 4, 6]],
+            9: [[-1, 12, 10, 9, 12, -1], [-1, -1, 7, 5, 5, 7]],
+            10: [[-1, 13, 11, 10, 13, -1], [-1, -1, 8, 6, 6, 8]],
+            11: [[-1, 14, 12, 11, 14, -1], [-1, -1, 9, 7, 7, 9]],
+        }
+        a_fingers = [0, 3, 2, 1, 4, 0]
+        d_fingers = [0, 0, 3, 1, 1, 4]
+        expected_fingers = {root_pc: [a_fingers, d_fingers] for root_pc in range(12)}
+        expected_fingers[0] = [[0, 3, 1, 0, 4, 0], d_fingers]
+        expected_fingers[4] = [[0, 0, 2, 0, 0, 3], a_fingers]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                variations = cache[f"{root_pc}|madd2"]
+                self.assertEqual(frets, [variation["frets"] for variation in variations])
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in variations],
+                )
+
+    def test_minor_add4_exposes_the_two_reference_voicings_for_every_root(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        expected = {
+            0: [[8, 8, 10, 8, 8, 8], [-1, 3, 3, 5, 4, 3]],
+            1: [[9, 9, 11, 9, 9, 9], [-1, 4, 4, 6, 5, 4]],
+            2: [[10, 10, 12, 10, 10, 10], [-1, 5, 5, 7, 6, 5]],
+            3: [[11, 11, 13, 11, 11, 11], [-1, 6, 6, 8, 7, 6]],
+            4: [[0, 0, 2, 0, 0, 0], [-1, 7, 7, 9, 8, 7]],
+            5: [[1, 1, 3, 1, 1, 1], [-1, 8, 8, 10, 9, 8]],
+            6: [[2, 2, 4, 2, 2, 2], [-1, 9, 9, 11, 10, 9]],
+            7: [[3, 3, 5, 3, 3, 3], [-1, 10, 10, 12, 11, 10]],
+            8: [[4, 4, 6, 4, 4, 4], [-1, 11, 11, 13, 12, 11]],
+            9: [[-1, 0, 0, 2, 1, 0], [5, 5, 7, 5, 5, 5]],
+            10: [[6, 6, 8, 6, 6, 6], [-1, 1, 1, 3, 2, 1]],
+            11: [[7, 7, 9, 7, 7, 7], [-1, 2, 2, 4, 3, 2]],
+        }
+        e_fingers = [1, 1, 3, 1, 1, 1]
+        a_fingers = [0, 1, 1, 3, 2, 1]
+        expected_fingers = {root_pc: [e_fingers, a_fingers] for root_pc in range(12)}
+        expected_fingers[4] = [[0, 0, 2, 0, 0, 0], a_fingers]
+        expected_fingers[9] = [[0, 0, 0, 2, 1, 0], e_fingers]
+        for root_pc, frets in expected.items():
+            with self.subTest(root_pc=root_pc):
+                variations = cache[f"{root_pc}|madd4"]
+                self.assertEqual(frets, [variation["frets"] for variation in variations])
+                self.assertEqual(
+                    expected_fingers[root_pc],
+                    [variation["fingers"] for variation in variations],
+                )
+
+    def test_add9_matches_the_three_reference_add2_fingerings(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+        for root_pc in range(12):
+            with self.subTest(root_pc=root_pc):
+                add2 = cache[f"{root_pc}|add2"]
+                add9 = cache[f"{root_pc}|add9"]
+                self.assertEqual(3, len(add9))
+                self.assertEqual(
+                    [variation["frets"] for variation in add2],
+                    [variation["frets"] for variation in add9],
+                )
+                self.assertEqual(
+                    [variation["fingers"] for variation in add2],
+                    [variation["fingers"] for variation in add9],
+                )
 
     def test_shared_guitar_sample_bank_is_complete_and_identical(self):
         relative_dir = Path("samples/guitar_nylon")

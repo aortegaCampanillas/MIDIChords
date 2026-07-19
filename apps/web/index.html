@@ -6,13 +6,34 @@
   <title>FreeMIDIChords — Free Music Theory Tools for Every Platform</title>
   <meta name="description" content="Free music theory tools: chord and interval detection, chord generation, circle of fifths, scales and metronome — available as a web app, mobile app (iOS &amp; Android), desktop app (Mac &amp; Windows), and Roland FP-30X controller." />
   <link rel="canonical" href="https://freemidichords.com/" />
+  <link rel="alternate" hreflang="en" href="https://freemidichords.com/?lang=en" />
+  <link rel="alternate" hreflang="es" href="https://freemidichords.com/?lang=es" />
+  <link rel="alternate" hreflang="x-default" href="https://freemidichords.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://freemidichords.com/" />
   <meta property="og:title" content="FreeMIDIChords — Free Music Theory Tools" />
   <meta property="og:description" content="Chord and interval detection, circle of fifths, scales and metronome — web, mobile, desktop and Roland FP-30X controller. All free." />
   <meta property="og:image" content="https://freemidichords.com/static/og-image.png" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="FreeMIDIChords — Understand chords, scales and harmony" />
+  <meta name="twitter:description" content="See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop." />
+  <meta name="twitter:image" content="https://freemidichords.com/static/og-image.png" />
   <link rel="icon" type="image/png" href="/static/favicon.png" sizes="150x150" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "FreeMIDIChords",
+    "url": "https://freemidichords.com/app",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web, macOS, Windows, Linux, iOS, Android",
+    "softwareVersion": "1.0.2",
+    "description": "Free tools to detect and generate chords, identify intervals, explore scales and understand harmony on piano, guitar and staff.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+  }
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -36,6 +57,7 @@
       color: var(--text);
       line-height: 1.65;
     }
+    :focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
 
     /* ── NAV ── */
     nav {
@@ -73,12 +95,17 @@
 
     /* ── HERO ── */
     .hero {
-      padding: 100px 24px 88px;
-      text-align: center;
+      padding: 76px 24px 64px;
       background:
         radial-gradient(ellipse 70% 50% at 30% 20%, rgba(91,141,238,.12) 0%, transparent 60%),
         radial-gradient(ellipse 60% 40% at 70% 80%, rgba(224,120,40,.08) 0%, transparent 60%);
     }
+    .hero-inner {
+      max-width: 1180px; margin: 0 auto;
+      display: grid; grid-template-columns: minmax(0, .85fr) minmax(480px, 1.15fr);
+      gap: 58px; align-items: center;
+    }
+    .hero-copy { text-align: left; }
     .hero-eyebrow {
       display: inline-block; font-size: .75rem; font-weight: 700; letter-spacing: .14em;
       text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
@@ -86,14 +113,38 @@
     .hero h1 {
       font-size: clamp(2.2rem, 5.5vw, 3.6rem);
       font-weight: 800; letter-spacing: -.03em; line-height: 1.1;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     .hero h1 em { font-style: normal; color: var(--accent); }
     .hero p {
       font-size: clamp(1rem, 2vw, 1.2rem);
-      color: var(--muted); max-width: 580px; margin: 0 auto 42px;
+      color: var(--muted); max-width: 620px; margin: 0 0 32px;
     }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+    .hero-note { color: var(--muted); font-size: .78rem; margin-top: 16px; }
+    .hero-preview {
+      position: relative; border: 1px solid rgba(123,164,245,.35);
+      border-radius: 18px; padding: 10px; background: rgba(30,30,42,.78);
+      box-shadow: 0 28px 80px rgba(0,0,0,.38);
+      transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
+    }
+    .hero-preview::before {
+      content: ""; position: absolute; inset: -1px; border-radius: inherit;
+      background: linear-gradient(135deg, rgba(91,141,238,.22), transparent 45%);
+      pointer-events: none;
+    }
+    .hero-preview img { width: 100%; height: auto; display: block; border-radius: 10px; }
+
+    .audience-strip {
+      max-width: 1040px; margin: 0 auto; padding: 6px 24px 38px;
+      display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px;
+      color: var(--muted); font-size: .84rem;
+    }
+    .audience-label { color: var(--text); font-weight: 650; margin-right: 3px; }
+    .audience-item {
+      border: 1px solid var(--border); border-radius: 999px;
+      background: var(--surface); padding: 6px 13px;
+    }
     .btn-primary {
       display: inline-flex; align-items: center; gap: 8px;
       background: var(--accent); color: #fff; border-radius: var(--radius);
@@ -243,23 +294,34 @@
     .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-bottom: 12px; }
 
     /* ── SCREENSHOTS ── */
-    .screenshots-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 24px; }
+    .screenshots-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 56px 24px; }
     .screenshots-inner { max-width: 1140px; margin: 0 auto; }
+    .screenshots-inner .section-title { margin-bottom: 24px; }
     .screenshots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px; margin-top: 48px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px; margin-top: 0;
+    }
+    .screenshots-grid .screenshot-item:last-child:nth-child(odd) {
+      grid-column: 1 / -1; width: calc(50% - 8px); justify-self: center;
     }
     .screenshot-item {
       border-radius: var(--radius); overflow: hidden;
       border: 1px solid var(--border); cursor: pointer;
+      background: transparent; color: inherit; padding: 0; text-align: left;
+      font: inherit; width: 100%; align-self: start;
+      display: flex; flex-direction: column;
       transition: transform .2s, border-color .2s;
     }
     .screenshot-item:hover { transform: translateY(-3px); border-color: var(--accent); }
-    .screenshot-item img { width: 100%; display: block; }
+    .screenshot-item img {
+      width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: contain;
+      display: block; background: #101722;
+    }
     .screenshot-cap {
       background: var(--surface2); padding: 10px 14px;
       font-size: .8rem; color: var(--muted); font-weight: 500;
+      min-height: 42px; display: flex; align-items: center;
     }
     .lightbox {
       display: none; position: fixed; inset: 0; z-index: 200;
@@ -316,9 +378,30 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 640px) {
-      .nav-links { display: none; }
+      nav { height: auto; min-height: 58px; flex-wrap: wrap; padding-top: 8px; }
+      .nav-links {
+        display: flex; order: 3; width: 100%; overflow-x: auto;
+        gap: 18px; padding: 8px 0 10px; white-space: nowrap;
+      }
+      .nav-cta { padding-inline: 12px; }
       .cta-band { padding: 40px 24px; }
       .support-grid { grid-template-columns: 1fr; }
+      .screenshots-grid { grid-template-columns: 1fr; }
+      .screenshots-grid .screenshot-item:last-child:nth-child(odd) {
+        grid-column: auto; width: 100%;
+      }
+    }
+    @media (max-width: 900px) {
+      .hero { padding-top: 58px; }
+      .hero-inner { grid-template-columns: 1fr; gap: 42px; }
+      .hero-copy { text-align: center; }
+      .hero p { margin-left: auto; margin-right: auto; }
+      .hero-actions { justify-content: center; }
+      .hero-preview { max-width: 720px; margin: 0 auto; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
@@ -329,40 +412,56 @@
   <a class="nav-logo" href="/">Free<span>MIDI</span>Chords</a>
   <ul class="nav-links">
     <li><a href="#products" data-i18n="nav_apps">Apps</a></li>
-    <li><a href="/app" target="_blank" rel="noopener noreferrer" data-i18n="nav_webapp">Web App</a></li>
+    <li><a href="/app" data-i18n="nav_webapp">Web App</a></li>
     <li><a href="/fp30x">PianoPilot</a></li>
     <li><a href="https://github.com/aortegaCampanillas/MIDIChords" target="_blank" rel="noopener noreferrer">GitHub</a></li>
   </ul>
   <div class="nav-right">
-    <button class="lang-btn" id="langBtn" onclick="toggleLang()">ES</button>
-    <a class="nav-cta" href="/app" target="_blank" rel="noopener noreferrer" data-i18n="nav_cta">Open web app</a>
+    <button class="lang-btn" id="langBtn" aria-label="Change language / Cambiar idioma" onclick="toggleLang()">ES</button>
+    <a class="nav-cta" href="/app" data-i18n="nav_cta">Open web app</a>
   </div>
 </nav>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-eyebrow" data-i18n="hero_eyebrow">Free &amp; Open Source</div>
-  <h1 data-i18n-html="hero_h1">Music theory tools<br>for <em>every</em> platform.</h1>
-  <p data-i18n="hero_p">Detect and generate chords, explore the circle of fifths, practice scales, use the metronome — on the web, your phone, or your desktop.</p>
-  <div class="hero-actions">
-    <a class="btn-primary" href="/app" target="_blank" rel="noopener noreferrer">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      <span data-i18n="nav_cta">Open web app</span>
-    </a>
-    <a class="btn-ghost" href="#products" data-i18n="hero_explore">Explore all apps</a>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-eyebrow" data-i18n="hero_eyebrow">Chords, scales &amp; harmony</div>
+      <h1 data-i18n-html="hero_h1">Understand what you play.<br><em>See it, hear it, learn it.</em></h1>
+      <p data-i18n="hero_p">Play on the interactive piano or guitar — or connect a MIDI keyboard — to identify chords and intervals, explore scales, and understand harmony visually.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="/app">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <span data-i18n="nav_cta">Open web app</span>
+        </a>
+        <a class="btn-ghost" href="#screenshots" data-i18n="hero_explore">See how it works</a>
+      </div>
+      <div class="hero-note" data-i18n="hero_note">Free, no account, no installation, and no ads.</div>
+    </div>
+    <div class="hero-preview" aria-hidden="true">
+      <img src="/static/screenshots/detection.webp" width="1400" height="1050" alt="" fetchpriority="high" />
+    </div>
   </div>
 </section>
 
+<div class="audience-strip" aria-label="Designed for">
+  <span class="audience-label" data-i18n="audience_label">Made for</span>
+  <span class="audience-item" data-i18n="audience_students">music students</span>
+  <span class="audience-item" data-i18n="audience_teachers">teachers</span>
+  <span class="audience-item" data-i18n="audience_keyboard">piano &amp; MIDI players</span>
+  <span class="audience-item" data-i18n="audience_guitar">guitarists</span>
+</div>
+
 <!-- FEATURES STRIP -->
 <div class="features-strip" id="featStrip">
-  <button class="feat-pill" data-feat="chords"    onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
-  <button class="feat-pill" data-feat="intervals" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
-  <button class="feat-pill" data-feat="generation" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
-  <button class="feat-pill" data-feat="circle"    onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
-  <button class="feat-pill" data-feat="scales"    onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
-  <button class="feat-pill" data-feat="metro"     onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
-  <button class="feat-pill" data-feat="midi"      onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
-  <button class="feat-pill" data-feat="free" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
+  <button class="feat-pill" data-feat="chords" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
+  <button class="feat-pill" data-feat="intervals" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
+  <button class="feat-pill" data-feat="generation" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
+  <button class="feat-pill" data-feat="circle" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
+  <button class="feat-pill" data-feat="scales" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
+  <button class="feat-pill" data-feat="metro" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
+  <button class="feat-pill" data-feat="midi" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
+  <button class="feat-pill" data-feat="free" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
 </div>
 
@@ -374,18 +473,18 @@
       <div class="feat-detail-title" id="featDetailTitle"></div>
     </div>
     <div class="feat-detail-body" id="featDetailBody"></div>
-    <a class="feat-detail-cta" href="/app" target="_blank" rel="noopener noreferrer" id="featDetailCta" data-i18n="feat_cta">Try it now →</a>
+    <a class="feat-detail-cta" href="/app" id="featDetailCta" data-i18n="feat_cta">Try it now →</a>
   </div>
 </div>
 
 <!-- PRODUCTS -->
 <section class="section" id="products">
   <span class="section-label" data-i18n="nav_apps">Apps</span>
-  <h2 class="section-title" data-i18n="products_title">One tool suite, every platform</h2>
+  <h2 class="section-title" data-i18n="products_title">Use it wherever you practise</h2>
   <div class="products-grid">
 
     <!-- Web -->
-    <a class="product-card" href="/app" target="_blank" rel="noopener noreferrer">
+    <a class="product-card" href="/app">
       <div class="card-icon">🌐</div>
       <div class="card-title" data-i18n="card_web_title">Web App</div>
       <div class="card-desc" data-i18n="card_web_desc">
@@ -429,7 +528,7 @@
       <div class="card-title">PianoPilot</div>
       <div class="card-badge">Roland FP-30X</div>
       <div class="card-desc" data-i18n="card_pp_desc">
-        A dedicated desktop controller for the Roland FP-30X digital piano. Edit tones, metronome, transpose, Piano Designer, and note voicing from a full-screen interface over USB or Bluetooth.
+        A related desktop app for Roland FP-30X owners. Manage supported piano settings, tones, keyboard modes, presets, and the metronome over USB MIDI or Bluetooth MIDI.
       </div>
       <div class="card-links">
         <span class="card-link" data-i18n="card_learn">Learn more →</span>
@@ -445,37 +544,49 @@
     <span class="section-label" data-i18n="ss_label">Screenshots</span>
     <h2 class="section-title" data-i18n="ss_title">See it in action</h2>
     <div class="screenshots-grid">
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.png')">
-        <img src="/static/screenshots/detection.png" alt="Chord detection" loading="lazy" />
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.webp')">
+        <img src="/static/screenshots/detection.webp" width="1400" height="1050" alt="Chord detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap1">Chord Detection</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.png')">
-        <img src="/static/screenshots/generation.png" alt="Chord generation" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/interval-detection.webp')">
+        <img src="/static/screenshots/interval-detection.webp" width="1400" height="1050" alt="Interval detection" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap6">Interval Detection</div>
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.webp')">
+        <img src="/static/screenshots/generation.webp" width="1400" height="1050" alt="Chord generation" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap2">Chord Generation</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.png')">
-        <img src="/static/screenshots/guitar.png" alt="Guitar chords" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.webp')">
+        <img src="/static/screenshots/guitar.webp" width="1400" height="1050" alt="Guitar chords" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap3">Guitar Chords</div>
-      </div>
-      <div class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.png')">
-        <img src="/static/screenshots/scales.png" alt="Scales" loading="lazy" />
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.webp')">
+        <img src="/static/screenshots/scales.webp" width="1400" height="1050" alt="Scales" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
-      </div>
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/circle-of-fifths.webp')">
+        <img src="/static/screenshots/circle-of-fifths.webp" width="1400" height="1050" alt="Interactive circle of fifths" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap5">Circle of Fifths</div>
+      </button>
+      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/metronome.webp')">
+        <img src="/static/screenshots/metronome.webp" width="1400" height="1050" alt="Metronome" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap7">Metronome</div>
+      </button>
     </div>
   </div>
 </div>
 
 <!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" aria-hidden="true" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&times;</button>
-  <img id="lightbox-img" src="" alt="Screenshot" />
+  <img id="lightbox-img" src="" width="1400" height="1050" alt="Screenshot" />
 </div>
 
 <!-- CTA BAND -->
 <div class="cta-band">
   <h2 data-i18n="cta_h2">Ready to play?</h2>
   <p data-i18n="cta_p">The web app works right now in your browser — no account, no download, no ads.</p>
-  <a class="btn-primary" href="/app" target="_blank" rel="noopener noreferrer" data-i18n="cta_btn">Open FreeMIDIChords →</a>
+  <a class="btn-primary" href="/app" data-i18n="cta_btn">Open FreeMIDIChords →</a>
 </div>
 
 <!-- SUPPORT + FEEDBACK -->
@@ -500,9 +611,9 @@
 </section>
 
 <!-- FEEDBACK MODAL -->
-<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" onclick="if(event.target===this)closeFeedback()">
+<div id="feedbackModal" class="fb-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle" aria-hidden="true" onclick="if(event.target===this)closeFeedback()">
   <div class="fb-card">
-    <h3 data-i18n="fb_title">Send feedback</h3>
+    <h3 id="feedbackTitle" data-i18n="fb_title">Send feedback</h3>
     <p class="fb-help" data-i18n="fb_help">Send us suggestions or bugs you've found.</p>
     <form id="feedbackForm">
       <div class="fb-row">
@@ -529,7 +640,7 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-links">
-    <a href="/app" target="_blank" rel="noopener noreferrer" data-i18n="nav_webapp">Web App</a>
+    <a href="/app" data-i18n="nav_webapp">Web App</a>
     <a href="/fp30x">PianoPilot</a>
     <a href="https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776" target="_blank" rel="noopener noreferrer">iOS</a>
     <a href="https://play.google.com/store/apps/details?id=com.FPAlanTuring.FreeMIDIChords" target="_blank" rel="noopener noreferrer">Android</a>
@@ -539,16 +650,23 @@
   <p>Desarrollado por Antonio Ortega González</p>
 </footer>
 
+<script src="/static/landing_common.js"></script>
 <script>
 const TRANSLATIONS = {
   en: {
     nav_apps:           "Apps",
     nav_webapp:         "Web App",
     nav_cta:            "Open web app",
-    hero_eyebrow:       "Free \u0026 Open Source",
-    hero_h1:            "Music theory tools<br>for <em>every</em> platform.",
-    hero_p:             "Detect chords and intervals, explore the circle of fifths, practice scales, and use the metronome \u2014 on the web, your phone, or your desktop.",
-    hero_explore:       "Explore all apps",
+    hero_eyebrow:       "Chords, scales \u0026 harmony",
+    hero_h1:            "Understand what you play.<br><em>See it, hear it, learn it.</em>",
+    hero_p:             "Play on the interactive piano or guitar \u2014 or connect a MIDI keyboard \u2014 to identify chords and intervals, explore scales, and understand harmony visually.",
+    hero_explore:       "See how it works",
+    hero_note:          "Free, no account, no installation, and no ads.",
+    audience_label:     "Made for",
+    audience_students:  "music students",
+    audience_teachers:  "teachers",
+    audience_keyboard:  "piano \u0026 MIDI players",
+    audience_guitar:    "guitarists",
     pill_chords:        "Chord detection",
     pill_intervals:     "Interval detection",
     pill_generation:    "Chord generation",
@@ -575,7 +693,7 @@ const TRANSLATIONS = {
     feat_metro_body:    "A precise metronome with adjustable BPM and tap-tempo. Keep time while you practise chords or scales — the click sound uses a real percussion sample.",
     feat_midi_title:    "MIDI Input",
     feat_midi_body:     "Connect any USB or Bluetooth MIDI keyboard and use it directly in the app. Notes you play are detected in real time and reflected on the piano, guitar, and staff — no drivers needed in modern browsers.",
-    products_title:     "One tool suite, every platform",
+    products_title:     "Use it wherever you practise",
     card_web_title:     "Web App",
     card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.",
     card_open:          "Open \u2192",
@@ -583,7 +701,7 @@ const TRANSLATIONS = {
     card_mobile_desc:   "Take FreeMIDIChords anywhere. Same chord tools and circle of fifths, optimized for touch on iPhone, iPad and Android.",
     card_desktop_title: "Desktop App",
     card_desktop_desc:  "A native desktop experience for Mac, Windows and Linux. Full chord and scale toolkit with MIDI input, audio engine, and staff notation \u2014 no browser needed.",
-    card_pp_desc:       "A dedicated desktop controller for the Roland FP-30X digital piano. Edit tones, metronome, transpose, Piano Designer, and note voicing from a full-screen interface over USB or Bluetooth.",
+    card_pp_desc:       "A related desktop app for Roland FP-30X owners. Manage supported piano settings, tones, keyboard modes, presets, and the metronome over USB MIDI or Bluetooth MIDI.",
     card_learn:         "Learn more \u2192",
     cta_h2:             "Ready to play?",
     cta_p:              "The web app works right now in your browser \u2014 no account, no download, no ads.",
@@ -594,6 +712,9 @@ const TRANSLATIONS = {
     ss_cap2:  "Chord Generation",
     ss_cap3:  "Guitar Chords",
     ss_cap4:  "Scales",
+    ss_cap5:  "Circle of Fifths",
+    ss_cap6:  "Interval Detection",
+    ss_cap7:  "Metronome",
     sup_donate_title:   "Support the project",
     sup_donate_text:    "This project is designed to stay free and ad-free forever. Your support helps cover development, maintenance, infrastructure, and support time.",
     sup_donate_btn:     "Donate",
@@ -615,10 +736,16 @@ const TRANSLATIONS = {
     nav_apps:           "Apps",
     nav_webapp:         "App Web",
     nav_cta:            "Abrir app web",
-    hero_eyebrow:       "Gratis y c\u00f3digo abierto",
-    hero_h1:            "Herramientas de teor\u00eda musical<br>para <em>todas</em> las plataformas.",
-    hero_p:             "Detecta acordes e intervalos, explora el c\u00edrculo de quintas, practica escalas y usa el metr\u00f3nomo \u2014 en la web, tu m\u00f3vil o tu escritorio.",
-    hero_explore:       "Ver todas las apps",
+    hero_eyebrow:       "Acordes, escalas y armon\u00eda",
+    hero_h1:            "Comprende lo que tocas.<br><em>Visualiza, escucha y aprende.</em>",
+    hero_p:             "Toca en el piano o la guitarra interactivos, o conecta un teclado MIDI, para identificar acordes e intervalos, explorar escalas y comprender la armon\u00eda visualmente.",
+    hero_explore:       "Ver c\u00f3mo funciona",
+    hero_note:          "Gratis, sin cuenta, sin instalaci\u00f3n y sin anuncios.",
+    audience_label:     "Pensado para",
+    audience_students:  "estudiantes de m\u00fasica",
+    audience_teachers:  "docentes",
+    audience_keyboard:  "pianistas y usuarios MIDI",
+    audience_guitar:    "guitarristas",
     pill_chords:        "Detecci\u00f3n de acordes",
     pill_intervals:     "Detecci\u00f3n de intervalos",
     pill_generation:    "Generaci\u00f3n de acordes",
@@ -645,7 +772,7 @@ const TRANSLATIONS = {
     feat_metro_body:    "Un metr\u00f3nomo preciso con BPM ajustable y tempo por golpe. Mantener el tiempo mientras practicas acordes o escalas \u2014 el sonido usa una muestra real de percusi\u00f3n.",
     feat_midi_title:    "Entrada MIDI",
     feat_midi_body:     "Conecta cualquier teclado MIDI por USB o Bluetooth y \u00fasalo directamente en la app. Las notas que toques se detectan en tiempo real y se reflejan en el piano, la guitarra y el pentagrama \u2014 sin instalar controladores en navegadores modernos.",
-    products_title:     "Una suite de herramientas, todas las plataformas",
+    products_title:     "\u00dasalo donde practiques",
     card_web_title:     "App Web",
     card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas y metr\u00f3nomo. Teclado MIDI opcional.",
     card_open:          "Abrir \u2192",
@@ -653,7 +780,7 @@ const TRANSLATIONS = {
     card_mobile_desc:   "Lleva FreeMIDIChords a todas partes. Las mismas herramientas de acordes y el c\u00edrculo de quintas, optimizadas para pantalla t\u00e1ctil en iPhone, iPad y Android.",
     card_desktop_title: "App de Escritorio",
     card_desktop_desc:  "Una experiencia nativa para Mac, Windows y Linux. Suite completa de acordes y escalas con entrada MIDI, motor de audio y notaci\u00f3n en pentagrama \u2014 sin navegador.",
-    card_pp_desc:       "Un controlador de escritorio dedicado para el piano digital Roland FP-30X. Edita tonos, metr\u00f3nomo, transposici\u00f3n, Piano Designer y voicing de notas desde una interfaz a pantalla completa por USB o Bluetooth.",
+    card_pp_desc:       "Una app de escritorio relacionada para propietarios de un Roland FP-30X. Gestiona ajustes compatibles, tonos, modos de teclado, presets y metr\u00f3nomo por USB MIDI o Bluetooth MIDI.",
     card_learn:         "Saber m\u00e1s \u2192",
     cta_h2:             "\u00bfListo para tocar?",
     cta_p:              "La app web funciona ahora mismo en tu navegador \u2014 sin cuenta, sin descarga, sin anuncios.",
@@ -664,6 +791,9 @@ const TRANSLATIONS = {
     ss_cap2:  "Generaci\u00f3n de acordes",
     ss_cap3:  "Acordes de guitarra",
     ss_cap4:  "Escalas",
+    ss_cap5:  "C\u00edrculo de quintas",
+    ss_cap6:  "Detecci\u00f3n de intervalos",
+    ss_cap7:  "Metr\u00f3nomo",
     sup_donate_title:   "Apoya el proyecto",
     sup_donate_text:    "Este proyecto est\u00e1 pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y soporte.",
     sup_donate_btn:     "Donar",
@@ -683,37 +813,6 @@ const TRANSLATIONS = {
   },
 };
 
-const LS_KEY = "fmc_lang";
-
-function detectLang() {
-  const saved = localStorage.getItem(LS_KEY);
-  if (saved === "es" || saved === "en") return saved;
-  const nav = (navigator.language || "en").toLowerCase();
-  return nav.startsWith("es") ? "es" : "en";
-}
-
-function applyLang(lang) {
-  const t = TRANSLATIONS[lang];
-  document.documentElement.lang = lang;
-  document.getElementById("langBtn").textContent = lang === "en" ? "ES" : "EN";
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    const key = el.getAttribute("data-i18n");
-    if (t[key] !== undefined) el.textContent = t[key];
-  });
-  document.querySelectorAll("[data-i18n-html]").forEach(el => {
-    const key = el.getAttribute("data-i18n-html");
-    if (t[key] !== undefined) el.innerHTML = t[key];
-  });
-}
-
-function toggleLang() {
-  const current = detectLang();
-  const next = current === "en" ? "es" : "en";
-  localStorage.setItem(LS_KEY, next);
-  applyLang(next);
-  if (activeFeat) toggleFeatContent(next, activeFeat);
-}
-
 function toggleFeatContent(lang, id) {
   const t = TRANSLATIONS[lang];
   document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
@@ -727,8 +826,6 @@ function toggleFeatContent(lang, id) {
     cta.href = "/app";
   }
 }
-
-applyLang(detectLang());
 
 // ── FEATURE DETAIL TOGGLE ──
 const FEAT_ICONS = {
@@ -751,7 +848,10 @@ function toggleFeat(id) {
   if (activeFeat === id) {
     activeFeat = null;
     panel.classList.remove("open");
-    btns.forEach(b => b.classList.remove("active"));
+    btns.forEach(b => {
+      b.classList.remove("active");
+      b.setAttribute("aria-expanded", "false");
+    });
     return;
   }
 
@@ -773,57 +873,48 @@ function toggleFeat(id) {
     cta.style.display = "";
   }
 
-  btns.forEach(b => b.classList.toggle("active", b.dataset.feat === id));
+  btns.forEach(b => {
+    const selected = b.dataset.feat === id;
+    b.classList.toggle("active", selected);
+    b.setAttribute("aria-expanded", String(selected));
+  });
   panel.classList.add("open");
 
   // scroll panel into view smoothly
   setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
 }
 
-// ── LIGHTBOX ──
-function openLightbox(src) {
-  document.getElementById("lightbox-img").src = src;
-  document.getElementById("lightbox").classList.add("open");
-}
-function closeLightbox() {
-  document.getElementById("lightbox").classList.remove("open");
-  document.getElementById("lightbox-img").src = "";
-}
-document.addEventListener("keydown", e => { if (e.key === "Escape") { closeLightbox(); closeFeedback(); } });
+const detectLang = () => MidiChordsLanding.detectLanguage();
+const toggleLang = () => MidiChordsLanding.toggleLanguage();
+const openLightbox = (src) => MidiChordsLanding.openLightbox(src);
+const closeLightbox = () => MidiChordsLanding.closeLightbox();
+const openFeedback = () => MidiChordsLanding.openFeedback();
+const closeFeedback = () => MidiChordsLanding.closeFeedback();
 
-// ── FEEDBACK MODAL ──
-function openFeedback() { document.getElementById("feedbackModal").classList.remove("hidden"); }
-function closeFeedback() { document.getElementById("feedbackModal").classList.add("hidden"); }
-document.getElementById("feedbackForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const lang = detectLang();
-  const t = TRANSLATIONS[lang];
-  const submitBtn = document.getElementById("fbSubmit");
-  const status = document.getElementById("fbStatus");
-  const name    = document.getElementById("fbName").value.trim();
-  const email   = document.getElementById("fbEmail").value.trim();
-  const message = document.getElementById("fbMessage").value.trim();
-  if (!name || !email || !message) { status.textContent = t.fb_error; return; }
-  submitBtn.disabled = true;
-  status.textContent = t.fb_sending;
-  try {
-    const res = await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, message, mode: "landing", language: lang, page_url: location.href }),
-    });
-    const out = await res.json();
-    if (out?.sent) {
-      e.target.reset();
-      status.textContent = t.fb_ok;
-    } else {
-      throw new Error();
-    }
-  } catch {
-    status.textContent = t.fb_error;
-  } finally {
-    submitBtn.disabled = false;
-  }
+MidiChordsLanding.init({
+  translations: TRANSLATIONS,
+  feedbackMode: "landing",
+  metadata: {
+    en: {
+      title: "FreeMIDIChords — Understand chords, scales and harmony",
+      description: "See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop.",
+      ogTitle: "FreeMIDIChords — Free music theory tools",
+      ogDescription: "Understand chords, intervals, scales and harmony visually on piano, guitar and staff.",
+      twitterTitle: "FreeMIDIChords — Understand chords, scales and harmony",
+      twitterDescription: "See and hear chords, intervals and scales on piano, guitar and staff. Free on web, mobile and desktop.",
+    },
+    es: {
+      title: "FreeMIDIChords — Comprende acordes, escalas y armonía",
+      description: "Visualiza y escucha acordes, intervalos y escalas en piano, guitarra y pentagrama. Gratis en web, móvil y escritorio.",
+      ogTitle: "FreeMIDIChords — Herramientas gratuitas de teoría musical",
+      ogDescription: "Comprende visualmente acordes, intervalos, escalas y armonía en piano, guitarra y pentagrama.",
+      twitterTitle: "FreeMIDIChords — Comprende acordes, escalas y armonía",
+      twitterDescription: "Visualiza y escucha acordes, intervalos y escalas en piano, guitarra y pentagrama. Gratis en web, móvil y escritorio.",
+    },
+  },
+  onLanguageChanged: (language) => {
+    if (activeFeat) toggleFeatContent(language, activeFeat);
+  },
 });
 </script>
 </body>

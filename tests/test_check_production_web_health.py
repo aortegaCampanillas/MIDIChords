@@ -59,19 +59,16 @@ class TestAssetParser(unittest.TestCase):
         p = _mod.AssetParser()
         p.feed(
             '<link rel="stylesheet" href="/static/style.abc123def456.css"/>'
+            '<script src="/static/ui_texts.abcdef123456.js"></script>'
+            '<script src="/static/chord_help.fedcba987654.js"></script>'
+            '<script src="/static/help_callouts.123456abcdef.js"></script>'
             '<script src="/static/app.0123456789ab.js"></script>'
         )
         p.close()
         css = [urljoin(base, h) for h in p.stylesheet_hrefs]
         js = [urljoin(base, h) for h in p.script_srcs]
-        self.assertEqual(
-            _mod.pick_css_bundle_url(css),
-            "https://example.com/static/style.abc123def456.css",
-        )
-        self.assertEqual(
-            _mod.pick_js_bundle_url(js),
-            "https://example.com/static/app.0123456789ab.js",
-        )
+        self.assertEqual(_mod.static_asset_urls(css, ".css"), css)
+        self.assertEqual(_mod.static_asset_urls(js, ".js"), js)
 
 
 if __name__ == "__main__":

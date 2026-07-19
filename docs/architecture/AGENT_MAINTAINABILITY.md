@@ -1,0 +1,243 @@
+# Mantenibilidad para agentes
+
+Estado de la refactorización orientada a reducir contexto, explicitar fronteras y hacer verificables los cambios realizados por agentes.
+
+**Estado de la fase: completada.** La fase estructural y su continuación de contratos de integración están cerradas; las extracciones futuras deberán ampliar estos contratos antes de mover más estado.
+
+## Fase de contratos de integración
+
+Completada. El contrato del backlog de escritorio queda establecido:
+
+- `tests/test_desktop_ui_contract.py` construye la ventana Qt en modo `offscreen`, sin audio, MIDI, caché ni escritura de configuración reales.
+- El contrato comprueba los widgets públicos consumidos por los mixins y las transiciones entre Generación, Círculo de quintas y Escalas.
+- `midichords/ui/desktop_ui_builders.py` contiene builders para la barra superior, la carcasa central, las raíces de cada modo y los selectores de tipo, tónica y alteración de escalas, cubiertos por ese smoke test.
+- El selector de tónica y alteración de Generación también vive en el builder; el contrato fija sus padres, modo de solo lectura y altura del desplegable antes y después de la extracción.
+- Los selectores de variante e inversión de Generación comparten ahora una especificación declarativa en el mismo builder; el smoke contract fijó previamente sus atributos públicos, padres, modo de solo lectura y altura visible.
+
+Las siguientes extracciones de `_build_ui()` deben ampliar primero la lista de widgets o señales del contrato cuando publiquen una frontera nueva.
+
+El contrato web queda establecido en `ui_lifecycle.js`: aporta registro y desmontaje deterministas de listeners y temporizadores, probado con targets DOM y reloj falsos. La coordinación global de `window` y `document` ya está fuera de `bindEvents`; los listeners de controles podrán migrarse por bloques bajo el mismo contrato.
+
+La primera migración de controles también está cerrada: los botones de pulsación
+inmediata (Play/Stop en varios modos) delegan ratón, touch, teclado, estado visual
+y liberación diferida en `bindImmediatePress`. El contrato comprueba la supresión
+del clic que sigue a una pulsación de puntero y el desmontaje conjunto de listeners
+del botón y del documento.
+
+Los controles de modales también delegan ya en `bindModalControls`: el módulo
+posee los listeners de apertura, cierre y fondo, mientras `app.js` conserva las
+acciones concretas de ayuda, feedback y descargas. El fixture comprueba que un
+clic en el contenido no cierre el diálogo y que el desmontaje sea completo.
+
+Los eventos globales de teclado están igualmente encapsulados: Escape se enruta
+a la política de cierre de `app.js`, mientras el módulo normaliza pulsación,
+repetición, liberación y pérdida de foco de Mayús. El estado específico de
+detección permanece en la SPA y se limpia también si el foco cambia.
+
+Los gestos de desbloqueo de Web Audio usan asimismo el ciclo de vida compartido:
+el callback de la SPA conserva la decisión de crear o reanudar el contexto, y el
+módulo garantiza el alta y desmontaje conjunto de puntero y teclado.
+
+Los listeners de controles generales, MIDI, detección, intervalos, generación y
+escalas han migrado también al registro común. Sus callbacks y estado permanecen
+en `app.js`, pero la propiedad y retirada de eventos ya no se gestiona de forma
+ad hoc en cada control.
+
+La migración de `bindEvents` queda completada con metrónomo, temporizador,
+afinador y feedback. `test_web_ui_lifecycle_contract.py` fija la frontera: ese
+bloque no puede volver a registrar listeners directos fuera de `uiLifecycle`.
+
+`renderGuitar` cuenta ya con una primera frontera de canvas: `guitar_geometry.js`
+detecta cejillas completas y parciales a partir de trastes y dedos, sin DOM ni
+estado global. Las pruebas fijan límites de cuerdas sonantes, runs contiguos y
+casos inválidos; el renderer adapta el resultado a `Set` para dibujarlo.
+
+La misma frontera calcula ahora layout del mástil, centros de traste, espejo para
+zurdos, escalado cliente→canvas y hit-testing circular. `renderGuitar` conserva
+dimensiones reales del elemento, dibujo, estado de notas y callbacks de entrada.
+
+El fixture de canvas deja de ser implícito: `guitar_canvas.js` recibe contexto y
+layout y dibuja el marco estático del mástil sin DOM ni estado. Un contexto
+grabador fija fondo, tabla, cejuela, trastes, etiquetas y espejo zurdo, de modo
+que nuevas extracciones visuales pueden ampliar operaciones observables antes de
+mover lógica.
+
+La siguiente capa extraída dibuja las seis cuerdas, su doble trazo y sus nombres.
+El contexto grabador fijó primero el orden de operaciones, la restauración de
+alineación y la simetría zurda/diestra; después `renderGuitar()` pasó a consumir
+esa frontera. Marcadores, cejillas dinámicas, regiones de impacto y eventos
+continúan deliberadamente en la SPA.
+
+`staff_geometry.js` incorpora la adaptación de octavas entre teclado y partitura:
+selección de la nota visible más cercana, normalización de notas actuales,
+reproducidas y sostenidas, y emparejado RH/LH por grado. `renderStaff` conserva
+la selección de modo, estilos, regiones interactivas y dibujo.
+
+La separación del renderer web avanza mediante geometría pura: `staff_beam_geometry.js` decide la dirección común de plicas y calcula los segmentos primarios y secundarios; `staff_geometry.js` transforma MIDI en posiciones de clave de sol/fa y calcula líneas adicionales. Sus pruebas no dependen del canvas.
+
+Las familias del selector de escalas conservan implementaciones declarativas locales por plataforma, pero `test_scale_family_cross_platform.py` fija composición y orden idénticos. Cualquier escala nueva obliga así a actualizar explícitamente las tres copias antes de pasar la suite.
+
+En Flutter, `midi_activity_guard.dart` establece la primera frontera de ciclo de vida: encapsula `WakelockPlus` y la ventana temporal renovable de actividad MIDI. El widget conserva únicamente la decisión de cuándo renovar o cancelar; las pruebas usan un puerto falso y reloj controlado para fijar renovación, expiración y desmontaje idempotente.
+
+`app_preferences.dart` aplica el mismo patrón a configuración persistente: el estado intercambia una instantánea tipada y el repositorio concentra claves, defaults y validación sobre un puerto reemplazable. Así se pueden probar migraciones y valores corruptos sin inicializar el plugin de preferencias.
+
+`midi_input_lifecycle.dart` posee las dos suscripciones del plugin MIDI y transforma los paquetes en listas de bytes antes de entregarlos al estado. Su contrato evita registros duplicados y garantiza que datos y eventos de conexión se cancelan juntos durante el desmontaje.
+
+`midi_output_controller.dart` encapsula los mensajes de salida detrás de un puerto mínimo. Conserva la caché de Program Change fuera del widget, normaliza bytes, reintenta un cambio de timbre fallido y fuerza su reenvío después de desconectar la sesión; las pruebas no necesitan hardware ni el plugin activo.
+
+`tuner_capture_session.dart` establece el puerto de sesión del afinador: posee la
+instancia de `FlutterAudioCapture`, valida inicialización, evita arranques
+duplicados, expone la frecuencia real y garantiza parada tras errores y cierre
+idempotente. El widget conserva análisis DSP, suavizado y presentación.
+
+`native_audio_bridge.dart` delimita también el canal de reproducción nativa:
+tonos, acordes y clics de metrónomo comparten normalización y manejo de fallos
+detrás de un puerto inyectable. El widget conserva la selección de plataforma,
+los fallbacks con samples y la sincronización entre sonido y estado visual.
+
+`transient_player_lifecycle.dart` posee las suscripciones de finalización de
+`AudioPlayer` y unifica cierre automático, manual y global. Su contrato evita
+doble liberación concurrente, absorbe fallos durante la limpieza y no retiene
+reproductores ya cerrados; la pantalla conserva la creación y configuración de
+cada fuente de audio.
+
+La creación y configuración del plugin pasa por `audio_player_port.dart`:
+`main.dart` y sus mapas de notas retenidas dependen de `AudioPlayerPort`, mientras
+el factory aplica modo, liberación y contexto y limpia construcciones parciales.
+Las fuentes y decisiones de reproducción permanecen en la pantalla.
+
+La selección de samples queda fuera del widget en `sample_tone_plan.dart`: los
+bancos, rangos, desempate por cercanía y velocidad temperada forman un plan puro
+cubierto con pruebas. `main.dart` se limita a configurar el reproductor con ese
+plan o continuar con el fallback sintetizado.
+
+## Resultado de esta fase
+
+| Área | Antes | Ahora | Fronteras añadidas |
+|---|---:|---:|---|
+| Flutter `main.dart` | 13.774 líneas | 7.360 líneas | catálogo y servicio musical, painters, páginas por modo, ayuda, preferencias, MIDI y puertos de audio |
+| Web `app.js` | 8.902 líneas | 6.958 líneas | textos, teoría, notación, ayudas, MIDI/audio, ciclo de vida y canvas/geometría de instrumentos |
+| Escritorio `ui_mixin.py` | 4.012 líneas | 3.804 líneas | builders Qt para estructura principal y selectores/acciones de generación y escalas, bajo smoke contract |
+| Verificación | comandos dispersos | `scripts/check.py` + CI | perfiles Python, web y móvil; tests Node sin dependencias |
+
+También se añadieron instrucciones locales `AGENTS.md` y la matriz [SOURCE_OF_TRUTH.md](SOURCE_OF_TRUTH.md), para que un agente pueda localizar contratos y copias sin leer el monorepo completo.
+
+La auditoría posterior de higiene deja un único backlog vivo en
+`docs/ROADMAP.md` y mueve los planes cerrados a `docs/archive/`. También retira
+la implementación Tk de widgets, una utilidad antigua del círculo Python y un
+lector Flutter de changelog sin consumidores. `test_documentation_contract.py`
+evita que vuelvan rutas personales, enlaces Markdown rotos en las guías vivas o
+planes históricos a la raíz activa.
+
+## Criterio usado
+
+Se extrajeron primero datos declarativos, funciones puras y dibujo sin estado. Después se aislaron la salida MIDI, la descarga/caché de samples y la liberación de voces mediante dependencias inyectables, además de la matemática de audio mediante buffers y nodos falsos. Cada frontera nueva tiene al menos comprobación de sintaxis y, cuando contiene comportamiento, tests directos. No se introdujo un framework nuevo de estado ni una capa abstracta únicamente para reducir el contador de líneas.
+
+## Límites deliberadamente pendientes
+
+La auditoría de cierre localizó estos bloques. Son backlog de diseño, no trabajo estructural pendiente de esta fase:
+
+| Área | Acoplamiento observado | Prerrequisito antes de separar |
+|---|---|---|
+| Flutter `main.dart` | las decisiones de reproducción aún comparten estado visual con cada modo | pruebas de integración por modo antes de mover la orquestación de reproducción |
+| Web `app.js` | `renderStaff` y las capas dinámicas de `renderGuitar` conservan DOM/canvas y estado global | ampliar el fixture grabador con cada capa concreta antes de extraerla |
+| Escritorio `ui_mixin.py` | otros controles internos de modo aún se construyen en métodos extensos | ampliar el smoke contract con el bloque y sus señales públicas antes de cada builder adicional |
+
+No conviene continuar con extracciones mecánicas de estos bloques: mover métodos con estado sin definir primero esos contratos aumentaría el acoplamiento oculto. El tamaño de archivo por sí solo no autoriza una nueva separación.
+
+La fase contract-first posterior aplicó este criterio al siguiente bloque Qt: el
+contrato de variante/inversión se amplió y pasó en un commit independiente antes
+de trasladar su construcción. La extracción conserva callbacks y atributos
+públicos, y reduce el contexto de `_build_ui()` sin introducir otra capa de
+estado. Este orden —contrato observable primero, builder después— queda como
+plantilla obligatoria para los candidatos restantes de la tabla.
+
+El mismo ciclo se aplicó después a la fila Play/Ayuda de Generación: el contrato
+fija su jerarquía, el builder posee solo construcción y enlaces locales, y el
+`bind_all` de liberación permanece en el mixin como coordinación transversal.
+
+## Harness de digitaciones de escalas
+
+Los tests de digitación comparten ahora `tests/support/scale_fingering.py`
+para cargar fixtures, extender patrones y validar mano, dirección y número de
+octavas. Las escalas agrupables usan un único contrato parametrizado; mayor,
+menor natural, menor armónica, menor melódica, cromática y las familias
+sintéticas conservan tests específicos para sus reglas teóricas.
+
+Los patrones jónicos y de menor armónica que se reutilizan entre contratos están
+en `tests/support/`, no se importan desde otros módulos `test_*`. Los fixtures
+JSON continúan siendo íntegros y cada combinación anterior de tonalidad, mano,
+una/dos octavas y ascenso/descenso sigue validándose.
+
+## Coherencia de directorios auxiliares
+
+La raíz de `tests/` contiene únicamente módulos `test_*`, el paquete `support/`
+y `fixtures/`. Los patrones y el harness reutilizables de digitación viven en
+`tests/support/`, evitando que pytest o un agente los confunda con casos o con
+código de producto.
+
+Los comandos ejecutables permanecen en `scripts/` como interfaz estable. Los
+entitlements y la plantilla de entorno de macOS, que son configuración de
+empaquetado y no comandos, viven en `packaging/macos/`. Un contrato comprueba
+ambas fronteras para impedir que la mezcla reaparezca.
+
+## Paridad musical offline
+
+La generación y detección musical de Python, Worker y Flutter ejecutan el mismo
+fixture `tests/fixtures/music_service_contract.json`. El contrato incluye
+ortografía ES/EN con sostenidos y bemoles, inversiones, extensiones, familias de
+escalas y detecciones representativas. El Worker exporta sus tres funciones
+puras únicamente para poder probarlas con Node; su handler HTTP sigue siendo el
+adaptador público.
+
+El fixture se regenera explícitamente con
+`scripts/generate_music_service_contract.py`. Durante su introducción detectó y
+corrigió una divergencia de spelling en Python: las notas reconocidas dentro de
+un acorde usan la ortografía armónica del acorde, mientras la preferencia visual
+se reserva para notas ajenas. La comparación con producción permanece como
+chequeo de despliegue, no como requisito de la suite local.
+
+## Auditoría funcional posterior: guitarra
+
+La revisión de digitaciones se ejecuta por familias mediante
+`scripts/sync_guitar_chord_reference.py`. La utilidad fija el mapeo entre sufijos
+internos y el catálogo público actual, y deja explícitos los tipos propios sin
+equivalente exacto. Ya están verificadas las familias de notas añadidas (`add2`,
+`add4`, `madd2`, `madd4`, `add9`, `madd9`) y las tríadas básicas (mayor, menor,
+disminuida y aumentada). Las siguientes familias se revisarán con la misma
+utilidad, sin sustituir tipos propios por acordes solo aproximadamente iguales.
+También están sincronizados los power chords y los suspendidos `sus2` y `sus4`;
+`sus2sus4` permanece explícitamente como tipo propio.
+La familia de sextas compartida (`6`, `6add9`, `m6`) está asimismo sincronizada;
+`m6add9` se conserva como tipo propio.
+Las séptimas dominantes simples (`7`, `7sus4`, `7#5`, `7b5`, `7#9`, `7b9`)
+están sincronizadas; las cuatro combinaciones de quinta y novena alteradas siguen
+siendo tipos propios.
+Las extensiones dominantes compartidas (`9`, `9#5`, `9b5`, `11`, `13`, `13b9`,
+`13#11`) están sincronizadas; `11b9` se conserva como tipo propio.
+Las extensiones mayores compartidas (`maj7`, `maj7#5`, `maj9`, `maj11`, `maj13`)
+están sincronizadas; `maj7b5`, `maj9#11` y `maj13#11` se conservan como tipos
+propios.
+Las familias menores compartidas (`m7`, `m9`, `m11`, `m13`, `mMaj7`, `mMaj9`,
+`dim7`, `m7b5`) están sincronizadas; `m7#5` se conserva como tipo propio. Con
+este bloque, los 42 tipos con equivalente exacto están auditados para las doce
+tónicas. Los 12 tipos restantes están identificados como catálogo propio y no
+forman parte de la sincronización externa.
+
+## Criterio de cierre
+
+- Las fuentes de verdad y copias están inventariadas.
+- Cada módulo ejecutable extraído tiene tests directos o queda cubierto por analyzer/smoke tests existentes.
+- Hay un comando único para validar Python, web y móvil.
+- Los archivos grandes restantes tienen responsabilidad y prerrequisitos explícitos.
+- La salida generada (`apps/web/pages-dist/`) no se versiona ni se usa como fuente.
+
+## Verificación
+
+Desde la raíz:
+
+```bash
+python scripts/check.py all
+```
+
+Para cambios web, `app.html` es la lista ordenada de scripts y CSS. El build, la comprobación de sintaxis y la salud de producción descubren automáticamente esos assets.

@@ -214,7 +214,7 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
-ENTITLEMENTS_PATH="$ROOT_DIR/scripts/entitlements.mas.generated.plist"
+ENTITLEMENTS_PATH="$ROOT_DIR/packaging/macos/entitlements.mas.generated.plist"
 ICONSET_TMP_DIR=""
 PROFILE_PLIST_TMP=""
 PROFILE_APP_IDENTIFIER=""

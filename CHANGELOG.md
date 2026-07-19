@@ -6,9 +6,150 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Versión
 
+- **1.0.5 (build 19)**: preparadas las compilaciones de distribución de iOS y macOS para App Store Connect.
 - **1.0.2**: versión alineada en **escritorio** (`APP_RELEASE_NAME`), **web** (`/api/meta` → `app_version`, JSON-LD) y **móvil** (`pubspec.yaml` **1.0.2+8**).
 
+### Documentado
+
+- **Landings (mantenimiento)**: MIDIChords y PianoPilot comparten ahora la infraestructura de idioma, capturas ampliables y formulario de comentarios; el perfil web descubre también los scripts enlazados exclusivamente desde las páginas públicas.
+- **PianoPilot (landing)**: añadida una fuente de verdad versionada y contrastable con el repositorio del producto; se corrigen el catálogo a 153 tonos, las promesas absolutas de control y la explicación de USB MIDI, Bluetooth MIDI y posibles controladores del sistema.
+- **Mantenimiento / agentes**: cerrada la fase estructural con resultados cuantitativos, criterios verificables y un backlog explícito para ciclos de vida Flutter, renderers/eventos web y construcción Qt; cada bloque pendiente indica las pruebas de integración necesarias antes de dividirlo.
+- **Mantenimiento / agentes**: completada la continuación de contratos de integración: smoke contract y builders Qt, ciclo de vida y geometría de partitura web, y adaptadores probados para actividad, preferencias y suscripciones MIDI en Flutter.
+- **Mantenimiento / tests**: consolidados los contratos de digitación de escalas en un harness parametrizado común, eliminando tablas y extensores duplicados sin perder fixtures, tonalidades, manos, direcciones ni casos de una y dos octavas.
+- **Mantenimiento / teoría musical**: añadido un contrato offline único de generación de acordes, escalas y detección que se ejecuta sobre Python, Worker y Flutter; cubre idiomas, alteraciones, inversiones y familias representativas sin depender de producción.
+- **Detección de acordes**: las etiquetas de las notas reconocidas en Python respetan ahora la ortografía armónica del acorde, manteniendo la preferencia visual de sostenidos o bemoles solo para notas ajenas, en paridad con web y móvil.
+- **Escritorio (mantenimiento)**: extraída la construcción de los selectores de variante e inversión de Generación a una especificación común del builder Qt, después de fijar padres, atributos y configuración mediante el smoke contract.
+- **Escritorio (mantenimiento)**: la fila de reproducción y ayuda de Generación se construye ahora en el builder Qt bajo un contrato previo de jerarquía; la liberación global del ratón permanece en el mixin como coordinación transversal.
+- **Web (guitarra / mantenimiento)**: extraído al canvas probado el dibujo de cuerdas y nombres del mástil, incluida la simetría para zurdos; marcadores, cejillas, hit-testing y eventos conservan su estado en la SPA.
+- **Mantenimiento / estructura**: los helpers reutilizables de digitación se agrupan en `tests/support/`, dejando la raíz de tests para casos y fixtures; imports y carga relativa de datos quedan actualizados.
+- **Empaquetado macOS**: entitlements y plantilla de entorno se agrupan en `packaging/macos/`, mientras los comandos públicos permanecen en `scripts/`; firma, MAS, documentación e ignores apuntan a las nuevas rutas.
+- **Escritorio (mantenimiento)**: actualizada la consulta de familias tipográficas a la API estática vigente de Qt, eliminando avisos de deprecación durante el arranque y el smoke contract.
+- **Escalas**: los siete modos diatónicos muestran su grado en números romanos tanto en el selector como en el campo de nombre de la escala generada: Jónico (I), Dórico (II), Frigio (III), Lidio (IV), Mixolidio (V), Eólico (VI) y Locrio (VII).
+- **Escalas**: el selector agrupa el catálogo por familias teóricas: Modos griegos, Escalas menores, Modos alterados, Pentatónicas y blues, Bebop, Simétricas y sintéticas y Tradicionales del mundo; las cabeceras no son seleccionables y cada escala aparece una sola vez.
+- **Escritorio (escalas)**: el desplegable de Tipo respeta ahora su altura configurada de veinte filas, mostrando muchas más familias y opciones sin necesidad de desplazarse inmediatamente.
+- **Mantenimiento / escalas**: añadida una prueba de contrato que impide que la composición y el orden de las familias teóricas diverjan entre escritorio, web y Flutter.
+- **Generación de acordes**: añadidas las variantes menor con segunda añadida (`madd2`) y menor con cuarta añadida (`madd4`), con nombres bilingües, fórmulas, ayuda teórica y paridad de intervalos en las tres plataformas.
+- **Web (partitura / mantenimiento)**: extraídas a un módulo puro la conversión MIDI→posición vertical en claves de sol y fa y la geometría de líneas adicionales, con pruebas de referencias, enarmonías y notas fuera del pentagrama.
+- **Web (mantenimiento)**: extraída al ciclo de vida probado la interacción de los botones de pulsación inmediata; ratón, táctil y teclado comparten ahora liberación, resaltado y supresión del clic duplicado, y sus listeners y temporizadores se desmontan con la página.
+- **Web (mantenimiento)**: ayuda de acordes, feedback y descargas comparten un contrato probado para abrir, cerrar y descartar modales desde el fondo, con desmontaje automático de todos sus listeners.
+- **Web (mantenimiento)**: Escape, Mayús y la pérdida de foco se gestionan mediante el ciclo de vida probado; se ignoran repeticiones de Mayús y se limpia de forma consistente su estado global y de detección al soltar la tecla o cambiar de ventana.
+- **Web (mantenimiento)**: los gestos globales que desbloquean Web Audio conservan sus reintentos cuando el navegador suspende el contexto, pero sus listeners de puntero y teclado se eliminan ahora durante el desmontaje.
+- **Web (mantenimiento)**: los controles generales, MIDI, detección, intervalos, generación y escalas registran sus eventos mediante el ciclo de vida común, evitando listeners huérfanos tras abandonar o reconstruir la página.
+- **Web (mantenimiento)**: metrónomo, temporizador, afinador y formulario de feedback completan la migración de `bindEvents`; una prueba de contrato impide volver a introducir listeners directos en ese bloque.
+- **Web (guitarra / mantenimiento)**: extraída la detección de cejillas completas y parciales a una geometría pura y probada, incluyendo runs separados, cuerdas silenciadas y entradas inválidas; el renderer conserva únicamente el dibujo y el estado interactivo.
+- **Web (guitarra / mantenimiento)**: el layout del mástil, sus centros de traste, la simetría para zurdos, el escalado de coordenadas del canvas y el hit-testing circular pasan a geometría pura con pruebas directas.
+- **Web (partitura / mantenimiento)**: extraída la adaptación de octavas entre piano y pentagrama, incluida la nota visible más cercana, las voces sostenidas/reproducidas y el emparejado RH/LH de grados de escala, con pruebas sin canvas.
+- **Escritorio (mantenimiento)**: extraída la construcción del selector agrupado de escalas y su filtro al módulo de builders Qt, conservando jerarquía, callbacks y altura bajo el smoke contract.
+- **Móvil (mantenimiento)**: encapsulada la salida MIDI detrás de un puerto probado, incluyendo selección y caché de timbre, normalización de mensajes, reintento tras fallos y reinicio al desconectar dispositivos.
+- **Móvil (mantenimiento)**: la captura del afinador queda detrás de una sesión y un puerto inyectables; inicialización, callbacks, frecuencia real, arranque único, recuperación tras fallo nativo y cierre idempotente se prueban sin micrófono ni plugin activo.
+- **Escritorio (mantenimiento)**: extraída la construcción de los selectores de tónica y alteración de Escalas a un builder Qt, manteniendo atributos, callbacks y jerarquía bajo el smoke contract.
+
+- **Mantenimiento / agentes**: corregida la arquitectura documentada del escritorio (Qt/PySide6 con compatibilidad de API Tk), añadidas instrucciones locales para Python, web y Flutter, y una matriz de fuentes de verdad y copias multiplataforma.
+
+### Mejorado
+
+- **MIDIChords (landing)**: el hero muestra ahora la aplicación real, presenta primero el beneficio de comprender visualmente acordes, intervalos, escalas y armonía, identifica sus públicos principales y prioriza el acceso directo a la app web.
+- **PianoPilot (landing)**: la portada presenta el producto real, limita claramente la compatibilidad al Roland FP-30X y añade una guía visible para USB MIDI, Bluetooth MIDI y controladores; las capturas servidas pasan de más de 13 MB en PNG a unos 167 KB en WebP.
+- **Landings (accesibilidad)**: las galerías se navegan ahora con teclado mediante botones semánticos, los paneles de funciones exponen su estado, los diálogos anuncian apertura y cierre, el foco resulta visible y las animaciones respetan la preferencia de movimiento reducido.
+- **Landings (SEO)**: añadidos Twitter Cards y datos estructurados `SoftwareApplication` específicos de MIDIChords y PianoPilot; una comprobación automática protege títulos, descripciones, Open Graph, imágenes dimensionadas, recursos locales y jerarquía de encabezados.
+- **Landings (responsive)**: la navegación permanece disponible en pantallas pequeñas mediante una fila desplazable, los diálogos confinan el foco hasta cerrarse y los enlaces internos a la app web dejan de abrir pestañas nuevas de forma inesperada.
+- **Landings (capturas)**: las galerías usan dos columnas apaisadas en escritorio y una en móvil, preservan la proporción de cada captura sin deformarla y MIDIChords incorpora una vista adicional del círculo de quintas.
+- **MIDIChords (landing)**: la galería completa los siete flujos principales con capturas de detección de acordes, detección de intervalos, generación en piano y guitarra, escalas, círculo de quintas y metrónomo.
+- **MIDIChords (landing)**: sustituidas todas las imágenes antiguas y mezcladas por la serie coherente de capturas apaisadas de iPad preparada para App Store, optimizada a WebP y reutilizada también en el hero.
+- **Landings (capturas)**: reducido el espacio vertical de las galerías y normalizados tamaño, pie y altura de todas las tarjetas; cuando hay un número impar, la última captura conserva el mismo ancho y queda centrada.
+- **Landings (capturas)**: eliminado el alto porcentual que hacía crecer artificialmente cada tarjeta y centraba la imagen dentro de una gran franja vacía; la proporción de la captura determina ahora directamente el alto del recuadro.
+- **Landings (capturas)**: las miniaturas sobrescriben explícitamente con `height: auto` la altura intrínseca declarada para evitar que el navegador reserve 1050 píxeles CSS y centre la captura dentro de ese espacio.
+- **Landings (SEO bilingüe)**: añadidas URLs alternas `?lang=en` y `?lang=es` con `hreflang`; cambiar de idioma conserva la variante en la URL y traduce también título, descripción, Open Graph y Twitter Cards.
+- **Web (bundle)**: el constructor de Cloudflare Pages descubre y versiona ahora los JS/CSS de todos los HTML públicos, evitando que la infraestructura compartida de las landings quede fuera del fingerprint de caché.
+- **Generación de acordes (guitarra)**: las variantes `add2`, `add4`, `madd2` y `madd4` disponen ahora de digitaciones concretas de cuatro notas; el mástil muestra solo las cuerdas de la variante seleccionada en lugar de marcar todas las posiciones posibles.
+- **Generación de acordes (guitarra)**: al cambiar de digitación se reproduce inmediatamente el nuevo voicing, manteniendo sincronizados sonido, mástil y pentagrama.
+- **Generación de acordes (guitarra)**: cambiar el tipo de acorde desde el selector reinicia siempre la digitación a la primera variante del nuevo acorde.
+- **Generación de acordes (guitarra)**: cada tónica add2 ofrece las tres digitaciones de referencia verificadas; los mástiles llegan ahora hasta el traste 15 para mostrar también las posiciones más altas.
+- **Generación de acordes (guitarra)**: cada tónica add4 ofrece sus dos digitaciones de referencia verificadas, incluidas las posiciones abiertas especiales de Mi y La.
+- **Generación de acordes (guitarra)**: cada tónica menor add2 ofrece sus dos digitaciones de referencia verificadas, incluida la posición abierta especial de Mi menor add2.
+- **Generación de acordes (guitarra)**: cada tónica menor add4 ofrece sus dos digitaciones de referencia y cada add9 sus tres posiciones verificadas, incluidas las digitaciones abiertas especiales.
+- **Generación de acordes (guitarra)**: las tríadas mayores, menores, disminuidas y aumentadas usan ya las posiciones y dedos del catálogo público actual para las doce tónicas; una nueva utilidad audita los tipos compartidos y separa explícitamente las variantes propias sin referencia directa.
+- **Generación de acordes (guitarra)**: los power chords y acordes suspendidos `sus2` y `sus4` quedan sincronizados con sus digitaciones de referencia para las doce tónicas.
+- **Generación de acordes (guitarra)**: completada la auditoría de la familia de notas añadidas; `madd9` corrige trastes y dedos en las ocho tónicas que todavía divergían, mientras `add2`, `add4`, `madd2`, `madd4` y `add9` conservan sus posiciones ya verificadas.
+- **Generación de acordes (guitarra)**: los acordes `6`, `6add9` y `m6` usan las digitaciones actuales de referencia para todas las tónicas; `m6add9` permanece como variante propia sin equivalente exacto.
+- **Generación de acordes (guitarra)**: las séptimas dominantes `7`, `7sus4`, `7#5`, `7b5`, `7#9` y `7b9` quedan sincronizadas con la referencia en las doce tónicas; las alteraciones dobles se conservan como variantes propias.
+- **Generación de acordes (guitarra)**: las extensiones dominantes `9`, `9#5`, `9b5`, `11`, `13`, `13b9` y `13#11` quedan auditadas y sincronizadas para todas las tónicas; `11b9` se mantiene como variante propia.
+- **Generación de acordes (guitarra)**: las extensiones mayores `maj7`, `maj7#5`, `maj9`, `maj11` y `maj13` usan ya las digitaciones públicas actuales en todas las tónicas; `maj7b5`, `maj9#11` y `maj13#11` permanecen como variantes propias.
+- **Generación de acordes (guitarra)**: las familias menores `m7`, `m9`, `m11`, `m13`, `mMaj7`, `mMaj9`, `dim7` y `m7b5` completan la sincronización del catálogo compartido; los 42 tipos con equivalente exacto quedan auditados en las doce tónicas y los 12 tipos propios permanecen separados.
+
+- **Escritorio (mantenimiento)**: añadido un smoke test Qt aislado de audio, MIDI y configuración que fija widgets públicos, jerarquía y cambios de modo; la barra superior, la carcasa central y las raíces de cada modo se trasladaron a builders dedicados protegidos por ese contrato.
+
+- **Escritorio (rendimiento)**: el selector principal cierra antes de aplicar el cambio de modo, se evitan actualizaciones visuales duplicadas y las digitaciones de guitarra se calculan solo al mostrar la guitarra; cambiar de tónica y reproducir acordes desde el piano deja de quedar bloqueado por ese cálculo.
+
+- **Escritorio (integración)**: definida explícitamente la identidad interna de producto en Qt para que títulos y menús propios no hereden el nombre del intérprete.
+
+- **Escritorio (partitura)**: las barras secundarias parciales de semicorchea siguen ahora la pendiente de la barra principal en lugar de dibujarse siempre horizontales.
+
+- **Móvil (partitura)**: las notas de un mismo grupo de corcheas o semicorcheas comparten dirección de plica, evitando barras diagonales que atravesaban las cabezas cuando las notas quedaban a lados opuestos del centro del pentagrama.
+
+- **Partitura / interacción**: al pulsar notas alteradas en Generación de acordes o Círculo de quintas, el símbolo correspondiente de la armadura se resalta junto con la nota en escritorio, web y móvil, igual que en Escalas.
+
+- **Móvil (mantenimiento)**: separado el catálogo contextual, las anclas, la selección y la geometría del tour de ayuda a una extensión privada `part`, reduciendo en más de mil líneas el contexto de `main.dart` y conservando estado, callbacks y animación existentes.
+
+- **Web (mantenimiento)**: trasladados al módulo del círculo de quintas el hit-testing de sectores/anillos, la selección diatónica y la geometría del acorde resaltado; modo y tónica son ahora entradas explícitas y las pruebas cubren clics interiores, exteriores, fuera del anillo y bandas mayor/menor/disminuida.
+
+- **Web (mantenimiento)**: añadido un ciclo de vida inyectable para listeners y temporizadores con DOM y reloj falsos; la coordinación global de ventana, visibilidad y desmontaje está separada de `bindEvents` y se registra y libera mediante ese contrato.
+
+- **Móvil (mantenimiento)**: aislados el bloqueo de pantalla nativo y su temporizador renovable de actividad MIDI detrás de un adaptador probado; el widget ya no coordina directamente `WakelockPlus` y se verifican cancelación, renovación y desmontaje idempotente.
+
+- **Móvil (mantenimiento)**: centralizadas las claves, valores predeterminados, validación y persistencia de preferencias en un repositorio con puerto sustituible; las pruebas cubren carga inválida, guardado completo y eliminación de opciones obsoletas.
+
+- **Móvil (mantenimiento)**: extraída la propiedad de las suscripciones MIDI de datos y cambios de conexión a un ciclo de vida dedicado; el estado recibe bytes independientes del plugin y las pruebas fijan alta única, reenvío y cancelación idempotente.
+
+- **Web (partitura / mantenimiento)**: extraídas y probadas la elección de plica común y la geometría de barras primarias y secundarias; los grupos barrados conservan una dirección coherente y las barras de semicorchea permanecen paralelas.
+
+- **Web (mantenimiento)**: extraídas la autocorrelación del afinador y las conversiones frecuencia/MIDI a un módulo puro, con pruebas de tono sintético decreciente, silencio, entradas inválidas, afinación de concierto y recorrido MIDI→frecuencia→MIDI.
+
+- **Web (mantenimiento)**: extraídas las envolventes de piano/guitarra y la liberación segura de voces retenidas a un módulo probado con nodos Web Audio falsos, eliminando dos implementaciones duplicadas y cubriendo también fuentes ya detenidas.
+
+- **Web (mantenimiento)**: encapsuladas la descarga, decodificación y caché de samples en un cargador inyectable; las pruebas verifican una sola carga concurrente, normalización exclusiva del metrónomo y conservación de resultados parciales ante fallos de red.
+
+- **Web (mantenimiento)**: extraídos el catálogo de samples y los cálculos puros de selección de raíz, transposición y normalización de buffers; la nueva suite usa `AudioContext` y buffers falsos sin alterar el desbloqueo por gesto, la caché ni el ciclo de reproducción del navegador.
+
+- **Web (mantenimiento)**: encapsulada la salida Web MIDI en un controlador inyectable y probado con dispositivo falso, cubriendo note on/off temporizado, notas retenidas, liberación total, velocidad, ausencia de salida y Program Change de piano/guitarra; el perfil web descubre ahora automáticamente todas las suites `*.test.js`.
+
+- **Web (mantenimiento)**: extraídos filtro, alias, normalización por octavas y correspondencia MIDI-etiqueta de escalas a un módulo puro con pruebas de deduplicación, transposición inicial y nombres localizados.
+
+- **Web (mantenimiento)**: extraída la resolución de armaduras mayores, menores y modales a un módulo puro, con pruebas para tonalidades con sostenidos/bemoles, empates enarmónicos, relativos modales y sufijos menores.
+
+- **Web (mantenimiento)**: extraídos los patrones documentados y la resolución de digitaciones de piano a un módulo puro, con pruebas para acordes, escalas mayores, cromáticas, cruces de dedo y ausencia explícita de fallback cuando no existe referencia.
+
+- **Web (mantenimiento)**: extraídos nombres, cálculo y melodías mnemotécnicas de intervalos a un módulo puro; las pruebas cubren unísono, octava, dirección, traducciones, intervalos consecutivos y alineación de silencios con duraciones.
+
+- **Web (mantenimiento)**: extraídas la teoría diatónica y la geometría pura del círculo de quintas a un módulo sin DOM ni estado, con pruebas directas de orden, armaduras, relativos, grados y tríadas mayores y menores.
+
+- **Web (mantenimiento)**: extraídas las tablas y conversiones puras de notación musical —nombres de notas, tónicas, alteraciones, armaduras y pitch classes— a un módulo con pruebas JavaScript directas.
+
+- **Web (mantenimiento)**: el build, la comprobación de sintaxis y el chequeo de salud descubren ahora automáticamente todos los JS/CSS locales enlazados desde `app.html`; añadir otro módulo ya no requiere mantener listas paralelas de assets en varios scripts Python.
+
+- **Web (mantenimiento)**: extraída la configuración de ayuda contextual por modo a un módulo declarativo; la suite JavaScript comprueba que todos los callouts tengan selector y texto disponible en español e inglés, y el bundle y la salud de producción validan el nuevo asset.
+
+- **Web (mantenimiento)**: añadida una suite JavaScript nativa, sin dependencias npm, que ejecuta los catálogos extraídos y comprueba paridad ES/EN, cobertura única de las 52 variantes, textos de inversiones e inmutabilidad de sus puntos de entrada dentro del perfil web de CI.
+
+- **Web (mantenimiento)**: separados los textos generales de interfaz ES/EN en un catálogo dedicado con prueba de paridad de claves; el build y el chequeo de producción versionan y validan también este script antes de cargar la SPA.
+
+- **Web (mantenimiento)**: extraídos de la SPA el catálogo bilingüe de ayuda teórica, la agrupación de variantes y los textos de inversiones a un script dedicado y probado; el bundle y el chequeo de producción versionan y validan también esta nueva dependencia.
+
+- **Móvil (mantenimiento)**: separados los constructores de las páginas de Detección, Generación, Círculo de quintas, Escalas, Intervalos, Metrónomo y Afinador en una extensión privada dedicada, reduciendo el contexto de `main.dart` sin duplicar el estado de la pantalla.
+
+- **Móvil (mantenimiento)**: extraído a un módulo puro y probado el cálculo de tamaños, proporción y scroll del teclado de piano, separándolo de la construcción de widgets en `main.dart`.
+
+- **Móvil (mantenimiento)**: movidos los painters privados de pentagrama, metrónomo y afinador desde `main.dart` a un `part` dedicado, conservando sus símbolos y comportamiento mientras se reduce el tamaño de la pantalla principal.
+
+- **Móvil (mantenimiento)**: extraídas de `main.dart` la generación y detección local de acordes, inversiones, spelling y generación de escalas a un servicio puro con tests directos de comportamiento.
+
+- **Móvil (mantenimiento)**: extraído de `main.dart` el catálogo declarativo de acordes, escalas, traducciones e inversiones a un módulo puro con tests de integridad, reduciendo el contexto necesario para modificar la UI móvil.
+
+- **Mantenimiento / CI**: añadido un comando unificado de verificación con perfiles para Python, web y Flutter, junto con un workflow de GitHub Actions que ejecuta tests, análisis estático, sintaxis JavaScript y build web en cada pull request; saneados además los avisos previos del analyzer de Flutter para que el nuevo control parta en verde.
+
 ### Corregido
+
+- **Web (generación / círculo de quintas)**: el botón ▶ vuelve a resaltar durante la reproducción las teclas exactas del piano y las posiciones del acorde sobre la guitarra; instrumento y pentagrama se repintan al iniciar, sustituir y limpiar el resaltado tanto con audio como con MIDI out.
 
 - **Móvil (piano / scroll por modo)**: Generación, Círculo y Escalas solo se centran en su primera apertura de la sesión; al cambiar de modo o alternar con la guitarra se guarda y restaura el último desplazamiento propio de cada modo.
 
@@ -128,7 +269,7 @@ Historial de versiones publicadas de MIDIChords.
 
 - **Web, escritorio (Qt) y móvil (Flutter; generación de acordes)**: nuevo botón **?** a la derecha de **play** que abre una ayuda teórica específica para la variante seleccionada. El diálogo muestra su fórmula interválica y una explicación en español o inglés para las 52 variantes disponibles; un segundo párrafo dinámico describe la posición fundamental o inversión seleccionada, identificando correctamente el grado que queda en el bajo incluso en acordes suspendidos, alterados y extendidos. El selector organiza todas las variantes mediante cabeceras no seleccionables siguiendo la clasificación de AutoChords (**Tríadas, Séptimas, Sextas, Add y Extensiones**) y añade **Dominantes alterados** y **Extensiones alteradas** para clasificar las 20 variantes propias que no aparecen en esa página sin perder ninguna. Escritorio y móvil consumen el mismo catálogo de teoría versionado en `assets/chord_variant_theory.json` (incluido como asset Flutter) y una prueba impide que ambas copias diverjan.
 
-- **Repo / comunicación**: nuevo documento **`COMPETITIONS.md`** para centralizar candidaturas, borradores y materiales de premios/concursos de FreeMIDIChords.
+- **Repo / comunicación**: nuevo documento **`docs/product/competitions.md`** para centralizar candidaturas, borradores y materiales de premios/concursos de FreeMIDIChords.
 
 - **Web**: nuevo modo **Detección de intervalos** en la SPA (`apps/web/static/app.js`, `app.html`, `style.css`) con captura de las dos últimas notas desde teclado o MIDI, nombre del intervalo, semitonos, reproducción ascendente/descendente y modo **Recordar** con melodías mnemotécnicas dibujadas y reproducidas en el pentagrama. La landing (`apps/web/index.html`) y la documentación (`apps/web/README.md`) reflejan la nueva funcionalidad.
 

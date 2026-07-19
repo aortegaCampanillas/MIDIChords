@@ -57,22 +57,14 @@ def pick_static_url(urls: list[str], needle: str) -> str | None:
     return None
 
 
-def pick_css_bundle_url(urls: list[str]) -> str | None:
-    """CSS principal: /static/style.<hash>.css (deploy) o /static/style.css (legado)."""
-    for u in urls:
-        path = urlparse(u).path.replace("\\", "/")
-        if "/static/style." in path and path.endswith(".css"):
-            return u
-    return pick_static_url(urls, "style.css")
-
-
-def pick_js_bundle_url(urls: list[str]) -> str | None:
-    """JS principal: /static/app.<hash>.js (deploy) o /static/app.js (legado)."""
-    for u in urls:
-        path = urlparse(u).path.replace("\\", "/")
-        if "/static/app." in path and path.endswith(".js"):
-            return u
-    return pick_static_url(urls, "app.js")
+def static_asset_urls(urls: list[str], suffix: str) -> list[str]:
+    """Assets locales enlazados bajo /static/, conservando el orden del HTML."""
+    return [
+        url
+        for url in urls
+        if urlparse(url).path.replace("\\", "/").startswith("/static/")
+        and urlparse(url).path.endswith(suffix)
+    ]
 
 
 class AssetParser(HTMLParser):
@@ -292,21 +284,20 @@ def main() -> int:
     css_urls = [urljoin(app_url, h) for h in p.stylesheet_hrefs]
     js_urls = [urljoin(app_url, h) for h in p.script_srcs]
 
-    css_url = pick_css_bundle_url(css_urls)
-    js_url = pick_js_bundle_url(js_urls)
+    static_css_urls = static_asset_urls(css_urls, ".css")
+    static_js_urls = static_asset_urls(js_urls, ".js")
 
-    if not css_url:
+    if not static_css_urls:
         failures.append(
-            f"GET {app_url} → no se encontró <link rel=stylesheet> a /static/style…css"
+            f"GET {app_url} → no se encontró ningún CSS bajo /static/"
         )
-    if not js_url:
+    if not static_js_urls:
         failures.append(
-            f"GET {app_url} → no se encontró <script src=…> a /static/app…js"
+            f"GET {app_url} → no se encontró ningún script bajo /static/"
         )
-
-    if css_url:
+    for css_url in static_css_urls:
         failures.extend(validate_static_asset(css_url, kind="css", min_len=200))
-    if js_url:
+    for js_url in static_js_urls:
         failures.extend(validate_static_asset(js_url, kind="js", min_len=500))
 
     # --- API (worker) ---

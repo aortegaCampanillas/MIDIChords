@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Construye apps/web/pages-dist con fingerprint en app.js y style.css.
+Construye apps/web/pages-dist con fingerprint en los JS/CSS públicos enlazados.
 
 Misma lógica que `python launch.py deploy-web` antes de wrangler; úsalo desde CI
 (.github/workflows) para no duplicar pasos en shell.

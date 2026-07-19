@@ -312,6 +312,7 @@ class GenerationMixin:
         if str(suffix) == str(self.generation_pattern_suffix):
             return
         self.generation_pattern_suffix = str(suffix)
+        self.guitar_selected_variation_idx = 0
         self._clamp_generation_inversion()
         self._refresh_generation_selection_buttons()
         self._update_generation_preview()

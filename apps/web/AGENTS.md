@@ -1,0 +1,71 @@
+# Instrucciones para `apps/web/`
+
+Estas reglas complementan el `AGENTS.md` de la raíz.
+
+## Fuentes editables
+
+- SPA: `static/app.js`, módulos bajo `static/*.js` enlazados por `app.html` y `static/style.css`.
+- HTML público: `index.html`, `app.html` y `fp30x.html`.
+- API: `worker/_worker.js`.
+- Assets web: `static/`.
+
+`pages-dist/` es salida generada por `python scripts/build_web_pages_dist.py` o por el flujo de despliegue. No editarla como fuente ni incluirla en cambios manuales.
+
+## Contratos
+
+- El frontend consume `/api/meta`, `/api/detect`, `/api/generate/chord`, `/api/generate/scale`, `/api/generate/guitar-variations` y `/api/feedback`.
+- Si cambia un nombre de campo, actualizar en el mismo cambio Worker, SPA, tests y documentación.
+- El Worker reimplementa en JavaScript parte de `midichords/core/music_service.py`; no ejecuta el paquete Python.
+- Los patrones musicales todavía están duplicados entre Python, Worker y Flutter. Tratar `midichords/core/music_theory.py` como referencia funcional y verificar paridad antes de cambiar una copia.
+
+## Archivos grandes
+
+`static/app.js` contiene estado, API, audio, MIDI, renderers y modos. Antes de modificarlo, localizar la función concreta y sus llamadas. Las extracciones futuras deben hacerse por subsistema o modo y conservar primero el comportamiento observable.
+
+`static/chord_help.js` contiene el catálogo bilingüe, grupos de variantes y textos de inversiones de la ayuda de acordes. Se carga antes de `app.js` y publica `globalThis.MidiChordsChordHelp`; conservar ese orden y actualizar las pruebas de paridad al modificarlo.
+
+`static/ui_texts.js` contiene los textos generales ES/EN y publica `globalThis.MidiChordsUiTexts`. Cada clave debe existir en ambos idiomas; `tests/test_web_ui_texts.py` comprueba esa paridad y el orden de carga.
+
+`static/music_notation.js` contiene nombres de notas, letras de tónica, alteraciones, armaduras y conversiones puras de pitch class. La UI debe consumir estas funciones en vez de duplicar normalización o tablas.
+
+`static/circle_theory.js` contiene orden de quintas, grados, tríadas diatónicas, armaduras, hit-testing y geometría pura del círculo. El renderizado con estado y DOM permanece en `app.js`; modo y tónica deben pasarse explícitamente a las funciones de interacción para que puedan probarse directamente con Node.
+
+`static/interval_theory.js` contiene nombres bilingües, cálculo de semitonos y catálogo/mapeo de melodías mnemotécnicas. La cola de notas, temporizadores y reproducción permanecen en `app.js`.
+
+`static/piano_fingering.js` contiene patrones documentados y resolución pura de digitaciones de acordes y escalas. No añadir fallbacks inventados para tonalidades sin fuente; el resultado vacío indica que no hay referencia documentada.
+
+`static/key_signature.js` resuelve armaduras mayores/menores, empates enarmónicos, modo relativo y preferencia menor sin acceder al DOM. `getStaffContext()` permanece en `app.js` como adaptador del estado actual.
+
+`static/scale_theory.js` contiene el filtro básico, alias localizados, normalización de notas/octavas y correspondencia MIDI-etiqueta. La selección del instrumento y el estado de reproducción permanecen en `app.js`.
+
+`static/midi_output.js` encapsula mensajes de salida, notas retenidas y Program Change mediante un controlador inyectable. Permisos, selección del dispositivo y entrada MIDI permanecen en `app.js`; probar el controlador con salidas falsas en `test/midi_output.test.js`.
+
+`static/audio_samples.js` contiene el catálogo de samples y las operaciones puras de selección de raíz, transposición y normalización de buffers. Desbloqueo por gesto, `AudioContext`, descarga, caché, nodos y voces retenidas permanecen en `app.js`; probar la matemática de audio con buffers y contextos falsos en `test/audio_samples.test.js`.
+
+`static/audio_sample_loader.js` encapsula descarga, decodificación y caché mediante dependencias inyectables. El gesto, la creación del `AudioContext`, los nodos y las voces retenidas permanecen en `app.js`; probar concurrencia, normalización selectiva y fallos parciales en `test/audio_sample_loader.test.js`.
+
+`static/audio_voice.js` define envolventes y liberación segura de voces mediante nodos inyectados. La creación del bus, las fuentes y los mapas de notas retenidas permanecen en `app.js`; probar tiempos de piano/guitarra y fuentes ya detenidas en `test/audio_voice.test.js`.
+
+`static/tuner_math.js` contiene autocorrelación y conversiones frecuencia/MIDI sin acceder a micrófono ni DOM. Permisos, suavizado, selección de cuerda y animación permanecen en `app.js`; probar con señales sintéticas decrecientes en `test/tuner_math.test.js`.
+
+`static/playback_highlight.js` coordina las notas resaltadas durante ▶, su temporizador y el repintado inyectado. Piano compara MIDI exacto y guitarra pitch class para cubrir posturas en otras octavas; probar inicio, sustitución y limpieza en `test/playback_highlight.test.js`.
+
+`static/guitar_geometry.js` detecta cejillas, calcula layout/centros del mástil, refleja la orientación zurda, escala puntos cliente al canvas y resuelve hit-testing circular. No accede al DOM ni al estado de la SPA; `renderGuitar()` aporta dimensiones, convierte índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
+
+`static/guitar_canvas.js` dibuja el marco estático del mástil (fondo, tabla, cejuela, trastes y etiquetas) a partir de un layout explícito. No consulta DOM ni estado; `test/guitar_canvas.test.js` usa un contexto grabador para fijar operaciones y simetría zurda antes de extraer más dibujo.
+
+`static/staff_geometry.js` reúne posición diatónica, líneas adicionales y adaptación de octavas entre piano y pentagrama, además del emparejado RH/LH de escalas. No accede al canvas ni al estado global; probar estos contratos en `test/staff_geometry.test.js`.
+
+`static/help_callouts.js` define los selectores, claves de texto y posiciones de la ayuda contextual por modo. La suite Node comprueba que cada clave exista en ambos idiomas; mantener aquí configuración declarativa, no manipulación del DOM.
+
+Los scripts y hojas CSS enlazados desde `app.html` se descubren automáticamente para comprobar sintaxis, aplicar fingerprint en `pages-dist/` y validar producción. Al añadir un módulo estático, mantener el orden de sus `<script>` en `app.html`; no hay que registrar su nombre en los scripts Python.
+
+## Verificación
+
+Desde la raíz:
+
+```bash
+python scripts/check.py web
+```
+
+El perfil comprueba la sintaxis de la SPA y del Worker, descubre y ejecuta todos los `test/*.test.js` con Node y construye `pages-dist/`. Añadir casos JavaScript directos cuando se extraiga lógica ejecutable; mantener los tests Python para contratos y paridad multiplataforma.

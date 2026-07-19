@@ -14,6 +14,64 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 from midichords.ui.widgets_qt import GrayRoundedButton
 
 ACCIDENTAL_SYMBOLS = {"natural": "♮", "sharp": "♯", "flat": "♭"}
+MODAL_SCALE_DEGREES = {
+    "Ionian": "I",
+    "Dorian": "II",
+    "Phrygian": "III",
+    "Lydian": "IV",
+    "Mixolydian": "V",
+    "Aeolian": "VI",
+    "Locrian": "VII",
+}
+MODAL_SCALE_NAMES = tuple(MODAL_SCALE_DEGREES)
+SCALE_FAMILY_GROUPS = (
+    ("greek_modes", MODAL_SCALE_NAMES),
+    ("minor", ("Harmonic Minor", "Melodic Minor", "Romanian Minor", "Hawaiian")),
+    (
+        "altered_modes",
+        (
+            "Locrian #2", "Half Diminished", "Super Locrian",
+            "Neapolitan Major", "Neapolitan Minor", "Lydian Minor",
+            "Lydian Augmented", "Lydian Diminished", "Lydian Augmented #6",
+            "Hungarian Major", "Hungarian Minor",
+        ),
+    ),
+    (
+        "pentatonic_blues",
+        ("Major Pentatonic", "Minor Pentatonic", "Blues Pentatonic", "Neutral Pentatonic", "Minor Blues"),
+    ),
+    ("bebop", ("Bebop", "Bebop Major", "Bebop Minor")),
+    (
+        "symmetric_synthetic",
+        (
+            "Chromatic", "Diminished", "Whole Tone (WT)", "Diminished WT",
+            "Enigmatic", "Prometheus", "Prometheus Neapolitan", "Six Tone Symmetric",
+        ),
+    ),
+    (
+        "world",
+        (
+            "Spanish Gypsy", "Eight Tone Spanish", "Pelog", "Ichikosucho",
+            "Persian", "Flamenco", "Maqam", "Oriental", "Iwato",
+            "Raga Malakosh", "Balinese", "Kafi Raga", "Todi Raga",
+            "Purvi Raga", "In Sen",
+        ),
+    ),
+)
+SCALE_FAMILY_LABELS = {
+    "es": {
+        "greek_modes": "Modos griegos", "minor": "Escalas menores",
+        "altered_modes": "Modos alterados", "pentatonic_blues": "Pentatónicas y blues",
+        "bebop": "Bebop", "symmetric_synthetic": "Simétricas y sintéticas",
+        "world": "Tradicionales del mundo",
+    },
+    "en": {
+        "greek_modes": "Greek modes", "minor": "Minor scales",
+        "altered_modes": "Altered modes", "pentatonic_blues": "Pentatonic & blues",
+        "bebop": "Bebop", "symmetric_synthetic": "Symmetric & synthetic",
+        "world": "World traditions",
+    },
+}
 
 
 class ScalesMixin:
@@ -423,7 +481,7 @@ class ScalesMixin:
             with_octave=False,
             prefer_flats_override=(self.note_accidental == "flat"),
         )[0]
-        localized_scale_name = self.scale_name(pattern.name)
+        localized_scale_name = self._scale_result_display_label(pattern.name)
         if hasattr(self, "scale_tonic_combo"):
             self._update_scale_tonic_combo()
         if hasattr(self, "scale_type_combo"):
@@ -509,10 +567,17 @@ class ScalesMixin:
             return {"Ionian": "Mayor", "Aeolian": "Menor Natural", "Super Locrian": "Alterada"}
         return {"Ionian": "Major", "Aeolian": "Natural Minor", "Super Locrian": "Altered"}
 
+    def _scale_result_display_label(self, pattern_name: str) -> str:
+        localized = self.scale_name(pattern_name)
+        degree = MODAL_SCALE_DEGREES.get(pattern_name)
+        return f"{localized} ({degree})" if degree else localized
+
     def _scale_type_display_label(self, pattern_name: str) -> str:
         alias = self._scale_type_aliases().get(pattern_name)
         localized = self.scale_name(pattern_name)
-        return f"{alias} ({localized})" if alias else localized
+        label = f"{alias} ({localized})" if alias else localized
+        degree = MODAL_SCALE_DEGREES.get(pattern_name)
+        return f"{label} ({degree})" if degree else label
 
     def _update_scale_type_combo(self) -> None:
         if not hasattr(self, "scale_type_combo"):
@@ -524,7 +589,21 @@ class ScalesMixin:
             patterns = [p for p in patterns if p.name in SCALE_BASIC_NAMES]
         options = [self._scale_type_display_label(p.name) for p in patterns]
         self._scale_type_label_to_name = {self._scale_type_display_label(p.name): p.name for p in patterns}
-        self.scale_type_combo.configure(values=options)
+        language = str(self.config_data.get("language", "es"))
+        available_names = {pattern.name for pattern in patterns}
+        labels = SCALE_FAMILY_LABELS["en" if language == "en" else "es"]
+        grouped_values = [
+            (
+                labels[group_key],
+                [self._scale_type_display_label(name) for name in names if name in available_names],
+            )
+            for group_key, names in SCALE_FAMILY_GROUPS
+        ]
+        grouped_values = [(label, values) for label, values in grouped_values if values]
+        if hasattr(self.scale_type_combo, "set_grouped_values"):
+            self.scale_type_combo.set_grouped_values(grouped_values)
+        else:
+            self.scale_type_combo.configure(values=options)
         current_label = self._scale_type_display_label(self.scale_pattern_name)
         if current_label in options:
             self.scale_type_var.set(current_label)

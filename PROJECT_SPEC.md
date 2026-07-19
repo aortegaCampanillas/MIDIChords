@@ -13,16 +13,16 @@ Documento pensado para **regenerar o recrear** el proyecto desde cero. Describe 
 - **Escalas**: elegir tónica y tipo de escala; ver notas e intervalos y reproducir la escala (opcionalmente con metrónomo).
 - **Metrónomo**: tempo, compás, volumen, acento en el primer tiempo, presets de carácter.
 - **Afinador**: escuchar el micrófono y mostrar la nota más cercana y la desviación en cents.
-- **Círculo de quintas (web)**: modo interactivo en el cliente web para fijar tonalidad y elegir acordes diatónicos sobre un círculo de tónicas; no forma parte del escritorio Tk de referencia en `main`. Ver §5.2.
+- **Círculo de quintas**: modo interactivo para fijar tonalidad y elegir acordes diatónicos sobre un círculo de tónicas, disponible en las implementaciones actuales de escritorio, web y móvil.
 
-La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend estático + API en Cloudflare Worker) y **móvil/tablet** (Flutter). La **lógica de negocio** (detección, generación, patrones de acordes y escalas) debe ser reutilizable y compartida entre al menos escritorio y web.
+La app existe en tres formas: **escritorio** (Python/PySide6), **web** (frontend estático + API en Cloudflare Worker) y **móvil/tablet** (Flutter). Las tres implementaciones deben mantener contratos y resultados musicales equivalentes. Actualmente Python, JavaScript y Dart reimplementan parte de la lógica; la paridad se valida mediante tests y casos compartidos.
 
 ---
 
 ## 2. Stack y requisitos
 
 - **Python 3.12 o 3.13** para la app de escritorio; **3.14** suele fallar al instalar dependencias nativas. En **Windows**, `python-rtmidi` (MIDI) solo tiene rueda PyPI hasta **3.12**; con 3.13 conviene **3.12** para un `requirements.txt` completo.
-- **Tkinter** para la UI de escritorio (incluido en Python estándar).
+- **PySide6/Qt** para la UI de escritorio. `midichords/qt/` ofrece adaptadores con nombres similares a Tk para conservar parte de la implementación histórica.
 - **Dependencias Python** (ejemplo): `mido`, `python-rtmidi`, `numpy`, `sounddevice` (ver `requirements.txt`).
 - **Web**: frontend HTML/JS/CSS estático; backend API en **Cloudflare Worker** (JavaScript). Desarrollo local con **wrangler** (`wrangler dev`).
 - **Móvil**: **Flutter** (iOS/Android); puede consumir la API web o reimplementar lógica.
@@ -39,7 +39,6 @@ La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend
 │   │   └── main.py        # Entrada: from midichords.main_app import main; main()
 │   ├── web/               # Frontend + Worker
 │   │   ├── index.html
-│   │   ├── templates/
 │   │   ├── static/        # JS, CSS, assets estáticos
 │   │   └── worker/       # Cloudflare Worker (API)
 │   │       └── _worker.js
@@ -47,12 +46,13 @@ La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend
 ├── midichords/            # Paquete Python compartido (sin UI web/Flutter)
 │   ├── core/              # Teoría, audio, config, i18n
 │   ├── mixins/            # Lógica por modo (detección, generación, MIDI, etc.)
-│   ├── ui/                # Widgets Tkinter
-│   └── main_app.py        # App Tk principal
+│   ├── qt/                # Adaptadores de API Tk sobre PySide6
+│   ├── ui/                # Widgets y componentes visuales Qt
+│   └── main_app.py        # Ventana Qt principal
 ├── assets/                # Imágenes, samples de audio (piano, guitarra)
-├── tests/                 # Tests unitarios Python
+├── tests/                 # Tests unitarios, fixtures y soporte de tests
 ├── scripts/               # Build, firma, notarización
-├── packaging/             # Flatpak, Microsoft Store, etc.
+├── packaging/             # Flatpak, Microsoft Store y configuración macOS
 ├── launch.py              # Entrada unificada: desktop | web | mobile
 ├── app.py                 # Alias a desktop (opcional)
 ├── requirements.txt
@@ -76,9 +76,9 @@ La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend
   - Depende solo de `i18n` (NOTE_NAMES).
 
 - **music_service.py**
-  - API de alto nivel para escritorio y web/API: `generate_chord(root_pc, suffix, inversion, language, prefer_flat) -> dict` (incluye `notes_midi`, nombres, intervalos), `detect_chord(notes=None) -> str`, `generate_scale(tonic_pc, pattern_name, language, prefer_flat) -> dict`, `list_chord_patterns()`, `list_scale_patterns(language)`.
+  - API de alto nivel de la implementación Python: `generate_chord(root_pc, suffix, inversion, language, prefer_flat) -> dict` (incluye `notes_midi`, nombres, intervalos), `detect_chord(notes=None) -> str`, `generate_scale(tonic_pc, pattern_name, language, prefer_flat) -> dict`, `list_chord_patterns()`, `list_scale_patterns(language)`. El Worker reproduce el mismo contrato en JavaScript; no importa Python en tiempo de ejecución.
   - Inversiones: la fundamental del acorde generado debe corresponder al bajo según el índice de inversión.
-  - Usa `music_theory` e `i18n`; sin dependencias de Tk ni audio.
+  - Usa `music_theory` e `i18n`; sin dependencias de UI ni audio.
 
 - **i18n.py**
   - Diccionarios: `NOTE_NAMES` por idioma (lista de 12 nombres por clase de pitch, ej. `es`: Do, Do#, Re, …; `en`: C, C#, D, …), `UI_TEXTS` (claves como `app_title`, `panel_chord`, `mode_detection`, etc.), `SCALE_NAME_TEXTS` y otros que necesite la UI.
@@ -98,10 +98,10 @@ La app existe en tres formas: **escritorio** (Python/Tkinter), **web** (frontend
 
 ### 4.2 `midichords/mixins/`
 
-La app de escritorio es una sola clase que hereda de varios mixins + `tk.Tk`. Cada mixin aporta un bloque de funcionalidad (modo o subsistema):
+La app de escritorio es una clase Qt compuesta mediante varios mixins. Cada mixin aporta un bloque de funcionalidad (modo o subsistema):
 
-- **UiMixin**: Construcción de ventana, paneles, pestañas, variables Tk (StringVar, etc.), selectores de modo.
-- **RenderMixin**: Dibujo del teclado (blancas/negras) y del pentagrama en canvas Tk; regiones de teclas para clic.
+- **UiMixin**: Construcción de ventana, paneles, pestañas, variables compatibles (`QtStringVar`, etc.) y selectores de modo.
+- **RenderMixin**: Dibujo del teclado, guitarra y pentagrama mediante canvases adaptados sobre Qt; regiones interactivas.
 - **InputDetectionMixin**: Conjunto de notas activas (ratón + MIDI), detección armónica del acorde (spelling), actualización de etiquetas “Notas”, “Notas sobrantes”, “Intervalos”, nombre del acorde. Usa `music_theory.analyze_chord_notes` y lógica de notas sobrantes.
 - **GenerationMixin**: Generación de acordes (patrón, inversión), vista del acorde generado, reproducción.
 - **ScalesMixin**: Escalas (patrón, tónica), vista y reproducción (opcional con metrónomo).
@@ -110,17 +110,20 @@ La app de escritorio es una sola clase que hereda de varios mixins + `tk.Tk`. Ca
 - **MidiIOMixin**: Entrada/salida MIDI (listar dispositivos, abrir/cerrar, procesar mensajes note on/off, sustain).
 - **OverlaysMixin**: Diálogos/overlays (selector de modo con tarjetas, etc.).
 
-Orden de herencia de la clase principal (ejemplo): `UiMixin, RenderMixin, OverlaysMixin, TunerMixin, MetronomeMixin, ScalesMixin, GenerationMixin, MidiIOMixin, InputDetectionMixin, tk.Tk`.
+La clase principal combina los mixins de modos y subsistemas con `QtSchedulerMixin` y `QMainWindow`. Consultar `midichords/main_app.py` para el orden vigente, porque forma parte del contrato entre mixins.
 
 ### 4.3 `midichords/main_app.py`
 
-- Una clase (ej. `MidiChordAnalyzerApp`) que hereda de todos los mixins y de `tk.Tk`; en `__init__` inicializa estado (notas activas, MIDI, imágenes, config), construye la UI y enlaza eventos.
-- Función `main()`: crea la instancia y ejecuta `mainloop()`.
+- Una clase (`MidiChordAnalyzerApp`) que hereda de los mixins, `QtSchedulerMixin` y `QMainWindow`; en `__init__` inicializa estado (notas activas, MIDI, imágenes, config), construye la UI y enlaza eventos.
+- Función `main()`: crea `QApplication`, construye la instancia y ejecuta el event loop de Qt.
 - La app de escritorio se lanza desde `apps/desktop/main.py` importando y llamando a `main()` de `midichords.main_app`.
 
-### 4.4 `midichords/ui/widgets.py`
+### 4.4 `midichords/ui/`
 
-Widgets Tkinter reutilizables (botones redondeados, paneles, botón de transporte de play, etc.). Solo presentación y eventos básicos; la lógica de negocio está en los mixins y en `core`.
+`widgets_qt.py` contiene los controles personalizados activos y
+`desktop_ui_builders.py` las fronteras de construcción cubiertas por el smoke
+contract de escritorio. La compatibilidad con la antigua API Tk vive en
+`midichords/qt/`, sobre PySide6.
 
 ---
 
@@ -128,8 +131,8 @@ Widgets Tkinter reutilizables (botones redondeados, paneles, botón de transport
 
 ### 5.1 Escritorio
 
-- **Entrada**: `python launch.py desktop` o `python app.py` (o `apps/desktop/main.py` con cwd/raíz). `launch.py` importa y ejecuta la función que arranca la app Tk.
-- **Comportamiento**: ventana principal con selector de modo (Detección, Generación, Escalas, Metrónomo, Afinación); en modo Detección: teclado virtual + pentagrama + panel de acorde (nombre, notas, notas sobrantes, intervalos); soporte MIDI opcional; configuración (idioma, MIDI, audio, etc.).
+- **Entrada**: `python launch.py desktop` o `python app.py` (o `apps/desktop/main.py` con cwd/raíz). `launch.py` importa y ejecuta la función que arranca la app Qt.
+- **Comportamiento**: ventana Qt principal con selector de modo (Detección, Intervalos, Generación, Círculo de quintas, Escalas, Metrónomo y Afinación cuando está habilitada); soporte de piano, guitarra, pentagrama, MIDI, audio y configuración persistente.
 
 ### 5.2 Web
 
@@ -172,7 +175,7 @@ Widgets Tkinter reutilizables (botones redondeados, paneles, botón de transport
 - **Nombres de notas**: consistentes con `i18n.NOTE_NAMES`; en español Do, Re, Mi, Fa, Sol, La, Si (con sostenidos/bemoles según preferencia).
 - **Detección**: la “fuente de verdad” del nombre del acorde a partir de un conjunto de notas es la misma que usa `music_service.detect_chord` / `InputDetectionMixin` (p. ej. `analyze_chord_notes` + spelling armónico). Las “notas sobrantes” son las que no pertenecen al acorde detectado.
 - **Generación de acordes**: intervalos en semitonos desde la fundamental; inversiones reordenando las notas de modo que la nota en la posición de inversión sea el bajo.
-- **Escritorio**: Tkinter como única UI de escritorio de referencia en la rama principal; no asumir Qt salvo que se documente una rama o build alternativo.
+- **Escritorio**: PySide6/Qt es la UI de referencia. No confundir los adaptadores `tk_compat`, `ttk_compat` y `tkfont_compat` con una aplicación Tkinter independiente.
 - **Web**: CORS habilitado para `/api/*` (OPTIONS + GET/POST); respuestas JSON; parámetros de idioma y accidental coherentes con el resto del producto.
 
 ---

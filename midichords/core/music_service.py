@@ -335,7 +335,17 @@ def detect_chord(
         if degree is None:
             note_labels.append(note_name(n, language=language, prefer_flat=prefer_flat, with_octave=True))
         else:
-            note_labels.append(_spell_by_degree(int(root), n % 12, degree, language, prefer_flat, midi_note=n, with_octave=True))
+            note_labels.append(
+                _spell_by_degree(
+                    int(root),
+                    n % 12,
+                    degree,
+                    language,
+                    name_pf,
+                    midi_note=n,
+                    with_octave=True,
+                )
+            )
     return {
         "name": chord_name,
         "notes_midi": midi_notes,

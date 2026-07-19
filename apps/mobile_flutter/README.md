@@ -10,11 +10,9 @@ Base Flutter para tablets iOS/Android del proyecto MIDIChords.
   - Escalas
   - Metrónomo
   - Afinador
-- Integración con backend Python web:
-  - `/api/meta`
-  - `/api/detect`
-  - `/api/generate/chord`
-  - `/api/generate/scale`
+- Teoría musical y generación disponibles localmente mediante
+  `lib/music_catalog.dart` y `lib/music_service.dart`; la app no necesita el
+  backend web para sus modos principales.
 - Detección con teclado táctil en pantalla + entrada manual de notas MIDI.
 - Metrónomo nativo implementado (BPM, compás, start/stop, pulso visual).
 - Afinador nativo implementado (captura de micrófono + estimación de pitch + cents).

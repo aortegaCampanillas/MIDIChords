@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import socket
 import subprocess
@@ -120,9 +121,10 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     """
     Construye apps/web/pages-dist listo para wrangler pages deploy.
 
-    Renombra app.js y style.css con hash de contenido y actualiza index.html en el bundle,
-    para romper cachés del edge en dominios personalizados que ignoran Cache-Control en /static/*.
-    El repo fuente sigue usando /static/app.js y /static/style.css (desarrollo local).
+    Renombra con hash de contenido los JS/CSS enlazados desde cualquier HTML y
+    actualiza todas sus referencias en el bundle, para romper cachés del edge en
+    dominios personalizados que ignoran Cache-Control en /static/*. El repo
+    fuente conserva los nombres estables para desarrollo local.
     """
     import shutil
 
@@ -149,31 +151,54 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
             shutil.copy(p, pages_dist / extra)
 
     static_dir = pages_dist / "static"
-    app_src = static_dir / "app.js"
-    css_src = static_dir / "style.css"
-    if not app_src.is_file() or not css_src.is_file():
-        raise SystemExit("[pages-dist] Faltan static/app.js o static/style.css antes del fingerprint")
+    html_paths = tuple(sorted(pages_dist.glob("*.html")))
+    html_documents = {
+        path: path.read_text(encoding="utf-8")
+        for path in html_paths
+    }
+    asset_urls = tuple(
+        dict.fromkeys(
+            asset_url
+            for html in html_documents.values()
+            for asset_url in re.findall(
+                    r'(?:src|href)="(/static/[^"?#]+\.(?:js|css))"',
+                    html,
+            )
+        )
+    )
+    if not asset_urls:
+        raise SystemExit("[pages-dist] Ningún HTML enlaza JS/CSS bajo /static/")
 
-    app_h = hashlib.sha256(app_src.read_bytes()).hexdigest()[:12]
-    css_h = hashlib.sha256(css_src.read_bytes()).hexdigest()[:12]
-    app_name = f"app.{app_h}.js"
-    css_name = f"style.{css_h}.css"
-    app_src.rename(static_dir / app_name)
-    css_src.rename(static_dir / css_name)
+    fingerprinted_paths: list[Path] = []
+    for asset_url in asset_urls:
+        relative = Path(asset_url.removeprefix("/static/"))
+        source = static_dir / relative
+        if not source.is_file():
+            raise SystemExit(f"[pages-dist] Falta el estático enlazado: {asset_url}")
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+        fingerprinted = source.with_name(f"{source.stem}.{digest}{source.suffix}")
+        source.rename(fingerprinted)
+        fingerprinted_url = f"/static/{fingerprinted.relative_to(static_dir).as_posix()}"
+        html_documents = {
+            path: html.replace(f'"{asset_url}"', f'"{fingerprinted_url}"')
+            for path, html in html_documents.items()
+        }
+        fingerprinted_paths.append(fingerprinted)
 
-    app_path = pages_dist / "app.html"
-    html = app_path.read_text(encoding="utf-8")
-    if "/static/app.js" not in html or "/static/style.css" not in html:
-        raise SystemExit("[pages-dist] app.html debe enlazar /static/app.js y /static/style.css")
-    html = html.replace('href="/static/style.css"', f'href="/static/{css_name}"')
-    html = html.replace('src="/static/app.js"', f'src="/static/{app_name}"')
-    app_path.write_text(html, encoding="utf-8")
-    print(f"[pages-dist] Fingerprint estáticos: /static/{css_name}, /static/{app_name}")
+    for path, html in html_documents.items():
+        path.write_text(html, encoding="utf-8")
+    print(
+        "[pages-dist] Fingerprint estáticos: "
+        + ", ".join(
+            f"/static/{path.relative_to(static_dir).as_posix()}"
+            for path in fingerprinted_paths
+        )
+    )
 
     for name in ("index.html", "app.html", "_worker.js", "_routes.json"):
         if not (pages_dist / name).exists():
             raise SystemExit(f"[pages-dist] Falta en el bundle: {name}")
-    if not (static_dir / app_name).is_file() or not (static_dir / css_name).is_file():
+    if any(not path.is_file() for path in fingerprinted_paths):
         raise SystemExit("[pages-dist] Faltan ficheros renombrados tras fingerprint")
 
     return pages_dist

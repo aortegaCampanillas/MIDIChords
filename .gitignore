@@ -74,7 +74,10 @@ build/
 dmg-root/
 *.dmg
 *.pkg
+*.msix
 *.spec
+packaging/macos/entitlements.mas.generated.plist
+# Artefacto local de builds anteriores a la reorganización.
 scripts/entitlements.mas.generated.plist
 scripts/build_ejecutado_manualmente.txt
 

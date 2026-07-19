@@ -11,7 +11,7 @@ void main() {
 
   test('every chord variant and inversion has bilingual help', () {
     final theory = (catalog['theory'] as Map<String, dynamic>);
-    expect(theory, hasLength(52));
+    expect(theory, hasLength(54));
     for (final entry in theory.entries) {
       final formula =
           (entry.value as Map<String, dynamic>)['formula'] as String;
@@ -53,8 +53,8 @@ void main() {
         .toList();
     final headers = items.where((item) => !item.enabled).toList();
 
-    expect(selectable, hasLength(52));
-    expect(selectable.toSet(), hasLength(52));
+    expect(selectable, hasLength(54));
+    expect(selectable.toSet(), hasLength(54));
     expect(headers, hasLength(7));
   });
 }

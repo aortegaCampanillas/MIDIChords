@@ -11,11 +11,11 @@ La web se publica en Cloudflare Pages, no con un `wrangler.toml` local dentro de
 El flujo real de despliegue es:
 
 1. preparar un bundle estático temporal con:
-   - `apps/web/index.html` (en el bundle, los enlaces a **`app.js`** y **`style.css`** se reescriben a nombres con **hash de contenido**, p. ej. `/static/app.a1b2c3d4e5f6.js`, para evitar cachés del edge en el dominio personalizado)
+   - `apps/web/index.html` y `apps/web/app.html` (en el bundle, los enlaces a **`ui_texts.js`**, **`chord_help.js`**, **`help_callouts.js`**, **`app.js`** y **`style.css`** se reescriben a nombres con **hash de contenido**, p. ej. `/static/app.a1b2c3d4e5f6.js`, para evitar cachés del edge en el dominio personalizado)
    - `apps/web/static/`
    - `apps/web/worker/_worker.js` copiado como `_worker.js`
 
-   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) aplica ese paso; en el repo siguen existiendo `static/app.js` y `static/style.css` para desarrollo local.
+   El script **`scripts/build_web_pages_dist.py`** (o `python launch.py deploy-web`) descubre automáticamente los JS/CSS enlazados desde `app.html` y aplica ese paso; en el repo siguen existiendo sus nombres estables para desarrollo local.
 2. desplegar ese bundle al proyecto de Pages configurado en GitHub:
    - variable: `CLOUDFLARE_PAGES_PROJECT`
    - valor actual: `midichords`
@@ -232,11 +232,15 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`index.html`**. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura, los catálogos y los adaptadores verificables se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI, audio por samples, resaltado de reproducción, matemática del afinador y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, gesto, bus y creación de nodos Web Audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+
+Las pruebas JavaScript sin dependencias externas están en **`test/*.test.js`** y se ejecutan con `node --test`; `python scripts/check.py web` las descubre e incluye junto con la comprobación de sintaxis y la construcción del bundle.
+
+El perfil web y el chequeo de salud de producción validan automáticamente todos los scripts y hojas CSS locales enlazados por `app.html`; no mantienen una lista paralela de nombres de assets.
 
 ### Detección de intervalos (`interval_detection`)
 
-- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "interval_detection"`, panel `#panelIntervalDetection`, funciones `intervalAddNote`, `getIntervalSemitones`, `getIntervalMelodyNotes`, `playIntervalNoteSequence`, `refreshIntervalResult`, `refreshIntervalButtonsState`.
+- **Ubicación en código**: `apps/web/static/interval_theory.js` contiene nombres, cálculo y melodías; `apps/web/static/app.js` conserva estado `state.mode === "interval_detection"`, cola, reproducción, panel y renderizado.
 - **Funcionamiento**: registra las **últimas 2 notas** pulsadas (teclado interactivo o MIDI), ordena ascendentemente para el pentagrama y muestra nombre del intervalo, semitonos y una **canción mnemotécnica** (`INTERVAL_MELODIES`). Las notas se guardan en orden de inserción para que `shift()` descarte siempre la más antigua.
 - **Melodía mnemotécnica** (botón «Recordar»): activa `state.intervalMelodyActive`; el pentagrama pasa a mostrar la melodía completa (`getIntervalMelodyNotes()`). Las dos notas del intervalo aparecen en blanco, el resto en gris. Algunas canciones usan `jumpAt > 0` cuando el salto del intervalo ocurre en la 2.ª→3.ª nota (p. ej. «Cumpleaños feliz»); en ese caso las notas de preparación llevan ligadura. El botón ▶ toca la melodía con duraciones reales (`DURATION_BEATS`); el botón ◀ toca el intervalo en orden inverso.
 - **Duraciones**: `DURATION_BEATS` mapea `"w"/"h"/"h."/"q"/"q."/"e"/"e."/"s"/"s."` a tiempos; `playIntervalNoteSequence` calcula tiempos acumulados para respetar el ritmo y usa `state.intervalPlayingIdx` para resaltar la nota exacta en curso (no todas las del mismo pitch).
@@ -245,7 +249,7 @@ El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, carga
 
 ### Círculo de quintas (`circle_fifths`)
 
-- **Ubicación en código**: `apps/web/static/app.js` — estado `state.mode === "circle_fifths"`, canvas `#circleFifthsCanvas`, funciones como `renderCircleFifths`, `circleChordRootPcFromClick`, `circleChordShiftClickIsDiatonic`, `runGenerateChordCircle`, `circleMajorTonicPcForTheory()`.
+- **Ubicación en código**: `apps/web/static/app.js` conserva estado, canvas y renderizado (`renderCircleFifths`, `runGenerateChordCircle`); `apps/web/static/circle_theory.js` contiene orden, grados, tríadas diatónicas y geometría pura.
 - **Interacción**: **clic** para fijar la **tonalidad** según la banda (anillo exterior = acordes mayores del sector → modo mayor; anillo interior = fundamental menor relativa → modo menor natural; misma armadura). **Mayús+clic** para elegir un **acorde diatónico** (triada) de esa tonalidad sin cambiar la tónica; solo se acepta la combinación banda/sector coherente con la escala.
 - **Datos**: el acorde mostrado y reproducido se obtiene con **`POST /api/generate/chord`** (mismo cuerpo conceptual que el modo generación: `root_pc`, `suffix`, `inversion`, `language`, `accidental`).
 - **UI**: colores por función en el anillo; en modo menor, numerales tipo **♭III / ♭VI / ♭VII** (bemol en superíndice en canvas); botón **▶** superpuesto en la esquina superior izquierda del área del canvas (no ocupa una fila aparte). Textos y traducciones ES/EN están en los objetos de strings de `app.js` (`tr()`).

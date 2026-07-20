@@ -24,6 +24,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'beta-*'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -57,6 +58,23 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Resolve project version
+        id: pver
+        shell: bash
+        run: |
+          IS_BETA=false
+          if [[ "${RELEASE_REF_NAME}" == beta-* ]]; then IS_BETA=true; fi
+          PROJECT_VERSION=$(python -c "from midichords.core.app_constants import APP_RELEASE_NAME; print(APP_RELEASE_NAME)")
+          echo "is_beta=${IS_BETA}" >> "$GITHUB_OUTPUT"
+          echo "project_version=${PROJECT_VERSION}" >> "$GITHUB_OUTPUT"
+          # Versión que llevan los artefactos: para tags beta-N (sin X.Y.Z propio)
+          # se lee de APP_RELEASE_NAME en vez del nombre del tag.
+          if [[ "${IS_BETA}" == "true" ]]; then
+            echo "artifact_version=${PROJECT_VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "artifact_version=${RELEASE_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build executable (PyInstaller)
         run: |
           pyinstaller --noconfirm --clean MIDIChordsWindows.spec
@@ -68,13 +86,15 @@ jobs:
 
       - name: Build installer (.exe)
         shell: pwsh
+        env:
+          ARTIFACT_VERSION: ${{ steps.pver.outputs.artifact_version }}
         run: |
           @"
           [Setup]
           AppId={{A4F55F54-4AA1-4A4F-B112-0F7A2755CE16}
           AppName=MIDIChords
-          AppVersion=${{ env.RELEASE_REF_NAME }}
-          AppVerName=MIDIChords ${{ env.RELEASE_REF_NAME }}
+          AppVersion=${{ env.ARTIFACT_VERSION }}
+          AppVerName=MIDIChords ${{ env.ARTIFACT_VERSION }}
           AppPublisher=Antonio Ortega González
           DefaultDirName={autopf}\MIDIChords
           DefaultGroupName=MIDIChords
@@ -111,6 +131,8 @@ jobs:
         env:
           MSIX_REVISION: ${{ inputs.msix_revision || '0' }}
           MSIX_VERSION_OVERRIDE: ${{ inputs.msix_version || '' }}
+          IS_BETA: ${{ steps.pver.outputs.is_beta }}
+          PROJECT_VERSION: ${{ steps.pver.outputs.project_version }}
         run: |
           $override = $env:MSIX_VERSION_OVERRIDE
           if (-not [string]::IsNullOrWhiteSpace($override)) {
@@ -125,6 +147,17 @@ jobs:
               throw "msix_version inválido: '$override' (se espera X.Y.Z o X.Y.Z.W)"
             }
             Write-Host "MSIX Package Version: $ver (override=$override)"
+          } elseif ($env:IS_BETA -eq "true") {
+            # Tag beta-N: no lleva X.Y.Z propio, así que la versión del
+            # paquete sale de APP_RELEASE_NAME (fuente de verdad del
+            # proyecto), con revisión forzada a 0 como exige la Store.
+            $bare = $env:PROJECT_VERSION
+            if ($bare -match '^(\d+)\.(\d+)\.(\d+)$') {
+              $ver = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+            } else {
+              throw "APP_RELEASE_NAME inválido para MSIX: '$bare' (se espera X.Y.Z)"
+            }
+            Write-Host "MSIX Package Version: $ver (beta tag, project_version=$bare)"
           } else {
             $tag = $env:RELEASE_REF_NAME
             $tag = $tag -replace '^refs/tags/',''
@@ -183,10 +216,11 @@ jobs:
           & "$sdkBin\x64\MakeAppx.exe" pack /d msix_stage /p MIDIChords-windows-x64.msix /l
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
+          prerelease: ${{ steps.pver.outputs.is_beta == 'true' }}
           files: |
             MIDIChords-windows-installer-x64.exe
             MIDIChords-windows-x64.msix
@@ -222,6 +256,14 @@ jobs:
       RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
 
     steps:
+      - name: Resolve beta flag
+        id: pver
+        shell: bash
+        run: |
+          IS_BETA=false
+          if [[ "${RELEASE_REF_NAME}" == beta-* ]]; then IS_BETA=true; fi
+          echo "is_beta=${IS_BETA}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -291,10 +333,11 @@ jobs:
             --notary-profile "AC_NOTARY"
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
+          prerelease: ${{ steps.pver.outputs.is_beta == 'true' }}
           files: MIDIChords-macos.dmg
 
       - name: Notify maintainer on failure
@@ -358,10 +401,21 @@ jobs:
             VERSION="${REF_NAME#v}"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${REF_NAME}" == beta-* ]]; then
+            # Tag beta-N: la versión viene de APP_RELEASE_NAME (fuente de
+            # verdad del proyecto), no del contador del tag. Se añade un
+            # sufijo ~beta<N>.<run> para que dpkg distinga builds sucesivas
+            # de la misma versión candidata.
+            PROJECT_VERSION=$(python -c "from midichords.core.app_constants import APP_RELEASE_NAME; print(APP_RELEASE_NAME)")
+            BETA_N="${REF_NAME#beta-}"
+            VERSION="${PROJECT_VERSION}~beta${BETA_N}.${GITHUB_RUN_NUMBER}"
           else
             VERSION="0.0.${GITHUB_RUN_NUMBER}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          IS_BETA=false
+          if [[ "${REF_NAME}" == beta-* ]]; then IS_BETA=true; fi
+          echo "is_beta=${IS_BETA}" >> "$GITHUB_OUTPUT"
 
       - name: Build binary (PyInstaller)
         run: |
@@ -408,10 +462,11 @@ jobs:
           dpkg-deb --build "$PKGROOT" "MIDIChords-debian-amd64.deb"
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
+          prerelease: ${{ steps.ver.outputs.is_beta == 'true' }}
           files: MIDIChords-debian-amd64.deb
 
       - name: Notify maintainer on failure
@@ -439,7 +494,8 @@ jobs:
 
   sync-public-release:
     name: Sync installers to public releases repo
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    # Los tags beta-N (builds de prueba) nunca se sincronizan al repo público de releases.
+    if: (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')) && !startsWith(inputs.tag || github.ref_name, 'beta-')
     runs-on: ubuntu-latest
     needs:
       - build-windows

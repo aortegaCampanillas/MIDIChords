@@ -156,6 +156,11 @@ Los perfiles son también la interfaz usada por `.github/workflows/quality.yml`.
 ## Convenciones del usuario
 
 - **"Sube etiqueta"** (o equivalente): hacer **commit** de los cambios pendientes, **push** a la rama actual y **mover la última etiqueta** (p. ej. `v1.0.1`) al último commit, con `git tag -f <tag>` y `git push --force origin <tag>`. Así se re-dispara el workflow de instaladores para esa versión.
+- **Builds de prueba sin gastar versión (tags `beta-N`):** `.github/workflows/build-installers.yml` también dispara con tags `beta-1`, `beta-2`, … (contador plano, sin `X.Y.Z` propio — evita acoplar el intento a la versión candidata y evita el problema de que Microsoft Store exige que el 4º segmento de versión del MSIX sea `0`).
+  - `git tag beta-1 && git push origin beta-1` genera los mismos artefactos (Windows `.exe`/`.msix`, macOS `.dmg`, Debian `.deb`) que un tag `vX.Y.Z`, pero publica la GitHub Release marcada **prerelease** (no sustituye la "latest release" estable) y **no se sincroniza** al repo público `FreeMIDIChords_Releases`.
+  - La versión que llevan los artefactos (instalador Windows, manifiesto MSIX, `.deb`) sigue viniendo de `APP_RELEASE_NAME` en `midichords/core/app_constants.py` (fuente de verdad del proyecto), no del nombre del tag — no hace falta repetir el número de versión al crear el tag beta.
+  - Para siguientes tags usar el número siguiente (`beta-2`, `beta-3`, …); no hace falta borrar los anteriores, pero conviene limpiarlos de vez en cuando (son prereleases, no releases públicas).
+  - **Cuando la beta ya se validó en Windows/Mac**, crear el tag `vX.Y.Z` real (proceso normal de "sube etiqueta" arriba) para la release pública — el tag `beta-N` no se convierte en `vX.Y.Z`, son independientes.
 - **Despliegue a producción (web):** el deploy a Cloudflare Pages **solo** se lanza con **push de una etiqueta** `v*`, no con push a `main`. Ver `README.md` y `apps/web/README.md`.
 - **Changelog (obligatorio mantenerlo):** cuando se hace un cambio relevante, actualizar `CHANGELOG.md` (sección **Unreleased**) para que la próxima subida/release quede trazable.
   - En los `changelog.json`, la plataforma se indica exclusivamente mediante el campo `platforms`; no repetir en los textos `es`/`en` expresiones como "en web", "en escritorio", "en móvil" o "en todas las plataformas".

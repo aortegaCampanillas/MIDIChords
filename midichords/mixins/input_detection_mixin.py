@@ -371,13 +371,13 @@ class InputDetectionMixin:
                 self.midi_held_notes.add(note)
             else:
                 self.mouse_held_notes.add(note)
-                # Force re-trigger on mouse re-clicks: remove from sounding_notes
-                # so _apply_sounding_note_diff always sends note_on even if the
-                # note was already playing. Not needed (and harmful) for MIDI:
-                # _process_midi_queue already calls _refresh_sounding_notes()
-                # once per batch, so discarding here just re-triggers the note
-                # a second time, heard as an echo on the last MIDI key pressed.
-                self.sounding_notes.discard(note)
+            # Force re-trigger on re-presses: interval_notes keeps a note
+            # displayed/sounding after key-up (until the pair changes), so
+            # sounding_notes never got a chance to drop it on release. Without
+            # this, pressing the same note again is a no-op for
+            # _apply_sounding_note_diff since the note never left
+            # sounding_notes, and it stays silent.
+            self.sounding_notes.discard(note)
             self._refresh_sounding_notes()
             if hasattr(self, '_update_interval_display'):
                 self._update_interval_display()

@@ -49,6 +49,9 @@ class IntervalMixin:
             self.midi_held_notes = set()
             self.mouse_held_notes = set()
             self.active_notes = set()
+            for note in list(self.sounding_notes):
+                self.stop_note(note)
+            self.sounding_notes.clear()
             self.update_music_views()
 
     def get_interval_semitones(self) -> int | None:

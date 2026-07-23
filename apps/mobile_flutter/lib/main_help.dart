@@ -833,11 +833,16 @@ extension _HomeScreenHelp on _HomeScreenState {
         ),
         _HelpStep(
           id: 'interval_generation_staff',
-          titleEs: 'Pentagrama',
-          titleEn: 'Staff',
+          titleEs: 'Pentagrama del intervalo generado',
+          titleEn: 'Generated interval staff',
           bodyEs:
-              'Muestra las dos notas del intervalo generado en el pentagrama.',
-          bodyEn: 'Shows the two generated interval notes on the staff.',
+              'Muestra las dos notas del intervalo elegido en la tabla. Pulsa '
+              'una nota para previsualizarla y resaltarla en el piano o la '
+              'guitarra; esta acción no detecta ni modifica el intervalo.',
+          bodyEn:
+              'Shows the two notes of the interval selected in the table. Tap '
+              'a note to preview it and highlight it on the piano or guitar; '
+              'this does not detect or change the interval.',
           side: _HelpCalloutSide.top,
         ),
         _HelpStep(

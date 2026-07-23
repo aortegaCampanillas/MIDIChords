@@ -48,6 +48,8 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
         self.assertIn("7 => 'interval_generation_instrument'", main)
         self.assertIn("7 => 'interval_generation_staff'", help_source)
         self.assertIn("Shows the generated interval notes as a reference.", help_source)
+        self.assertIn("Generated interval staff", help_source)
+        self.assertIn("this does not detect or change the interval", help_source)
 
 
 if __name__ == "__main__":

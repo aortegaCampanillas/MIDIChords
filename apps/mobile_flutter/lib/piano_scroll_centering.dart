@@ -1,5 +1,5 @@
 bool modeUsesCenteredTheoryPiano(int tabIndex) =>
-    tabIndex == 1 || tabIndex == 2 || tabIndex == 3;
+    tabIndex == 1 || tabIndex == 2 || tabIndex == 3 || tabIndex == 7;
 
 class PianoScrollMemory {
   final Map<int, double> _offsets = <int, double>{};

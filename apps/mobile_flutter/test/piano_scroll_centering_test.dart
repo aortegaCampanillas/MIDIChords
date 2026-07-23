@@ -8,6 +8,7 @@ void main() {
     expect(modeUsesCenteredTheoryPiano(1), isTrue);
     expect(modeUsesCenteredTheoryPiano(2), isTrue);
     expect(modeUsesCenteredTheoryPiano(3), isTrue);
+    expect(modeUsesCenteredTheoryPiano(7), isTrue);
   });
 
   test('does not recenter unrelated modes', () {

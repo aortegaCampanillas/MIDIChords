@@ -7001,21 +7001,21 @@ class _HomeScreenState extends State<HomeScreen>
     List<Map<String, dynamic>> chordVariations = const <Map<String, dynamic>>[],
     int chordVariant = 0,
   }) {
-    final activePcs = activeMidi.map((n) => n % 12).toSet();
     final scaleMode = _tabIndex == 3;
     final intervalGenerationMode = _tabIndex == 7;
     final intervalGenerationNotes = intervalGenerationMode
         ? _intervalGenerationNotes()
         : const <int>[];
-    final intervalGenerationRootPc = intervalGenerationNotes.isEmpty
+    final activePcs = activeMidi.map((n) => n % 12).toSet();
+    final intervalGenerationRoot = intervalGenerationNotes.isEmpty
         ? null
-        : intervalGenerationNotes.first % 12;
-    final intervalGenerationCurrentPc =
+        : intervalGenerationNotes.first;
+    final intervalGenerationCurrentNote =
         intervalGenerationMode &&
             _intervalGenPlayingIdx != null &&
             _intervalGenPlayingIdx! >= 0 &&
             _intervalGenPlayingIdx! < intervalGenerationNotes.length
-        ? intervalGenerationNotes[_intervalGenPlayingIdx!] % 12
+        ? intervalGenerationNotes[_intervalGenPlayingIdx!]
         : null;
     final scaleTonicPc = _positiveMod12(
       (_generatedScaleJson?['tonic_pc'] as num?)?.toInt() ?? _scaleTonicPc,
@@ -7189,11 +7189,13 @@ class _HomeScreenState extends State<HomeScreen>
                     final selectedFret = s < selectedFrets.length
                         ? selectedFrets[s]
                         : -999;
-                    final active = chordMode
-                        ? (useFrets
-                              ? (selectedFret >= 0 && f == selectedFret)
-                              : selectedVoicing.contains(note))
-                        : activePcs.contains(note % 12);
+                    final active = intervalGenerationMode
+                        ? intervalGenerationNotes.contains(note)
+                        : (chordMode
+                              ? (useFrets
+                                    ? (selectedFret >= 0 && f == selectedFret)
+                                    : selectedVoicing.contains(note))
+                              : activePcs.contains(note % 12));
                     final isExtra = extraPcs.contains(note % 12);
                     final showDot = detectionMode || active;
                     final isPlaying =
@@ -7208,11 +7210,10 @@ class _HomeScreenState extends State<HomeScreen>
                                             note,
                                           ))) ||
                                   (intervalGenerationMode &&
-                                      note % 12 ==
-                                          intervalGenerationCurrentPc)));
+                                      note == intervalGenerationCurrentNote)));
                     final isIntervalRoot =
                         intervalGenerationMode &&
-                        note % 12 == intervalGenerationRootPc;
+                        note == intervalGenerationRoot;
                     final scaleMarker = scaleMode && active
                         ? scaleGuitarMarkerStyle(
                             note: note,

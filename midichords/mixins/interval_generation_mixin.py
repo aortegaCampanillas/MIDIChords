@@ -325,6 +325,7 @@ class IntervalGenerationMixin:
             ).pack(anchor="center", pady=2)
 
         self.interval_gen_cell_labels: dict[tuple[str, int], object] = {}
+        self.interval_gen_title_labels: list[tuple[dict, object, object]] = []
         from PySide6.QtGui import QFont, QFontMetrics
         title_font = QFont(self.ui_font_family, 12)
         title_metrics = QFontMetrics(title_font)
@@ -346,6 +347,7 @@ class IntervalGenerationMixin:
                 anchor="center",
             )
             title_lbl.pack(anchor="center", pady=2)
+            self.interval_gen_title_labels.append((col, title_cell, title_lbl))
             for semitones in range(13):
                 cell = col["cells_by_semitone"].get(semitones)
                 cell_frame = tk.Frame(
@@ -371,6 +373,24 @@ class IntervalGenerationMixin:
         self._interval_generation_panel_created = True
         self._refresh_interval_gen_root_selector()
         self._update_interval_generation_display()
+
+    def _refresh_interval_gen_table_language(self) -> None:
+        title_labels = getattr(self, "interval_gen_title_labels", None)
+        if not title_labels:
+            return
+        from PySide6.QtGui import QFont, QFontMetrics
+
+        title_metrics = QFontMetrics(QFont(self.ui_font_family, 12))
+        title_col_w = max(
+            title_metrics.horizontalAdvance(self._interval_gen_grid_title(column))
+            for column, _title_cell, _title_label in title_labels
+        ) + 80
+        self._apply_interval_gen_table_titles(title_col_w)
+
+    def _apply_interval_gen_table_titles(self, title_col_w: int) -> None:
+        for column, title_cell, title_label in self.interval_gen_title_labels:
+            title_cell.setMinimumWidth(title_col_w)
+            title_label.configure(text=self._interval_gen_grid_title(column))
 
     def _refresh_interval_gen_buttons_state(self):
         if not hasattr(self, "_interval_generation_panel_created"):
@@ -405,6 +425,7 @@ class IntervalGenerationMixin:
     def _update_interval_generation_display(self):
         if not hasattr(self, "_interval_generation_panel_created"):
             return
+        self._refresh_interval_gen_table_language()
         self._refresh_interval_gen_table_selection()
         self._refresh_interval_gen_buttons_state()
         notes = self.interval_gen_notes()

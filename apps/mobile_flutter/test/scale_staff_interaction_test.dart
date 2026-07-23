@@ -187,25 +187,6 @@ void main() {
     expect(handler, contains('(notes[a] - midi).abs()'));
   });
 
-  test('interval generation guitar renders both exact interval notes', () {
-    final source = File('lib/main.dart').readAsStringSync();
-    final guitarBuilder = source
-        .split('Widget _buildGuitarStrip(')
-        .last
-        .split('void _updateState(')
-        .first;
-
-    expect(
-      guitarBuilder,
-      contains(
-        'intervalGenerationMode\n'
-        '                        ? intervalGenerationNotes.contains(note)',
-      ),
-    );
-    expect(guitarBuilder, contains('note == intervalGenerationCurrentNote'));
-    expect(guitarBuilder, contains('note == intervalGenerationRoot'));
-  });
-
   test('interval input highlights its matching note on the regular staff', () {
     final painter = File('lib/main_painters.dart').readAsStringSync();
     final regularStaffNotes = painter

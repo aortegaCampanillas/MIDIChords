@@ -43,11 +43,21 @@ class IntervalGenerationMixin:
                 return col
         return None
 
+    def _interval_gen_language(self) -> str:
+        language = getattr(self, "language", None) or self.config_data.get(
+            "language", "es"
+        )
+        return str(language) if str(language) in {"es", "en"} else "es"
+
+    def _interval_gen_grid_title(self, column: dict) -> str:
+        titles = column["title"]
+        return str(titles.get(self._interval_gen_language(), titles["es"]))
+
     def get_interval_gen_name(self) -> str:
         """Name of the interval as picked from the grid (falls back to '-')."""
         if self.interval_gen_semitones is None:
             return "-"
-        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang = self._interval_gen_language()
         col = self._interval_gen_selected_column()
         cell = col and col["cells_by_semitone"].get(int(self.interval_gen_semitones))
         if cell:
@@ -58,7 +68,7 @@ class IntervalGenerationMixin:
         """Other valid names for the same semitone count, excluding the selected one."""
         if self.interval_gen_semitones is None:
             return "-"
-        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang = self._interval_gen_language()
         semitones = int(self.interval_gen_semitones)
         selected = self.get_interval_gen_name()
         names = []
@@ -171,7 +181,7 @@ class IntervalGenerationMixin:
 
     def _get_ui_text_interval_gen(self, key: str) -> str:
         from midichords.core.i18n import UI_TEXTS
-        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang = self._interval_gen_language()
         texts = UI_TEXTS.get(lang, UI_TEXTS["es"])
         return texts.get(key, key)
 
@@ -316,9 +326,7 @@ class IntervalGenerationMixin:
         title_font = QFont(self.ui_font_family, 12)
         title_metrics = QFontMetrics(title_font)
         max_title_w = max(
-            title_metrics.horizontalAdvance(
-                col["title"].get(str(getattr(self, "language", "es")), col["title"]["es"])
-            )
+            title_metrics.horizontalAdvance(self._interval_gen_grid_title(col))
             for col in INTERVAL_GRID_COLUMNS
         )
         title_col_w = max_title_w + 80
@@ -330,7 +338,7 @@ class IntervalGenerationMixin:
             title_cell.setMinimumWidth(title_col_w)
             title_cell.grid(row=row_idx + 1, column=0, sticky="nsew")
             title_lbl = tk.Label(
-                title_cell, text=col["title"].get(str(getattr(self, "language", "es")), col["title"]["es"]),
+                title_cell, text=self._interval_gen_grid_title(col),
                 bg=header_bg, fg=self.color_text, font=(self.ui_font_family, 12),
                 anchor="center",
             )

@@ -161,6 +161,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (generación de intervalos)**: las categorías de la tabla respetan ahora el idioma configurado y muestran Diminished, Minor, Major, Perfect y Augmented en inglés.
+
 - **Escritorio (generación de intervalos)**: al pulsar una celda de la tabla se inicia una sola secuencia de reproducción; la primera nota ya no se reataca dos veces rápidamente por la propagación duplicada del clic entre la etiqueta y su contenedor.
 
 - **Web (generación / círculo de quintas)**: el botón ▶ vuelve a resaltar durante la reproducción las teclas exactas del piano y las posiciones del acorde sobre la guitarra; instrumento y pentagrama se repintan al iniciar, sustituir y limpiar el resaltado tanto con audio como con MIDI out.

@@ -11,10 +11,13 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MOBILE_ROOT = PROJECT_ROOT / "apps" / "mobile_flutter"
 PROFILE_ORDER = ("python", "web", "mobile")
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.sync_shared_assets import sync_changelog
 
 
 def _display_command(command: Sequence[str]) -> str:
@@ -118,6 +121,16 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
+    changed_assets = sync_changelog()
+    if changed_assets:
+        print(
+            "Assets compartidos sincronizados antes de verificar: "
+            + ", ".join(
+                path.relative_to(PROJECT_ROOT).as_posix()
+                for path in changed_assets
+            ),
+            flush=True,
+        )
     requested = PROFILE_ORDER if "all" in args.profiles else tuple(args.profiles)
 
     profiles = tuple(dict.fromkeys(requested))

@@ -8,14 +8,14 @@ from typing import Any, Optional
 def get_changelog_path() -> Path:
     """Obtiene la ruta al archivo changelog.json."""
     import sys
-    # En bundle PyInstaller el archivo se copia a la raíz (_MEIPASS).
+    # PyInstaller incluye el directorio compartido `assets`.
     if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS) / "changelog.json"  # type: ignore[attr-defined]
+        return Path(sys._MEIPASS) / "assets" / "changelog.json"  # type: ignore[attr-defined]
     try:
         from midichords.core.app_constants import PROJECT_ROOT
-        return Path(PROJECT_ROOT) / "apps" / "web" / "static" / "changelog.json"
+        return Path(PROJECT_ROOT) / "assets" / "changelog.json"
     except Exception:
-        return Path("apps/web/static/changelog.json")
+        return Path("assets/changelog.json")
 
 
 def load_changelog() -> list[dict[str, Any]]:

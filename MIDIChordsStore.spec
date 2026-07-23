@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('apps/web/static/changelog.json', '.')]
+datas = [('assets', 'assets')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('mido')

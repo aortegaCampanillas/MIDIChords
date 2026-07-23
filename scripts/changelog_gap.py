@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Locate changelog.json
 PROJECT_ROOT = Path(__file__).parent.parent
-CHANGELOG_PATH = PROJECT_ROOT / "apps" / "web" / "static" / "changelog.json"
+CHANGELOG_PATH = PROJECT_ROOT / "assets" / "changelog.json"
 
 
 def load_changelog():

@@ -96,7 +96,7 @@
       },
       {
         "date": "2026-07-23",
-        "publish": true,
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Generación de Intervalos: el selector se presenta como una tabla completa de categorías y semitonos, con más espacio en tablet y desplazamiento horizontal en pantallas estrechas.",
         "en": "Interval Generation: the selector is now presented as a complete category-and-semitone table, with more room on tablets and horizontal scrolling on narrow screens."

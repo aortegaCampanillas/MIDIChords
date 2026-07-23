@@ -31,7 +31,7 @@ No introducir una librería nueva de gestión de estado únicamente para reducir
 
 ## Assets compartidos
 
-`assets/guitar_chord_cache.json`, `assets/chord_variant_theory.json`, `assets/changelog.json` y varios samples tienen copias canónicas o equivalentes en la raíz/web. Los tests Python validan su igualdad; consultar `docs/architecture/SOURCE_OF_TRUTH.md` antes de editarlos.
+`assets/guitar_chord_cache.json`, `assets/chord_variant_theory.json` y varios samples tienen copias canónicas o equivalentes en la raíz/web. `assets/changelog.json` es una copia generada desde `../../assets/changelog.json`: no editarla directamente; usar `python scripts/sync_shared_assets.py` desde la raíz. Los tests Python validan su igualdad; consultar `docs/architecture/SOURCE_OF_TRUTH.md` antes de editarlos.
 
 ## Verificación
 

@@ -14,7 +14,15 @@ import time
 from typing import Iterable
 
 
+def sync_shared_assets() -> None:
+    """Actualiza copias requeridas por los bundles desde las fuentes canónicas."""
+    from scripts.sync_shared_assets import sync_changelog
+
+    sync_changelog()
+
+
 def run_desktop() -> None:
+    sync_shared_assets()
     from apps.desktop.main import main
 
     main()
@@ -29,6 +37,7 @@ def run_web(
     https_key_path: str | None = None,
     https_cert_path: str | None = None,
 ) -> None:
+    sync_shared_assets()
     if reload:
         print("[web] Nota: --reload se ignora; wrangler ya sirve en modo desarrollo.")
 
@@ -128,6 +137,7 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     """
     import shutil
 
+    sync_shared_assets()
     web_dir = project_root / "apps" / "web"
     pages_dist = web_dir / "pages-dist"
 
@@ -256,6 +266,7 @@ def run_deploy_web(project_name: str | None) -> None:
 
 
 def run_mobile(mobile_args: list[str]) -> None:
+    sync_shared_assets()
     project_dir = Path(__file__).resolve().parent / "apps" / "mobile_flutter"
     cmd = ["flutter", "run"]
     has_sdkroot_define = any(

@@ -12,6 +12,11 @@ Repositorio reorganizado para albergar varias versiones de la app con librerías
 
 Historial de versiones publicadas: [CHANGELOG.md](CHANGELOG.md)
 
+El changelog mostrado dentro de las aplicaciones se edita únicamente en
+`assets/changelog.json`. Las copias requeridas por web y Flutter se generan con
+`python scripts/sync_shared_assets.py`; los lanzadores y `scripts/check.py`
+ejecutan esa sincronización automáticamente.
+
 ## Descargas
 
 - **iOS (App Store)**: [MIDI Piano & Guitar Chords](https://apps.apple.com/es/app/midi-piano-guitar-chords/id6760035776)

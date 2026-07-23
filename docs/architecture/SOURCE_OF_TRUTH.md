@@ -26,7 +26,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Sesión de captura del afinador móvil | `apps/mobile_flutter/lib/tuner_capture_session.dart` | `main.dart` aporta DSP, rangos, afinación y estado visual | `apps/mobile_flutter/test/tuner_capture_session_test.dart` |
 | Ayuda contextual de la web | `apps/web/static/help_callouts.js` | La SPA selecciona los callouts según el modo activo | `apps/web/test/catalogs.test.js` |
 | Acordes de guitarra | `assets/guitar_chord_cache.json`; AutoChords es la referencia externa para los tipos mapeados en `scripts/sync_guitar_chord_reference.py` | `apps/web/static/` y `apps/mobile_flutter/assets/` | `tests/test_shared_assets_cross_platform.py` y `tests/test_guitar_chord_reference_sync.py` |
-| Changelog de producto | `apps/web/static/changelog.json` | Escritorio lo carga desde esa ruta; Flutter conserva copia en assets | `tests/test_shared_assets_cross_platform.py` |
+| Changelog de producto | `assets/changelog.json` | `scripts/sync_shared_assets.py` genera las copias empaquetables de web y Flutter; escritorio lee la fuente directamente | `tests/test_shared_asset_sync.py` y `tests/test_shared_assets_cross_platform.py` |
 | Samples compartidos | `assets/` | Copias necesarias para web y bundle Flutter | `tests/test_shared_assets_cross_platform.py` |
 | Build web publicable | Fuentes bajo `apps/web/`; `app.html` declara JS/CSS y su orden | `apps/web/pages-dist/` generado y no versionado | `scripts/build_web_pages_dist.py` descubre y versiona automáticamente los assets enlazados |
 
@@ -35,7 +35,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 1. Editar primero la fuente indicada; no comenzar por una copia empaquetada.
 2. Actualizar todos los consumidores en el mismo cambio cuando el formato o comportamiento sea incompatible.
 3. No editar `apps/web/pages-dist/`: se regenera.
-4. Si una copia de assets es necesaria para el bundle, mantenerla idéntica y ejecutar los tests de assets.
+4. Si una copia de assets es necesaria para el bundle, no editarla directamente: ejecutar `python scripts/sync_shared_assets.py`. `scripts/check.py` y los lanzadores unificados lo hacen automáticamente.
 5. Un cambio de algoritmo musical debe añadir casos que puedan reutilizar Python, JavaScript y Dart, aunque la infraestructura común todavía sea parcial.
 
 ## Auditoría de digitaciones de guitarra
@@ -95,4 +95,4 @@ ejercite en el fixture compartido.
 - Los patrones musicales están declarados en tres lenguajes. La dirección recomendada es mover los datos declarativos a un catálogo canónico, manteniendo lectores o generación por plataforma.
 - Los algoritmos no dependen de red para su contrato básico; ampliar el fixture común cuando aparezcan nuevas reglas o formatos.
 - `scripts/compare_api_parity.py` sigue siendo útil para comprobar el despliegue, pero no sustituye el contrato offline del CI.
-- Falta una orden única de sincronización de assets; hasta que exista, los tests de igualdad son el guardarraíl obligatorio.
+- `scripts/sync_shared_assets.py` es la orden única para generar copias empaquetables de assets compartidos. Añadir ahí futuras fuentes canónicas que necesiten réplicas por restricciones de plataforma.

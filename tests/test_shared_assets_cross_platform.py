@@ -226,13 +226,17 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
                 self.assert_same_copy(str(relative_dir / name))
 
     def test_changelog_copy_used_by_mobile_matches_web_and_desktop_source(self):
+        canonical_changelog = DESKTOP_ASSETS / "changelog.json"
         web_changelog = WEB_ASSETS / "changelog.json"
         mobile_changelog = MOBILE_ASSETS / "changelog.json"
-        self.assertEqual(web_changelog.resolve(), get_changelog_path().resolve())
+        self.assertEqual(canonical_changelog.resolve(), get_changelog_path().resolve())
+        self.assertEqual(canonical_changelog.read_bytes(), web_changelog.read_bytes())
         self.assertEqual(web_changelog.read_bytes(), mobile_changelog.read_bytes())
 
     def test_changelog_text_does_not_repeat_platform_field(self):
-        changelog = json.loads((WEB_ASSETS / "changelog.json").read_text(encoding="utf-8"))
+        changelog = json.loads(
+            (DESKTOP_ASSETS / "changelog.json").read_text(encoding="utf-8")
+        )
         redundant_prefix = re.compile(
             r"^(?:Web|Escritorio|Móvil|Todas las plataformas|Desktop|Mobile|All platforms)\b|^[^:]{1,60} "
             r"(?:en (?:web|escritorio|móvil|todas las plataformas)|on every platform):",

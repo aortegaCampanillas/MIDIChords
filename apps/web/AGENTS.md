@@ -9,6 +9,10 @@ Estas reglas complementan el `AGENTS.md` de la raíz.
 - API: `worker/_worker.js`.
 - Assets web: `static/`.
 
+`static/changelog.json` es una copia generada desde `../../assets/changelog.json`.
+No editarla directamente: `python scripts/sync_shared_assets.py`, los lanzadores
+y `scripts/check.py` la actualizan antes de servir, verificar o empaquetar la web.
+
 `pages-dist/` es salida generada por `python scripts/build_web_pages_dist.py` o por el flujo de despliegue. No editarla como fuente ni incluirla en cambios manuales.
 
 ## Contratos

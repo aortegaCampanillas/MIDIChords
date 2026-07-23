@@ -28,6 +28,41 @@ const INTERVAL_NAMES = {
   },
 };
 
+// Nombres enarmónicos alternativos por semitono (excluyendo el nombre principal
+// de INTERVAL_NAMES). No todos los semitonos tienen alternativas de uso común.
+const INTERVAL_ALT_NAMES = {
+  es: {
+    0: ["Segunda disminuida"],
+    1: ["Unísono aumentado"],
+    2: ["Tercera disminuida"],
+    3: ["Segunda aumentada"],
+    4: ["Cuarta disminuida"],
+    5: ["Tercera aumentada"],
+    6: ["Tritono"],
+    7: ["Sexta disminuida"],
+    8: ["Quinta aumentada"],
+    9: ["Séptima disminuida"],
+    10: ["Sexta aumentada"],
+    11: ["Octava disminuida"],
+    12: ["Séptima aumentada"],
+  },
+  en: {
+    0: ["Diminished Second"],
+    1: ["Augmented Unison"],
+    2: ["Diminished Third"],
+    3: ["Augmented Second"],
+    4: ["Diminished Fourth"],
+    5: ["Augmented Third"],
+    6: ["Tritone"],
+    7: ["Diminished Sixth"],
+    8: ["Augmented Fifth"],
+    9: ["Diminished Seventh"],
+    10: ["Augmented Sixth"],
+    11: ["Diminished Octave"],
+    12: ["Augmented Seventh"],
+  },
+};
+
 // durations: "w"=redonda  "h"=blanca  "q"=negra  "e"=corchea  "s"=semicorchea
 //            Añadir "." para puntillo. null=silencio
 // jumpAt: índice donde ocurre el intervalo (por defecto 0 = salto entre notas 0 y 1)
@@ -112,6 +147,11 @@ function intervalName(language, semitones) {
   return INTERVAL_NAMES[lang][semitones] || "-";
 }
 
+function intervalAltNames(language, semitones) {
+  const lang = language in INTERVAL_ALT_NAMES ? language : "es";
+  return INTERVAL_ALT_NAMES[lang][semitones] || [];
+}
+
 function intervalSemitones(notes) {
   const n = notes || [];
   if (n.length < 2) return null;
@@ -146,9 +186,11 @@ function intervalMelodySongName(language, notes) {
 
 global.MidiChordsIntervalTheory = Object.freeze({
   INTERVAL_NAMES,
+  INTERVAL_ALT_NAMES,
   INTERVAL_MELODIES,
   formatIntervalsFromMidi,
   intervalName,
+  intervalAltNames,
   intervalSemitones,
   intervalMelodyNotes,
   intervalMelodySongName,

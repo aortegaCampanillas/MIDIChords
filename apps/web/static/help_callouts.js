@@ -127,6 +127,7 @@ const HELP_CALLOUTS_INTERVAL_DETECTION = [
   { selector: "#intervalClear", textKey: "help_interval_clear", side: "bottom" },
   { selector: "#intervalFieldNotes", textKey: "help_interval_field_notes", side: "left" },
   { selector: "#intervalFieldName", textKey: "help_interval_field_name", side: "left" },
+  { selector: "#intervalFieldAlt", textKey: "help_interval_field_alt", side: "left" },
   { selector: "#intervalFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
   { selector: "#intervalFieldRecuerda", textKey: "help_interval_field_recuerda", side: "left" },
   { selector: "#sharedPiano", textKey: "help_instrument_surface_interval", side: "top" },

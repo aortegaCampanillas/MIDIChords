@@ -1547,6 +1547,7 @@ function applyTranslations() {
   setText("intervalClear", "clear");
   setText("labelIntervalNotes", "label_interval_notes");
   setText("labelIntervalName", "label_interval_name");
+  setText("labelIntervalAlt", "label_interval_alt");
   setText("labelIntervalSemitones", "label_interval_semitones");
   setText("labelIntervalRecuerda", "label_interval_recuerda");
   setText("headingGeneration", "heading_generation");
@@ -2270,6 +2271,7 @@ const {
   INTERVAL_MELODIES,
   formatIntervalsFromMidi,
   intervalName,
+  intervalAltNames,
   intervalSemitones,
   intervalMelodyNotes,
   intervalMelodySongName,
@@ -2277,6 +2279,10 @@ const {
 
 function getIntervalName(semitones) {
   return intervalName(state.language, semitones);
+}
+
+function getIntervalAltNames(semitones) {
+  return intervalAltNames(state.language, semitones);
 }
 
 function getIntervalSemitones() {
@@ -2459,6 +2465,7 @@ function refreshIntervalResult() {
   if (raw.length === 0) {
     el("intervalNoteNames").textContent = "-";
     el("intervalName").textContent = "-";
+    el("intervalAltNames").textContent = "-";
     el("intervalSemitones").textContent = "-";
     return;
   }
@@ -2466,14 +2473,17 @@ function refreshIntervalResult() {
   if (n.length === 1) {
     el("intervalNoteNames").textContent = noteNameWithOctave(n[0]);
     el("intervalName").textContent = "-";
+    el("intervalAltNames").textContent = "-";
     el("intervalSemitones").textContent = "-";
     return;
   }
   const rawSt = Math.abs(n[1] - n[0]);
   const mod = rawSt % 12;
   const semitones = (mod === 0 && rawSt > 0) ? 12 : mod;
+  const altNames = getIntervalAltNames(semitones);
   el("intervalNoteNames").textContent = noteNameWithOctave(n[0]) + " – " + noteNameWithOctave(n[1]);
   el("intervalName").textContent = getIntervalName(semitones);
+  el("intervalAltNames").textContent = altNames.length ? altNames.join(", ") : "-";
   el("intervalSemitones").textContent = String(rawSt);
 }
 

@@ -48,6 +48,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (generación de intervalos)**: añadido el modo para elegir tónica e intervalo por categoría teórica, reproducirlo en ambos sentidos y visualizarlo en pentagrama, piano o guitarra; el selector de modos adopta además el mismo orden que la web.
+
 - **Escritorio (generación de intervalos)**: añadido un modo específico para elegir la tónica y generar intervalos desde una tabla por categoría y semitonos, con reproducción ascendente o descendente, representación en pentagrama y resaltado en el piano.
 
 - **Escritorio (intervalos)**: los controles de reproducción ascendente y descendente reatacan las notas retenidas desde la primera pulsación, sin requerir un segundo intento para oírlas.

@@ -1334,6 +1334,178 @@ extension _HomeScreenPages on _HomeScreenState {
     );
   }
 
+  Widget _buildIntervalGenerationPage() {
+    final notes = _intervalGenerationNotes();
+    final selectedCategory = intervalGridCategories.firstWhere(
+      (category) => category.key == _intervalGenCategoryKey,
+      orElse: () => intervalGridCategories[3],
+    );
+    return _buildModeScaffold(
+      controls: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  _ui('Generación de Intervalos', 'Interval Generation'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: <Widget>[
+                    Text(
+                      _ui('Tónica', 'Root'),
+                      style: const TextStyle(color: _HomeScreenState._muted),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTonicLetterAccidentalDropdowns(
+                        rootPc: _intervalGenRootPc,
+                        savedLetterPc: _intervalGenRootLetterPc,
+                        savedAccidental: _intervalGenRootAccidental,
+                        onPc: (pc, letterPc, accidental) {
+                          _intervalGenPlaybackTimer?.cancel();
+                          _updateState(() {
+                            _intervalGenRootPc = pc;
+                            _intervalGenRootLetterPc = letterPc;
+                            _intervalGenRootAccidental = accidental;
+                            _intervalGenPlayingIdx = null;
+                          });
+                          _playGeneratedInterval();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _HomeScreenState._surfaceDark,
+                    border: Border.all(color: _HomeScreenState._border),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      _intervalGenerationResultRow(
+                        _ui('Notas', 'Notes'),
+                        notes.map(_midiNoteWithOctave).join(' – '),
+                      ),
+                      const SizedBox(height: 8),
+                      _intervalGenerationResultRow(
+                        _ui('Intervalo', 'Interval'),
+                        '${selectedCategory.name(_language)} · $_intervalGenLabel',
+                      ),
+                      const SizedBox(height: 8),
+                      _intervalGenerationResultRow(
+                        _ui('Semitonos', 'Semitones'),
+                        '$_intervalGenSemitones',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    ElevatedButton.icon(
+                      onPressed: _playGeneratedInterval,
+                      icon: const Icon(Icons.play_arrow),
+                      label: Text(_ui('Asc.', 'Asc.')),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _playGeneratedInterval(reversed: true),
+                      icon: const Icon(Icons.play_arrow),
+                      label: Text(_ui('Desc.', 'Desc.')),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  _ui('Selecciona un intervalo', 'Select an interval'),
+                  style: const TextStyle(
+                    color: _HomeScreenState._muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final category in intervalGridCategories) ...<Widget>[
+                  Text(
+                    category.name(_language),
+                    style: const TextStyle(
+                      color: _HomeScreenState._muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: category.cells.map((cell) {
+                      final selected =
+                          category.key == _intervalGenCategoryKey &&
+                          cell.label == _intervalGenLabel;
+                      return ChoiceChip(
+                        label: Text(cell.label),
+                        selected: selected,
+                        onSelected: (_) =>
+                            _selectGeneratedInterval(category, cell),
+                        selectedColor: _HomeScreenState._accent,
+                        backgroundColor: _HomeScreenState._panelA,
+                        labelStyle: TextStyle(
+                          color: selected
+                              ? Colors.black
+                              : _HomeScreenState._text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        side: const BorderSide(color: _HomeScreenState._border),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _intervalGenerationResultRow(String label, String value) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: _HomeScreenState._muted,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Flexible(
+          flex: 2,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: _HomeScreenState._accent,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   String _midiNoteWithOctave(int midiNote) {
     final octave = (midiNote ~/ 12) - 1;
     return '${_pcLabel(midiNote % 12)}$octave';

@@ -121,11 +121,11 @@ void main() {
         .split('Future<void> _stepScaleLoop()')
         .first;
 
-    expect(tapBlock, contains('const <int>{0, 1, 2, 5}'));
+    expect(tapBlock, contains('const <int>{0, 1, 2, 5, 7}'));
     expect(tapBlock, contains('staffNoteHitAt('));
     expect(handler, contains('if (_tabIndex == 0)'));
     expect(handler, contains('if (_tabIndex == 1 || _tabIndex == 2)'));
-    expect(handler, contains('if (_tabIndex == 5)'));
+    expect(handler, contains('_tabIndex == 5 || _tabIndex == 7'));
   });
 
   test('generation staff selection highlights piano and guitar', () {

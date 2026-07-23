@@ -69,6 +69,100 @@ const Map<String, Map<int, List<String>>> intervalAltNames = {
   },
 };
 
+class IntervalGridCell {
+  final int semitones;
+  final String label;
+
+  const IntervalGridCell(this.semitones, this.label);
+}
+
+class IntervalGridCategory {
+  final String key;
+  final String nameEs;
+  final String nameEn;
+  final List<IntervalGridCell> cells;
+
+  const IntervalGridCategory({
+    required this.key,
+    required this.nameEs,
+    required this.nameEn,
+    required this.cells,
+  });
+
+  String name(String language) => language == "en" ? nameEn : nameEs;
+}
+
+/// Same theoretical interval grid used by desktop and web.
+const List<IntervalGridCategory> intervalGridCategories = [
+  IntervalGridCategory(
+    key: "diminished",
+    nameEs: "Disminuidos",
+    nameEn: "Diminished",
+    cells: [
+      IntervalGridCell(0, "2d"),
+      IntervalGridCell(2, "3d"),
+      IntervalGridCell(4, "4d"),
+      IntervalGridCell(6, "5d"),
+      IntervalGridCell(7, "6d"),
+      IntervalGridCell(9, "7d"),
+      IntervalGridCell(11, "8d"),
+    ],
+  ),
+  IntervalGridCategory(
+    key: "minor",
+    nameEs: "Menores",
+    nameEn: "Minor",
+    cells: [
+      IntervalGridCell(1, "2m"),
+      IntervalGridCell(3, "3m"),
+      IntervalGridCell(8, "6m"),
+      IntervalGridCell(10, "7m"),
+    ],
+  ),
+  IntervalGridCategory(
+    key: "major",
+    nameEs: "Mayores",
+    nameEn: "Major",
+    cells: [
+      IntervalGridCell(2, "2M"),
+      IntervalGridCell(4, "3M"),
+      IntervalGridCell(9, "6M"),
+      IntervalGridCell(11, "7M"),
+    ],
+  ),
+  IntervalGridCategory(
+    key: "perfect",
+    nameEs: "Justos",
+    nameEn: "Perfect",
+    cells: [
+      IntervalGridCell(0, "U"),
+      IntervalGridCell(5, "4J"),
+      IntervalGridCell(7, "5J"),
+      IntervalGridCell(12, "8J"),
+    ],
+  ),
+  IntervalGridCategory(
+    key: "augmented",
+    nameEs: "Aumentados",
+    nameEn: "Augmented",
+    cells: [
+      IntervalGridCell(1, "UA"),
+      IntervalGridCell(3, "2A"),
+      IntervalGridCell(5, "3A"),
+      IntervalGridCell(6, "4A"),
+      IntervalGridCell(8, "5A"),
+      IntervalGridCell(10, "6A"),
+      IntervalGridCell(12, "7A"),
+    ],
+  ),
+];
+
+List<int> generateIntervalNotes(int rootPc, int semitones) {
+  final normalizedRoot = rootPc % 12;
+  final rootMidi = 60 + normalizedRoot;
+  return <int>[rootMidi, rootMidi + semitones.clamp(0, 12)];
+}
+
 class IntervalMelody {
   final String nameEs;
   final String nameEn;
@@ -246,7 +340,9 @@ int durationToMs(String durationCode) {
   const baseMs = 500; // quarter note = 500ms (120 BPM)
 
   final isDotted = durationCode.endsWith(".");
-  final code = isDotted ? durationCode.substring(0, durationCode.length - 1) : durationCode;
+  final code = isDotted
+      ? durationCode.substring(0, durationCode.length - 1)
+      : durationCode;
 
   final durations = {
     "w": baseMs * 4.0,

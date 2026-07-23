@@ -1061,6 +1061,7 @@ extension _HomeScreenHelp on _HomeScreenState {
     4 => 'metronome_bead_row',
     5 => 'interval_detection_staff',
     6 => 'tuner_staff',
+    7 => 'interval_detection_staff',
     _ => 'detection_staff',
   };
 }

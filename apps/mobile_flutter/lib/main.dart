@@ -408,6 +408,14 @@ class _HomeScreenState extends State<HomeScreen>
   bool _intervalMelodyMode =
       false; // false = play 2 notes, true = play reference melody
   Timer? _intervalMelodyPlaybackTimer;
+  int _intervalGenRootPc = 0;
+  int _intervalGenRootLetterPc = 0;
+  String _intervalGenRootAccidental = 'natural';
+  int _intervalGenSemitones = 7;
+  String _intervalGenCategoryKey = 'perfect';
+  String _intervalGenLabel = '5J';
+  int? _intervalGenPlayingIdx;
+  Timer? _intervalGenPlaybackTimer;
   Timer? _scaleLoopTimer;
   Timer? _scaleStaffHighlightTimer;
   int? _scaleCurrentNote;
@@ -477,19 +485,16 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _enabledModeIndexes() {
     return _kEnableMobileTuner
-        ? const <int>[0, 1, 2, 3, 4, 5, 6]
-        : const <int>[0, 1, 2, 3, 4, 5];
+        ? const <int>[0, 1, 2, 3, 4, 5, 6, 7]
+        : const <int>[0, 1, 2, 3, 4, 5, 7];
   }
 
-  /// Orden de visualización en el combo de modo, igual que en escritorio:
-  /// Detección, Detección de Intervalos, Generación, Círculo de quintas,
-  /// Escalas, Metrónomo, (Afinador). Los índices de página (_tabIndex) en
-  /// sí no cambian, solo el orden en que aparecen listados.
-  static const List<int> _kDesktopModeOrder = <int>[0, 5, 1, 2, 3, 4, 6];
+  /// Same display order as the web mode selector.
+  static const List<int> _kWebModeOrder = <int>[0, 1, 5, 7, 2, 3, 4, 6];
 
   List<int> _orderedEnabledModes(List<int> enabledModes) {
     final enabledSet = enabledModes.toSet();
-    return _kDesktopModeOrder.where(enabledSet.contains).toList();
+    return _kWebModeOrder.where(enabledSet.contains).toList();
   }
 
   List<Map<String, dynamic>> _getFilteredScalePatterns() {
@@ -648,6 +653,8 @@ class _HomeScreenState extends State<HomeScreen>
         return _ui('Detección de Intervalos', 'Interval Detection');
       case 6:
         return _ui('Afinador', 'Tuner');
+      case 7:
+        return _ui('Generación de Intervalos', 'Interval Generation');
       default:
         return _ui('Detección de Acordes', 'Chord Detection');
     }
@@ -1100,6 +1107,8 @@ class _HomeScreenState extends State<HomeScreen>
     _metroAnimTimer?.cancel();
     _scaleLoopTimer?.cancel();
     _scaleStaffHighlightTimer?.cancel();
+    _intervalMelodyPlaybackTimer?.cancel();
+    _intervalGenPlaybackTimer?.cancel();
     _helpBannerTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
@@ -1483,6 +1492,13 @@ class _HomeScreenState extends State<HomeScreen>
         continue;
       }
 
+      if (_tabIndex == 7) {
+        if (isNoteOn) {
+          unawaited(_handleInstrumentNote(note, pressed: true, fromMidi: true));
+        }
+        continue;
+      }
+
       // Metronome mode handling (tabIndex 4): el piano sigue siendo
       // interactivo mientras suena el metrónomo, igual que con ratón/touch.
       if (_tabIndex == 4) {
@@ -1627,6 +1643,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _staffNotesForCurrentTab() {
+    if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
         return _getIntervalMelodyNotes().whereType<int>().toSet();
@@ -1693,6 +1710,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _activeMidiForInstrument() {
+    if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
         return _getIntervalMelodyNotes().whereType<int>().toSet();
@@ -2573,6 +2591,20 @@ class _HomeScreenState extends State<HomeScreen>
     required bool pressed,
     bool fromMidi = false,
   }) async {
+    if (_tabIndex == 7) {
+      if (!pressed) return;
+      final allowed = _intervalGenerationNotes()
+          .map((note) => note % 12)
+          .contains(midi % 12);
+      if (!allowed) {
+        _showForbiddenOnPiano(midi);
+        return;
+      }
+      if (!fromMidi || _midiInputSoundEnabled) {
+        await playNote(midi, instrument: _instrumentView);
+      }
+      return;
+    }
     if (_tabIndex == 5) {
       if (!pressed) return;
       _addIntervalNote(midi);
@@ -3817,7 +3849,7 @@ class _HomeScreenState extends State<HomeScreen>
       unawaited(_handleInstrumentNote(midi, pressed: false));
       return;
     }
-    if (_tabIndex == 5) {
+    if (_tabIndex == 5 || _tabIndex == 7) {
       _playStaffPreviewNote(midi);
     }
   }
@@ -4669,6 +4701,7 @@ class _HomeScreenState extends State<HomeScreen>
       _buildMetronomePage(),
       _buildIntervalDetectionPage(),
       _buildTunerPage(),
+      _buildIntervalGenerationPage(),
     ];
 
     return Stack(
@@ -4775,6 +4808,8 @@ class _HomeScreenState extends State<HomeScreen>
                         _stopHeldMidiInputs();
                         _generationInputStaffNotes.clear();
                         _clearGenerationNoteHighlight();
+                        _intervalGenPlaybackTimer?.cancel();
+                        _intervalGenPlayingIdx = null;
                         _detectionPlayPressed = false;
                         _generationPlayPressed = false;
                         if (value != 0) {
@@ -5380,7 +5415,7 @@ class _HomeScreenState extends State<HomeScreen>
                           }
                           return;
                         }
-                        if (!const <int>{0, 1, 2, 5}.contains(_tabIndex) ||
+                        if (!const <int>{0, 1, 2, 5, 7}.contains(_tabIndex) ||
                             imelMode) {
                           return;
                         }
@@ -5429,7 +5464,9 @@ class _HomeScreenState extends State<HomeScreen>
                           intervalMelodyDurations: imelDurations,
                           intervalPlayingIdx: _tabIndex == 5
                               ? _intervalPlayingIdx
-                              : null,
+                              : (_tabIndex == 7
+                                    ? _intervalGenPlayingIdx
+                                    : null),
                           intervalBeatsPerBar: imelBeatsPerBar,
                           intervalAnacrusis: imelAnacrusis,
                         ),
@@ -5695,7 +5732,7 @@ class _HomeScreenState extends State<HomeScreen>
     final compactPhone = _isCompactPhone(context);
     final metronomeFixedPiano = _tabIndex == 4;
     final showRightControls =
-        _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3;
+        _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3 || _tabIndex == 7;
     final displayInstrumentView = metronomeFixedPiano
         ? 'piano'
         : _instrumentView;
@@ -5724,6 +5761,7 @@ class _HomeScreenState extends State<HomeScreen>
       3 => 'scales_instrument',
       4 => 'metronome_instrument',
       5 => 'interval_detection_instrument',
+      7 => 'interval_detection_instrument',
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {
@@ -7249,6 +7287,44 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Interval detection methods
+  List<int> _intervalGenerationNotes() =>
+      generateIntervalNotes(_intervalGenRootPc, _intervalGenSemitones);
+
+  void _selectGeneratedInterval(
+    IntervalGridCategory category,
+    IntervalGridCell cell,
+  ) {
+    _intervalGenPlaybackTimer?.cancel();
+    setState(() {
+      _intervalGenCategoryKey = category.key;
+      _intervalGenSemitones = cell.semitones;
+      _intervalGenLabel = cell.label;
+      _intervalGenPlayingIdx = null;
+    });
+    _playGeneratedInterval();
+  }
+
+  void _playGeneratedInterval({bool reversed = false}) {
+    _intervalGenPlaybackTimer?.cancel();
+    final notes = _intervalGenerationNotes();
+    final ordered = reversed ? notes.reversed.toList() : notes;
+    void playAt(int index) {
+      if (!mounted || index >= ordered.length) {
+        if (mounted) setState(() => _intervalGenPlayingIdx = null);
+        return;
+      }
+      final originalIndex = notes.indexOf(ordered[index]);
+      setState(() => _intervalGenPlayingIdx = originalIndex);
+      unawaited(playNote(ordered[index], instrument: _instrumentView));
+      _intervalGenPlaybackTimer = Timer(
+        const Duration(milliseconds: 500),
+        () => playAt(index + 1),
+      );
+    }
+
+    playAt(0);
+  }
+
   void _addIntervalNote(int midiNote) {
     setState(() {
       _intervalMelodyMode = false;

@@ -48,6 +48,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Escritorio (generación de intervalos)**: añadido un modo específico para elegir la tónica y generar intervalos desde una tabla por categoría y semitonos, con reproducción ascendente o descendente, representación en pentagrama y resaltado en el piano.
+
 - **Escritorio (intervalos)**: los controles de reproducción ascendente y descendente reatacan las notas retenidas desde la primera pulsación, sin requerir un segundo intento para oírlas.
 
 - **Escritorio (partitura)**: las notas de un mismo grupo de corcheas o semicorcheas comparten ahora dirección de plica y el grupo se corta al cambiar entre las claves de fa y sol, evitando barras diagonales incorrectas dentro del pentagrama o entre ambos pentagramas.

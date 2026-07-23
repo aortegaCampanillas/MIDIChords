@@ -49,6 +49,7 @@ from midichords.mixins.scales_mixin import ScalesMixin
 from midichords.mixins.generation_mixin import GenerationMixin
 from midichords.mixins.circle_fifths_mixin import CircleFifthsMixin
 from midichords.mixins.interval_mixin import IntervalMixin
+from midichords.mixins.interval_generation_mixin import IntervalGenerationMixin
 from midichords.mixins.midi_io_mixin import MidiIOMixin
 from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.ui_mixin import UiMixin
@@ -66,6 +67,7 @@ class MidiChordAnalyzerApp(
     GenerationMixin,
     CircleFifthsMixin,
     IntervalMixin,
+    IntervalGenerationMixin,
     MidiIOMixin,
     InputDetectionMixin,
     ChangelogMixin,
@@ -178,7 +180,15 @@ class MidiChordAnalyzerApp(
             "on",
         }
         self.current_mode = str(self.config_data.get("mode", "detection"))
-        allowed_modes = {"detection", "generation", "circle_fifths", "scales", "metronome", "interval_detection"}
+        allowed_modes = {
+            "detection",
+            "generation",
+            "circle_fifths",
+            "scales",
+            "metronome",
+            "interval_detection",
+            "interval_generation",
+        }
         if self.tuner_enabled:
             allowed_modes.add("tuner")
         if self.current_mode not in allowed_modes:
@@ -188,6 +198,7 @@ class MidiChordAnalyzerApp(
         self.metronome_tab_active = False
         self.tuner_tab_active = False
         self.interval_tab_active = False
+        self.interval_gen_tab_active = False
         self.mode_var = QtStringVar()
         loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
@@ -276,6 +287,7 @@ class MidiChordAnalyzerApp(
         self.detection_mouse_chord_notes: set[int] = set()
         self.detection_midi_held_notes: set[int] = set()
         self._init_interval_state()
+        self._init_interval_generation_state()
         self.detection_last_playable_notes: set[int] = set()
         self.detection_shift_pressed = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []

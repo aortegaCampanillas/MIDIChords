@@ -225,7 +225,15 @@ class _HelpMouseFilter(QObject):
 
 class UiMixin:
     def _available_mode_keys(self) -> list[str]:
-        modes = ["detection", "interval_detection", "generation", "circle_fifths", "scales", "metronome"]
+        modes = [
+            "detection",
+            "generation",
+            "interval_detection",
+            "interval_generation",
+            "circle_fifths",
+            "scales",
+            "metronome",
+        ]
         if bool(getattr(self, "tuner_enabled", True)):
             modes.append("tuner")
         return modes
@@ -2943,6 +2951,8 @@ class UiMixin:
             return self.tr("mode_scales")
         if mode_key == "interval_detection":
             return self.tr("mode_interval_detection")
+        if mode_key == "interval_generation":
+            return self.tr("mode_interval_generation")
         if mode_key == "metronome":
             return self.tr("mode_metronome")
         if mode_key == "tuner":
@@ -3251,6 +3261,7 @@ class UiMixin:
             "circle_fifths": (_CIRCLE_FIFTHS_ICON_MARKER, "#9b7bff"),
             "scales": ("♪", "#e4eb3f"),
             "interval_detection": ("⎵", "#ff69b4"),
+            "interval_generation": ("↕", "#ff9ecf"),
             "metronome": ("⏱", "#ff8f40"),
             "tuner": ("🎸", "#8eea6b"),
         }
@@ -3326,6 +3337,8 @@ class UiMixin:
             self.current_mode = "tuner"
         elif selected == self._mode_label("interval_detection"):
             self.current_mode = "interval_detection"
+        elif selected == self._mode_label("interval_generation"):
+            self.current_mode = "interval_generation"
         else:
             self.current_mode = "detection"
         if self.current_mode != "detection":
@@ -3351,6 +3364,7 @@ class UiMixin:
         self.metronome_tab_active = self.current_mode == "metronome"
         self.tuner_tab_active = self.current_mode == "tuner"
         self.interval_tab_active = self.current_mode == "interval_detection"
+        self.interval_gen_tab_active = self.current_mode == "interval_generation"
         self._set_tuner_spectrum_visible(self.tuner_tab_active)
         if self.generation_space_release_after_id is not None:
             try:
@@ -3396,6 +3410,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
             self.tab_circle_frame.pack(fill=tk.BOTH, expand=True)
             self._circle_run_generate()
@@ -3413,6 +3428,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_circle_frame.pack_forget()
             self.tab_generation_frame.pack(fill=tk.BOTH, expand=True)
         elif self.scale_tab_active:
@@ -3432,6 +3448,7 @@ class UiMixin:
             self.tab_circle_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_scale_frame.pack(fill=tk.BOTH, expand=True)
         elif self.metronome_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
@@ -3448,6 +3465,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_metronome_frame.pack(fill=tk.BOTH, expand=True)
             self._refresh_metronome_ui()
         elif self.tuner_tab_active:
@@ -3464,6 +3482,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_tuner_frame.pack(fill=tk.BOTH, expand=True)
             self._start_tuner_stream()
             self._refresh_tuner_ui()
@@ -3481,6 +3500,7 @@ class UiMixin:
             self.tab_scale_frame.pack_forget()
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self._setup_interval_ui()
             self.tab_interval_frame.pack(fill=tk.BOTH, expand=True)
             # Clear previous selection when entering interval detection mode
@@ -3493,6 +3513,24 @@ class UiMixin:
             if hasattr(self, '_clear_interval_notes'):
                 self._clear_interval_notes()
             self.active_notes = set()
+        elif self.interval_gen_tab_active:
+            self.instrument_panel.pack(fill=tk.X, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_handedness_combo.pack_forget()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            self._clear_live_input_state()
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
+            self._setup_interval_generation_ui()
+            self.tab_interval_generation_frame.pack(fill=tk.BOTH, expand=True)
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
@@ -3506,11 +3544,14 @@ class UiMixin:
             self.tab_metronome_frame.pack_forget()
             self.tab_tuner_frame.pack_forget()
             self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
             self.tab_detection_frame.pack(fill=tk.BOTH, expand=True)
         self._refresh_top_panel_titles()
         self._refresh_detection_help_visibility()
         self._refresh_staff_generated_chord_overlay()
         self._fit_instrument_panel_height()
+        if hasattr(self, "_layout_top_area_panels"):
+            self._layout_top_area_panels()
         self.update_music_views()
         if getattr(self, "_help_active", False):
             self._refresh_help_bindings()
@@ -3586,6 +3627,20 @@ class UiMixin:
                 # Igual que en Detección: este modo siempre muestra el piano
                 # (_apply_mode fuerza keyboard_qscroll y oculta la guitarra),
                 # nunca guitarra real.
+                "keyboard_qscroll:help_interval_instrument",
+            )
+
+        elif mode == "interval_generation":
+            specific = _w(
+                "staff_canvas:help_interval_staff",
+                "interval_gen_root_combo+interval_gen_root_accidental_combo:help_interval_gen_root",
+                "interval_gen_play_reverse_btn:help_interval_gen_play_reverse",
+                "interval_gen_play_btn:help_interval_gen_play",
+                "interval_gen_notes_row:help_interval_notes",
+                "interval_gen_name_row:help_interval_gen_name",
+                "interval_gen_alt_row:help_interval_gen_alt",
+                "interval_gen_semitones_row:help_interval_gen_semitones",
+                "interval_gen_table_frame:help_interval_gen_table",
                 "keyboard_qscroll:help_interval_instrument",
             )
 

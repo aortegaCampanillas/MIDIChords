@@ -68,6 +68,68 @@ INTERVAL_ALT_NAMES = {
     },
 }
 
+# Grid for Interval Generation: each entry is a category (row) of intervals;
+# cells_by_semitone maps semitone -> {"short": short label, "name": {es, en}}.
+# Semitones absent from a category have no valid interval there (empty cell).
+INTERVAL_GRID_COLUMNS = [
+    {
+        "key": "diminished",
+        "title": {"es": "Disminuidas", "en": "Diminished"},
+        "cells_by_semitone": {
+            0: {"short": "2d", "name": {"es": "Segunda disminuida", "en": "Diminished Second"}},
+            2: {"short": "3d", "name": {"es": "Tercera disminuida", "en": "Diminished Third"}},
+            4: {"short": "4d", "name": {"es": "Cuarta disminuida", "en": "Diminished Fourth"}},
+            6: {"short": "5d", "name": {"es": "Quinta disminuida", "en": "Diminished Fifth"}},
+            7: {"short": "6d", "name": {"es": "Sexta disminuida", "en": "Diminished Sixth"}},
+            9: {"short": "7d", "name": {"es": "Séptima disminuida", "en": "Diminished Seventh"}},
+            11: {"short": "8d", "name": {"es": "Octava disminuida", "en": "Diminished Octave"}},
+        },
+    },
+    {
+        "key": "minor",
+        "title": {"es": "Menores", "en": "Minor"},
+        "cells_by_semitone": {
+            1: {"short": "2m", "name": {"es": "Segunda menor", "en": "Minor Second"}},
+            3: {"short": "3m", "name": {"es": "Tercera menor", "en": "Minor Third"}},
+            8: {"short": "6m", "name": {"es": "Sexta menor", "en": "Minor Sixth"}},
+            10: {"short": "7m", "name": {"es": "Séptima menor", "en": "Minor Seventh"}},
+        },
+    },
+    {
+        "key": "major",
+        "title": {"es": "Mayores", "en": "Major"},
+        "cells_by_semitone": {
+            2: {"short": "2M", "name": {"es": "Segunda mayor", "en": "Major Second"}},
+            4: {"short": "3M", "name": {"es": "Tercera mayor", "en": "Major Third"}},
+            9: {"short": "6M", "name": {"es": "Sexta mayor", "en": "Major Sixth"}},
+            11: {"short": "7M", "name": {"es": "Séptima mayor", "en": "Major Seventh"}},
+        },
+    },
+    {
+        "key": "perfect",
+        "title": {"es": "Justas", "en": "Perfect"},
+        "cells_by_semitone": {
+            0: {"short": "U", "name": {"es": "Unísono justo", "en": "Perfect Unison"}},
+            5: {"short": "4J", "name": {"es": "Cuarta justa", "en": "Perfect Fourth"}},
+            7: {"short": "5J", "name": {"es": "Quinta justa", "en": "Perfect Fifth"}},
+            12: {"short": "8J", "name": {"es": "Octava justa", "en": "Perfect Octave"}},
+        },
+    },
+    {
+        "key": "augmented",
+        "title": {"es": "Aumentadas", "en": "Augmented"},
+        "cells_by_semitone": {
+            1: {"short": "UA", "name": {"es": "Unísono aumentado", "en": "Augmented Unison"}},
+            3: {"short": "2A", "name": {"es": "Segunda aumentada", "en": "Augmented Second"}},
+            5: {"short": "3A", "name": {"es": "Tercera aumentada", "en": "Augmented Third"}},
+            6: {"short": "4A", "name": {"es": "Cuarta aumentada", "en": "Augmented Fourth"}},
+            8: {"short": "5A", "name": {"es": "Quinta aumentada", "en": "Augmented Fifth"}},
+            10: {"short": "6A", "name": {"es": "Sexta aumentada", "en": "Augmented Sixth"}},
+            12: {"short": "7A", "name": {"es": "Séptima aumentada", "en": "Augmented Seventh"}},
+        },
+    },
+]
+
 # Duration codes: w=redonda h=blanca q=negra e=corchea s=semicorchea
 # Add "." for dotted. null=rest
 # jumpAt: index where the interval occurs (default 0 = jump between notes 0 and 1)

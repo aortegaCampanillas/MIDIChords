@@ -342,7 +342,7 @@ class RenderMixin:
             return self._key_signature_count_for_tonic(
                 self.generation_root_pc, is_minor, tie_prefer_flats=tie_from_ui
             )
-        if getattr(self, "interval_tab_active", False):
+        if getattr(self, "interval_tab_active", False) or getattr(self, "interval_gen_tab_active", False):
             return 0, tie_from_ui
         if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
             return 0, False
@@ -382,6 +382,8 @@ class RenderMixin:
             return set(self.active_notes)
         if getattr(self, "interval_tab_active", False):
             return set(getattr(self, "interval_notes", []))
+        if getattr(self, "interval_gen_tab_active", False):
+            return set(self.interval_gen_notes())
         return self._current_detection_notes()
 
     @staticmethod
@@ -717,17 +719,26 @@ class RenderMixin:
                 name_overlay_notes.add(int(self.tuner_detected_note_midi))
             if self.tuner_reference_note is not None:
                 name_overlay_notes.add(int(self.tuner_reference_note))
+        elif getattr(self, "interval_gen_tab_active", False):
+            name_overlay_notes = set(self.interval_gen_notes())
         else:
             name_overlay_notes = set(self._current_detection_notes())
         scale_note_set = set(self.scale_preview_notes) if self.scale_tab_active else set()
         scale_name_map = self._scale_note_name_map() if self.scale_tab_active else {}
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
-        detection_name_map = dict(getattr(self, "detection_overlay_note_names", {})) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else {}
+        _non_detection_like = (
+            self.generation_tab_active
+            or self.scale_tab_active
+            or self.metronome_tab_active
+            or self.tuner_tab_active
+            or getattr(self, "interval_gen_tab_active", False)
+        )
+        detection_name_map = dict(getattr(self, "detection_overlay_note_names", {})) if not _non_detection_like else {}
         scale_tonic_pc = self.scale_tonic_pc
         current_scale_note = self.scale_current_note if (self.scale_tab_active and self.scale_loop_active) else None
         scale_input_raw_note = int(self.scale_input_raw_note) if (self.scale_tab_active and self.scale_input_raw_note is not None) else None
-        detection_extra_notes = set(self.detection_extra_notes) if not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active) else set()
-        detection_mode = not (self.generation_tab_active or self.scale_tab_active or self.metronome_tab_active or self.tuner_tab_active)
+        detection_extra_notes = set(self.detection_extra_notes) if not _non_detection_like else set()
+        detection_mode = not _non_detection_like
         now = time.monotonic()
         self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
         overlay_label_positions: dict[int, tuple[float, str, str]] = {}
@@ -1334,6 +1345,8 @@ class RenderMixin:
                     display_notes = set(n for n in self.get_interval_melody_notes() if n is not None)
                 else:
                     display_notes = set(getattr(self, "interval_notes", []))
+            elif getattr(self, "interval_gen_tab_active", False):
+                display_notes = set(self.interval_gen_notes())
             else:
                 display_notes = self._current_detection_notes()
             if self.generation_tab_active:
@@ -1884,6 +1897,8 @@ class RenderMixin:
                 elif _imel:
                     _mi = _ord_to_mel.get(note_idx, note_idx)
                     x = _mel_x_map[_mi]
+                elif getattr(self, "interval_gen_tab_active", False):
+                    x = chord_x + (note_idx * note_rx * 3.2)
                 else:
                     while any(abs(y - prev_y) < overlap_threshold for prev_y in placed_cols.get(col, [])):
                         col += 1
@@ -1955,6 +1970,12 @@ class RenderMixin:
                     else:
                         note_fill = "" if _is_hollow else "#d7dde7"
                         note_outline = "#d7dde7"
+                elif (
+                    getattr(self, "interval_gen_tab_active", False)
+                    and note == getattr(self, "interval_gen_playing_note", None)
+                ):
+                    note_fill = self.color_accent
+                    note_outline = self.color_accent
                 elif note in self.detection_extra_notes:
                     note_fill = "#bf2f2f"
                     note_outline = "#ff9a9a"

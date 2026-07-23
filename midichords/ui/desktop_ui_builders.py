@@ -362,6 +362,7 @@ def build_mode_frames(app: object) -> None:
         ("tab_metronome_frame", 6, 6),
         ("tab_tuner_frame", 6, 6),
         ("tab_interval_frame", 6, 4),
+        ("tab_interval_generation_frame", 6, 4),
     )
     for attribute, padx, pady in specs:
         setattr(
@@ -386,6 +387,7 @@ def build_mode_frames(app: object) -> None:
         app.tab_metronome_frame,
         app.tab_tuner_frame,
         app.tab_interval_frame,
+        app.tab_interval_generation_frame,
     ):
         hidden_tab.setVisible(False)
 
@@ -412,13 +414,18 @@ def build_main_panel_shell(app: object, container: tk.Widget) -> None:
         width = max(1, int(top_area.winfo_width()))
         height = max(1, int(top_area.winfo_height()))
         usable_width = max(1, width - 12)
-        left_width = max(1, int(usable_width * 0.58))
+        # Generación de Intervalos necesita más ancho a la derecha para la
+        # tabla de 13 columnas (semitonos 0-12); el resto de modos mantiene
+        # la proporción histórica.
+        left_ratio = 0.42 if getattr(app, "interval_gen_tab_active", False) else 0.58
+        left_width = max(1, int(usable_width * left_ratio))
         right_width = max(480, usable_width - left_width)
         left_width = max(1, usable_width - right_width)
         app.left_panel.place(x=0, y=0, width=left_width, height=height)
         app.right_panel.place(x=left_width + 12, y=0, width=right_width, height=height)
 
     top_area.bind("<Configure>", layout_panels)
+    app._layout_top_area_panels = layout_panels
     layout_panels()
 
     app.staff_canvas = tk.Canvas(

@@ -142,7 +142,7 @@ const HELP_CALLOUTS_INTERVAL_GENERATION = [
   { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
   { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
   { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
-  { selector: "#staffCanvas", textKey: "help_staff_interval", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_interval_generation", side: "top" },
   { selector: "#panelIntervalGeneration", textKey: "help_interval_gen_panel", side: "left" },
   { selector: "#intervalGenRootRow", textKey: "help_interval_gen_root", side: "left" },
   { selector: "#intervalGenPlayReverse", textKey: "help_interval_gen_play_reverse", side: "bottom" },

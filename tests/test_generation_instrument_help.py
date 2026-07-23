@@ -35,6 +35,11 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
             'textKey: "help_instrument_surface_interval_generation"',
             callouts,
         )
+        self.assertIn(
+            'textKey: "help_staff_interval_generation"',
+            callouts,
+        )
+        self.assertIn("does not detect or change the interval", texts)
         self.assertIn("shown as a reference", texts)
 
     def test_mobile_interval_generation_does_not_reuse_detection_help(self):

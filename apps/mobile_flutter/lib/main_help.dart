@@ -838,11 +838,10 @@ extension _HomeScreenHelp on _HomeScreenState {
           bodyEs:
               'Muestra las dos notas del intervalo elegido en la tabla. Pulsa '
               'una nota para previsualizarla y resaltarla en el piano o la '
-              'guitarra; esta acción no detecta ni modifica el intervalo.',
+              'guitarra.',
           bodyEn:
               'Shows the two notes of the interval selected in the table. Tap '
-              'a note to preview it and highlight it on the piano or guitar; '
-              'this does not detect or change the interval.',
+              'a note to preview it and highlight it on the piano or guitar.',
           side: _HelpCalloutSide.top,
         ),
         _HelpStep(

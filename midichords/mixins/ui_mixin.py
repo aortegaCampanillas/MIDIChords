@@ -3644,7 +3644,7 @@ class UiMixin:
 
         elif mode == "interval_generation":
             specific = _w(
-                "staff_canvas:help_interval_staff",
+                "staff_canvas:help_interval_gen_staff",
                 "interval_gen_root_combo+interval_gen_root_accidental_combo:help_interval_gen_root",
                 "interval_gen_play_reverse_btn:help_interval_gen_play_reverse",
                 "interval_gen_play_btn:help_interval_gen_play",

@@ -39,7 +39,8 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
             'textKey: "help_staff_interval_generation"',
             callouts,
         )
-        self.assertIn("does not detect or change the interval", texts)
+        self.assertIn("Click one to preview it and highlight it", texts)
+        self.assertNotIn("does not detect or change the interval", texts)
         self.assertIn("shown as a reference", texts)
 
     def test_mobile_interval_generation_does_not_reuse_detection_help(self):
@@ -54,7 +55,24 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
         self.assertIn("7 => 'interval_generation_staff'", help_source)
         self.assertIn("Shows the generated interval notes as a reference.", help_source)
         self.assertIn("Generated interval staff", help_source)
-        self.assertIn("this does not detect or change the interval", help_source)
+        self.assertIn("a note to preview it and highlight it", help_source)
+        self.assertNotIn("this does not detect or change the interval", help_source)
+
+    def test_desktop_interval_generation_has_its_own_staff_help(self):
+        ui_mixin = (
+            PROJECT_ROOT / "midichords" / "mixins" / "ui_mixin.py"
+        ).read_text(encoding="utf-8")
+
+        for language in ("es", "en"):
+            text = UI_TEXTS[language]["help_interval_gen_staff"]
+            self.assertIn(
+                "previsualizar" if language == "es" else "preview",
+                text.lower(),
+            )
+        self.assertIn(
+            '"staff_canvas:help_interval_gen_staff"',
+            ui_mixin,
+        )
 
 
 if __name__ == "__main__":

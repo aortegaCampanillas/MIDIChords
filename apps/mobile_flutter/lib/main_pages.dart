@@ -1358,11 +1358,6 @@ extension _HomeScreenPages on _HomeScreenState {
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
-                    Text(
-                      _ui('Tónica', 'Root'),
-                      style: const TextStyle(color: _HomeScreenState._muted),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: _buildTonicLetterAccidentalDropdowns(
                         rootPc: _intervalGenRootPc,
@@ -1379,6 +1374,18 @@ extension _HomeScreenPages on _HomeScreenState {
                           _playGeneratedInterval();
                         },
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    _intervalGenerationPlayButton(
+                      tooltip: _ui('Reproducir ascendente', 'Play ascending'),
+                      symbol: '▶↑',
+                      onPressed: _playGeneratedInterval,
+                    ),
+                    const SizedBox(width: 6),
+                    _intervalGenerationPlayButton(
+                      tooltip: _ui('Reproducir descendente', 'Play descending'),
+                      symbol: '▶↓',
+                      onPressed: () => _playGeneratedInterval(reversed: true),
                     ),
                   ],
                 ),
@@ -1409,23 +1416,6 @@ extension _HomeScreenPages on _HomeScreenState {
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    ElevatedButton.icon(
-                      onPressed: _playGeneratedInterval,
-                      icon: const Icon(Icons.play_arrow),
-                      label: Text(_ui('Asc.', 'Asc.')),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () => _playGeneratedInterval(reversed: true),
-                      icon: const Icon(Icons.play_arrow),
-                      label: Text(_ui('Desc.', 'Desc.')),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 14),
                 Text(
@@ -1473,6 +1463,32 @@ extension _HomeScreenPages on _HomeScreenState {
                 ],
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _intervalGenerationPlayButton({
+    required String tooltip,
+    required String symbol,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 46,
+        height: 48,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            backgroundColor: _HomeScreenState._accent,
+            foregroundColor: Colors.black,
+          ),
+          child: Text(
+            symbol,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
         ),
       ),

@@ -30,6 +30,13 @@
         "platforms": ["web", "desktop", "mobile"],
         "es": "Intervalos: las notas aparecen identificadas mediante círculos sobre las teclas del piano, en verde para la nota inicial y amarillo para la segunda.",
         "en": "Intervals: notes are identified with circles on the piano keys, green for the starting note and yellow for the second note."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Generación de Intervalos: los controles de reproducción ascendente y descendente se muestran junto a los selectores de tónica y alteración para aprovechar mejor el espacio vertical.",
+        "en": "Interval Generation: ascending and descending playback controls now appear beside the tonic and accidental selectors to use vertical space more efficiently."
       }
     ]
   },

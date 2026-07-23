@@ -724,6 +724,13 @@ class RenderMixin:
         else:
             name_overlay_notes = set(self._current_detection_notes())
         scale_note_set = set(self.scale_preview_notes) if self.scale_tab_active else set()
+        interval_marker_notes: list[int] = []
+        if getattr(self, "interval_tab_active", False):
+            interval_marker_notes = [int(note) for note in getattr(self, "interval_notes", [])]
+        elif getattr(self, "interval_gen_tab_active", False):
+            interval_marker_notes = [int(note) for note in self.interval_gen_notes()]
+        interval_marker_set = set(interval_marker_notes)
+        interval_root_note = interval_marker_notes[0] if interval_marker_notes else None
         scale_name_map = self._scale_note_name_map() if self.scale_tab_active else {}
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
         _non_detection_like = (
@@ -743,7 +750,12 @@ class RenderMixin:
         self.blocked_note_until = {n: t for n, t in self.blocked_note_until.items() if t > now}
         overlay_label_positions: dict[int, tuple[float, str, str]] = {}
         # In generation/scale modes, note names are already conveyed on-key/staff; avoid duplicate labels on top.
-        show_top_note_overlays = (not detection_mode) and (not self.generation_tab_active) and (not self.scale_tab_active)
+        show_top_note_overlays = (
+            (not detection_mode)
+            and (not self.generation_tab_active)
+            and (not self.scale_tab_active)
+            and not interval_marker_set
+        )
 
         # Ancho visible del viewport del QScrollArea (no el ancho lógico del canvas tras setFixedWidth).
         viewport_w = max(120, int(canvas.winfo_width()))
@@ -983,6 +995,28 @@ class RenderMixin:
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
+            elif note in interval_marker_set:
+                circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
+                circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
+                cx = (x1 + x2) / 2
+                r = max(11, min(17, white_w * 0.28))
+                cy = key_bottom - (42 if show_key_names else 28)
+                canvas.create_oval(
+                    cx - r,
+                    cy - r,
+                    cx + r,
+                    cy + r,
+                    fill=circle_fill,
+                    outline=circle_outline,
+                    width=1,
+                )
+                canvas.create_text(
+                    cx,
+                    cy,
+                    text=self.note_name(note, with_octave=False),
+                    fill="#101010",
+                    font=("Helvetica", 10, "bold"),
+                )
             if show_top_note_overlays and note in name_overlay_notes:
                 label_fill = "#ff6d6d" if note in detection_extra_notes else "#ffffff"
                 if self.scale_tab_active:
@@ -1072,6 +1106,28 @@ class RenderMixin:
                 canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=circle_fill, outline="")
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
+            elif note in interval_marker_set:
+                circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
+                circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
+                cx = (x1_i + x2_i) / 2
+                cy = key_top + black_h - 22
+                r = max(9, min(13, black_w * 0.28))
+                canvas.create_oval(
+                    cx - r,
+                    cy - r,
+                    cx + r,
+                    cy + r,
+                    fill=circle_fill,
+                    outline=circle_outline,
+                    width=1,
+                )
+                canvas.create_text(
+                    cx,
+                    cy,
+                    text=self.note_name(note, with_octave=False),
+                    fill="#101010",
+                    font=("Helvetica", 8, "bold"),
+                )
             elif show_key_names:
                 is_generation_active = note in generation_active_lh_notes or note in generation_active_rh_notes
                 blabel = "#f0f4fc" if (note in display_active_notes or is_generation_active) else "#9aacbf"

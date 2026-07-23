@@ -23,6 +23,13 @@
         "platforms": ["desktop"],
         "es": "Generación de Intervalos: al pulsar una celda de la tabla, la primera nota se reproduce ahora una sola vez antes de sonar la segunda.",
         "en": "Interval Generation: tapping a table cell now plays the first note only once before the second note."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": true,
+        "platforms": ["web", "desktop", "mobile"],
+        "es": "Intervalos: las notas aparecen identificadas mediante círculos sobre las teclas del piano, en verde para la nota inicial y amarillo para la segunda.",
+        "en": "Intervals: notes are identified with circles on the piano keys, green for the starting note and yellow for the second note."
       }
     ]
   },

@@ -2792,6 +2792,11 @@ function renderPiano() {
     ? new Set(getScaleNotesForOctaves())
     : null;
   const scaleCentralMax = 72; // C5
+  const intervalNotes = state.mode === "interval_detection"
+    ? state.intervalNotes.map((n) => Number(n))
+    : (state.mode === "interval_generation" ? intervalGenNotes().map((n) => Number(n)) : []);
+  const intervalNoteSet = new Set(intervalNotes);
+  const intervalRootMidi = intervalNotes.length ? intervalNotes[0] : null;
 
   for (let midi = low; midi <= high; midi += 1) {
     const pc = midi % 12;
@@ -2857,6 +2862,11 @@ function renderPiano() {
       const badge = document.createElement("span");
       badge.className = `scale-badge ${black ? "black-key" : "white-key"} ${scaleTonic ? "tonic" : ""} ${scaleCurrent ? "current" : ""}`;
       badge.textContent = scaleLabelForMidi(midi) || noteNameFromPc(pc);
+      key.appendChild(badge);
+    } else if (intervalNoteSet.has(midi)) {
+      const badge = document.createElement("span");
+      badge.className = `scale-badge interval-badge ${black ? "black-key" : "white-key"} ${midi === intervalRootMidi ? "tonic" : ""}`;
+      badge.textContent = noteNameFromPc(pc);
       key.appendChild(badge);
     }
 

@@ -6266,6 +6266,44 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _intervalPianoMarker({
+    required int midi,
+    required int? rootMidi,
+    required double size,
+    required double top,
+    required double left,
+  }) {
+    final isRoot = midi == rootMidi;
+    return Positioned(
+      top: top,
+      left: left,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: isRoot ? const Color(0xFF32D74B) : const Color(0xFFF6B60B),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isRoot ? const Color(0xFF1E8C38) : const Color(0xFF8D6B00),
+            width: 1.5,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _pcLabel(midi % 12),
+            style: TextStyle(
+              color: const Color(0xFF101010),
+              fontWeight: FontWeight.w700,
+              fontSize: size * 0.4,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPianoStrip(Set<int> activeMidi, {double? forcedWhiteW}) {
     final midiRange = List<int>.generate(
       _kPianoHighMidi - _kPianoLowMidi + 1,
@@ -6277,6 +6315,11 @@ class _HomeScreenState extends State<HomeScreen>
     final active = activeMidi.toSet();
     final extras = _instrumentExtrasForCurrentTab();
     final scaleRh = (_tabIndex == 3 ? _scaleRhNotes() : <int>[]).toSet();
+    final intervalNotes = _tabIndex == 5
+        ? List<int>.from(_intervalNotes)
+        : (_tabIndex == 7 ? _intervalGenerationNotes() : const <int>[]);
+    final intervalNoteSet = intervalNotes.toSet();
+    final intervalRootMidi = intervalNotes.isEmpty ? null : intervalNotes.first;
     final chordGenPiano =
         (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'piano';
     final chordRh = chordGenPiano && _generatedChordJson != null
@@ -6554,6 +6597,14 @@ class _HomeScreenState extends State<HomeScreen>
                                             );
                                           },
                                         ),
+                                      if (intervalNoteSet.contains(midi))
+                                        _intervalPianoMarker(
+                                          midi: midi,
+                                          rootMidi: intervalRootMidi,
+                                          size: 22,
+                                          top: whiteMarkerTop,
+                                          left: (whiteW - 22) / 2,
+                                        ),
                                       if (chordGenPiano && rh != null)
                                         marker(
                                           size: 22,
@@ -6781,6 +6832,14 @@ class _HomeScreenState extends State<HomeScreen>
                                                   ),
                                                 );
                                               },
+                                            ),
+                                          if (intervalNoteSet.contains(midi))
+                                            _intervalPianoMarker(
+                                              midi: midi,
+                                              rootMidi: intervalRootMidi,
+                                              size: 18,
+                                              top: blackH * 0.5,
+                                              left: (blackW - 18) / 2,
                                             ),
                                           if (chordGenPiano && rh != null)
                                             marker(

@@ -48,6 +48,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Intervalos (piano)**: las notas de los intervalos se identifican ahora mediante círculos sobre las teclas —verde para la nota inicial y amarillo para la segunda— en escritorio, web y móvil, evitando las etiquetas blancas separadas del teclado.
+
 - **Móvil (generación de intervalos)**: añadido el modo para elegir tónica e intervalo por categoría teórica, reproducirlo en ambos sentidos y visualizarlo en pentagrama, piano o guitarra; el selector de modos adopta además el mismo orden que la web.
 
 - **Escritorio (generación de intervalos)**: añadido un modo específico para elegir la tónica y generar intervalos desde una tabla por categoría y semitonos, con reproducción ascendente o descendente, representación en pentagrama y resaltado en el piano.

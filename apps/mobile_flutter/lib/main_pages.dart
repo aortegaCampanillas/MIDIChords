@@ -1161,6 +1161,32 @@ extension _HomeScreenPages on _HomeScreenState {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        // Interval alternative names
+                        _helpAnchor(
+                          'interval_alt_row',
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                _ui('Alternativos', 'Alternatives'),
+                                style: const TextStyle(
+                                  color: _HomeScreenState._muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                _intervalNotes.length >= 2
+                                    ? _getIntervalAltNames()
+                                    : '-',
+                                style: const TextStyle(
+                                  color: _HomeScreenState._accent,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         // Semitones
                         _helpAnchor(
                           'interval_semitones_row',

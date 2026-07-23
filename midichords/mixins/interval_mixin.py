@@ -2,7 +2,7 @@
 
 from typing import Optional
 import midichords.qt.tk_compat as tk
-from midichords.core.interval_data import INTERVAL_NAMES, INTERVAL_MELODIES
+from midichords.core.interval_data import INTERVAL_NAMES, INTERVAL_ALT_NAMES, INTERVAL_MELODIES
 
 
 class IntervalMixin:
@@ -70,6 +70,16 @@ class IntervalMixin:
         lang = getattr(self, "language", None) or self.config_data.get("language", "es")
         lang = lang if lang in INTERVAL_NAMES else "es"
         return INTERVAL_NAMES[lang].get(semitones, "-")
+
+    def get_interval_alt_names(self) -> str:
+        """Get other valid enharmonic names for the detected interval."""
+        semitones = self.get_interval_semitones()
+        if semitones is None:
+            return "-"
+        lang = getattr(self, "language", None) or self.config_data.get("language", "es")
+        lang = lang if lang in INTERVAL_ALT_NAMES else "es"
+        names = INTERVAL_ALT_NAMES[lang].get(semitones, [])
+        return ", ".join(names) if names else "-"
 
     def get_interval_melody(self) -> dict | None:
         """Get the reference melody for the detected interval."""
@@ -357,6 +367,7 @@ class IntervalMixin:
 
         self.interval_notes_row, self.interval_notes_display = _result_row('label_interval_notes')
         self.interval_name_row, self.interval_name_display = _result_row('label_interval_name', self.color_accent)
+        self.interval_alt_row, self.interval_alt_display = _result_row('label_interval_alt')
         self.interval_semitones_row, self.interval_semitones_display = _result_row('label_interval_semitones')
 
         # Ejemplo row: label + clickable button value
@@ -412,13 +423,16 @@ class IntervalMixin:
 
         if len(self.interval_notes) >= 2:
             name = self.get_interval_name()
+            alt_names = self.get_interval_alt_names()
             semitones = self.get_interval_semitones()
             melody_name = self.get_interval_melody_name()
             self.interval_name_display.configure(text=name)
+            self.interval_alt_display.configure(text=alt_names)
             self.interval_semitones_display.configure(text=str(semitones) if semitones else "-")
             self.interval_melody_btn.set_text(melody_name)
         else:
             self.interval_name_display.configure(text="-")
+            self.interval_alt_display.configure(text="-")
             self.interval_semitones_display.configure(text="-")
             self.interval_melody_btn.set_text("-")
 

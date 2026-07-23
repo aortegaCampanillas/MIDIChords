@@ -34,6 +34,41 @@ const Map<String, Map<int, String>> intervalNames = {
   },
 };
 
+// Enharmonic alternative names per semitone (excluding the main name in
+// intervalNames). Not every semitone count has a common alternative.
+const Map<String, Map<int, List<String>>> intervalAltNames = {
+  "es": {
+    0: ["Segunda disminuida"],
+    1: ["Unísono aumentado"],
+    2: ["Tercera disminuida"],
+    3: ["Segunda aumentada"],
+    4: ["Cuarta disminuida"],
+    5: ["Tercera aumentada"],
+    6: ["Tritono"],
+    7: ["Sexta disminuida"],
+    8: ["Quinta aumentada"],
+    9: ["Séptima disminuida"],
+    10: ["Sexta aumentada"],
+    11: ["Octava disminuida"],
+    12: ["Séptima aumentada"],
+  },
+  "en": {
+    0: ["Diminished Second"],
+    1: ["Augmented Unison"],
+    2: ["Diminished Third"],
+    3: ["Augmented Second"],
+    4: ["Diminished Fourth"],
+    5: ["Augmented Third"],
+    6: ["Tritone"],
+    7: ["Diminished Sixth"],
+    8: ["Augmented Fifth"],
+    9: ["Diminished Seventh"],
+    10: ["Augmented Sixth"],
+    11: ["Diminished Octave"],
+    12: ["Augmented Seventh"],
+  },
+};
+
 class IntervalMelody {
   final String nameEs;
   final String nameEn;
@@ -164,6 +199,12 @@ const Map<int, IntervalMelody> intervalMelodies = {
 String getIntervalName(int semitones, String language) {
   final lang = intervalNames.containsKey(language) ? language : "es";
   return intervalNames[lang]?[semitones] ?? "-";
+}
+
+String getIntervalAltNames(int semitones, String language) {
+  final lang = intervalAltNames.containsKey(language) ? language : "es";
+  final names = intervalAltNames[lang]?[semitones] ?? const <String>[];
+  return names.isEmpty ? "-" : names.join(", ");
 }
 
 IntervalMelody? getIntervalMelody(int semitones) {

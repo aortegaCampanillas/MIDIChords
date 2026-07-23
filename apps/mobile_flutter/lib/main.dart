@@ -7294,6 +7294,12 @@ class _HomeScreenState extends State<HomeScreen>
     return getIntervalName(semitones, _language);
   }
 
+  String _getIntervalAltNames() {
+    final semitones = _getIntervalSemitones();
+    if (semitones == null) return "-";
+    return getIntervalAltNames(semitones, _language);
+  }
+
   String _getIntervalMelodyName() {
     final semitones = _getIntervalSemitones();
     if (semitones == null) return "-";

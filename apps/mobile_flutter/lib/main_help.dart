@@ -744,6 +744,16 @@ extension _HomeScreenHelp on _HomeScreenState {
           side: _HelpCalloutSide.left,
         ),
         _HelpStep(
+          id: 'interval_alt_row',
+          titleEs: 'Alternativos',
+          titleEn: 'Alternatives',
+          bodyEs:
+              'Otros nombres enarmónicos válidos para el mismo número de semitonos.',
+          bodyEn:
+              'Other valid enharmonic names for the same number of semitones.',
+          side: _HelpCalloutSide.left,
+        ),
+        _HelpStep(
           id: 'interval_semitones_row',
           titleEs: 'Semitonos',
           titleEn: 'Semitones',

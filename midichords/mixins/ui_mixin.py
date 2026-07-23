@@ -3580,6 +3580,7 @@ class UiMixin:
                 # usar las filas (frame etiqueta+valor) en lugar del label de valor solo
                 "interval_notes_row:help_interval_notes",
                 "interval_name_row:help_interval_name",
+                "interval_alt_row:help_interval_alt",
                 "interval_semitones_row:help_interval_semitones",
                 "interval_ejemplo_row:help_interval_melody",
                 # Igual que en Detección: este modo siempre muestra el piano

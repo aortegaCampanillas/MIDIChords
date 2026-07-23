@@ -33,6 +33,41 @@ INTERVAL_NAMES = {
     },
 }
 
+# Enharmonic alternative names per semitone (excluding the main name in
+# INTERVAL_NAMES). Not every semitone count has a common alternative.
+INTERVAL_ALT_NAMES = {
+    "es": {
+        0: ["Segunda disminuida"],
+        1: ["Unísono aumentado"],
+        2: ["Tercera disminuida"],
+        3: ["Segunda aumentada"],
+        4: ["Cuarta disminuida"],
+        5: ["Tercera aumentada"],
+        6: ["Tritono"],
+        7: ["Sexta disminuida"],
+        8: ["Quinta aumentada"],
+        9: ["Séptima disminuida"],
+        10: ["Sexta aumentada"],
+        11: ["Octava disminuida"],
+        12: ["Séptima aumentada"],
+    },
+    "en": {
+        0: ["Diminished Second"],
+        1: ["Augmented Unison"],
+        2: ["Diminished Third"],
+        3: ["Augmented Second"],
+        4: ["Diminished Fourth"],
+        5: ["Augmented Third"],
+        6: ["Tritone"],
+        7: ["Diminished Sixth"],
+        8: ["Augmented Fifth"],
+        9: ["Diminished Seventh"],
+        10: ["Augmented Sixth"],
+        11: ["Diminished Octave"],
+        12: ["Augmented Seventh"],
+    },
+}
+
 # Duration codes: w=redonda h=blanca q=negra e=corchea s=semicorchea
 # Add "." for dotted. null=rest
 # jumpAt: index where the interval occurs (default 0 = jump between notes 0 and 1)

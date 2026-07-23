@@ -47,16 +47,38 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
         main = (
             PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main.dart"
         ).read_text(encoding="utf-8")
+        mobile_ui = main + (
+            PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main_pages.dart"
+        ).read_text(encoding="utf-8")
         help_source = (
             PROJECT_ROOT / "apps" / "mobile_flutter" / "lib" / "main_help.dart"
         ).read_text(encoding="utf-8")
 
         self.assertIn("7 => 'interval_generation_instrument'", main)
         self.assertIn("7 => 'interval_generation_staff'", help_source)
-        self.assertIn("Shows the generated interval notes as a reference.", help_source)
+        self.assertIn("Piano or guitar view of the generated interval.", help_source)
         self.assertIn("Generated interval staff", help_source)
-        self.assertIn("a note to preview it and highlight it", help_source)
+        self.assertIn("Tap one to preview it and highlight it", help_source)
         self.assertNotIn("this does not detect or change the interval", help_source)
+
+        for help_id in (
+            "interval_generation_root",
+            "interval_generation_notes",
+            "interval_generation_name",
+            "interval_generation_semitones",
+            "interval_generation_table",
+        ):
+            self.assertIn(f"'{help_id}'", mobile_ui)
+            self.assertIn(f"id: '{help_id}'", help_source)
+
+        for text in (
+            "Notes: the tonic and the resulting note of the chosen interval.",
+            "Name of the interval selected in the table.",
+            "Number of semitones between the two notes.",
+            "Tonic from which the chosen table interval is generated.",
+            "each column is a number of semitones",
+        ):
+            self.assertIn(text, help_source)
 
     def test_desktop_interval_generation_has_its_own_staff_help(self):
         ui_mixin = (

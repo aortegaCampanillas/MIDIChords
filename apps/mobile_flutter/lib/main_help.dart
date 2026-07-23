@@ -812,13 +812,59 @@ extension _HomeScreenHelp on _HomeScreenState {
       ],
       7 => <_HelpStep>[
         _HelpStep(
+          id: 'interval_generation_staff',
+          titleEs: 'Pentagrama del intervalo generado',
+          titleEn: 'Generated interval staff',
+          bodyEs:
+              'Pentagrama del intervalo generado: muestra las dos notas elegidas en la tabla. Pulsa una para previsualizarla y resaltarla en el piano o la guitarra.',
+          bodyEn:
+              'Generated interval staff: shows the two notes selected in the table. Tap one to preview it and highlight it on the piano or guitar.',
+          side: _HelpCalloutSide.top,
+        ),
+        _HelpStep(
+          id: 'interval_generation_instrument_piano',
+          titleEs: 'Botón Piano',
+          titleEn: 'Piano button',
+          bodyEs: 'Cambia la representación del instrumento a teclado.',
+          bodyEn: 'Switch the instrument representation to piano.',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_instrument_guitar',
+          titleEs: 'Botón Guitarra',
+          titleEn: 'Guitar button',
+          bodyEs: 'Cambia la representación del instrumento a guitarra.',
+          bodyEn: 'Switch the instrument representation to guitar.',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_guitar_hand',
+          titleEs: 'Orientación de la guitarra',
+          titleEn: 'Guitar handedness',
+          bodyEs: 'Ajusta la orientación de la guitarra (diestro/zurdo).',
+          bodyEn: 'Set guitar orientation (right-handed/left-handed).',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_root',
+          titleEs: 'Tónica',
+          titleEn: 'Tonic',
+          bodyEs:
+              'Tónica desde la que se genera el intervalo elegido en la tabla.',
+          bodyEn: 'Tonic from which the chosen table interval is generated.',
+          side: _HelpCalloutSide.left,
+        ),
+        _HelpStep(
           id: 'interval_generation_play_reverse',
           titleEs: 'Reproducción descendente',
           titleEn: 'Descending playback',
           bodyEs:
-              'Reproduce primero la nota alta y después la baja. También fija el patrón descendente para las reproducciones posteriores.',
+              'Reproduce el intervalo de forma descendente (nota alta → nota baja) y fija ese patrón para las reproducciones posteriores.',
           bodyEn:
-              'Play the high note first and then the low note. This also sets the descending pattern for subsequent playback.',
+              'Play the interval descending (high note → low note) and set that pattern for subsequent playback.',
           side: _HelpCalloutSide.bottom,
         ),
         _HelpStep(
@@ -826,60 +872,55 @@ extension _HomeScreenHelp on _HomeScreenState {
           titleEs: 'Reproducción ascendente',
           titleEn: 'Ascending playback',
           bodyEs:
-              'Reproduce primero la nota baja y después la alta. También fija el patrón ascendente para las reproducciones posteriores.',
+              'Reproduce el intervalo de forma ascendente y fija ese patrón para las reproducciones posteriores.',
           bodyEn:
-              'Play the low note first and then the high note. This also sets the ascending pattern for subsequent playback.',
+              'Play the interval ascending and set that pattern for subsequent playback.',
           side: _HelpCalloutSide.bottom,
         ),
         _HelpStep(
-          id: 'interval_generation_staff',
-          titleEs: 'Pentagrama del intervalo generado',
-          titleEn: 'Generated interval staff',
+          id: 'interval_generation_notes',
+          titleEs: 'Notas',
+          titleEn: 'Notes',
           bodyEs:
-              'Muestra las dos notas del intervalo elegido en la tabla. Pulsa '
-              'una nota para previsualizarla y resaltarla en el piano o la '
-              'guitarra.',
+              'Notas: la tónica y la nota resultante del intervalo elegido.',
           bodyEn:
-              'Shows the two notes of the interval selected in the table. Tap '
-              'a note to preview it and highlight it on the piano or guitar.',
-          side: _HelpCalloutSide.top,
+              'Notes: the tonic and the resulting note of the chosen interval.',
+          side: _HelpCalloutSide.left,
         ),
         _HelpStep(
-          id: 'interval_generation_instrument_piano',
-          titleEs: 'Boton Piano',
-          titleEn: 'Piano button',
-          bodyEs: 'Cambia la representacion del intervalo al piano.',
-          bodyEn: 'Switches the interval representation to piano.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
+          id: 'interval_generation_name',
+          titleEs: 'Intervalo',
+          titleEn: 'Interval',
+          bodyEs: 'Nombre del intervalo seleccionado en la tabla.',
+          bodyEn: 'Name of the interval selected in the table.',
+          side: _HelpCalloutSide.left,
         ),
         _HelpStep(
-          id: 'interval_generation_instrument_guitar',
-          titleEs: 'Boton Guitarra',
-          titleEn: 'Guitar button',
-          bodyEs: 'Cambia la representacion del intervalo a la guitarra.',
-          bodyEn: 'Switches the interval representation to guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
+          id: 'interval_generation_semitones',
+          titleEs: 'Semitonos',
+          titleEn: 'Semitones',
+          bodyEs: 'Número de semitonos entre las dos notas.',
+          bodyEn: 'Number of semitones between the two notes.',
+          side: _HelpCalloutSide.left,
         ),
         _HelpStep(
-          id: 'interval_generation_guitar_hand',
-          titleEs: 'Mano de la guitarra',
-          titleEn: 'Guitar handedness',
+          id: 'interval_generation_table',
+          titleEs: 'Tabla de intervalos',
+          titleEn: 'Interval table',
           bodyEs:
-              'Ajusta la visualizacion para diestro o zurdo en la guitarra.',
-          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
+              'Tabla de intervalos: cada columna es un número de semitonos y cada fila una categoría (disminuida, menor, mayor, justa, aumentada). Pulsa una celda para generar ese intervalo desde la tónica.',
+          bodyEn:
+              'Interval table: each column is a number of semitones and each row a category (diminished, minor, major, perfect, augmented). Tap a cell to generate that interval from the tonic.',
+          side: _HelpCalloutSide.left,
         ),
         _HelpStep(
           id: 'interval_generation_instrument',
           titleEs: 'Piano o guitarra',
           titleEn: 'Piano or guitar',
           bodyEs:
-              'Muestra como referencia las notas del intervalo generado. Usa los botones de reproduccion ascendente o descendente para escucharlo.',
+              'Vista del intervalo generado en piano o guitarra. Las dos notas se muestran como referencia; usa los botones de reproducción ascendente o descendente para escucharlas.',
           bodyEn:
-              'Shows the generated interval notes as a reference. Use the ascending or descending play buttons to hear it.',
+              'Piano or guitar view of the generated interval. The two notes are shown as a reference; use the ascending or descending playback buttons to hear them.',
           side: _HelpCalloutSide.top,
         ),
       ],

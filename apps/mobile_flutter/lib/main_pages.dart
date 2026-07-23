@@ -1360,20 +1360,23 @@ extension _HomeScreenPages on _HomeScreenState {
                   Row(
                     children: <Widget>[
                       Expanded(
-                        child: _buildTonicLetterAccidentalDropdowns(
-                          rootPc: _intervalGenRootPc,
-                          savedLetterPc: _intervalGenRootLetterPc,
-                          savedAccidental: _intervalGenRootAccidental,
-                          onPc: (pc, letterPc, accidental) {
-                            _intervalGenPlaybackTimer?.cancel();
-                            _updateState(() {
-                              _intervalGenRootPc = pc;
-                              _intervalGenRootLetterPc = letterPc;
-                              _intervalGenRootAccidental = accidental;
-                              _intervalGenPlayingIdx = null;
-                            });
-                            _playGeneratedInterval();
-                          },
+                        child: _helpAnchor(
+                          'interval_generation_root',
+                          _buildTonicLetterAccidentalDropdowns(
+                            rootPc: _intervalGenRootPc,
+                            savedLetterPc: _intervalGenRootLetterPc,
+                            savedAccidental: _intervalGenRootAccidental,
+                            onPc: (pc, letterPc, accidental) {
+                              _intervalGenPlaybackTimer?.cancel();
+                              _updateState(() {
+                                _intervalGenRootPc = pc;
+                                _intervalGenRootLetterPc = letterPc;
+                                _intervalGenRootAccidental = accidental;
+                                _intervalGenPlayingIdx = null;
+                              });
+                              _playGeneratedInterval();
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1416,16 +1419,19 @@ extension _HomeScreenPages on _HomeScreenState {
                         _intervalGenerationResultRow(
                           _ui('Notas', 'Notes'),
                           notes.map(_midiNoteWithOctave).join(' – '),
+                          helpId: 'interval_generation_notes',
                         ),
                         const SizedBox(height: 8),
                         _intervalGenerationResultRow(
                           _ui('Intervalo', 'Interval'),
                           '${selectedCategory.name(_language)} · $_intervalGenLabel',
+                          helpId: 'interval_generation_name',
                         ),
                         const SizedBox(height: 8),
                         _intervalGenerationResultRow(
                           _ui('Semitonos', 'Semitones'),
                           '$_intervalGenSemitones',
+                          helpId: 'interval_generation_semitones',
                         ),
                       ],
                     ),
@@ -1439,7 +1445,10 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildIntervalGenerationTable(constraints.maxWidth),
+                  _helpAnchor(
+                    'interval_generation_table',
+                    _buildIntervalGenerationTable(constraints.maxWidth),
+                  ),
                 ],
               ),
             ),
@@ -1566,30 +1575,37 @@ extension _HomeScreenPages on _HomeScreenState {
     );
   }
 
-  Widget _intervalGenerationResultRow(String label, String value) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: _HomeScreenState._muted,
-              fontSize: 12,
+  Widget _intervalGenerationResultRow(
+    String label,
+    String value, {
+    required String helpId,
+  }) {
+    return _helpAnchor(
+      helpId,
+      Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: _HomeScreenState._muted,
+                fontSize: 12,
+              ),
             ),
           ),
-        ),
-        Flexible(
-          flex: 2,
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(
-              color: _HomeScreenState._accent,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: _HomeScreenState._accent,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

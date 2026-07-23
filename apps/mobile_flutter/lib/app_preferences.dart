@@ -83,7 +83,7 @@ final class AppPreferencesRepository {
       scaleFingeringHand: fingering == 'left' || fingering == 'right'
           ? fingering
           : null,
-      tabIndex: savedTab != null && savedTab >= 0 && savedTab <= 6
+      tabIndex: savedTab != null && savedTab >= 0 && savedTab <= 7
           ? savedTab
           : 0,
     );

@@ -6,6 +6,13 @@
       {
         "date": "2026-07-23",
         "publish": false,
+        "platforms": ["mobile"],
+        "es": "Preferencias: al volver a abrir la aplicación se restaura también Generación de Intervalos cuando fue la última pantalla utilizada.",
+        "en": "Preferences: reopening the application now also restores Interval Generation when it was the last screen used."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
         "platforms": ["desktop"],
         "es": "Generación de Intervalos: la primera columna de la tabla actualiza sus categorías al idioma configurado aunque el panel ya estuviera abierto.",
         "en": "Interval Generation: the table's first-column categories now follow the configured language even when the panel was already open."

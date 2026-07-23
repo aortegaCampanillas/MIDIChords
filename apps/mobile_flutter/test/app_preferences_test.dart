@@ -64,6 +64,14 @@ void main() {
     expect(port.values['tabIndex'], 4);
   });
 
+  test('load restores the interval generation screen', () {
+    final preferences = AppPreferencesRepository(
+      _MemoryPreferences(<String, Object>{'tabIndex': 7}),
+    ).load();
+
+    expect(preferences.tabIndex, 7);
+  });
+
   test('save removes an obsolete fingering selection', () async {
     final port = _MemoryPreferences(<String, Object>{
       'scaleFingeringHand': 'right',

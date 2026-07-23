@@ -166,6 +166,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (preferencias)**: al volver a abrir la aplicación se restaura también Generación de intervalos cuando fue la última pantalla utilizada, en lugar de descartarla por pertenecer al modo añadido más recientemente.
+
 - **Escritorio (generación de intervalos)**: la primera columna de la tabla actualiza ahora sus categorías al idioma configurado, incluso cuando el panel ya se había construido en otro idioma.
 
 - **Ayuda contextual**: las explicaciones del piano y la guitarra en los modos de generación los presentan ahora como vistas del resultado y remiten a los botones de reproducción, sin describirlos incorrectamente como instrumentos interactivos.

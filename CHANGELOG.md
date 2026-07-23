@@ -166,6 +166,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Escritorio (generación de intervalos)**: añadido el selector Piano/Guitarra y la representación del intervalo sobre el diapasón, con la nota inicial en verde, la segunda en amarillo y la nota reproducida en azul.
+
 - **Móvil (pentagrama de intervalos)**: las dos notas se distribuyen ahora en columnas melódicas separadas para que intervalos cercanos, como la tercera menor, no parezcan un acorde con las cabezas apiladas.
 
 - **Móvil (preferencias)**: al volver a abrir la aplicación se restaura también Generación de intervalos cuando fue la última pantalla utilizada, en lugar de descartarla por pertenecer al modo añadido más recientemente.

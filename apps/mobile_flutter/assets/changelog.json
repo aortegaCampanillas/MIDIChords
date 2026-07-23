@@ -6,6 +6,13 @@
       {
         "date": "2026-07-23",
         "publish": false,
+        "platforms": ["desktop"],
+        "es": "Generación de Intervalos: añadido el selector Piano/Guitarra y la representación de las dos notas sobre el diapasón.",
+        "en": "Interval Generation: added the Piano/Guitar selector and the two-note representation on the fretboard."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Pentagrama de intervalos: las dos notas se muestran en columnas melódicas separadas para que los intervalos cercanos no parezcan acordes apilados.",
         "en": "Interval staff: the two notes are shown in separate melodic columns so close intervals no longer look like stacked chords."

@@ -662,7 +662,10 @@ class MidiChordAnalyzerApp(
             # En Qt, `expand=True` introduce "stretch" en el VBoxLayout y puede
             # dejar el subpanel de variaciones sin altura visible.
             self.guitar_canvas.pack(fill=tk.X, expand=False)
-            self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
+            if self.generation_tab_active:
+                self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
+            else:
+                self.guitar_variations_frame.pack_forget()
         else:
             self.guitar_handedness_combo.pack_forget()
             self.guitar_variations_frame.pack_forget()
@@ -681,7 +684,7 @@ class MidiChordAnalyzerApp(
         self._refresh_instrument_toggle_styles()
         self._refresh_handedness_toggle_styles()
         self._refresh_generation_selection_buttons()
-        if self.instrument_view == "guitar":
+        if self.instrument_view == "guitar" and self.generation_tab_active:
             self._refresh_guitar_variations()
         self.redraw_keyboard()
         self.redraw_guitar_fretboard()

@@ -74,3 +74,20 @@ def test_desktop_selected_transport_keeps_the_triangle_icon() -> None:
     assert "elif self._playing or self._selected:" in source
     assert "if self._playing:" in source
     assert "def set_selected(self, selected: bool)" in source
+
+
+def test_desktop_interval_generation_exposes_and_renders_guitar() -> None:
+    ui = (
+        PROJECT_ROOT / "midichords" / "mixins" / "ui_mixin.py"
+    ).read_text(encoding="utf-8")
+    renderer = (
+        PROJECT_ROOT / "midichords" / "mixins" / "render_mixin.py"
+    ).read_text(encoding="utf-8")
+
+    interval_mode = ui.split("elif self.interval_gen_tab_active:", 1)[1].split(
+        "else:", 1
+    )[0]
+    assert "self._show_generation_instrument_buttons()" in interval_mode
+    assert "self._set_instrument_view(self.instrument_view)" in interval_mode
+    assert 'getattr(self, "interval_gen_tab_active", False)' in renderer
+    assert 'text="1" if is_root else "2"' in renderer

@@ -3352,7 +3352,8 @@ class UiMixin:
         self.save_config()
         self.mode_trigger_var.set(self._mode_label(self.current_mode))
         self._set_generation_toolbar_layout(
-            show_instrument_buttons=self.current_mode in ("generation", "circle_fifths"),
+            show_instrument_buttons=self.current_mode
+            in ("generation", "circle_fifths", "interval_generation"),
         )
 
         self.generation_tab_active = self.current_mode in ("generation", "circle_fifths")
@@ -3515,12 +3516,9 @@ class UiMixin:
             self.active_notes = set()
         elif self.interval_gen_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
-            self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
-            self.guitar_variations_frame.pack_forget()
-            self.guitar_canvas.pack_forget()
-            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            self._show_generation_instrument_buttons()
+            self._set_instrument_view(self.instrument_view)
             self._clear_live_input_state()
             self.tab_detection_frame.pack_forget()
             self.tab_generation_frame.pack_forget()
@@ -3641,8 +3639,18 @@ class UiMixin:
                 "interval_gen_alt_row:help_interval_gen_alt",
                 "interval_gen_semitones_row:help_interval_gen_semitones",
                 "interval_gen_table_frame:help_interval_gen_table",
-                "keyboard_qscroll:help_interval_gen_instrument",
+                "piano_view_btn:help_inst_piano_btn",
+                "guitar_view_btn:help_inst_guitar_btn",
             )
+            if getattr(self, "instrument_view", "piano") == "piano":
+                specific += _w(
+                    "keyboard_qscroll:help_interval_gen_instrument",
+                )
+            else:
+                specific += _w(
+                    "guitar_canvas:help_interval_gen_instrument",
+                    "guitar_handedness_combo:help_guitar_handedness",
+                )
 
         elif mode == "generation":
             specific = _w(

@@ -592,6 +592,51 @@ class RenderMixin:
                         self._draw_forbidden_icon(canvas, cx, sy, icon_r)
             return
 
+        if getattr(self, "interval_gen_tab_active", False):
+            interval_notes = [int(note) for note in self.interval_gen_notes()]
+            if not interval_notes:
+                return
+            root_pc = interval_notes[0] % 12
+            target_pc = interval_notes[-1] % 12
+            playing_note = getattr(self, "interval_gen_playing_note", None)
+            playing_pc = (
+                int(playing_note) % 12 if playing_note is not None else None
+            )
+            note_radius = max(9, min(14, int(string_gap * 0.36)))
+            for string_index, open_note in enumerate(tuning):
+                y = board_y1 + string_index * string_gap
+                for fret in range(0, frets):
+                    note = open_note + fret
+                    pc = note % 12
+                    if pc != root_pc and pc != target_pc:
+                        continue
+                    cx = fret_center_x(fret)
+                    is_playing = playing_pc is not None and pc == playing_pc
+                    is_root = pc == root_pc
+                    fill = (
+                        "#2fa8ff"
+                        if is_playing
+                        else ("#22c55e" if is_root else "#f6b60b")
+                    )
+                    outline = "#0f5f99" if is_playing else "#2f3137"
+                    canvas.create_oval(
+                        cx - note_radius,
+                        y - note_radius,
+                        cx + note_radius,
+                        y + note_radius,
+                        fill=fill,
+                        outline=outline,
+                        width=1,
+                    )
+                    canvas.create_text(
+                        cx,
+                        y,
+                        text="1" if is_root else "2",
+                        fill="#101820",
+                        font=("Helvetica", 9, "bold"),
+                    )
+            return
+
         if frets_selected is None:
             return
 
@@ -696,6 +741,12 @@ class RenderMixin:
             self.redraw_guitar_fretboard()
             return
         if self.generation_tab_active and self.instrument_view == "guitar":
+            self.redraw_guitar_fretboard()
+            return
+        if (
+            getattr(self, "interval_gen_tab_active", False)
+            and self.instrument_view == "guitar"
+        ):
             self.redraw_guitar_fretboard()
             return
         canvas = self.keyboard_canvas

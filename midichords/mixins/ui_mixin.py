@@ -3641,7 +3641,7 @@ class UiMixin:
                 "interval_gen_alt_row:help_interval_gen_alt",
                 "interval_gen_semitones_row:help_interval_gen_semitones",
                 "interval_gen_table_frame:help_interval_gen_table",
-                "keyboard_qscroll:help_interval_instrument",
+                "keyboard_qscroll:help_interval_gen_instrument",
             )
 
         elif mode == "generation":

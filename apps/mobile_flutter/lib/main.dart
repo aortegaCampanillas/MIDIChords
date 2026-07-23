@@ -5748,16 +5748,19 @@ class _HomeScreenState extends State<HomeScreen>
     final pianoHelpId = switch (_tabIndex) {
       3 => 'scales_instrument_piano',
       2 => 'circle_instrument_piano_btn',
+      7 => 'interval_generation_instrument_piano',
       _ => 'generation_instrument_piano',
     };
     final guitarHelpId = switch (_tabIndex) {
       3 => 'scales_instrument_guitar',
       2 => 'circle_instrument_guitar_btn',
+      7 => 'interval_generation_instrument_guitar',
       _ => 'generation_instrument_guitar',
     };
     final handHelpId = switch (_tabIndex) {
       3 => 'scales_guitar_hand',
       2 => 'circle_guitar_hand',
+      7 => 'interval_generation_guitar_hand',
       _ => 'generation_guitar_hand',
     };
     final guitarVariantHelpId = _tabIndex == 2
@@ -5770,7 +5773,7 @@ class _HomeScreenState extends State<HomeScreen>
       3 => 'scales_instrument',
       4 => 'metronome_instrument',
       5 => 'interval_detection_instrument',
-      7 => 'interval_detection_instrument',
+      7 => 'interval_generation_instrument',
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {

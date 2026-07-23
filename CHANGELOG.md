@@ -163,6 +163,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Ayuda contextual**: las explicaciones del piano y la guitarra en los modos de generación los presentan ahora como vistas del resultado y remiten a los botones de reproducción, sin describirlos incorrectamente como instrumentos interactivos.
+
 - **Web (generación de intervalos)**: el piano y la guitarra reservan ahora una columna real para los botones de instrumento, evitando que el contenido se extienda por debajo o se solape con ellos.
 
 - **Escritorio (generación de intervalos)**: las categorías de la tabla respetan ahora el idioma configurado y muestran Diminished, Minor, Major, Perfect y Augmented en inglés.

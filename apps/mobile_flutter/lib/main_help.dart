@@ -328,9 +328,9 @@ extension _HomeScreenHelp on _HomeScreenState {
           titleEs: 'Piano o guitarra',
           titleEn: 'Piano or guitar',
           bodyEs:
-              'Visualiza y prueba el acorde generado en el instrumento seleccionado.',
+              'Muestra el acorde generado en el instrumento seleccionado. Usa el boton de reproduccion para escucharlo.',
           bodyEn:
-              'Visualize and try the generated chord on the selected instrument.',
+              'Shows the generated chord on the selected instrument. Use the play button to hear it.',
           side: _HelpCalloutSide.top,
         ),
       ],
@@ -810,6 +810,55 @@ extension _HomeScreenHelp on _HomeScreenState {
           side: _HelpCalloutSide.top,
         ),
       ],
+      7 => <_HelpStep>[
+        _HelpStep(
+          id: 'interval_generation_staff',
+          titleEs: 'Pentagrama',
+          titleEn: 'Staff',
+          bodyEs:
+              'Muestra las dos notas del intervalo generado en el pentagrama.',
+          bodyEn: 'Shows the two generated interval notes on the staff.',
+          side: _HelpCalloutSide.top,
+        ),
+        _HelpStep(
+          id: 'interval_generation_instrument_piano',
+          titleEs: 'Boton Piano',
+          titleEn: 'Piano button',
+          bodyEs: 'Cambia la representacion del intervalo al piano.',
+          bodyEn: 'Switches the interval representation to piano.',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_instrument_guitar',
+          titleEs: 'Boton Guitarra',
+          titleEn: 'Guitar button',
+          bodyEs: 'Cambia la representacion del intervalo a la guitarra.',
+          bodyEn: 'Switches the interval representation to guitar.',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_guitar_hand',
+          titleEs: 'Mano de la guitarra',
+          titleEn: 'Guitar handedness',
+          bodyEs:
+              'Ajusta la visualizacion para diestro o zurdo en la guitarra.',
+          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
+          side: _HelpCalloutSide.top,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'interval_generation_instrument',
+          titleEs: 'Piano o guitarra',
+          titleEn: 'Piano or guitar',
+          bodyEs:
+              'Muestra como referencia las notas del intervalo generado. Usa los botones de reproduccion ascendente o descendente para escucharlo.',
+          bodyEn:
+              'Shows the generated interval notes as a reference. Use the ascending or descending play buttons to hear it.',
+          side: _HelpCalloutSide.top,
+        ),
+      ],
       6 => <_HelpStep>[
         _HelpStep(
           id: 'tuner_staff',
@@ -1061,7 +1110,7 @@ extension _HomeScreenHelp on _HomeScreenState {
     4 => 'metronome_bead_row',
     5 => 'interval_detection_staff',
     6 => 'tuner_staff',
-    7 => 'interval_detection_staff',
+    7 => 'interval_generation_staff',
     _ => 'detection_staff',
   };
 }

@@ -7,6 +7,13 @@
         "date": "2026-07-23",
         "publish": false,
         "platforms": ["web", "desktop", "mobile"],
+        "es": "Ayuda contextual: las explicaciones del piano y la guitarra en los modos de generación los presentan como vistas del resultado y remiten a los botones de reproducción.",
+        "en": "Contextual help: piano and guitar descriptions in generation modes now present them as result views and point to the playback buttons."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Detección de intervalos: nuevo campo \"Alternativos\" con otros nombres enarmónicos válidos para el mismo intervalo (por ejemplo Cuarta justa / Tercera aumentada, o Tritono para el intervalo de 6 semitonos).",
         "en": "Interval detection: new \"Alternatives\" field showing other valid enharmonic names for the same interval (e.g. Perfect Fourth / Augmented Third, or Tritone for the 6-semitone interval)."
       },

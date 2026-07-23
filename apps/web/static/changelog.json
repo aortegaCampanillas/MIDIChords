@@ -7,6 +7,13 @@
         "date": "2026-07-23",
         "publish": false,
         "platforms": ["mobile"],
+        "es": "Pentagrama de intervalos: las dos notas se muestran en columnas melódicas separadas para que los intervalos cercanos no parezcan acordes apilados.",
+        "en": "Interval staff: the two notes are shown in separate melodic columns so close intervals no longer look like stacked chords."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["mobile"],
         "es": "Preferencias: al volver a abrir la aplicación se restaura también Generación de Intervalos cuando fue la última pantalla utilizada.",
         "en": "Preferences: reopening the application now also restores Interval Generation when it was the last screen used."
       },

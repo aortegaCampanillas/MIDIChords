@@ -21,6 +21,7 @@ class _MiniStaffPainter extends CustomPainter {
     this.intervalMelodyNotes = const <int?>[],
     this.intervalMelodyDurations = const <String>[],
     this.intervalPlayingIdx,
+    this.intervalSequenceMode = false,
     this.intervalBeatsPerBar = 4,
     this.intervalAnacrusis = 0.0,
   });
@@ -82,6 +83,7 @@ class _MiniStaffPainter extends CustomPainter {
   final List<int?> intervalMelodyNotes;
   final List<String> intervalMelodyDurations;
   final int? intervalPlayingIdx;
+  final bool intervalSequenceMode;
   final int intervalBeatsPerBar;
   final double intervalAnacrusis;
 
@@ -307,7 +309,13 @@ class _MiniStaffPainter extends CustomPainter {
           if (!overlaps) break;
           col += 1;
         }
-        final x = noteStartX + (col * noteColumnStep);
+        final x = intervalSequenceMode
+            ? intervalStaffNoteX(
+                startX: noteStartX,
+                index: i,
+                compactWidth: compactWidth,
+              )
+            : noteStartX + (col * noteColumnStep);
         final ys = List<double>.from(placedCols[col] ?? const <double>[])
           ..add(y);
         placedCols[col] = ys;
@@ -1023,6 +1031,7 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.intervalMelodyMode != intervalMelodyMode) return true;
     if (oldDelegate.intervalPlayingIdx != intervalPlayingIdx) return true;
+    if (oldDelegate.intervalSequenceMode != intervalSequenceMode) return true;
     if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length) {
       return true;
     }

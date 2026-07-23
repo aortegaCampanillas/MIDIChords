@@ -166,6 +166,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Móvil (pentagrama de intervalos)**: las dos notas se distribuyen ahora en columnas melódicas separadas para que intervalos cercanos, como la tercera menor, no parezcan un acorde con las cabezas apiladas.
+
 - **Móvil (preferencias)**: al volver a abrir la aplicación se restaura también Generación de intervalos cuando fue la última pantalla utilizada, en lugar de descartarla por pertenecer al modo añadido más recientemente.
 
 - **Escritorio (generación de intervalos)**: la primera columna de la tabla actualiza ahora sus categorías al idioma configurado, incluso cuando el panel ya se había construido en otro idioma.

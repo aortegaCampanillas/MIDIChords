@@ -32,6 +32,7 @@ import 'scale_dropdown.dart';
 import 'scale_staff_interaction.dart';
 import 'sample_tone_plan.dart';
 import 'staff_beam_geometry.dart';
+import 'staff_note_geometry.dart';
 import 'tuner_capture_session.dart';
 import 'transient_player_lifecycle.dart';
 
@@ -5477,6 +5478,8 @@ class _HomeScreenState extends State<HomeScreen>
                               : (_tabIndex == 7
                                     ? _intervalGenPlayingIdx
                                     : null),
+                          intervalSequenceMode:
+                              _tabIndex == 5 || _tabIndex == 7,
                           intervalBeatsPerBar: imelBeatsPerBar,
                           intervalAnacrusis: imelAnacrusis,
                         ),

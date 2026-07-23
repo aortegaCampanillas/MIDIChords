@@ -1,0 +1,32 @@
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_interval_generation_reserves_a_real_column_for_instrument_controls():
+    css = (ROOT / "apps/web/static/style.css").read_text(encoding="utf-8")
+
+    selector = (
+        ".mode-screen.mode-interval_generation "
+        ".instrument-panel.with-inst-dock"
+    )
+    block = css.split(selector, 1)[1].split("}", 1)[0]
+
+    assert "display: grid" in block
+    assert "grid-template-columns: minmax(0, 1fr) 96px" in block
+    assert "padding-right: 12px" in block
+    assert "> :not(.instrument-dock)" in css
+    assert "min-width: 0" in css
+
+
+def test_interval_generation_stacks_the_dock_on_narrow_screens():
+    css = (ROOT / "apps/web/static/style.css").read_text(encoding="utf-8")
+    media = css.split("@media (max-width: 1200px)", 1)[1]
+
+    assert (
+        ".mode-screen.mode-interval_generation .instrument-panel.with-inst-dock"
+        in media
+    )
+    assert "grid-template-columns: minmax(0, 1fr)" in media
+    assert "justify-self: end" in media

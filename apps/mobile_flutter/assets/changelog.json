@@ -51,6 +51,13 @@
         "platforms": ["mobile"],
         "es": "Generación de Intervalos: el selector se presenta como una tabla completa de categorías y semitonos, con más espacio en tablet y desplazamiento horizontal en pantallas estrechas.",
         "en": "Interval Generation: the selector is now presented as a complete category-and-semitone table, with more room on tablets and horizontal scrolling on narrow screens."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["web"],
+        "es": "Generación de Intervalos: el piano y la guitarra reservan el espacio de los botones de instrumento y ya no se solapan con ellos.",
+        "en": "Interval Generation: the piano and guitar now reserve space for the instrument buttons and no longer overlap them."
       }
     ]
   },

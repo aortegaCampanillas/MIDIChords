@@ -163,6 +163,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Corregido
 
+- **Web (generación de intervalos)**: el piano y la guitarra reservan ahora una columna real para los botones de instrumento, evitando que el contenido se extienda por debajo o se solape con ellos.
+
 - **Escritorio (generación de intervalos)**: las categorías de la tabla respetan ahora el idioma configurado y muestran Diminished, Minor, Major, Perfect y Augmented en inglés.
 
 - **Escritorio (generación de intervalos)**: al pulsar una celda de la tabla se inicia una sola secuencia de reproducción; la primera nota ya no se reataca dos veces rápidamente por la propagación duplicada del clic entre la etiqueta y su contenedor.

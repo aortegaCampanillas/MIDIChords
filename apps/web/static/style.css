@@ -891,6 +891,31 @@ a.btn-link:hover {
   overflow: auto;
 }
 
+.mode-screen.mode-interval_generation .instrument-panel.with-inst-dock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 8px 12px;
+  padding-right: 12px;
+}
+
+.mode-screen.mode-interval_generation
+  .instrument-panel.with-inst-dock
+  > .instrument-dock {
+  position: static;
+  grid-column: 2;
+  grid-row: 1 / span 5;
+  align-self: start;
+  flex-direction: column;
+}
+
+.mode-screen.mode-interval_generation
+  .instrument-panel.with-inst-dock
+  > :not(.instrument-dock) {
+  grid-column: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .mode-screen.mode-generation .instrument-panel {
   min-height: 0;
 }
@@ -1768,6 +1793,25 @@ a.btn-link:hover {
     position: static;
     flex-direction: row;
     align-self: flex-end;
+  }
+
+  .mode-screen.mode-interval_generation .instrument-panel.with-inst-dock {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mode-screen.mode-interval_generation
+    .instrument-panel.with-inst-dock
+    > .instrument-dock {
+    grid-column: 1;
+    grid-row: auto;
+    flex-direction: row;
+    justify-self: end;
+  }
+
+  .mode-screen.mode-interval_generation
+    .instrument-panel.with-inst-dock
+    > :not(.instrument-dock) {
+    grid-column: 1;
   }
 }
 

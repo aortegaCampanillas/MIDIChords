@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -25,5 +26,18 @@ void main() {
     );
 
     expect(visible, const Rect.fromLTWH(100, 100, 350, 120));
+  });
+
+  test('help geometry ignores render boxes that still need layout', () {
+    final source = File('lib/main_help.dart').readAsStringSync();
+    final resolver = source
+        .split('Rect? _helpRectFor(')
+        .last
+        .split('List<_ResolvedHelpStep>')
+        .first;
+
+    expect(resolver, contains('targetBox.debugNeedsLayout'));
+    expect(resolver, contains('overlayBox.debugNeedsLayout'));
+    expect(resolver, contains('viewportBox.debugNeedsLayout'));
   });
 }

@@ -1026,6 +1026,8 @@ extension _HomeScreenHelp on _HomeScreenState {
     final overlayBox = overlayContext.findRenderObject();
     if (targetBox is! RenderBox ||
         overlayBox is! RenderBox ||
+        targetBox.debugNeedsLayout ||
+        overlayBox.debugNeedsLayout ||
         !targetBox.hasSize) {
       return null;
     }
@@ -1035,7 +1037,7 @@ extension _HomeScreenHelp on _HomeScreenState {
     while (ancestor != null && ancestor != overlayBox) {
       if (ancestor is RenderAbstractViewport && ancestor is RenderBox) {
         final viewportBox = ancestor as RenderBox;
-        if (!viewportBox.hasSize) {
+        if (viewportBox.debugNeedsLayout || !viewportBox.hasSize) {
           ancestor = ancestor.parent;
           continue;
         }

@@ -196,6 +196,7 @@ const INTERVAL_GRID_COLUMNS = [
     cellsBySemitone: {
       1: { short: "UA", name: { es: "Unísono aumentado", en: "Augmented Unison" } },
       3: { short: "2A", name: { es: "Segunda aumentada", en: "Augmented Second" } },
+      5: { short: "3A", name: { es: "Tercera aumentada", en: "Augmented Third" } },
       6: { short: "4A", name: { es: "Cuarta aumentada", en: "Augmented Fourth" } },
       8: { short: "5A", name: { es: "Quinta aumentada", en: "Augmented Fifth" } },
       10: { short: "6A", name: { es: "Sexta aumentada", en: "Augmented Sixth" } },

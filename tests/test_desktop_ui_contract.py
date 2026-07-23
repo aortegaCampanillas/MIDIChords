@@ -4,6 +4,8 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 import midichords.main_app as main_app
@@ -76,6 +78,21 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.scale_type_combo.parent() is not window.tab_scale_frame
         assert window.scale_type_combo.parent().parent() is window.tab_scale_frame
         assert window.scale_inline_filter_btn.parent() is window.scale_type_combo.parent()
+
+        window._apply_mode("interval_generation")
+        qt_app.processEvents()
+
+        interval_clicks: list[tuple[int, str]] = []
+        window._set_interval_gen_semitones = (  # type: ignore[method-assign]
+            lambda semitones, column_key: interval_clicks.append(
+                (semitones, column_key)
+            )
+        )
+        _, interval_label = window.interval_gen_cell_labels[("major", 2)]
+        QTest.mouseClick(interval_label, Qt.MouseButton.LeftButton)
+        qt_app.processEvents()
+
+        assert interval_clicks == [(2, "major")]
 
         window._apply_mode("circle_fifths")
         qt_app.processEvents()

@@ -353,10 +353,6 @@ class IntervalGenerationMixin:
                         "<Button-1>",
                         lambda _e, s=semitones, k=col["key"]: self._set_interval_gen_semitones(s, k),
                     )
-                    lbl.bind(
-                        "<Button-1>",
-                        lambda _e, s=semitones, k=col["key"]: self._set_interval_gen_semitones(s, k),
-                    )
                     cell_frame.configure(cursor="pointinghand")
                 self.interval_gen_cell_labels[(col["key"], semitones)] = (cell_frame, lbl)
 

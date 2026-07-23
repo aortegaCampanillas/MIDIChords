@@ -16,6 +16,13 @@
         "platforms": ["web", "desktop"],
         "es": "Nuevo modo Generación de Intervalos: elige una tónica y pulsa una celda de la tabla (disminuidas, menores, mayores, justas, aumentadas por número de semitonos) para generar y escuchar ese intervalo en pentagrama y piano (también en guitarra en la web).",
         "en": "New Interval Generation mode: pick a tonic and tap a table cell (diminished, minor, major, perfect, augmented by semitone count) to generate and hear that interval on the staff and piano (also on guitar on the web)."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "Generación de Intervalos: al pulsar una celda de la tabla, la primera nota se reproduce ahora una sola vez antes de sonar la segunda.",
+        "en": "Interval Generation: tapping a table cell now plays the first note only once before the second note."
       }
     ]
   },

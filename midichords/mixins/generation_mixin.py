@@ -769,7 +769,10 @@ class GenerationMixin:
             self.redraw_guitar_fretboard()
             self.redraw_staff()
     def _generation_staff_note_at_position(self, x: float, y: float) -> Optional[int]:
-        if not self.generation_tab_active:
+        if not (
+            self.generation_tab_active
+            or getattr(self, "interval_gen_tab_active", False)
+        ):
             return None
         best_note: Optional[int] = None
         best_dist = 10_000.0

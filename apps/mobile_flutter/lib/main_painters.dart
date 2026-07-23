@@ -321,7 +321,10 @@ class _MiniStaffPainter extends CustomPainter {
         placedCols[col] = ys;
         Color? fillColor;
         noteOutline.strokeWidth = 1.8;
-        if (detectionActiveNotes.contains(midi)) {
+        if (intervalSequenceMode && intervalPlayingIdx == i) {
+          fillColor = const Color(0xFF4DA3EA);
+          noteOutline.color = const Color(0xFFE9EDF2);
+        } else if (detectionActiveNotes.contains(midi)) {
           fillColor = const Color(0xFF4DA3EA);
           noteOutline.color = const Color(0xFFE9EDF2);
         } else if (generationPlayingNotes.contains(midi)) {

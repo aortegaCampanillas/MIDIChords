@@ -382,6 +382,9 @@ class InputDetectionMixin:
             if hasattr(self, '_update_interval_display'):
                 self._update_interval_display()
             return
+        if getattr(self, "interval_gen_tab_active", False):
+            self._handle_interval_gen_input(note)
+            return
 
         was_physically_held = (
             note in self.midi_held_notes or note in self.mouse_held_notes
@@ -457,6 +460,10 @@ class InputDetectionMixin:
                     self._show_forbidden_note_feedback(note)
                 return
             self._show_forbidden_note_feedback(note)
+            return
+        if getattr(self, "interval_gen_tab_active", False):
+            if note is not None:
+                self._handle_interval_gen_input(note)
             return
         if self.scale_tab_active and self.scale_play_mode == "piano":
             scale_pcs = {n % 12 for n in self.scale_preview_notes}
@@ -627,6 +634,11 @@ class InputDetectionMixin:
                             note_int,
                             stop_audio=(self.instrument_view != "guitar") and self._should_play_midi_input_locally(),
                         )
+                continue
+
+            if getattr(self, "interval_gen_tab_active", False):
+                if message.type == "note_on" and message.velocity > 0:
+                    self._handle_interval_gen_input(int(message.note), source="midi")
                 continue
 
             if self.current_mode == "detection":

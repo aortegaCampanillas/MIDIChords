@@ -2361,6 +2361,16 @@ class UiMixin:
         self.scale_type_selector_label.configure(text=self.tr("label_scale_type"))
         if hasattr(self, "scale_octave_selector_label"):
             self.scale_octave_selector_label.configure(text=self.tr("label_scale_octaves"))
+        if hasattr(self, "scale_fingering_label"):
+            self.scale_fingering_label.configure(text=self.tr("label_fingering_hand"))
+        if hasattr(self, "scale_fingering_frame"):
+            self.scale_fingering_frame.set_labels(
+                {
+                    "none": self.tr("label_fingering_none"),
+                    "left": self.tr("label_fingering_left"),
+                    "right": self.tr("label_fingering_right"),
+                }
+            )
         if hasattr(self, "scale_inline_filter_btn"):
             btn_text = self.tr("basic") if getattr(self, "scale_filter_mode", "basic") == "basic" else self.tr("all")
             self.scale_inline_filter_btn.set_text(btn_text)
@@ -2405,6 +2415,10 @@ class UiMixin:
         self._refresh_scale_preview()
         self._refresh_metronome_ui()
         self._refresh_tuner_ui()
+        if hasattr(self, "_refresh_interval_ui_language"):
+            self._refresh_interval_ui_language()
+        if hasattr(self, "_refresh_interval_gen_ui_language"):
+            self._refresh_interval_gen_ui_language()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
     def _refresh_note_accidental_toggle_styles(self) -> None:

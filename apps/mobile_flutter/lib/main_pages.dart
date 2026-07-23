@@ -1378,9 +1378,10 @@ extension _HomeScreenPages on _HomeScreenState {
                       ),
                       const SizedBox(width: 8),
                       _intervalGenerationPlayButton(
+                        helpId: 'interval_generation_play_reverse',
                         tooltip: _ui(
-                          'Reproducir descendente',
-                          'Play descending',
+                          'Reproducir descendente y mantener ese patrón',
+                          'Play descending and keep that pattern',
                         ),
                         icon: Icons.arrow_left,
                         selected: _intervalGenLastPlayReversed == true,
@@ -1389,7 +1390,11 @@ extension _HomeScreenPages on _HomeScreenState {
                       ),
                       const SizedBox(width: 6),
                       _intervalGenerationPlayButton(
-                        tooltip: _ui('Reproducir ascendente', 'Play ascending'),
+                        helpId: 'interval_generation_play',
+                        tooltip: _ui(
+                          'Reproducir ascendente y mantener ese patrón',
+                          'Play ascending and keep that pattern',
+                        ),
                         icon: Icons.arrow_right,
                         selected: _intervalGenLastPlayReversed == false,
                         onPressed: () =>
@@ -1527,31 +1532,35 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   Widget _intervalGenerationPlayButton({
+    required String helpId,
     required String tooltip,
     required IconData icon,
     required bool selected,
     required VoidCallback onPressed,
   }) {
-    return Tooltip(
-      message: tooltip,
-      child: SizedBox(
-        width: 46,
-        height: 48,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.zero,
-            backgroundColor: selected
-                ? _HomeScreenState._accent
-                : _HomeScreenState._surfaceDark,
-            foregroundColor: selected ? Colors.black : _HomeScreenState._text,
-            side: BorderSide(
-              color: selected
+    return _helpAnchor(
+      helpId,
+      Tooltip(
+        message: tooltip,
+        child: SizedBox(
+          width: 46,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: onPressed,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              backgroundColor: selected
                   ? _HomeScreenState._accent
-                  : _HomeScreenState._border,
+                  : _HomeScreenState._surfaceDark,
+              foregroundColor: selected ? Colors.black : _HomeScreenState._text,
+              side: BorderSide(
+                color: selected
+                    ? _HomeScreenState._accent
+                    : _HomeScreenState._border,
+              ),
             ),
+            child: Icon(icon, size: 34),
           ),
-          child: Icon(icon, size: 34),
         ),
       ),
     );

@@ -29,6 +29,8 @@ const state = {
   intervalGenColumnKey: null,
   intervalGenReverse: false,
   intervalGenLastPlayReverse: null,
+  intervalGenInputCurrentNote: null,
+  intervalGenInputClearTimer: null,
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
@@ -295,9 +297,13 @@ function noteNameFromPc(pc) {
   return noteLabelFromPc(state.language, pc, preferFlat);
 }
 
-/** Etiqueta del teclado: base + alteración sin hueco tipográfico entre ambos. */
-function pianoKeyLabelHtml(pc) {
+/** Etiqueta del teclado: base + alteración; las teclas C incluyen la octava. */
+function pianoKeyLabelHtml(midi) {
+  const pc = Number(midi) % 12;
   const label = noteNameFromPc(pc);
+  if (pc === 0) {
+    return `<span class="key-label">${label}${Math.floor(Number(midi) / 12) - 1}</span>`;
+  }
   if (label.endsWith("#")) {
     const base = label.slice(0, -1);
     return `<span class="key-label"><span class="key-note-base">${base}</span><span class="key-accidental">#</span></span>`;
@@ -2205,7 +2211,6 @@ function getActivePcsForMode() {
     return new Set(state.intervalNotes.map((n) => Number(n) % 12));
   }
   if (state.mode === "interval_generation") {
-    if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote) % 12]);
     return new Set(intervalGenNotes().map((n) => Number(n) % 12));
   }
   return new Set();
@@ -2227,7 +2232,7 @@ function getActiveMidiForMode() {
   }
   if (state.mode === "interval_generation") {
     if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote)]);
-    return new Set(intervalGenNotes().map((n) => Number(n)));
+    return new Set();
   }
   if (state.mode === "metronome") {
     return new Set(Array.from(state.activeMidiLiveNotes));
@@ -2824,6 +2829,13 @@ function renderPiano() {
     : (state.mode === "interval_generation" ? intervalGenNotes().map((n) => Number(n)) : []);
   const intervalNoteSet = new Set(intervalNotes);
   const intervalRootMidi = intervalNotes.length ? intervalNotes[0] : null;
+  const intervalCurrentMidi = state.mode === "interval_generation"
+    ? (
+      state.intervalGenInputCurrentNote != null
+        ? Number(state.intervalGenInputCurrentNote)
+        : (state.intervalGenPlayingNote != null ? Number(state.intervalGenPlayingNote) : null)
+    )
+    : (state.intervalPlayingNote != null ? Number(state.intervalPlayingNote) : null);
 
   for (let midi = low; midi <= high; midi += 1) {
     const pc = midi % 12;
@@ -2858,6 +2870,12 @@ function renderPiano() {
         else key.classList.add("rh");
       }
       if (rawOnKey && scaleRawOutsideDisplay) key.classList.add("active");
+    } else if (
+      state.mode === "interval_generation"
+      && state.intervalGenInputCurrentNote != null
+      && midi === Number(state.intervalGenInputCurrentNote)
+    ) {
+      key.classList.add("active");
     } else if (state.mode !== "scales" && allActiveMidi.has(midi)) {
       key.classList.add("active");
     }
@@ -2869,7 +2887,7 @@ function renderPiano() {
     }
     if (state.mode !== "scales" && tonicPc !== null && pc === tonicPc) key.classList.add("tonic");
     key.dataset.midi = String(midi);
-    key.innerHTML = pianoKeyLabelHtml(pc);
+    key.innerHTML = pianoKeyLabelHtml(midi);
 
     if (generationPianoMode) {
       const rhFinger = rhFingerByNote.get(midi);
@@ -3139,15 +3157,34 @@ function renderGuitar() {
       if (!detectionMode && !inSet) continue;
       const isExtra = extraMidi.has(note);
       const isRoot = (isChordGenerationLikeMode() && chordRootPc !== null && pc === chordRootPc)
-        || (state.mode === "scales" && tonicPc !== null && pc === tonicPc);
+        || (state.mode === "scales" && tonicPc !== null && pc === tonicPc)
+        || (
+          state.mode === "interval_generation"
+          && intervalGenNotes().length > 0
+          && pc === (Number(intervalGenNotes()[0]) % 12)
+        );
       const isCurrentScale = state.mode === "scales"
         && state.scaleCurrentNote != null
         && Number(note) === Number(state.scaleCurrentNote);
-      const isCurrentGeneration = isChordGenerationLikeMode()
+      const isCurrentGeneration = (
+        isChordGenerationLikeMode()
         && (
           (generationCurrentMidi != null && Number(note) === generationCurrentMidi)
           || isPlaybackNoteActive(note, generationPlayingPcs, { matchPitchClass: true })
-        );
+        )
+      ) || (
+        state.mode === "interval_generation"
+        && (
+          (
+            state.intervalGenInputCurrentNote != null
+            && pc === (Number(state.intervalGenInputCurrentNote) % 12)
+          )
+          || (
+            state.intervalGenPlayingNote != null
+            && pc === (Number(state.intervalGenPlayingNote) % 12)
+          )
+        )
+      );
 
       if (detectionMode && !inSet) {
         ctx.fillStyle = "#e5e7eb";
@@ -3360,9 +3397,39 @@ function handleInstrumentNote(note, options = {}) {
     return;
   }
   if (state.mode === "interval_generation") {
-    if (!pressed && !released) {
-      playSingle(Number(note), instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
+    if (released) return;
+    const generated = intervalGenNotes().map((n) => Number(n));
+    const guitarInput = state.instrument === "guitar" && !options.fromMidi;
+    const inputNote = Number(note);
+    const matchingNotes = generated
+      .filter((n) => (n % 12) === (inputNote % 12))
+      .sort((a, b) => {
+        const exactDifference = Number(b === inputNote) - Number(a === inputNote);
+        return exactDifference || Math.abs(a - inputNote) - Math.abs(b - inputNote);
+      });
+    const matched = matchingNotes[0];
+    if (matched == null) {
+      showForbiddenOnPianoKey(note);
+      return;
     }
+    if (!skipAudio) {
+      if (pressed) startHeldInputNote(note, guitarInput ? "guitar" : "piano");
+      else playSingle(Number(note), guitarInput ? "guitar" : "piano");
+    }
+    if (state.intervalGenInputClearTimer != null) clearTimeout(state.intervalGenInputClearTimer);
+    state.intervalGenInputCurrentNote = Number(matched);
+    state.intervalGenPlayingIdx = generated.indexOf(Number(matched));
+    renderInstrument();
+    renderStaff();
+    state.intervalGenInputClearTimer = setTimeout(() => {
+      state.intervalGenInputCurrentNote = null;
+      state.intervalGenPlayingIdx = null;
+      state.intervalGenInputClearTimer = null;
+      if (state.mode === "interval_generation") {
+        renderInstrument();
+        renderStaff();
+      }
+    }, 720);
     return;
   }
   if (isChordGenerationLikeMode() && state.generatedChord) {
@@ -4456,7 +4523,7 @@ function renderStaff() {
   const compactChordStaff = isChordGenerationLikeMode();
   const detectionStaff = state.mode === "detection";
   const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation";
-  const intervalMelodyStaff = intervalDetectionStaff && !!state.intervalMelodyActive;
+  const intervalMelodyStaff = state.mode === "interval_detection" && !!state.intervalMelodyActive;
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
@@ -4759,7 +4826,12 @@ function renderStaff() {
       });
     }
 
-    if (scaleStaff || generationStaff) {
+    if (
+      scaleStaff
+      || generationStaff
+      || detectionStaff
+      || (intervalDetectionStaff && !intervalMelodyStaff)
+    ) {
       state.staff.scaleRegions.push({
         note: Number(midi),
         degree: Number(degreeIdx),
@@ -4914,7 +4986,7 @@ function renderStaff() {
       if (!hit) return;
       previewIntervalMelodyNote(Number(hit.note), Number(hit.idx));
     };
-  } else if (scaleStaff || detectionStaff || generationStaff) {
+  } else if (scaleStaff || detectionStaff || generationStaff || intervalDetectionStaff) {
     const getScaleHit = (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
@@ -5061,7 +5133,11 @@ function renderChangelog(entries) {
   const lang = state.language === "en" ? "en" : "es";
 
   for (const group of entries) {
-    const visibleItems = (group.items || []).filter((item) => item.publish !== false);
+    const visibleItems = (group.items || []).filter((item) => {
+      if (item.publish === false) return false;
+      const platforms = Array.isArray(item.platforms) ? item.platforms : ["web"];
+      return platforms.includes("web");
+    });
     if (!visibleItems.length) continue;
 
     const header = document.createElement("div");
@@ -6423,6 +6499,16 @@ function handleMidiMessage(event) {
       refreshIntervalResult();
     } else {
       stopHeldMidiInputNote(note);
+    }
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
+
+  if (state.mode === "interval_generation") {
+    if (isNoteOn) {
+      handleInstrumentNote(note, { pressed: true, fromMidi: true });
+    } else {
+      stopHeldInputNote(note);
     }
     void bumpMidiScreenWakeLockFromMidi();
     return;

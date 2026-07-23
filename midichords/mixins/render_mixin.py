@@ -11,6 +11,13 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 
 class RenderMixin:
+    def _keyboard_note_label(self, note: int) -> str:
+        """Show the octave on C keys so the keyboard range is unambiguous."""
+        return self.note_name(
+            int(note),
+            with_octave=(int(note) % 12 == 0),
+        )
+
     @staticmethod
     def _notes_share_staff(first_note: int, second_note: int) -> bool:
         """Return whether both notes belong to the same grand-staff clef."""
@@ -631,9 +638,18 @@ class RenderMixin:
                     canvas.create_text(
                         cx,
                         y,
-                        text="1" if is_root else "2",
+                        text=self.note_name(note, with_octave=False),
                         fill="#101820",
                         font=("Helvetica", 9, "bold"),
+                    )
+                    self.guitar_generation_note_regions.append(
+                        (
+                            note,
+                            cx - note_radius,
+                            y - note_radius,
+                            cx + note_radius,
+                            y + note_radius,
+                        )
                     )
             return
 
@@ -754,6 +770,19 @@ class RenderMixin:
         self.white_key_regions = []
         self.black_key_regions = []
         display_active_notes = self._instrument_display_notes()
+        if getattr(self, "interval_tab_active", False) or getattr(
+            self, "interval_gen_tab_active", False
+        ):
+            current_interval_note = (
+                getattr(self, "interval_gen_playing_note", None)
+                if getattr(self, "interval_gen_tab_active", False)
+                else getattr(self, "interval_playing_note", None)
+            )
+            display_active_notes = (
+                {int(current_interval_note)}
+                if current_interval_note is not None
+                else set()
+            )
         if self.generation_tab_active and self.instrument_view == "piano":
             # Keep the generated right-hand chord visible while any key is pressed.
             display_active_notes = set(self.generated_preview_notes) | set(self.generated_playing_notes)
@@ -1033,7 +1062,7 @@ class RenderMixin:
                 canvas.create_text(
                     (x1 + x2) / 2,
                     key_bottom - 16,
-                    text=self.note_name(note, with_octave=False),
+                    text=self._keyboard_note_label(note),
                     fill=label_color,
                     font=("Helvetica", label_pt, "bold"),
                 )
@@ -1064,7 +1093,7 @@ class RenderMixin:
                 canvas.create_text(
                     cx,
                     cy,
-                    text=self.note_name(note, with_octave=False),
+                    text=self._keyboard_note_label(note),
                     fill="#101010",
                     font=("Helvetica", 10, "bold"),
                 )
@@ -2218,7 +2247,9 @@ class RenderMixin:
                         _dy = y - note_ry * 0.4 if (diatonic_idx % 2 == 0) else y
                         canvas.create_oval(_dx - _dr, _dy - _dr, _dx + _dr, _dy + _dr,
                                            fill=_stem_col, outline=_stem_col)
-                if self.generation_tab_active:
+                if self.generation_tab_active or getattr(
+                    self, "interval_gen_tab_active", False
+                ):
                     self.staff_generation_note_regions.append((note, x, y, note_rx, note_ry))
                     if generation_single_note is not None and note == generation_single_note:
                         generation_note_label = generation_name_map.get(note, self.note_name(note, with_octave=False))

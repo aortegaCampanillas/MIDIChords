@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:midichords/staff_note_geometry.dart';
 
 class ScaleStaffHitRegion {
   const ScaleStaffHitRegion({
@@ -116,6 +117,7 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
   required Iterable<int> notes,
   required int keySignatureCount,
   required bool preferFlats,
+  bool intervalSequenceMode = false,
 }) {
   final sortedNotes = notes.toSet().toList()..sort();
   if (size.isEmpty || sortedNotes.isEmpty) {
@@ -168,7 +170,16 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
         midi: midi,
         degree: index,
         isLeftHand: !treble,
-        center: Offset(noteStartX + column * noteColumnStep, y),
+        center: Offset(
+          intervalSequenceMode
+              ? intervalStaffNoteX(
+                  startX: noteStartX,
+                  index: index,
+                  compactWidth: compactWidth,
+                )
+              : noteStartX + column * noteColumnStep,
+          y,
+        ),
         radiusX: radiusX,
         radiusY: radiusY,
       ),
@@ -183,6 +194,7 @@ ScaleStaffHitRegion? staffNoteHitAt({
   required Iterable<int> notes,
   required int keySignatureCount,
   required bool preferFlats,
+  bool intervalSequenceMode = false,
 }) {
   ScaleStaffHitRegion? best;
   var bestDistance = double.infinity;
@@ -191,6 +203,7 @@ ScaleStaffHitRegion? staffNoteHitAt({
     notes: notes,
     keySignatureCount: keySignatureCount,
     preferFlats: preferFlats,
+    intervalSequenceMode: intervalSequenceMode,
   )) {
     final distance = region.normalizedDistanceSquared(position);
     if (distance <= 1 && distance < bestDistance) {

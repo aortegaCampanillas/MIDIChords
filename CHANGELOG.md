@@ -4,6 +4,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- Mantenimiento: el changelog de producto tiene ahora una única fuente canónica y las copias necesarias para web y Flutter se generan automáticamente durante lanzamientos, verificaciones y builds web.
+
 ### Versión
 
 - **1.0.5**: preparadas las compilaciones de distribución para App Store Connect: iOS build 19 y macOS build 21.
@@ -48,6 +50,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Teclado**: al mostrar los nombres de las teclas, cada Do/C incluye ahora su número de octava (`Do4`, `C4`, etc.) en escritorio, web y móvil para facilitar la orientación en el registro.
+- **Móvil (generación de intervalos)**: las zonas táctiles de las dos notas del pentagrama coinciden ahora con sus columnas melódicas visibles, permitiendo pulsar y reproducir también la segunda nota.
+- **Móvil (teclado)**: el centrado inicial se reaplica después de restaurar la última pantalla y fija siempre C4 como referencia, sin que callbacks de layouts anteriores ni el centro de una escala puedan sobrescribirlo.
+- **Generación de intervalos**: el piano, la guitarra y la entrada MIDI reconocen las notas válidas del intervalo en cualquier octava y resaltan en azul su equivalente representado en el pentagrama, también en móvil; el aviso de nota incorrecta queda reservado para alturas ajenas al intervalo.
 - **Generación de intervalos**: los controles de reproducción usan flechas izquierda/derecha coherentes en las tres plataformas y solo el último sentido elegido permanece resaltado en amarillo.
 - **Web (preferencias)**: al recargar la aplicación se restaura el último modo utilizado; los valores guardados se validan y Detección sigue siendo el modo seguro por defecto.
 

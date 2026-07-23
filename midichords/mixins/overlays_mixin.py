@@ -86,7 +86,13 @@ class OverlaysMixin:
                 info["label"].configure(fg=self.color_text if enabled else muted)
             _redraw_all()
 
+        def _set_labels(labels: dict[str, str]) -> None:
+            for value, label in labels.items():
+                if value in items:
+                    items[value]["label"].configure(text=label)
+
         row.set_enabled = _set_enabled  # type: ignore[attr-defined]
+        row.set_labels = _set_labels  # type: ignore[attr-defined]
         return row
 
     def _build_checkbox_row(self, parent: Any, text: str, variable: Any) -> Any:

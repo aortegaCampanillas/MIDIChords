@@ -108,6 +108,34 @@ void main() {
     }
   });
 
+  test('finds both interval notes in their painted sequence columns', () {
+    const size = Size(800, 320);
+    const notes = <int>{60, 64};
+    final regions = buildStaffNoteHitRegions(
+      size: size,
+      notes: notes,
+      keySignatureCount: 0,
+      preferFlats: false,
+      intervalSequenceMode: true,
+    );
+
+    expect(regions, hasLength(2));
+    expect(regions[1].center.dx - regions[0].center.dx, 64);
+    for (final region in regions) {
+      expect(
+        staffNoteHitAt(
+          position: region.center,
+          size: size,
+          notes: notes,
+          keySignatureCount: 0,
+          preferFlats: false,
+          intervalSequenceMode: true,
+        )?.midi,
+        region.midi,
+      );
+    }
+  });
+
   test('other note-based modes are connected to staff playback', () {
     final source = File('lib/main.dart').readAsStringSync();
     final tapBlock = source
@@ -123,6 +151,7 @@ void main() {
 
     expect(tapBlock, contains('const <int>{0, 1, 2, 5, 7}'));
     expect(tapBlock, contains('staffNoteHitAt('));
+    expect(tapBlock, contains('_tabIndex == 5 || _tabIndex == 7'));
     expect(handler, contains('if (_tabIndex == 0)'));
     expect(handler, contains('if (_tabIndex == 1 || _tabIndex == 2)'));
     expect(handler, contains('_tabIndex == 5 || _tabIndex == 7'));
@@ -143,5 +172,33 @@ void main() {
 
     expect(instrumentHandler, contains('_bumpGenerationNoteHighlight(midi);'));
     expect(guitarBuilder, contains('_generationNoteHighlightMidi == note'));
+  });
+
+  test('interval generation accepts matching notes in every octave', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final handler = source
+        .split('Future<void> _handleInstrumentNote(')
+        .last
+        .split('Future<void> _beginInputDrag(')
+        .first;
+
+    expect(handler, contains('notes[index] % 12 == midi % 12'));
+    expect(handler, contains('final aExact = notes[a] == midi;'));
+    expect(handler, contains('(notes[a] - midi).abs()'));
+  });
+
+  test('interval input highlights its matching note on the regular staff', () {
+    final painter = File('lib/main_painters.dart').readAsStringSync();
+    final regularStaffNotes = painter
+        .split('final list = notes.toList()..sort();')
+        .last
+        .split('if (intervalMelodyMode)')
+        .first;
+
+    expect(
+      regularStaffNotes,
+      contains('intervalSequenceMode && intervalPlayingIdx == i'),
+    );
+    expect(regularStaffNotes, contains('fillColor = const Color(0xFF4DA3EA)'));
   });
 }

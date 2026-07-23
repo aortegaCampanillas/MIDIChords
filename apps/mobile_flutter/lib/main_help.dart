@@ -812,6 +812,26 @@ extension _HomeScreenHelp on _HomeScreenState {
       ],
       7 => <_HelpStep>[
         _HelpStep(
+          id: 'interval_generation_play_reverse',
+          titleEs: 'Reproducción descendente',
+          titleEn: 'Descending playback',
+          bodyEs:
+              'Reproduce primero la nota alta y después la baja. También fija el patrón descendente para las reproducciones posteriores.',
+          bodyEn:
+              'Play the high note first and then the low note. This also sets the descending pattern for subsequent playback.',
+          side: _HelpCalloutSide.bottom,
+        ),
+        _HelpStep(
+          id: 'interval_generation_play',
+          titleEs: 'Reproducción ascendente',
+          titleEn: 'Ascending playback',
+          bodyEs:
+              'Reproduce primero la nota baja y después la alta. También fija el patrón ascendente para las reproducciones posteriores.',
+          bodyEn:
+              'Play the low note first and then the high note. This also sets the ascending pattern for subsequent playback.',
+          side: _HelpCalloutSide.bottom,
+        ),
+        _HelpStep(
           id: 'interval_generation_staff',
           titleEs: 'Pentagrama',
           titleEn: 'Staff',

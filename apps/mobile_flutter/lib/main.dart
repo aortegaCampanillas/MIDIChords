@@ -417,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _intervalGenLabel = '5J';
   int? _intervalGenPlayingIdx;
   bool? _intervalGenLastPlayReversed;
+  Timer? _intervalGenInputHighlightTimer;
   Timer? _intervalGenPlaybackTimer;
   Timer? _scaleLoopTimer;
   Timer? _scaleStaffHighlightTimer;
@@ -476,6 +477,8 @@ class _HomeScreenState extends State<HomeScreen>
   final PianoScrollMemory _pianoScrollMemory = PianoScrollMemory();
   bool _needsPianoScrollSync = false;
   double? _pendingPianoScrollOffset;
+  bool _startupPianoCenterPending = true;
+  int _pianoScrollSyncGeneration = 0;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
@@ -865,6 +868,13 @@ class _HomeScreenState extends State<HomeScreen>
       _scaleOctaves = prefs.scaleOctaves;
       _scaleFingeringHand = prefs.scaleFingeringHand;
       _tabIndex = prefs.tabIndex;
+      // El primer build puede haber consumido el centrado antes de restaurar
+      // la última pantalla. Reprogramarlo aquí garantiza C4 en la pantalla
+      // real de arranque, incluso si es Escalas.
+      _pendingPianoScrollOffset = null;
+      _startupPianoCenterPending = true;
+      _needsPianoScrollSync = true;
+      _pianoScrollSyncGeneration += 1;
     });
     await _loadMeta();
     await _loadChangelog();
@@ -1111,6 +1121,7 @@ class _HomeScreenState extends State<HomeScreen>
     _scaleStaffHighlightTimer?.cancel();
     _intervalMelodyPlaybackTimer?.cancel();
     _intervalGenPlaybackTimer?.cancel();
+    _intervalGenInputHighlightTimer?.cancel();
     _helpBannerTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
@@ -2594,17 +2605,38 @@ class _HomeScreenState extends State<HomeScreen>
     bool fromMidi = false,
   }) async {
     if (_tabIndex == 7) {
-      if (!pressed) return;
-      final allowed = _intervalGenerationNotes()
-          .map((note) => note % 12)
-          .contains(midi % 12);
-      if (!allowed) {
+      if (fromMidi && !pressed) return;
+      final notes = _intervalGenerationNotes();
+      final matchingIndexes =
+          <int>[
+            for (var index = 0; index < notes.length; index++)
+              if (notes[index] % 12 == midi % 12) index,
+          ]..sort((a, b) {
+            final aExact = notes[a] == midi;
+            final bExact = notes[b] == midi;
+            if (aExact != bExact) return aExact ? -1 : 1;
+            return (notes[a] - midi).abs().compareTo((notes[b] - midi).abs());
+          });
+      final matchedIndex = matchingIndexes.isEmpty ? -1 : matchingIndexes.first;
+      if (matchedIndex < 0) {
         _showForbiddenOnPiano(midi);
         return;
       }
       if (!fromMidi || _midiInputSoundEnabled) {
         await playNote(midi, instrument: _instrumentView);
       }
+      _intervalGenInputHighlightTimer?.cancel();
+      setState(() => _intervalGenPlayingIdx = matchedIndex);
+      _intervalGenInputHighlightTimer = Timer(
+        const Duration(milliseconds: 720),
+        () {
+          if (!mounted) return;
+          setState(() {
+            _intervalGenPlayingIdx = null;
+            _intervalGenInputHighlightTimer = null;
+          });
+        },
+      );
       return;
     }
     if (_tabIndex == 5) {
@@ -2941,10 +2973,19 @@ class _HomeScreenState extends State<HomeScreen>
     _needsPianoScrollSync = false;
     final requestedOffset = _pendingPianoScrollOffset;
     _pendingPianoScrollOffset = null;
+    final forceMiddleC = _startupPianoCenterPending;
+    final syncGeneration = ++_pianoScrollSyncGeneration;
 
     void attempt(int retriesLeft, double lastMaxExt) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted || !_pianoScrollController.hasClients) return;
+        if (!mounted || syncGeneration != _pianoScrollSyncGeneration) return;
+        if (!_pianoScrollController.hasClients) {
+          if (retriesLeft > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 32));
+            attempt(retriesLeft - 1, lastMaxExt);
+          }
+          return;
+        }
         final maxExt = _pianoScrollController.position.maxScrollExtent;
         // El layout puede tardar varios frames en asentarse tras un cambio
         // de altura (p. ej. al activar/desactivar la digitación, que añade
@@ -2962,7 +3003,7 @@ class _HomeScreenState extends State<HomeScreen>
           return;
         }
         final int anchorMidi;
-        if (_tabIndex == 3 && _generatedScaleJson != null) {
+        if (!forceMiddleC && _tabIndex == 3 && _generatedScaleJson != null) {
           final rh = _scaleRhNotes();
           if (rh.isNotEmpty) {
             anchorMidi = (rh.first + rh.last) ~/ 2;
@@ -2980,6 +3021,9 @@ class _HomeScreenState extends State<HomeScreen>
         final centeredTarget = keyCenterX - viewportW / 2;
         final target = (requestedOffset ?? centeredTarget).clamp(0.0, maxExt);
         _pianoScrollController.jumpTo(target);
+        if (forceMiddleC) {
+          _startupPianoCenterPending = false;
+        }
       });
     }
 
@@ -3852,7 +3896,11 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
     if (_tabIndex == 5 || _tabIndex == 7) {
-      _playStaffPreviewNote(midi);
+      if (_tabIndex == 7) {
+        unawaited(_handleInstrumentNote(midi, pressed: false));
+      } else {
+        _playStaffPreviewNote(midi);
+      }
     }
   }
 
@@ -4031,6 +4079,11 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
     return _pcLabelCanonical(pc);
+  }
+
+  String _pianoKeyLabel(int midi) {
+    final label = _pcLabel(midi % 12);
+    return midi % 12 == 0 ? '$label${midi ~/ 12 - 1}' : label;
   }
 
   /// Nombre de nota neutro (Do, Do#, Re...), sin la ortografía diatónica de
@@ -5436,6 +5489,8 @@ class _HomeScreenState extends State<HomeScreen>
                           notes: displayNotes,
                           keySignatureCount: staffKeySig.count,
                           preferFlats: staffKeySig.preferFlats,
+                          intervalSequenceMode:
+                              _tabIndex == 5 || _tabIndex == 7,
                         );
                         if (hit != null) {
                           _playGeneralStaffNote(
@@ -6328,7 +6383,9 @@ class _HomeScreenState extends State<HomeScreen>
     final whiteMidi = midiRange
         .where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12))
         .toList();
-    final active = activeMidi.toSet();
+    final active = _tabIndex == 5 || _tabIndex == 7
+        ? <int>{}
+        : activeMidi.toSet();
     final extras = _instrumentExtrasForCurrentTab();
     final scaleRh = (_tabIndex == 3 ? _scaleRhNotes() : <int>[]).toSet();
     final intervalNotes = _tabIndex == 5
@@ -6336,6 +6393,15 @@ class _HomeScreenState extends State<HomeScreen>
         : (_tabIndex == 7 ? _intervalGenerationNotes() : const <int>[]);
     final intervalNoteSet = intervalNotes.toSet();
     final intervalRootMidi = intervalNotes.isEmpty ? null : intervalNotes.first;
+    final intervalPlayingIdx = _tabIndex == 5
+        ? _intervalPlayingIdx
+        : (_tabIndex == 7 ? _intervalGenPlayingIdx : null);
+    final intervalCurrentMidi =
+        intervalPlayingIdx != null &&
+            intervalPlayingIdx >= 0 &&
+            intervalPlayingIdx < intervalNotes.length
+        ? intervalNotes[intervalPlayingIdx]
+        : null;
     final chordGenPiano =
         (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'piano';
     final chordRh = chordGenPiano && _generatedChordJson != null
@@ -6452,6 +6518,8 @@ class _HomeScreenState extends State<HomeScreen>
                           Row(
                             children: whiteMidi.map((midi) {
                               final isActive = active.contains(midi);
+                              final isIntervalCurrent =
+                                  midi == intervalCurrentMidi;
                               final isExtra = extras.contains(midi);
                               final isScaleCurrent =
                                   _tabIndex == 3 &&
@@ -6487,9 +6555,10 @@ class _HomeScreenState extends State<HomeScreen>
                                   width: whiteW,
                                   height: whiteH,
                                   decoration: BoxDecoration(
-                                    color:
-                                        chordGenPiano &&
-                                            _generatedChordJson != null
+                                    color: isIntervalCurrent
+                                        ? const Color(0xFF4DA3EA)
+                                        : chordGenPiano &&
+                                              _generatedChordJson != null
                                         ? (inChordRh
                                               ? (genKeyHi
                                                     ? const Color(0xFF2878C8)
@@ -6551,7 +6620,7 @@ class _HomeScreenState extends State<HomeScreen>
                                               TextSpan(
                                                 children:
                                                     _splitPitchClassLabelSpans(
-                                                      _pcLabel(midi % 12),
+                                                      _pianoKeyLabel(midi),
                                                       const TextStyle(
                                                         color: Color(
                                                           0xFF1A222D,
@@ -6657,6 +6726,8 @@ class _HomeScreenState extends State<HomeScreen>
                               )
                               .map((midi) {
                                 final isActive = active.contains(midi);
+                                final isIntervalCurrent =
+                                    midi == intervalCurrentMidi;
                                 final isExtra = extras.contains(midi);
                                 final isScaleCurrent =
                                     _tabIndex == 3 &&
@@ -6696,9 +6767,10 @@ class _HomeScreenState extends State<HomeScreen>
                                       width: blackW,
                                       height: blackH,
                                       decoration: BoxDecoration(
-                                        color:
-                                            chordGenPiano &&
-                                                _generatedChordJson != null
+                                        color: isIntervalCurrent
+                                            ? const Color(0xFF0078D7)
+                                            : chordGenPiano &&
+                                                  _generatedChordJson != null
                                             ? (inChordRh
                                                   ? (genKeyHi
                                                         ? const Color(
@@ -6777,8 +6849,8 @@ class _HomeScreenState extends State<HomeScreen>
                                                       TextSpan(
                                                         children:
                                                             _splitPitchClassLabelSpans(
-                                                              _pcLabel(
-                                                                midi % 12,
+                                                              _pianoKeyLabel(
+                                                                midi,
                                                               ),
                                                               const TextStyle(
                                                                 color: Colors
@@ -6928,6 +7000,20 @@ class _HomeScreenState extends State<HomeScreen>
   }) {
     final activePcs = activeMidi.map((n) => n % 12).toSet();
     final scaleMode = _tabIndex == 3;
+    final intervalGenerationMode = _tabIndex == 7;
+    final intervalGenerationNotes = intervalGenerationMode
+        ? _intervalGenerationNotes()
+        : const <int>[];
+    final intervalGenerationRootPc = intervalGenerationNotes.isEmpty
+        ? null
+        : intervalGenerationNotes.first % 12;
+    final intervalGenerationCurrentPc =
+        intervalGenerationMode &&
+            _intervalGenPlayingIdx != null &&
+            _intervalGenPlayingIdx! >= 0 &&
+            _intervalGenPlayingIdx! < intervalGenerationNotes.length
+        ? intervalGenerationNotes[_intervalGenPlayingIdx!] % 12
+        : null;
     final scaleTonicPc = _positiveMod12(
       (_generatedScaleJson?['tonic_pc'] as num?)?.toInt() ?? _scaleTonicPc,
     );
@@ -7112,10 +7198,18 @@ class _HomeScreenState extends State<HomeScreen>
                         (chordMode
                             ? (_heldChordNativeNotes.contains(note) ||
                                   _generationNoteHighlightMidi == note)
-                            : (_tabIndex == 3 &&
-                                  ((_scaleCurrentNote != null &&
-                                          _scaleCurrentNote == note) ||
-                                      _scaleMidiHeldNotes.contains(note))));
+                            : ((_tabIndex == 3 &&
+                                      ((_scaleCurrentNote != null &&
+                                              _scaleCurrentNote == note) ||
+                                          _scaleMidiHeldNotes.contains(
+                                            note,
+                                          ))) ||
+                                  (intervalGenerationMode &&
+                                      note % 12 ==
+                                          intervalGenerationCurrentPc)));
+                    final isIntervalRoot =
+                        intervalGenerationMode &&
+                        note % 12 == intervalGenerationRootPc;
                     final scaleMarker = scaleMode && active
                         ? scaleGuitarMarkerStyle(
                             note: note,
@@ -7182,8 +7276,12 @@ class _HomeScreenState extends State<HomeScreen>
                                     ? (isExtra
                                           ? const Color(0xFFE04A4A)
                                           : (isPlaying
-                                                ? const Color(0xFFCC9200)
-                                                : const Color(0xFFF3BF2F)))
+                                                ? const Color(0xFF2FA8FF)
+                                                : (isIntervalRoot
+                                                      ? const Color(0xFF22C55E)
+                                                      : const Color(
+                                                          0xFFF3BF2F,
+                                                        ))))
                                     : (showDot
                                           ? const Color(0xFFE5E7EB)
                                           : Colors.transparent)),
@@ -7194,7 +7292,17 @@ class _HomeScreenState extends State<HomeScreen>
                                         (active
                                             ? (isExtra
                                                   ? const Color(0xFFB33434)
-                                                  : const Color(0xFFD29B20))
+                                                  : (isPlaying
+                                                        ? const Color(
+                                                            0xFF0F5F99,
+                                                          )
+                                                        : (isIntervalRoot
+                                                              ? const Color(
+                                                                  0xFF1E8C38,
+                                                                )
+                                                              : const Color(
+                                                                  0xFFD29B20,
+                                                                ))))
                                             : const Color(0xFFAAB1BC)),
                                     width: isPlaying ? 2.5 : 1.0,
                                   )

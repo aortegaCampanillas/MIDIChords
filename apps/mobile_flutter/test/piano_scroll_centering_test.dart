@@ -42,4 +42,55 @@ void main() {
     expect(source, contains('_requestPianoScrollForMode(value);'));
     expect(source, contains('_requestPianoScrollForMode(_tabIndex);'));
   });
+
+  test('startup centering retries until the piano scroll view is mounted', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final syncMethod = source
+        .split('void _syncPianoScrollToMiddleC')
+        .last
+        .split('void _stopHeldChord')
+        .first;
+
+    expect(source, contains('_needsPianoScrollSync = true;'));
+    expect(syncMethod, contains('if (!_pianoScrollController.hasClients)'));
+    expect(syncMethod, contains('attempt(retriesLeft - 1, lastMaxExt);'));
+    expect(syncMethod, contains('anchorMidi = _kPianoMiddleCMidi;'));
+  });
+
+  test('restored startup mode schedules a fresh mandatory C4 centering', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final preferenceLoad = source
+        .split('Future<void> _loadPrefsAndStart()')
+        .last
+        .split('Future<void> _savePrefs()')
+        .first;
+    final syncMethod = source
+        .split('void _syncPianoScrollToMiddleC')
+        .last
+        .split('void _stopHeldChord')
+        .first;
+
+    expect(preferenceLoad, contains('_pendingPianoScrollOffset = null;'));
+    expect(preferenceLoad, contains('_startupPianoCenterPending = true;'));
+    expect(preferenceLoad, contains('_needsPianoScrollSync = true;'));
+    expect(preferenceLoad, contains('_pianoScrollSyncGeneration += 1;'));
+    expect(syncMethod, contains('!forceMiddleC && _tabIndex == 3'));
+    expect(
+      syncMethod,
+      contains('syncGeneration != _pianoScrollSyncGeneration'),
+    );
+  });
+
+  test('C key labels include the octave when note names are visible', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final labelHelper = source
+        .split('String _pianoKeyLabel(int midi)')
+        .last
+        .split('String _pcLabelCanonical')
+        .first;
+
+    expect(labelHelper, contains("midi % 12 == 0"));
+    expect(labelHelper, contains(r"'$label${midi ~/ 12 - 1}'"));
+    expect(source, contains('_pianoKeyLabel(midi)'));
+  });
 }

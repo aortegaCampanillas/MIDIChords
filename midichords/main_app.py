@@ -1213,6 +1213,14 @@ class MidiChordAnalyzerApp(
         self._preview_generated_chord_short()
 
     def _on_guitar_canvas_press(self, event: tk.Event) -> None:
+        if getattr(self, "interval_gen_tab_active", False) and self.instrument_view == "guitar":
+            x = float(event.x)
+            y = float(event.y)
+            for note, x1, y1, x2, y2 in self.guitar_generation_note_regions:
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    self._handle_interval_gen_input(note)
+                    break
+            return
         if self.generation_tab_active and self.instrument_view == "guitar":
             x = float(event.x)
             y = float(event.y)
@@ -1437,6 +1445,11 @@ class MidiChordAnalyzerApp(
             idx = self._tuner_string_at_position(float(event.x), float(event.y))
             if idx is not None:
                 self._play_tuner_string(idx)
+            return
+        if getattr(self, "interval_gen_tab_active", False):
+            note = self._generation_staff_note_at_position(float(event.x), float(event.y))
+            if note is not None:
+                self._handle_interval_gen_input(note)
             return
         if self.generation_tab_active and self.instrument_view == "guitar":
             note = self._generation_staff_note_at_position(float(event.x), float(event.y))

@@ -30,6 +30,19 @@ class WebUiTextsTests(unittest.TestCase):
         self.assertIn("globalThis.MidiChordsUiTexts", app_source)
         self.assertLess(html.index("/static/ui_texts.js"), html.index("/static/app.js"))
 
+    def test_changelog_only_renders_items_published_for_web(self):
+        source = APP_JS.read_text(encoding="utf-8")
+        renderer = source.split("function renderChangelog(entries)", 1)[1].split(
+            "async function loadChangelog", 1
+        )[0]
+
+        self.assertIn("if (item.publish === false) return false", renderer)
+        self.assertIn(
+            'const platforms = Array.isArray(item.platforms) ? item.platforms : ["web"]',
+            renderer,
+        )
+        self.assertIn('return platforms.includes("web")', renderer)
+
 
 if __name__ == "__main__":
     unittest.main()

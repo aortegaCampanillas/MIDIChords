@@ -232,15 +232,20 @@ class IntervalMixin:
 
         bg = self.color_surface_alt
         self.interval_panel = tk.Frame(self.tab_interval_frame, bg=bg, bd=0, highlightthickness=0)
+        self.interval_i18n_labels: list[tuple[object, str]] = []
 
         # Title — same as chord detection (22 bold)
-        tk.Label(
+        self.interval_title_label = tk.Label(
             self.interval_panel,
             text=self._get_ui_text('heading_interval_detection'),
             bg=bg,
             fg=self.color_text,
             font=(self.ui_font_family, 22, "bold"),
-        ).pack(anchor="w", pady=(0, 6))
+        )
+        self.interval_title_label.pack(anchor="w", pady=(0, 6))
+        self.interval_i18n_labels.append(
+            (self.interval_title_label, "heading_interval_detection")
+        )
 
         # Hint subtitle — same as detection_help_label (14)
         self.interval_help_label = tk.Label(
@@ -352,11 +357,13 @@ class IntervalMixin:
         def _result_row(label_key, value_fg=None):
             row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
             row.pack(anchor="w", pady=(0, 4), fill=tk.X)
-            tk.Label(
+            caption = tk.Label(
                 row, text=self._get_ui_text(label_key),
                 bg=result_box_bg, fg=self.color_muted,
                 font=(self.ui_font_family, 14),
-            ).pack(side=tk.LEFT)
+            )
+            caption.pack(side=tk.LEFT)
+            self.interval_i18n_labels.append((caption, label_key))
             val = tk.Label(
                 row, text=" -",
                 bg=result_box_bg, fg=value_fg or self.color_text,
@@ -373,11 +380,15 @@ class IntervalMixin:
         # Ejemplo row: label + clickable button value
         self.interval_ejemplo_row = tk.Frame(self.interval_result_inner, bg=result_box_bg)
         self.interval_ejemplo_row.pack(anchor="w", pady=(0, 4), fill=tk.X)
-        tk.Label(
+        self.interval_example_caption = tk.Label(
             self.interval_ejemplo_row, text=self._get_ui_text('label_interval_example'),
             bg=result_box_bg, fg=self.color_muted,
             font=(self.ui_font_family, 14),
-        ).pack(side=tk.LEFT)
+        )
+        self.interval_example_caption.pack(side=tk.LEFT)
+        self.interval_i18n_labels.append(
+            (self.interval_example_caption, "label_interval_example")
+        )
         self.interval_melody_btn = GrayRoundedButton(
             self.interval_ejemplo_row,
             text="-",
@@ -400,6 +411,16 @@ class IntervalMixin:
         if hasattr(self, "_refresh_right_panel_wraplengths"):
             self._refresh_right_panel_wraplengths()
         self._refresh_interval_buttons_state()
+
+    def _refresh_interval_ui_language(self) -> None:
+        for label, key in getattr(self, "interval_i18n_labels", []):
+            label.configure(text=self._get_ui_text(key))
+        if hasattr(self, "interval_help_label"):
+            self.interval_help_label.configure(
+                text=self._get_ui_text("hint_interval_detection")
+            )
+        if hasattr(self, "interval_clear_btn"):
+            self.interval_clear_btn.set_text(self._get_ui_text("button_clear"))
 
     def _refresh_interval_buttons_state(self):
         """Enable/disable play buttons and update melody button state."""

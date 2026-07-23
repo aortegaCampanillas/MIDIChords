@@ -30,3 +30,24 @@ def test_interval_generation_stacks_the_dock_on_narrow_screens():
     )
     assert "grid-template-columns: minmax(0, 1fr)" in media
     assert "justify-self: end" in media
+
+
+def test_interval_generation_staff_registers_clickable_note_regions():
+    source = (ROOT / "apps" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        'const intervalMelodyStaff = state.mode === "interval_detection" '
+        "&& !!state.intervalMelodyActive;"
+    ) in source
+    region_registration = source.split(
+        "state.staff.scaleRegions.push({", 1
+    )[0].rsplit("if (", 1)[1]
+    assert "intervalDetectionStaff && !intervalMelodyStaff" in region_registration
+    interactive_branch = source.split(
+        "} else if (scaleStaff || detectionStaff || generationStaff || intervalDetectionStaff) {",
+        1,
+    )[1].split("function renderChangelog", 1)[0]
+    assert "state.staff.scaleRegions.forEach" in interactive_branch
+    assert "handleInstrumentNote(Number(hit.note))" in interactive_branch

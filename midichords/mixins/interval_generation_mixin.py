@@ -25,6 +25,7 @@ class IntervalGenerationMixin:
         self.interval_gen_playing_note: int | None = None
         self.interval_gen_playing_idx: int | None = None
         self.interval_gen_playback_timer: object | None = None
+        self.interval_gen_input_clear_timer: object | None = None
 
     def interval_gen_root_pc(self) -> int:
         return root_pc_from_letter_accidental(
@@ -154,6 +155,50 @@ class IntervalGenerationMixin:
         self._refresh_interval_gen_buttons_state()
         self._play_interval_gen_current()
 
+    def _handle_interval_gen_input(self, note: int, *, source: str = "mouse") -> bool:
+        notes = self.interval_gen_notes()
+        if len(notes) != 2:
+            return False
+        note_int = int(note)
+        guitar_input = self.instrument_view == "guitar" and source != "midi"
+        matching_notes = [
+            candidate for candidate in notes if candidate % 12 == note_int % 12
+        ]
+        matched = (
+            min(
+                matching_notes,
+                key=lambda candidate: (
+                    candidate != note_int,
+                    abs(candidate - note_int),
+                    notes.index(candidate),
+                ),
+            )
+            if matching_notes
+            else None
+        )
+        if matched is None:
+            self._show_forbidden_note_feedback(note_int)
+            return False
+        if self.interval_gen_input_clear_timer:
+            self.after_cancel(self.interval_gen_input_clear_timer)
+        self.interval_gen_playing_note = int(matched)
+        self.interval_gen_playing_idx = notes.index(int(matched))
+        if guitar_input:
+            self.pluck_note(note_int, velocity=100, duration_seconds=1.0)
+        else:
+            self.play_note(note_int, velocity=100)
+        self.update_music_views()
+        self.interval_gen_input_clear_timer = self.after(
+            720, self._clear_interval_gen_input_highlight
+        )
+        return True
+
+    def _clear_interval_gen_input_highlight(self) -> None:
+        self.interval_gen_input_clear_timer = None
+        self.interval_gen_playing_note = None
+        self.interval_gen_playing_idx = None
+        self.update_music_views()
+
     def _play_interval_gen_sequence(self, notes: list[int], index: int = 0) -> None:
         if self.interval_gen_playback_timer:
             self.after_cancel(self.interval_gen_playback_timer)
@@ -171,7 +216,10 @@ class IntervalGenerationMixin:
         note = notes[index]
         self.interval_gen_playing_note = note
         self.interval_gen_playing_idx = index
-        self.play_note(note, velocity=80)
+        if self.instrument_view == "guitar":
+            self.pluck_note(note, velocity=96, duration_seconds=0.48)
+        else:
+            self.play_note(note, velocity=80)
         self.update_music_views()
         self.interval_gen_playback_timer = self.after(
             500,
@@ -179,7 +227,8 @@ class IntervalGenerationMixin:
         )
 
     def _play_interval_gen_sequence_continue(self, notes: list[int], index: int, prev_note: int) -> None:
-        self.stop_note(prev_note)
+        if self.instrument_view != "guitar":
+            self.stop_note(prev_note)
         self._play_interval_gen_sequence(notes, index + 1)
 
     def _get_ui_text_interval_gen(self, key: str) -> str:
@@ -200,25 +249,34 @@ class IntervalGenerationMixin:
 
         bg = self.color_surface_alt
         self.interval_generation_panel = tk.Frame(self.tab_interval_generation_frame, bg=bg, bd=0, highlightthickness=0)
+        self.interval_gen_i18n_labels: list[tuple[object, str]] = []
 
-        tk.Label(
+        self.interval_gen_title_label = tk.Label(
             self.interval_generation_panel,
             text=self._get_ui_text_interval_gen("heading_interval_generation"),
             bg=bg,
             fg=self.color_text,
             font=(self.ui_font_family, 22, "bold"),
-        ).pack(anchor="w", pady=(0, 6))
+        )
+        self.interval_gen_title_label.pack(anchor="w", pady=(0, 6))
+        self.interval_gen_i18n_labels.append(
+            (self.interval_gen_title_label, "heading_interval_generation")
+        )
 
         root_row = tk.Frame(self.interval_generation_panel, bg=bg, bd=0, highlightthickness=0)
         root_row.pack(fill=tk.X, anchor="w", pady=(0, 8))
 
-        tk.Label(
+        self.interval_gen_root_label = tk.Label(
             root_row,
             text=self._get_ui_text_interval_gen("label_root_note"),
             bg=bg,
             fg=self.color_text,
             font=(self.ui_font_family, 14),
-        ).pack(side=tk.LEFT, padx=(0, 8))
+        )
+        self.interval_gen_root_label.pack(side=tk.LEFT, padx=(0, 8))
+        self.interval_gen_i18n_labels.append(
+            (self.interval_gen_root_label, "label_root_note")
+        )
 
         self.interval_gen_root_var = tk.StringVar(value="-")
         self.interval_gen_root_combo = ttk.Combobox(
@@ -272,11 +330,13 @@ class IntervalGenerationMixin:
         def _result_row(parent, label_key, value_fg=None):
             row = tk.Frame(parent, bg=result_box_bg)
             row.pack(anchor="w", pady=(4, 0), padx=8, fill=tk.X)
-            tk.Label(
+            caption = tk.Label(
                 row, text=self._get_ui_text_interval_gen(label_key),
                 bg=result_box_bg, fg=self.color_muted,
                 font=(self.ui_font_family, 14),
-            ).pack(side=tk.LEFT)
+            )
+            caption.pack(side=tk.LEFT)
+            self.interval_gen_i18n_labels.append((caption, label_key))
             val = tk.Label(
                 row, text=" -",
                 bg=result_box_bg, fg=value_fg or self.color_text,
@@ -386,6 +446,11 @@ class IntervalGenerationMixin:
             for column, _title_cell, _title_label in title_labels
         ) + 80
         self._apply_interval_gen_table_titles(title_col_w)
+
+    def _refresh_interval_gen_ui_language(self) -> None:
+        for label, key in getattr(self, "interval_gen_i18n_labels", []):
+            label.configure(text=self._get_ui_text_interval_gen(key))
+        self._refresh_interval_gen_table_language()
 
     def _apply_interval_gen_table_titles(self, title_col_w: int) -> None:
         for column, title_cell, title_label in self.interval_gen_title_labels:

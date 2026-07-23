@@ -72,6 +72,7 @@ class MidiChordsMobileApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'MIDI Piano & Guitar Chords',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: bg,

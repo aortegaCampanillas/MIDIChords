@@ -48,6 +48,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (generación de intervalos)**: el selector adopta la tabla completa de categorías y semitonos de las otras plataformas; en tablet se reduce el ancho del pentagrama para dar más espacio a la cuadrícula y en pantallas estrechas puede desplazarse horizontalmente.
+
 - **Móvil (generación de intervalos)**: los botones de reproducción ascendente y descendente se sitúan junto a los selectores de tónica y alteración para reducir la altura ocupada por los controles.
 
 - **Intervalos (piano)**: las notas de los intervalos se identifican ahora mediante círculos sobre las teclas —verde para la nota inicial y amarillo para la segunda— en escritorio, web y móvil, evitando las etiquetas blancas separadas del teclado.

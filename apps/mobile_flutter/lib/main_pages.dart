@@ -1342,128 +1342,181 @@ extension _HomeScreenPages on _HomeScreenState {
     );
     return _buildModeScaffold(
       controls: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  _ui('Generación de Intervalos', 'Interval Generation'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    _ui('Generación de Intervalos', 'Interval Generation'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _buildTonicLetterAccidentalDropdowns(
-                        rootPc: _intervalGenRootPc,
-                        savedLetterPc: _intervalGenRootLetterPc,
-                        savedAccidental: _intervalGenRootAccidental,
-                        onPc: (pc, letterPc, accidental) {
-                          _intervalGenPlaybackTimer?.cancel();
-                          _updateState(() {
-                            _intervalGenRootPc = pc;
-                            _intervalGenRootLetterPc = letterPc;
-                            _intervalGenRootAccidental = accidental;
-                            _intervalGenPlayingIdx = null;
-                          });
-                          _playGeneratedInterval();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _intervalGenerationPlayButton(
-                      tooltip: _ui('Reproducir ascendente', 'Play ascending'),
-                      symbol: '▶↑',
-                      onPressed: _playGeneratedInterval,
-                    ),
-                    const SizedBox(width: 6),
-                    _intervalGenerationPlayButton(
-                      tooltip: _ui('Reproducir descendente', 'Play descending'),
-                      symbol: '▶↓',
-                      onPressed: () => _playGeneratedInterval(reversed: true),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _HomeScreenState._surfaceDark,
-                    border: Border.all(color: _HomeScreenState._border),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
+                  const SizedBox(height: 12),
+                  Row(
                     children: <Widget>[
-                      _intervalGenerationResultRow(
-                        _ui('Notas', 'Notes'),
-                        notes.map(_midiNoteWithOctave).join(' – '),
+                      Expanded(
+                        child: _buildTonicLetterAccidentalDropdowns(
+                          rootPc: _intervalGenRootPc,
+                          savedLetterPc: _intervalGenRootLetterPc,
+                          savedAccidental: _intervalGenRootAccidental,
+                          onPc: (pc, letterPc, accidental) {
+                            _intervalGenPlaybackTimer?.cancel();
+                            _updateState(() {
+                              _intervalGenRootPc = pc;
+                              _intervalGenRootLetterPc = letterPc;
+                              _intervalGenRootAccidental = accidental;
+                              _intervalGenPlayingIdx = null;
+                            });
+                            _playGeneratedInterval();
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      _intervalGenerationResultRow(
-                        _ui('Intervalo', 'Interval'),
-                        '${selectedCategory.name(_language)} · $_intervalGenLabel',
+                      const SizedBox(width: 8),
+                      _intervalGenerationPlayButton(
+                        tooltip: _ui('Reproducir ascendente', 'Play ascending'),
+                        symbol: '▶↑',
+                        onPressed: _playGeneratedInterval,
                       ),
-                      const SizedBox(height: 8),
-                      _intervalGenerationResultRow(
-                        _ui('Semitonos', 'Semitones'),
-                        '$_intervalGenSemitones',
+                      const SizedBox(width: 6),
+                      _intervalGenerationPlayButton(
+                        tooltip: _ui(
+                          'Reproducir descendente',
+                          'Play descending',
+                        ),
+                        symbol: '▶↓',
+                        onPressed: () => _playGeneratedInterval(reversed: true),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  _ui('Selecciona un intervalo', 'Select an interval'),
-                  style: const TextStyle(
-                    color: _HomeScreenState._muted,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                for (final category in intervalGridCategories) ...<Widget>[
-                  Text(
-                    category.name(_language),
-                    style: const TextStyle(
-                      color: _HomeScreenState._muted,
-                      fontSize: 12,
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _HomeScreenState._surfaceDark,
+                      border: Border.all(color: _HomeScreenState._border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        _intervalGenerationResultRow(
+                          _ui('Notas', 'Notes'),
+                          notes.map(_midiNoteWithOctave).join(' – '),
+                        ),
+                        const SizedBox(height: 8),
+                        _intervalGenerationResultRow(
+                          _ui('Intervalo', 'Interval'),
+                          '${selectedCategory.name(_language)} · $_intervalGenLabel',
+                        ),
+                        const SizedBox(height: 8),
+                        _intervalGenerationResultRow(
+                          _ui('Semitonos', 'Semitones'),
+                          '$_intervalGenSemitones',
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: category.cells.map((cell) {
+                  const SizedBox(height: 14),
+                  Text(
+                    _ui('Selecciona un intervalo', 'Select an interval'),
+                    style: const TextStyle(
+                      color: _HomeScreenState._muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildIntervalGenerationTable(constraints.maxWidth),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildIntervalGenerationTable(double availableWidth) {
+    final tableWidth = math.max(650.0, availableWidth);
+    Widget tableCell(
+      String text, {
+      bool header = false,
+      bool selected = false,
+      VoidCallback? onTap,
+    }) {
+      final content = Container(
+        height: 34,
+        alignment: Alignment.center,
+        color: selected
+            ? _HomeScreenState._accent
+            : (header
+                  ? const Color(0xFF17273A)
+                  : _HomeScreenState._surfaceDark),
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected
+                ? Colors.black
+                : (header ? _HomeScreenState._muted : _HomeScreenState._text),
+            fontSize: header ? 11 : 12,
+            fontWeight: selected || header ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+      );
+      if (onTap == null) return content;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: content,
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: tableWidth,
+        child: Table(
+          border: TableBorder.all(color: const Color(0xFF5A6A82), width: 1),
+          columnWidths: const <int, TableColumnWidth>{0: FixedColumnWidth(104)},
+          defaultColumnWidth: const FlexColumnWidth(),
+          children: <TableRow>[
+            TableRow(
+              children: <Widget>[
+                tableCell('', header: true),
+                for (var semitones = 0; semitones <= 12; semitones += 1)
+                  tableCell('$semitones', header: true),
+              ],
+            ),
+            for (final category in intervalGridCategories)
+              TableRow(
+                children: <Widget>[
+                  tableCell(category.name(_language), header: true),
+                  for (var semitones = 0; semitones <= 12; semitones += 1)
+                    () {
+                      final matching = category.cells
+                          .where((cell) => cell.semitones == semitones)
+                          .toList();
+                      if (matching.isEmpty) return tableCell('');
+                      final cell = matching.first;
                       final selected =
                           category.key == _intervalGenCategoryKey &&
                           cell.label == _intervalGenLabel;
-                      return ChoiceChip(
-                        label: Text(cell.label),
+                      return tableCell(
+                        cell.label,
                         selected: selected,
-                        onSelected: (_) =>
-                            _selectGeneratedInterval(category, cell),
-                        selectedColor: _HomeScreenState._accent,
-                        backgroundColor: _HomeScreenState._panelA,
-                        labelStyle: TextStyle(
-                          color: selected
-                              ? Colors.black
-                              : _HomeScreenState._text,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        side: const BorderSide(color: _HomeScreenState._border),
+                        onTap: () => _selectGeneratedInterval(category, cell),
                       );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 10),
+                    }(),
                 ],
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
     );

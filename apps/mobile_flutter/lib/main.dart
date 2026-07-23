@@ -5065,9 +5065,15 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Expanded(flex: 11, child: staffPanel),
+                          Expanded(
+                            flex: _tabIndex == 7 ? 8 : 11,
+                            child: staffPanel,
+                          ),
                           const SizedBox(width: 12),
-                          Expanded(flex: 9, child: controlsPanel),
+                          Expanded(
+                            flex: _tabIndex == 7 ? 12 : 9,
+                            child: controlsPanel,
+                          ),
                         ],
                       ),
                     )
@@ -5091,9 +5097,12 @@ class _HomeScreenState extends State<HomeScreen>
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Expanded(flex: 57, child: staffPanel),
+                    Expanded(flex: _tabIndex == 7 ? 42 : 57, child: staffPanel),
                     const SizedBox(width: 12),
-                    Expanded(flex: 43, child: controlsPanel),
+                    Expanded(
+                      flex: _tabIndex == 7 ? 58 : 43,
+                      child: controlsPanel,
+                    ),
                   ],
                 )
               : Column(

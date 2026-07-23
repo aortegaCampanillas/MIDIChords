@@ -3648,7 +3648,7 @@ class UiMixin:
                 "interval_gen_root_combo+interval_gen_root_accidental_combo:help_interval_gen_root",
                 "interval_gen_play_reverse_btn:help_interval_gen_play_reverse",
                 "interval_gen_play_btn:help_interval_gen_play",
-                "interval_gen_notes_row:help_interval_notes",
+                "interval_gen_notes_row:help_interval_gen_notes",
                 "interval_gen_name_row:help_interval_gen_name",
                 "interval_gen_alt_row:help_interval_gen_alt",
                 "interval_gen_semitones_row:help_interval_gen_semitones",

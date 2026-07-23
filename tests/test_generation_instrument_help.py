@@ -74,6 +74,38 @@ class GenerationInstrumentHelpTests(unittest.TestCase):
             ui_mixin,
         )
 
+    def test_desktop_interval_generation_result_help_matches_web(self):
+        ui_mixin = (
+            PROJECT_ROOT / "midichords" / "mixins" / "ui_mixin.py"
+        ).read_text(encoding="utf-8")
+
+        expected = {
+            "es": {
+                "help_interval_gen_notes": "Notas: la tónica y la nota resultante del intervalo elegido.",
+                "help_interval_gen_name": "Nombre del intervalo seleccionado en la tabla.",
+                "help_interval_gen_alt": "Otros nombres enarmónicos válidos para el mismo número de semitonos.",
+                "help_interval_gen_semitones": "Número de semitonos entre las dos notas.",
+            },
+            "en": {
+                "help_interval_gen_notes": "Notes: the tonic and the resulting note of the chosen interval.",
+                "help_interval_gen_name": "Name of the interval selected in the table.",
+                "help_interval_gen_alt": "Other valid enharmonic names for the same number of semitones.",
+                "help_interval_gen_semitones": "Number of semitones between the two notes.",
+            },
+        }
+        for language, texts in expected.items():
+            for key, value in texts.items():
+                self.assertEqual(UI_TEXTS[language][key], value)
+
+        self.assertIn(
+            '"interval_gen_notes_row:help_interval_gen_notes"',
+            ui_mixin,
+        )
+        self.assertNotIn(
+            '"interval_gen_notes_row:help_interval_notes"',
+            ui_mixin,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

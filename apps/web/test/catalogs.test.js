@@ -275,6 +275,7 @@ test("every contextual help item has bilingual text", () => {
   const modes = [
     "detection",
     "interval_detection",
+    "interval_generation",
     "generation",
     "circle_fifths",
     "scales",

@@ -24,6 +24,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | UI escritorio (paneles, teclado, pentagrama) | `midichords/mixins/ui_mixin.py`, `midichords/mixins/render_mixin.py` |
 | Web: círculo de quintas | `apps/web/static/circle_theory.js` (teoría/geometría/hit-testing), `apps/web/static/app.js` (`renderCircleFifths`) |
 | Web: detección de intervalos | `apps/web/static/interval_theory.js` (teoría/melodías), `apps/web/static/app.js` (estado/reproducción) |
+| Web: generación de intervalos | `apps/web/static/interval_theory.js` (`INTERVAL_GRID_COLUMNS`, tabla de intervalos por semitono/categoría), `apps/web/static/app.js` (estado `intervalGen*`, tabla y reproducción) |
 | Web: digitaciones de piano | `apps/web/static/piano_fingering.js` |
 | Web: armaduras y relativos modales | `apps/web/static/key_signature.js` |
 | Web: normalización y etiquetas de escalas | `apps/web/static/scale_theory.js` |

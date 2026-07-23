@@ -9,6 +9,13 @@
         "platforms": ["web", "desktop", "mobile"],
         "es": "Detección de intervalos: nuevo campo \"Alternativos\" con otros nombres enarmónicos válidos para el mismo intervalo (por ejemplo Cuarta justa / Tercera aumentada, o Tritono para el intervalo de 6 semitonos).",
         "en": "Interval detection: new \"Alternatives\" field showing other valid enharmonic names for the same interval (e.g. Perfect Fourth / Augmented Third, or Tritone for the 6-semitone interval)."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Nuevo modo Generación de Intervalos: elige una tónica y pulsa una celda de la tabla (disminuidas, menores, mayores, justas, aumentadas por número de semitonos) para generar y escuchar ese intervalo en pentagrama, piano y guitarra.",
+        "en": "New Interval Generation mode: pick a tonic and tap a table cell (diminished, minor, major, perfect, augmented by semitone count) to generate and hear that interval on the staff, piano and guitar."
       }
     ]
   },

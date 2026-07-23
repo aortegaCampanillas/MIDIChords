@@ -873,6 +873,24 @@ a.btn-link:hover {
   min-height: auto;
 }
 
+.mode-screen.mode-interval_generation .mode-layout {
+  grid-template-columns: minmax(380px, 1fr) minmax(460px, 58%);
+}
+
+.mode-screen.mode-interval_generation .staff-panel {
+  height: min(50vh, 500px);
+  overflow: hidden;
+}
+
+.mode-screen.mode-interval_generation #staffCanvas {
+  height: clamp(260px, 34vh, 360px);
+}
+
+.mode-screen.mode-interval_generation .sidebar-top {
+  max-height: min(50vh, 500px);
+  overflow: auto;
+}
+
 .mode-screen.mode-generation .instrument-panel {
   min-height: 0;
 }
@@ -1356,6 +1374,74 @@ a.btn-link:hover {
 
 .label {
   color: var(--muted);
+}
+
+.interval-gen-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.interval-gen-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85em;
+}
+
+.interval-gen-table th,
+.interval-gen-table td {
+  border: 1px solid #3a4558;
+  text-align: center;
+  padding: 0;
+}
+
+.interval-gen-table th {
+  color: var(--muted);
+  font-weight: 600;
+  padding: 6px 4px;
+  background: rgba(10, 18, 30, 0.45);
+}
+
+.interval-gen-table th:first-child {
+  width: 7em;
+  text-align: left;
+  padding-left: 8px;
+}
+
+.interval-gen-table tbody th:first-child {
+  color: var(--text);
+}
+
+.interval-gen-cell {
+  display: block;
+  width: 100%;
+  min-width: 2.4em;
+  padding: 6px 2px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.interval-gen-cell:hover:not(:disabled) {
+  background: rgba(242, 191, 47, 0.18);
+}
+
+.interval-gen-cell:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.interval-gen-cell.selected {
+  background: var(--accent);
+  color: #17273a;
+  font-weight: 700;
+}
+
+.interval-gen-row-semitone {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .chord-desc {

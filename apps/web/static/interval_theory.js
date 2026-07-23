@@ -142,6 +142,86 @@ const INTERVAL_MELODIES = {
         durations: ["h","h","q","e","e","q","q"] },
 };
 
+// Matriz de la tabla de Generación de Intervalos: cada columna agrupa
+// intervalos de la misma categoría (disminuida/menor/mayor/justa/aumentada).
+// cellsBySemitone mapea semitono -> { short, name: {es, en} } en esa columna;
+// los semitonos ausentes no tienen intervalo válido en esa columna (celda vacía).
+const INTERVAL_GRID_COLUMNS = [
+  {
+    key: "diminished",
+    title: { es: "Disminuidas", en: "Diminished" },
+    cellsBySemitone: {
+      0: { short: "2d", name: { es: "Segunda disminuida", en: "Diminished Second" } },
+      2: { short: "3d", name: { es: "Tercera disminuida", en: "Diminished Third" } },
+      4: { short: "4d", name: { es: "Cuarta disminuida", en: "Diminished Fourth" } },
+      6: { short: "5d", name: { es: "Quinta disminuida", en: "Diminished Fifth" } },
+      7: { short: "6d", name: { es: "Sexta disminuida", en: "Diminished Sixth" } },
+      9: { short: "7d", name: { es: "Séptima disminuida", en: "Diminished Seventh" } },
+      11: { short: "8d", name: { es: "Octava disminuida", en: "Diminished Octave" } },
+    },
+  },
+  {
+    key: "minor",
+    title: { es: "Menores", en: "Minor" },
+    cellsBySemitone: {
+      1: { short: "2m", name: { es: "Segunda menor", en: "Minor Second" } },
+      3: { short: "3m", name: { es: "Tercera menor", en: "Minor Third" } },
+      8: { short: "6m", name: { es: "Sexta menor", en: "Minor Sixth" } },
+      10: { short: "7m", name: { es: "Séptima menor", en: "Minor Seventh" } },
+    },
+  },
+  {
+    key: "major",
+    title: { es: "Mayores", en: "Major" },
+    cellsBySemitone: {
+      2: { short: "2M", name: { es: "Segunda mayor", en: "Major Second" } },
+      4: { short: "3M", name: { es: "Tercera mayor", en: "Major Third" } },
+      9: { short: "6M", name: { es: "Sexta mayor", en: "Major Sixth" } },
+      11: { short: "7M", name: { es: "Séptima mayor", en: "Major Seventh" } },
+    },
+  },
+  {
+    key: "perfect",
+    title: { es: "Justas", en: "Perfect" },
+    cellsBySemitone: {
+      0: { short: "U", name: { es: "Unísono justo", en: "Perfect Unison" } },
+      5: { short: "4J", name: { es: "Cuarta justa", en: "Perfect Fourth" } },
+      7: { short: "5J", name: { es: "Quinta justa", en: "Perfect Fifth" } },
+      12: { short: "8J", name: { es: "Octava justa", en: "Perfect Octave" } },
+    },
+  },
+  {
+    key: "augmented",
+    title: { es: "Aumentadas", en: "Augmented" },
+    cellsBySemitone: {
+      1: { short: "UA", name: { es: "Unísono aumentado", en: "Augmented Unison" } },
+      3: { short: "2A", name: { es: "Segunda aumentada", en: "Augmented Second" } },
+      6: { short: "4A", name: { es: "Cuarta aumentada", en: "Augmented Fourth" } },
+      8: { short: "5A", name: { es: "Quinta aumentada", en: "Augmented Fifth" } },
+      10: { short: "6A", name: { es: "Sexta aumentada", en: "Augmented Sixth" } },
+      12: { short: "7A", name: { es: "Séptima aumentada", en: "Augmented Seventh" } },
+    },
+  },
+];
+
+/** Nombre completo de una celda concreta (columnKey + semitono), o null si no existe. */
+function intervalGridCellName(language, columnKey, semitones) {
+  const col = INTERVAL_GRID_COLUMNS.find((c) => c.key === columnKey);
+  const cell = col && col.cellsBySemitone[semitones];
+  if (!cell) return null;
+  return cell.name[language] || cell.name.es;
+}
+
+/** Todos los nombres completos válidos (de cualquier columna) para un semitono dado. */
+function intervalGridNamesForSemitones(language, semitones) {
+  const names = [];
+  INTERVAL_GRID_COLUMNS.forEach((col) => {
+    const cell = col.cellsBySemitone[semitones];
+    if (cell) names.push(cell.name[language] || cell.name.es);
+  });
+  return names;
+}
+
 function intervalName(language, semitones) {
   const lang = language in INTERVAL_NAMES ? language : "es";
   return INTERVAL_NAMES[lang][semitones] || "-";
@@ -188,11 +268,14 @@ global.MidiChordsIntervalTheory = Object.freeze({
   INTERVAL_NAMES,
   INTERVAL_ALT_NAMES,
   INTERVAL_MELODIES,
+  INTERVAL_GRID_COLUMNS,
   formatIntervalsFromMidi,
   intervalName,
   intervalAltNames,
   intervalSemitones,
   intervalMelodyNotes,
   intervalMelodySongName,
+  intervalGridCellName,
+  intervalGridNamesForSemitones,
 });
 })(globalThis);

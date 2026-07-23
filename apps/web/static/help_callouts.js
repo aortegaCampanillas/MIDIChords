@@ -133,9 +133,32 @@ const HELP_CALLOUTS_INTERVAL_DETECTION = [
   { selector: "#sharedPiano", textKey: "help_instrument_surface_interval", side: "top" },
 ];
 
+const HELP_CALLOUTS_INTERVAL_GENERATION = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
+  { selector: "#instPianoBtn", textKey: "help_inst_piano_btn", side: "top" },
+  { selector: "#instGuitarBtn", textKey: "help_inst_guitar_btn", side: "top" },
+  { selector: "#guitarHandedness", textKey: "help_guitar_handedness", side: "top" },
+  { selector: "#staffCanvas", textKey: "help_staff_interval", side: "top" },
+  { selector: "#panelIntervalGeneration", textKey: "help_interval_gen_panel", side: "left" },
+  { selector: "#intervalGenRootRow", textKey: "help_interval_gen_root", side: "left" },
+  { selector: "#intervalGenPlayReverse", textKey: "help_interval_gen_play_reverse", side: "bottom" },
+  { selector: "#intervalGenPlay", textKey: "help_interval_gen_play", side: "bottom" },
+  { selector: "#intervalGenFieldNotes", textKey: "help_interval_gen_field_notes", side: "left" },
+  { selector: "#intervalGenFieldName", textKey: "help_interval_gen_field_name", side: "left" },
+  { selector: "#intervalGenFieldAlt", textKey: "help_interval_field_alt", side: "left" },
+  { selector: "#intervalGenFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
+  { selector: "#intervalGenTable", textKey: "help_interval_gen_table", side: "left" },
+  { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
+];
+
 function helpCalloutsForMode(mode) {
   if (mode === "detection") return HELP_CALLOUTS_DETECTION;
   if (mode === "interval_detection") return HELP_CALLOUTS_INTERVAL_DETECTION;
+  if (mode === "interval_generation") return HELP_CALLOUTS_INTERVAL_GENERATION;
   if (mode === "generation") return HELP_CALLOUTS_GENERATION;
   if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
   if (mode === "scales") return HELP_CALLOUTS_SCALES;

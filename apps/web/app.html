@@ -61,8 +61,9 @@
       <div class="topbar-center">
         <select id="modeSelect">
           <option value="detection">Detección de Acordes</option>
-          <option value="interval_detection">Detección de Intervalos</option>
           <option value="generation">Generación de Acordes</option>
+          <option value="interval_detection">Detección de Intervalos</option>
+          <option value="interval_generation">Generación de Intervalos</option>
           <option value="circle_fifths">Círculo de quintas</option>
           <option value="scales">Escalas</option>
           <option value="metronome">Metrónomo</option>
@@ -133,6 +134,26 @@
                   <div id="intervalFieldAlt"><span id="labelIntervalAlt" class="label">Alternativos:</span> <span id="intervalAltNames">-</span></div>
                   <div id="intervalFieldSemitones"><span id="labelIntervalSemitones" class="label">Semitonos:</span> <span id="intervalSemitones">-</span></div>
                   <div id="intervalFieldRecuerda"><span id="labelIntervalRecuerda" class="label">Recordar:</span> <button id="intervalRecuerdaBtn" class="interval-recuerda-btn" disabled>-</button></div>
+                </div>
+              </section>
+
+              <section id="panelIntervalGeneration" class="mode-panel hidden">
+                <h3 id="headingIntervalGeneration">Generación de Intervalos</h3>
+                <div id="intervalGenRootRow" class="row">
+                  <label id="labelIntervalGenRoot" for="intervalGenRootLetter">Tónica</label>
+                  <select id="intervalGenRootLetter"></select>
+                  <select id="intervalGenRootAccidental" class="accidental-select"></select>
+                  <button id="intervalGenPlayReverse" class="icon-play-btn" aria-label="Reproducir descendente" title="Reproducir descendente" disabled>◀</button>
+                  <button id="intervalGenPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir" disabled>▶</button>
+                </div>
+                <div class="result-block">
+                  <div id="intervalGenFieldNotes"><span id="labelIntervalGenNotes" class="label">Notas:</span> <span id="intervalGenNoteNames">-</span></div>
+                  <div id="intervalGenFieldName"><span id="labelIntervalGenName" class="label">Intervalo:</span> <strong id="intervalGenName">-</strong></div>
+                  <div id="intervalGenFieldAlt"><span id="labelIntervalGenAlt" class="label">Alternativos:</span> <span id="intervalGenAltNames">-</span></div>
+                  <div id="intervalGenFieldSemitones"><span id="labelIntervalGenSemitones" class="label">Semitonos:</span> <span id="intervalGenSemitonesValue">-</span></div>
+                </div>
+                <div id="intervalGenTableWrap" class="interval-gen-table-wrap">
+                  <table id="intervalGenTable" class="interval-gen-table"></table>
                 </div>
               </section>
 

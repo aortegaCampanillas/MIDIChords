@@ -23,6 +23,11 @@ const state = {
   genRootAccidental: "natural",
   scaleRootLetterPc: 0,
   scaleRootAccidental: "natural",
+  intervalGenRootLetterPc: 0,
+  intervalGenRootAccidental: "natural",
+  intervalGenSemitones: null,
+  intervalGenColumnKey: null,
+  intervalGenReverse: false,
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
@@ -136,6 +141,9 @@ const state = {
   intervalPlayingNote: null,
   intervalPlayingIdx: null,
   intervalPlayGeneration: 0,
+  intervalGenPlayingNote: null,
+  intervalGenPlayingIdx: null,
+  intervalGenPlayGeneration: 0,
   soundOutput: "audio",
   /** Screen Wake Lock (detección + MIDI); renovar con cada nota. */
   midiScreenWakeLock: null,
@@ -1526,8 +1534,9 @@ function applyTranslations() {
       if (o) o.textContent = tr(key);
     };
     opt("detection", "mode_detection");
-    opt("interval_detection", "mode_interval_detection");
     opt("generation", "mode_generation");
+    opt("interval_detection", "mode_interval_detection");
+    opt("interval_generation", "mode_interval_generation");
     opt("circle_fifths", "mode_circle_fifths");
     opt("scales", "mode_scales");
     opt("metronome", "mode_metronome");
@@ -1550,6 +1559,12 @@ function applyTranslations() {
   setText("labelIntervalAlt", "label_interval_alt");
   setText("labelIntervalSemitones", "label_interval_semitones");
   setText("labelIntervalRecuerda", "label_interval_recuerda");
+  setText("headingIntervalGeneration", "heading_interval_generation");
+  setText("labelIntervalGenRoot", "label_tonic");
+  setText("labelIntervalGenNotes", "label_interval_notes");
+  setText("labelIntervalGenName", "label_interval_name");
+  setText("labelIntervalGenAlt", "label_interval_alt");
+  setText("labelIntervalGenSemitones", "label_interval_semitones");
   setText("headingGeneration", "heading_generation");
   setText("headingScales", "heading_scales");
   setText("headingMetronome", "heading_metronome_settings");
@@ -1649,6 +1664,8 @@ function applyTranslations() {
   const detectPlay = el("detectPlay");
   const intervalPlay = el("intervalPlay");
   const intervalPlayReverse = el("intervalPlayReverse");
+  const intervalGenPlay = el("intervalGenPlay");
+  const intervalGenPlayReverse = el("intervalGenPlayReverse");
   const genPlay = el("genPlay");
   const scaleModeMetronome = el("scaleModeMetronome");
   if (detectPlay) {
@@ -1662,6 +1679,14 @@ function applyTranslations() {
   if (intervalPlayReverse) {
     intervalPlayReverse.setAttribute("aria-label", tr("interval_play_reverse"));
     intervalPlayReverse.setAttribute("title", tr("interval_play_reverse"));
+  }
+  if (intervalGenPlay) {
+    intervalGenPlay.setAttribute("aria-label", tr("play"));
+    intervalGenPlay.setAttribute("title", tr("play"));
+  }
+  if (intervalGenPlayReverse) {
+    intervalGenPlayReverse.setAttribute("aria-label", tr("interval_play_reverse"));
+    intervalGenPlayReverse.setAttribute("title", tr("interval_play_reverse"));
   }
   if (genPlay) {
     genPlay.setAttribute("aria-label", tr("play"));
@@ -1764,12 +1789,13 @@ async function fetchJson(url, options = {}) {
 }
 
 function activeModeSupportsInstrument() {
-  return state.mode === "detection" || state.mode === "interval_detection" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
+  return state.mode === "detection" || state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
 }
 
 function activeModeSupportsStaff() {
   return state.mode === "detection"
     || state.mode === "interval_detection"
+    || state.mode === "interval_generation"
     || state.mode === "generation"
     || state.mode === "circle_fifths"
     || state.mode === "scales"
@@ -1853,6 +1879,9 @@ function setMode(mode) {
   state.intervalPlayGeneration++;
   state.intervalPlayingNote = null;
   state.intervalPlayingIdx = null;
+  state.intervalGenPlayGeneration++;
+  state.intervalGenPlayingNote = null;
+  state.intervalGenPlayingIdx = null;
   state.generationMidiHeldNotes.clear();
   state.generationMidiForbiddenNotes.clear();
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
@@ -1867,7 +1896,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-detection", "mode-interval_detection", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -1878,6 +1907,7 @@ function setMode(mode) {
   const panelMap = {
     detection: "panelDetection",
     interval_detection: "panelIntervalDetection",
+    interval_generation: "panelIntervalGeneration",
     generation: "panelGeneration",
     circle_fifths: "panelCircleFifths",
     scales: "panelScales",
@@ -1892,7 +1922,7 @@ function setMode(mode) {
   const supportsInstrument = activeModeSupportsInstrument();
   const supportsStaff = activeModeSupportsStaff();
   el("instrumentArea").classList.toggle("hidden", !supportsInstrument);
-  el("instrumentArea").classList.toggle("with-inst-dock", mode === "generation" || mode === "circle_fifths" || mode === "scales");
+  el("instrumentArea").classList.toggle("with-inst-dock", mode === "generation" || mode === "circle_fifths" || mode === "scales" || mode === "interval_generation");
   el("instrumentSwitch").classList.toggle("hidden", !supportsInstrument);
   el("staffArea").classList.toggle("hidden", !supportsStaff);
   const circleStaffFooter = el("circleFifthsStaffFooter");
@@ -1916,7 +1946,7 @@ function setMode(mode) {
       circleChordOverStaff.setAttribute("aria-hidden", "true");
     }
   }
-  const showInstrumentToggle = mode === "generation" || mode === "circle_fifths" || mode === "scales";
+  const showInstrumentToggle = mode === "generation" || mode === "circle_fifths" || mode === "scales" || mode === "interval_generation";
   document.querySelectorAll(".inst-btn").forEach((btn) => btn.classList.toggle("hidden", !showInstrumentToggle));
   el("guitarHandedness").classList.toggle("hidden", !showInstrumentToggle || state.instrument !== "guitar");
   const guitarVariationBar = el("guitarVariationBar");
@@ -2147,6 +2177,10 @@ function getActivePcsForMode() {
     if (state.intervalPlayingNote != null) return new Set([Number(state.intervalPlayingNote) % 12]);
     return new Set(state.intervalNotes.map((n) => Number(n) % 12));
   }
+  if (state.mode === "interval_generation") {
+    if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote) % 12]);
+    return new Set(intervalGenNotes().map((n) => Number(n) % 12));
+  }
   return new Set();
 }
 
@@ -2163,6 +2197,10 @@ function getActiveMidiForMode() {
   if (state.mode === "interval_detection") {
     if (state.intervalPlayingNote != null) return new Set([Number(state.intervalPlayingNote)]);
     return new Set(state.intervalNotes.map((n) => Number(n)));
+  }
+  if (state.mode === "interval_generation") {
+    if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote)]);
+    return new Set(intervalGenNotes().map((n) => Number(n)));
   }
   if (state.mode === "metronome") {
     return new Set(Array.from(state.activeMidiLiveNotes));
@@ -2269,12 +2307,15 @@ function getExtraMidiForMode() {
 const {
   INTERVAL_NAMES,
   INTERVAL_MELODIES,
+  INTERVAL_GRID_COLUMNS,
   formatIntervalsFromMidi,
   intervalName,
   intervalAltNames,
   intervalSemitones,
   intervalMelodyNotes,
   intervalMelodySongName,
+  intervalGridCellName,
+  intervalGridNamesForSemitones,
 } = globalThis.MidiChordsIntervalTheory;
 
 function getIntervalName(semitones) {
@@ -2295,6 +2336,50 @@ function getIntervalMelodyNotes() {
 
 function getIntervalMelodySongName() {
   return intervalMelodySongName(state.language, state.intervalNotes);
+}
+
+function currentIntervalGenRootPc() {
+  return rootPcFromLetterSelects("intervalGenRootLetter", "intervalGenRootAccidental");
+}
+
+/** Tónica en Do central (MIDI 60) + el semitono elegido, o [] si no hay selección. */
+function intervalGenNotes() {
+  if (state.intervalGenSemitones == null) return [];
+  const rootPc = currentIntervalGenRootPc();
+  const tonicMidi = 60 + rootPc;
+  return [tonicMidi, tonicMidi + Number(state.intervalGenSemitones)];
+}
+
+function setIntervalGenSemitones(semitones, columnKey = null) {
+  state.intervalGenSemitones = semitones;
+  state.intervalGenColumnKey = columnKey;
+  refreshIntervalGenResult();
+  playIntervalGenCurrent();
+}
+
+/** Nombre del intervalo elegido según la columna pulsada (o el nombre principal si no se pulsó una celda concreta). */
+function getIntervalGenSelectedName(semitones) {
+  const cellName = state.intervalGenColumnKey
+    ? intervalGridCellName(state.language, state.intervalGenColumnKey, semitones)
+    : null;
+  return cellName || getIntervalName(semitones);
+}
+
+/** Nombres alternativos: todos los nombres válidos para ese semitono excepto el ya mostrado como Intervalo. */
+function getIntervalGenAltNames(semitones) {
+  const selected = getIntervalGenSelectedName(semitones);
+  return intervalGridNamesForSemitones(state.language, semitones)
+    .filter((name) => name && name !== selected);
+}
+
+/** Reproduce el intervalo actual en el sentido recordado (ascendente/descendente). */
+function playIntervalGenCurrent() {
+  const notes = intervalGenNotes();
+  if (notes.length !== 2) return;
+  const ordered = state.intervalGenReverse
+    ? [...notes].sort((a, b) => b - a)
+    : [...notes].sort((a, b) => a - b);
+  playIntervalGenNoteSequence(ordered, 500);
 }
 
 function previewIntervalMelodyNote(midi, idx = null) {
@@ -2491,6 +2576,137 @@ function noteNameWithOctave(midi) {
   const m = Number(midi);
   const octave = Math.floor(m / 12) - 1;
   return noteNameFromPc(m % 12) + octave;
+}
+
+function playIntervalGenNoteSequence(notes, stepMs) {
+  const gen = ++state.intervalGenPlayGeneration;
+  state.intervalGenPlayingNote = null;
+  state.intervalGenPlayingIdx = null;
+  notes.forEach((midi, idx) => {
+    const t = idx * stepMs;
+    setTimeout(() => {
+      if (state.intervalGenPlayGeneration !== gen) return;
+      state.intervalGenPlayingNote = Number(midi);
+      state.intervalGenPlayingIdx = idx;
+      playSingle(Number(midi), state.instrument === "guitar" ? "guitar" : "piano");
+      renderInstrument();
+      renderStaff();
+    }, t);
+    setTimeout(() => {
+      if (state.intervalGenPlayGeneration !== gen) return;
+      if (state.intervalGenPlayingIdx === idx) {
+        state.intervalGenPlayingNote = null;
+        state.intervalGenPlayingIdx = null;
+        renderInstrument();
+        renderStaff();
+      }
+    }, t + Math.round(stepMs * 0.82));
+  });
+  setTimeout(() => {
+    if (state.intervalGenPlayGeneration !== gen) return;
+    state.intervalGenPlayingNote = null;
+    state.intervalGenPlayingIdx = null;
+    renderInstrument();
+    renderStaff();
+  }, notes.length * stepMs);
+}
+
+function refreshIntervalGenButtonsState() {
+  const hasSelection = state.intervalGenSemitones != null;
+  const playBtn = el("intervalGenPlay");
+  const playRevBtn = el("intervalGenPlayReverse");
+  if (playBtn) {
+    playBtn.disabled = !hasSelection;
+    playBtn.classList.toggle("active", !state.intervalGenReverse);
+  }
+  if (playRevBtn) {
+    playRevBtn.disabled = !hasSelection;
+    playRevBtn.classList.toggle("active", !!state.intervalGenReverse);
+  }
+}
+
+function refreshIntervalGenResult() {
+  refreshIntervalGenButtonsState();
+  renderIntervalGenTableSelection();
+  renderInstrument();
+  renderStaff();
+
+  const notes = intervalGenNotes();
+  if (notes.length === 0) {
+    el("intervalGenNoteNames").textContent = "-";
+    el("intervalGenName").textContent = "-";
+    el("intervalGenAltNames").textContent = "-";
+    el("intervalGenSemitonesValue").textContent = "-";
+    return;
+  }
+  const semitones = Number(state.intervalGenSemitones);
+  const altNames = getIntervalGenAltNames(semitones);
+  el("intervalGenNoteNames").textContent = noteNameWithOctave(notes[0]) + " – " + noteNameWithOctave(notes[1]);
+  el("intervalGenName").textContent = getIntervalGenSelectedName(semitones);
+  el("intervalGenAltNames").textContent = altNames.length ? altNames.join(", ") : "-";
+  el("intervalGenSemitonesValue").textContent = String(semitones);
+}
+
+function renderIntervalGenTableSelection() {
+  const table = el("intervalGenTable");
+  if (!table) return;
+  const selectedSemitones = state.intervalGenSemitones;
+  const selectedColumn = state.intervalGenColumnKey;
+  table.querySelectorAll(".interval-gen-cell").forEach((btn) => {
+    const match = selectedSemitones != null
+      && Number(btn.dataset.semitones) === Number(selectedSemitones)
+      && btn.dataset.column === selectedColumn;
+    btn.classList.toggle("selected", match);
+  });
+}
+
+function buildIntervalGenTable() {
+  const table = el("intervalGenTable");
+  if (!table) return;
+  table.innerHTML = "";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const cornerTh = document.createElement("th");
+  cornerTh.textContent = "";
+  headRow.appendChild(cornerTh);
+  for (let semitones = 0; semitones <= 12; semitones++) {
+    const th = document.createElement("th");
+    th.textContent = String(semitones);
+    th.className = "interval-gen-row-semitone";
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  INTERVAL_GRID_COLUMNS.forEach((col) => {
+    const row = document.createElement("tr");
+    const rowTh = document.createElement("th");
+    rowTh.textContent = col.title[state.language] || col.title.es;
+    row.appendChild(rowTh);
+    for (let semitones = 0; semitones <= 12; semitones++) {
+      const td = document.createElement("td");
+      const cell = col.cellsBySemitone[semitones];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "interval-gen-cell";
+      btn.dataset.semitones = String(semitones);
+      btn.dataset.column = col.key;
+      if (cell) {
+        btn.textContent = cell.short;
+      } else {
+        btn.textContent = "";
+        btn.disabled = true;
+        btn.tabIndex = -1;
+      }
+      td.appendChild(btn);
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  renderIntervalGenTableSelection();
 }
 
 const { pianoFingeringForCount, computeScaleFingering } =
@@ -3103,6 +3319,12 @@ function handleInstrumentNote(note, options = {}) {
       intervalAddNote(note);
       playSingle(Number(note), "piano");
       refreshIntervalResult();
+    }
+    return;
+  }
+  if (state.mode === "interval_generation") {
+    if (!pressed && !released) {
+      playSingle(Number(note), instrumentHint || (state.instrument === "guitar" ? "guitar" : "piano"));
     }
     return;
   }
@@ -4017,6 +4239,9 @@ function getStaffNotes() {
     if (state.intervalMelodyActive) return getIntervalMelodyNotes();
     return [...state.intervalNotes].sort((a, b) => a - b);
   }
+  if (state.mode === "interval_generation") {
+    return [...intervalGenNotes()].sort((a, b) => a - b);
+  }
   if (isChordGenerationLikeMode() && state.generatedChord) {
     const rh = getGenerationBaseNotes();
     if (state.instrument === "guitar") {
@@ -4193,7 +4418,7 @@ function renderStaff() {
   const tonicPc = staffCtx.tonicPc;
   const compactChordStaff = isChordGenerationLikeMode();
   const detectionStaff = state.mode === "detection";
-  const intervalDetectionStaff = state.mode === "interval_detection";
+  const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation";
   const intervalMelodyStaff = intervalDetectionStaff && !!state.intervalMelodyActive;
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
@@ -4416,7 +4641,8 @@ function renderStaff() {
       || (generationCurrentDisplayMidi != null && Number(midi) === Number(generationCurrentDisplayMidi))
       || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)))
       || (isChordGenerationLikeMode() && generationMidiHeldDisplay.has(Number(midi)))
-      || (intervalDetectionStaff && state.intervalPlayingIdx != null && idx === state.intervalPlayingIdx);
+      || (state.mode === "interval_detection" && state.intervalPlayingIdx != null && idx === state.intervalPlayingIdx)
+      || (state.mode === "interval_generation" && state.intervalGenPlayingIdx != null && idx === state.intervalGenPlayingIdx);
     const currentStroke = current
       ? (
           ((isChordGenerationLikeMode()
@@ -4941,15 +5167,20 @@ function buildSelectors() {
   const scaleType = el("scaleType");
   const prevGenRootPc = currentGenRootPc();
   const prevScaleRootPc = currentScaleRootPc();
+  const prevIntervalGenRootPc = currentIntervalGenRootPc();
   const prevVariant = genVariant.value || "";
   const prevScaleType = scaleType.value || "Ionian";
 
   populateRootLetterSelect("genRootLetter");
   populateRootLetterSelect("scaleRootLetter");
+  populateRootLetterSelect("intervalGenRootLetter");
   populateAccidentalSelect("genRootAccidental", Number(el("genRootLetter")?.value ?? 0));
   populateAccidentalSelect("scaleRootAccidental", Number(el("scaleRootLetter")?.value ?? 0));
+  populateAccidentalSelect("intervalGenRootAccidental", Number(el("intervalGenRootLetter")?.value ?? 0));
   setRootLetterSelectsFromPc("genRootLetter", "genRootAccidental", prevGenRootPc, "genRootLetterPc", "genRootAccidental");
   setRootLetterSelectsFromPc("scaleRootLetter", "scaleRootAccidental", prevScaleRootPc, "scaleRootLetterPc", "scaleRootAccidental");
+  setRootLetterSelectsFromPc("intervalGenRootLetter", "intervalGenRootAccidental", prevIntervalGenRootPc, "intervalGenRootLetterPc", "intervalGenRootAccidental");
+  buildIntervalGenTable();
 
   genVariant.innerHTML = "";
   const patternsBySuffix = new Map(state.chordPatterns.map((pattern) => [pattern.suffix, pattern]));
@@ -6598,6 +6829,37 @@ function bindEvents() {
       }
     });
   }
+
+  listen(el("intervalGenRootLetter"), "change", (e) => {
+    populateAccidentalSelect("intervalGenRootAccidental", Number(e.target.value));
+    state.intervalGenRootLetterPc = Number(e.target.value);
+    state.intervalGenRootAccidental = el("intervalGenRootAccidental")?.value || "natural";
+    refreshIntervalGenResult();
+    playIntervalGenCurrent();
+  });
+  listen(el("intervalGenRootAccidental"), "change", (e) => {
+    state.intervalGenRootAccidental = e.target.value;
+    refreshIntervalGenResult();
+    playIntervalGenCurrent();
+  });
+
+  listen(el("intervalGenTable"), "click", (e) => {
+    const btn = e.target.closest(".interval-gen-cell");
+    if (!btn || btn.disabled) return;
+    setIntervalGenSemitones(Number(btn.dataset.semitones), btn.dataset.column);
+  });
+
+  bindImmediatePress(el("intervalGenPlayReverse"), () => {
+    state.intervalGenReverse = true;
+    refreshIntervalGenButtonsState();
+    playIntervalGenCurrent();
+  }, { highlightWhilePressed: true });
+
+  bindImmediatePress(el("intervalGenPlay"), () => {
+    state.intervalGenReverse = false;
+    refreshIntervalGenButtonsState();
+    playIntervalGenCurrent();
+  }, { highlightWhilePressed: true });
 
   bindKeyboardUiEvents(uiLifecycle, {
     documentTarget: document,

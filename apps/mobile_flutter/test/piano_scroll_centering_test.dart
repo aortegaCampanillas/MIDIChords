@@ -74,6 +74,10 @@ void main() {
     expect(preferenceLoad, contains('_startupPianoCenterPending = true;'));
     expect(preferenceLoad, contains('_needsPianoScrollSync = true;'));
     expect(preferenceLoad, contains('_pianoScrollSyncGeneration += 1;'));
+    expect(
+      preferenceLoad.indexOf('await _loadChangelog();'),
+      lessThan(preferenceLoad.indexOf('_startupPianoCenterPending = true;')),
+    );
     expect(syncMethod, contains('!forceMiddleC && _tabIndex == 3'));
     expect(
       syncMethod,

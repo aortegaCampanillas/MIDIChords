@@ -868,17 +868,20 @@ class _HomeScreenState extends State<HomeScreen>
       _scaleOctaves = prefs.scaleOctaves;
       _scaleFingeringHand = prefs.scaleFingeringHand;
       _tabIndex = prefs.tabIndex;
-      // El primer build puede haber consumido el centrado antes de restaurar
-      // la última pantalla. Reprogramarlo aquí garantiza C4 en la pantalla
-      // real de arranque, incluso si es Escalas.
+    });
+    await _loadMeta();
+    await _loadChangelog();
+    if (!mounted) return;
+    setState(() {
+      // La carga de datos puede regenerar escalas o acordes y programar su
+      // propio scroll. El centrado inicial debe ser la última operación para
+      // que ninguna reconstrucción posterior sustituya C4 por otra ancla.
       _pendingPianoScrollOffset = null;
       _startupPianoCenterPending = true;
       _needsPianoScrollSync = true;
       _pianoScrollSyncGeneration += 1;
     });
-    await _loadMeta();
-    await _loadChangelog();
-    if (mounted) _maybeShowChangelogPopup();
+    _maybeShowChangelogPopup();
   }
 
   Future<void> _savePrefs() async {

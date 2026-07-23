@@ -28,6 +28,7 @@ const state = {
   intervalGenSemitones: null,
   intervalGenColumnKey: null,
   intervalGenReverse: false,
+  intervalGenLastPlayReverse: null,
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
@@ -185,6 +186,17 @@ const {
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
+const MODE_STORAGE_KEY = "lastMode";
+const AVAILABLE_MODES = new Set([
+  "detection",
+  "interval_detection",
+  "interval_generation",
+  "generation",
+  "circle_fifths",
+  "scales",
+  "metronome",
+  ...(TUNER_FEATURE_ENABLED ? ["tuner"] : []),
+]);
 
 const { UI_TEXTS } = globalThis.MidiChordsUiTexts;
 
@@ -1155,6 +1167,20 @@ function saveMidiEnabledPref(enabled) {
   try { localStorage.setItem(MIDI_ENABLED_STORAGE_KEY, enabled ? "true" : "false"); } catch (_e) {}
 }
 
+function loadSavedModePref() {
+  try {
+    const saved = localStorage.getItem(MODE_STORAGE_KEY);
+    return AVAILABLE_MODES.has(saved) ? saved : "detection";
+  } catch (_e) {
+    return "detection";
+  }
+}
+
+function saveModePref(mode) {
+  if (!AVAILABLE_MODES.has(mode)) return;
+  try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch (_e) {}
+}
+
 function refreshSoundOutputToggle() {
   const btn = el("soundOutputToggle");
   if (!btn) return;
@@ -1888,6 +1914,7 @@ function setMode(mode) {
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
+  saveModePref(mode);
   if (mode !== "detection" && mode !== "interval_detection") {
     resetMidiScreenWakeLockFully();
   }
@@ -2617,11 +2644,11 @@ function refreshIntervalGenButtonsState() {
   const playRevBtn = el("intervalGenPlayReverse");
   if (playBtn) {
     playBtn.disabled = !hasSelection;
-    playBtn.classList.toggle("active", !state.intervalGenReverse);
+    playBtn.classList.toggle("active", hasSelection && state.intervalGenLastPlayReverse === false);
   }
   if (playRevBtn) {
     playRevBtn.disabled = !hasSelection;
-    playRevBtn.classList.toggle("active", !!state.intervalGenReverse);
+    playRevBtn.classList.toggle("active", hasSelection && state.intervalGenLastPlayReverse === true);
   }
 }
 
@@ -6861,15 +6888,17 @@ function bindEvents() {
 
   bindImmediatePress(el("intervalGenPlayReverse"), () => {
     state.intervalGenReverse = true;
+    state.intervalGenLastPlayReverse = true;
     refreshIntervalGenButtonsState();
     playIntervalGenCurrent();
-  }, { highlightWhilePressed: true });
+  });
 
   bindImmediatePress(el("intervalGenPlay"), () => {
     state.intervalGenReverse = false;
+    state.intervalGenLastPlayReverse = false;
     refreshIntervalGenButtonsState();
     playIntervalGenCurrent();
-  }, { highlightWhilePressed: true });
+  });
 
   bindKeyboardUiEvents(uiLifecycle, {
     documentTarget: document,
@@ -7165,6 +7194,7 @@ function bindEvents() {
 
 async function main() {
   const savedSoundOutput = loadSavedSoundOutputPref();
+  const savedMode = loadSavedModePref();
   if (savedSoundOutput) state.soundOutput = savedSoundOutput;
   initStaffAssets();
   void preloadAudioSamples();
@@ -7188,7 +7218,7 @@ async function main() {
   refreshMetronomeTempoInfo();
   if (el("metroMotionDot")) updateMetronomeMotion();
   renderMetronomeTimerDisplay();
-  setMode("detection");
+  setMode(savedMode);
   renderMetronomeDots();
   renderStaff();
 
@@ -7229,7 +7259,7 @@ async function main() {
 
   refreshDetectionButtonsState();
   refreshIntervalButtonsState();
-  setMode("detection");
+  setMode(savedMode);
 
   await initializeMidiFromPreferences();
 

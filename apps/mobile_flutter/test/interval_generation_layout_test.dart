@@ -18,6 +18,18 @@ void main() {
       expect(pages, contains('for (var semitones = 0; semitones <= 12;'));
       expect(pages, contains('for (final category in intervalGridCategories)'));
       expect(intervalPage, isNot(contains('ChoiceChip(')));
+      expect(intervalPage, contains('icon: Icons.arrow_left'));
+      expect(intervalPage, contains('icon: Icons.arrow_right'));
+      expect(intervalPage, isNot(contains("symbol: '▶↑'")));
+      expect(intervalPage, isNot(contains("symbol: '▶↓'")));
+      expect(
+        intervalPage,
+        contains('selected: _intervalGenLastPlayReversed == true'),
+      );
+      expect(
+        intervalPage,
+        contains('selected: _intervalGenLastPlayReversed == false'),
+      );
       expect(main, contains('flex: _tabIndex == 7 ? 42 : 57'));
       expect(main, contains('flex: _tabIndex == 7 ? 58 : 43'));
     },

@@ -48,6 +48,9 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Generación de intervalos**: los controles de reproducción usan flechas izquierda/derecha coherentes en las tres plataformas y solo el último sentido elegido permanece resaltado en amarillo.
+- **Web (preferencias)**: al recargar la aplicación se restaura el último modo utilizado; los valores guardados se validan y Detección sigue siendo el modo seguro por defecto.
+
 - **Móvil (generación de intervalos)**: el selector adopta la tabla completa de categorías y semitonos de las otras plataformas; en tablet se reduce el ancho del pentagrama para dar más espacio a la cuadrícula y en pantallas estrechas puede desplazarse horizontalmente.
 
 - **Móvil (generación de intervalos)**: los botones de reproducción ascendente y descendente se sitúan junto a los selectores de tónica y alteración para reducir la altura ocupada por los controles.

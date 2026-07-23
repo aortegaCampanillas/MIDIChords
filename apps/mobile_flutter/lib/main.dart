@@ -415,6 +415,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _intervalGenCategoryKey = 'perfect';
   String _intervalGenLabel = '5J';
   int? _intervalGenPlayingIdx;
+  bool? _intervalGenLastPlayReversed;
   Timer? _intervalGenPlaybackTimer;
   Timer? _scaleLoopTimer;
   Timer? _scaleStaffHighlightTimer;
@@ -7394,6 +7395,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     playAt(0);
+  }
+
+  void _playGeneratedIntervalFromButton({required bool reversed}) {
+    setState(() => _intervalGenLastPlayReversed = reversed);
+    _playGeneratedInterval(reversed: reversed);
   }
 
   void _addIntervalNote(int midiNote) {

@@ -7,6 +7,20 @@
         "date": "2026-07-23",
         "publish": false,
         "platforms": ["web", "desktop", "mobile"],
+        "es": "Generación de Intervalos: los controles de reproducción usan flechas izquierda/derecha coherentes y solo el último sentido elegido permanece resaltado.",
+        "en": "Interval Generation: playback controls use consistent left/right arrows and only the last selected direction remains highlighted."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["web"],
+        "es": "La aplicación restaura el último modo utilizado al recargar la página y descarta de forma segura cualquier valor guardado que ya no sea válido.",
+        "en": "The application restores the last used mode after reloading the page and safely discards any saved value that is no longer valid."
+      },
+      {
+        "date": "2026-07-23",
+        "publish": false,
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Ayuda contextual: las explicaciones del piano y la guitarra en los modos de generación los presentan como vistas del resultado y remiten a los botones de reproducción.",
         "en": "Contextual help: piano and guitar descriptions in generation modes now present them as result views and point to the playback buttons."
       },

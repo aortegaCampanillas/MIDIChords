@@ -550,6 +550,7 @@ class PlayTransportButton(_QtWidgetBase):
         self._hover = False
         self._pressed = False
         self._playing = False
+        self._selected = False
         self._enabled = True
         self._font_family = "Helvetica"
         self.setMouseTracking(True)
@@ -557,6 +558,10 @@ class PlayTransportButton(_QtWidgetBase):
 
     def set_playing(self, playing: bool) -> None:
         self._playing = bool(playing)
+        self.update()
+
+    def set_selected(self, selected: bool) -> None:
+        self._selected = bool(selected)
         self.update()
 
     def set_enabled(self, enabled: bool) -> None:
@@ -607,7 +612,7 @@ class PlayTransportButton(_QtWidgetBase):
             fill = "#1f252d"
             outline = "#434a54"
             icon_color = "#7f8894"
-        elif self._playing:
+        elif self._playing or self._selected:
             fill = "#d8a624" if self._pressed else "#f3bf2f"
             outline = "#c9961f"
             icon_color = "#111318"
@@ -654,4 +659,3 @@ class PlayTransportButton(_QtWidgetBase):
             painter.drawPolygon(triangle)
 
         painter.end()
-

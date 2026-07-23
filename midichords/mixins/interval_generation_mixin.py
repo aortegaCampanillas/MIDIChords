@@ -21,6 +21,7 @@ class IntervalGenerationMixin:
         self.interval_gen_semitones: int | None = None
         self.interval_gen_column_key: str | None = None
         self.interval_gen_reverse = False
+        self.interval_gen_last_play_reverse: bool | None = None
         self.interval_gen_playing_note: int | None = None
         self.interval_gen_playing_idx: int | None = None
         self.interval_gen_playback_timer: object | None = None
@@ -143,11 +144,13 @@ class IntervalGenerationMixin:
 
     def _play_interval_gen_reverse(self) -> None:
         self.interval_gen_reverse = True
+        self.interval_gen_last_play_reverse = True
         self._refresh_interval_gen_buttons_state()
         self._play_interval_gen_current()
 
     def _play_interval_gen_forward(self) -> None:
         self.interval_gen_reverse = False
+        self.interval_gen_last_play_reverse = False
         self._refresh_interval_gen_buttons_state()
         self._play_interval_gen_current()
 
@@ -375,6 +378,12 @@ class IntervalGenerationMixin:
         has_selection = self.interval_gen_semitones is not None
         self.interval_gen_play_btn.set_enabled(has_selection)
         self.interval_gen_play_reverse_btn.set_enabled(has_selection)
+        self.interval_gen_play_btn.set_selected(
+            has_selection and self.interval_gen_last_play_reverse is False
+        )
+        self.interval_gen_play_reverse_btn.set_selected(
+            has_selection and self.interval_gen_last_play_reverse is True
+        )
 
     def _refresh_interval_gen_table_selection(self):
         if not hasattr(self, "interval_gen_cell_labels"):

@@ -1378,18 +1378,22 @@ extension _HomeScreenPages on _HomeScreenState {
                       ),
                       const SizedBox(width: 8),
                       _intervalGenerationPlayButton(
-                        tooltip: _ui('Reproducir ascendente', 'Play ascending'),
-                        symbol: '▶↑',
-                        onPressed: _playGeneratedInterval,
-                      ),
-                      const SizedBox(width: 6),
-                      _intervalGenerationPlayButton(
                         tooltip: _ui(
                           'Reproducir descendente',
                           'Play descending',
                         ),
-                        symbol: '▶↓',
-                        onPressed: () => _playGeneratedInterval(reversed: true),
+                        icon: Icons.arrow_left,
+                        selected: _intervalGenLastPlayReversed == true,
+                        onPressed: () =>
+                            _playGeneratedIntervalFromButton(reversed: true),
+                      ),
+                      const SizedBox(width: 6),
+                      _intervalGenerationPlayButton(
+                        tooltip: _ui('Reproducir ascendente', 'Play ascending'),
+                        icon: Icons.arrow_right,
+                        selected: _intervalGenLastPlayReversed == false,
+                        onPressed: () =>
+                            _playGeneratedIntervalFromButton(reversed: false),
                       ),
                     ],
                   ),
@@ -1524,7 +1528,8 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _intervalGenerationPlayButton({
     required String tooltip,
-    required String symbol,
+    required IconData icon,
+    required bool selected,
     required VoidCallback onPressed,
   }) {
     return Tooltip(
@@ -1536,13 +1541,17 @@ extension _HomeScreenPages on _HomeScreenState {
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             padding: EdgeInsets.zero,
-            backgroundColor: _HomeScreenState._accent,
-            foregroundColor: Colors.black,
+            backgroundColor: selected
+                ? _HomeScreenState._accent
+                : _HomeScreenState._surfaceDark,
+            foregroundColor: selected ? Colors.black : _HomeScreenState._text,
+            side: BorderSide(
+              color: selected
+                  ? _HomeScreenState._accent
+                  : _HomeScreenState._border,
+            ),
           ),
-          child: Text(
-            symbol,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-          ),
+          child: Icon(icon, size: 34),
         ),
       ),
     );

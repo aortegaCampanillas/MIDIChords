@@ -50,6 +50,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (ayuda)**: los resaltados de controles situados dentro de zonas desplazables se limitan ahora a la parte realmente visible; la tabla de Generación de intervalos ya no invade el panel inferior cuando necesita scroll.
 - **Teclado**: al mostrar los nombres de las teclas, cada Do/C incluye ahora su número de octava (`Do4`, `C4`, etc.) en escritorio, web y móvil para facilitar la orientación en el registro.
 - **Móvil (generación de intervalos)**: las zonas táctiles de las dos notas del pentagrama coinciden ahora con sus columnas melódicas visibles, permitiendo pulsar y reproducir también la segunda nota.
 - **Móvil (teclado)**: el centrado inicial se aplica al terminar de restaurar la pantalla y cargar todos sus datos; al entrar en Generación de intervalos también se recalcula con el ancho real disponible, fijando C4 como referencia sin reutilizar el desplazamiento de Detección.

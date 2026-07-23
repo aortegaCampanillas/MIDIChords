@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
@@ -17,6 +18,7 @@ import 'app_preferences.dart';
 import 'audio_player_port.dart';
 import 'chord_variant_help.dart';
 import 'fingerings.dart';
+import 'help_geometry.dart';
 import 'interval_data.dart';
 import 'key_signature_highlight.dart';
 import 'music_catalog.dart';

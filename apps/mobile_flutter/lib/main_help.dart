@@ -1030,7 +1030,28 @@ extension _HomeScreenHelp on _HomeScreenState {
       return null;
     }
     final offset = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
-    return offset & targetBox.size;
+    final viewportBounds = <Rect>[];
+    RenderObject? ancestor = targetBox.parent;
+    while (ancestor != null && ancestor != overlayBox) {
+      if (ancestor is RenderAbstractViewport && ancestor is RenderBox) {
+        final viewportBox = ancestor as RenderBox;
+        if (!viewportBox.hasSize) {
+          ancestor = ancestor.parent;
+          continue;
+        }
+        final viewportOffset = viewportBox.localToGlobal(
+          Offset.zero,
+          ancestor: overlayBox,
+        );
+        viewportBounds.add(viewportOffset & viewportBox.size);
+      }
+      ancestor = ancestor.parent;
+    }
+    return visibleHelpRect(
+      target: offset & targetBox.size,
+      overlayBounds: Offset.zero & overlayBox.size,
+      viewportBounds: viewportBounds,
+    );
   }
 
   List<_ResolvedHelpStep> _resolvedHelpSteps(BuildContext overlayContext) {

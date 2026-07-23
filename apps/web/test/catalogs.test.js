@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
 
 require("../static/ui_texts.js");
@@ -31,6 +33,47 @@ test("the interface catalogs expose the same keys in Spanish and English", () =>
     assert.ok(UI_TEXTS.es[key].trim(), `empty Spanish text: ${key}`);
     assert.ok(UI_TEXTS.en[key].trim(), `empty English text: ${key}`);
   }
+});
+
+test("interval generation help targets the visible table viewport", () => {
+  const items =
+    globalThis.MidiChordsHelpCallouts.helpCalloutsForMode(
+      "interval_generation",
+    );
+  const tableHelp = items.find(
+    (item) => item.textKey === "help_interval_gen_table",
+  );
+
+  assert.equal(tableHelp?.selector, "#intervalGenTableWrap");
+
+  const css = fs.readFileSync(
+    path.join(__dirname, "../static/style.css"),
+    "utf8",
+  );
+  assert.match(
+    css,
+    /\.mode-screen\.mode-interval_generation #panelIntervalGeneration:not\(\.hidden\)\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*0;/s,
+  );
+  assert.match(
+    css,
+    /\.interval-gen-table-wrap\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow:\s*auto;/s,
+  );
+  assert.match(
+    css,
+    /\.interval-gen-table-wrap\.help-target\s*\{[^}]*outline-offset:\s*-2px;/s,
+  );
+});
+
+test("full-width scale help rows draw their side borders inside the panel", () => {
+  const css = fs.readFileSync(
+    path.join(__dirname, "../static/style.css"),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /\.mode-screen\.mode-scales #scaleRootRow\.help-target,\s*\.mode-screen\.mode-scales \.scale-fingering-row\.help-target\s*\{[^}]*outline-offset:\s*-2px;/s,
+  );
 });
 
 test("every chord theory variant belongs to exactly one selector group", () => {

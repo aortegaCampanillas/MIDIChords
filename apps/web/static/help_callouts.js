@@ -151,7 +151,7 @@ const HELP_CALLOUTS_INTERVAL_GENERATION = [
   { selector: "#intervalGenFieldName", textKey: "help_interval_gen_field_name", side: "left" },
   { selector: "#intervalGenFieldAlt", textKey: "help_interval_field_alt", side: "left" },
   { selector: "#intervalGenFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
-  { selector: "#intervalGenTable", textKey: "help_interval_gen_table", side: "left" },
+  { selector: "#intervalGenTableWrap", textKey: "help_interval_gen_table", side: "left" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_interval_generation", side: "top" },
 ];
 

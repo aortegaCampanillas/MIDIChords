@@ -484,6 +484,7 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
+  final Map<String, Rect> _helpGlobalRectCache = <String, Rect>{};
   late final AnimationController _helpOverlayController;
   bool _helpActive = false;
   bool _helpBannerVisible = true;
@@ -4176,6 +4177,8 @@ class _HomeScreenState extends State<HomeScreen>
     required void Function(int pc, int letterPc, String accidental) onPc,
     Key? letterKey,
     Key? accidentalKeyPrefix,
+    String? letterHelpId,
+    String? accidentalHelpId,
   }) {
     int letterPc;
     String accidental;
@@ -4189,65 +4192,74 @@ class _HomeScreenState extends State<HomeScreen>
     final safeAccidental = accidentals.contains(accidental)
         ? accidental
         : 'natural';
+    Widget withHelp(String? helpId, Widget child) =>
+        helpId == null ? child : _helpFixedHeightAnchor(helpId, child);
+
     return Row(
       children: <Widget>[
         Expanded(
           flex: 3,
-          child: DropdownButtonFormField<int>(
-            key: letterKey ?? ValueKey<int>(letterPc),
-            initialValue: letterPc,
-            dropdownColor: _surfaceDark,
-            style: const TextStyle(color: _text),
-            decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
-            items: _kRootLetterPcs
-                .map(
-                  (pc) => DropdownMenuItem<int>(
-                    value: pc,
-                    child: Text(_pcLabelCanonical(pc)),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              final newAccidentals = _kRootLetterAccidentals[value]!;
-              final keepAccidental = newAccidentals.contains(safeAccidental)
-                  ? safeAccidental
-                  : 'natural';
-              onPc(
-                _rootPcFromLetterAccidental(value, keepAccidental),
-                value,
-                keepAccidental,
-              );
-            },
+          child: withHelp(
+            letterHelpId,
+            DropdownButtonFormField<int>(
+              key: letterKey ?? ValueKey<int>(letterPc),
+              initialValue: letterPc,
+              dropdownColor: _surfaceDark,
+              style: const TextStyle(color: _text),
+              decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+              items: _kRootLetterPcs
+                  .map(
+                    (pc) => DropdownMenuItem<int>(
+                      value: pc,
+                      child: Text(_pcLabelCanonical(pc)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                final newAccidentals = _kRootLetterAccidentals[value]!;
+                final keepAccidental = newAccidentals.contains(safeAccidental)
+                    ? safeAccidental
+                    : 'natural';
+                onPc(
+                  _rootPcFromLetterAccidental(value, keepAccidental),
+                  value,
+                  keepAccidental,
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(width: 6),
         SizedBox(
           width: 64,
-          child: DropdownButtonFormField<String>(
-            key:
-                accidentalKeyPrefix ??
-                ValueKey<String>('acc-$letterPc-$safeAccidental'),
-            initialValue: safeAccidental,
-            dropdownColor: _surfaceDark,
-            style: const TextStyle(color: _text),
-            decoration: const InputDecoration(labelText: ''),
-            items: accidentals
-                .map(
-                  (a) => DropdownMenuItem<String>(
-                    value: a,
-                    child: Text(_kAccidentalSymbols[a]!),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              onPc(
-                _rootPcFromLetterAccidental(letterPc, value),
-                letterPc,
-                value,
-              );
-            },
+          child: withHelp(
+            accidentalHelpId,
+            DropdownButtonFormField<String>(
+              key:
+                  accidentalKeyPrefix ??
+                  ValueKey<String>('acc-$letterPc-$safeAccidental'),
+              initialValue: safeAccidental,
+              dropdownColor: _surfaceDark,
+              style: const TextStyle(color: _text),
+              decoration: const InputDecoration(labelText: ''),
+              items: accidentals
+                  .map(
+                    (a) => DropdownMenuItem<String>(
+                      value: a,
+                      child: Text(_kAccidentalSymbols[a]!),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                onPc(
+                  _rootPcFromLetterAccidental(letterPc, value),
+                  letterPc,
+                  value,
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -5573,8 +5585,16 @@ class _HomeScreenState extends State<HomeScreen>
         child: LayoutBuilder(
           builder: (overlayContext, constraints) {
             final safePadding = MediaQuery.of(overlayContext).padding;
-            final resolved = _resolvedHelpSteps(overlayContext);
-            final helpToggleRect = _helpRectFor(overlayContext, 'help_toggle');
+            final overlayBounds = Offset.zero & constraints.biggest;
+            final resolved = _resolvedHelpSteps(
+              overlayContext,
+              overlayBounds: overlayBounds,
+            );
+            final helpToggleRect = _helpRectFor(
+              overlayContext,
+              'help_toggle',
+              overlayBounds: overlayBounds,
+            );
             if (resolved.isEmpty) {
               return Align(
                 alignment: Alignment.topRight,

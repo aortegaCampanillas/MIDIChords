@@ -5,7 +5,11 @@ extension _HomeScreenHelp on _HomeScreenState {
       _helpAnchors.putIfAbsent(id, () => GlobalKey(debugLabel: 'help_$id'));
 
   Widget _helpAnchor(String id, Widget child) {
-    return KeyedSubtree(key: _helpAnchorKey(id), child: child);
+    return RepaintBoundary(key: _helpAnchorKey(id), child: child);
+  }
+
+  Widget _helpFixedHeightAnchor(String id, Widget child, {double height = 56}) {
+    return SizedBox(key: _helpAnchorKey(id), height: height, child: child);
   }
 
   List<_HelpStep> _helpStepsForCurrentMode() {
@@ -444,6 +448,17 @@ extension _HomeScreenHelp on _HomeScreenState {
           titleEn: 'Tonic',
           bodyEs: 'Aqui eliges la nota base de la escala.',
           bodyEn: 'Choose the root note of the scale here.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
+          id: 'scales_accidental',
+          titleEs: 'Alteración y armadura',
+          titleEn: 'Accidental and key signature',
+          bodyEs:
+              'Elige la alteración de la tónica. La armadura del pentagrama se actualiza para la escala seleccionada.',
+          bodyEn:
+              'Choose the tonic accidental. The staff key signature updates for the selected scale.',
           side: _HelpCalloutSide.left,
           highlightPadding: 2,
         ),
@@ -1012,24 +1027,61 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   void _toggleHelpMode() {
+    if (!_helpActive) {
+      _cacheHelpAnchorRects();
+    }
     _updateState(() {
       _setHelpMode(!_helpActive);
     });
   }
 
-  Rect? _helpRectFor(BuildContext overlayContext, String id) {
+  void _cacheHelpAnchorRects() {
+    final screenBounds = Offset.zero & MediaQuery.sizeOf(context);
+    for (final entry in _helpAnchors.entries) {
+      final target = entry.value.currentContext?.findRenderObject();
+      if (target is! RenderBox || target.debugNeedsLayout || !target.hasSize) {
+        continue;
+      }
+      final viewportBounds = <Rect>[];
+      RenderObject? ancestor = target.parent;
+      while (ancestor != null) {
+        if (ancestor is RenderAbstractViewport && ancestor is RenderBox) {
+          final viewport = ancestor as RenderBox;
+          if (!viewport.debugNeedsLayout && viewport.hasSize) {
+            viewportBounds.add(
+              viewport.localToGlobal(Offset.zero) & viewport.size,
+            );
+          }
+        }
+        ancestor = ancestor.parent;
+      }
+      _helpGlobalRectCache[entry.key] = visibleHelpRect(
+        target: target.localToGlobal(Offset.zero) & target.size,
+        overlayBounds: screenBounds,
+        viewportBounds: viewportBounds,
+      );
+    }
+  }
+
+  Rect? _helpRectFor(
+    BuildContext overlayContext,
+    String id, {
+    required Rect overlayBounds,
+  }) {
     final key = _helpAnchors[id];
     if (key == null) return null;
     final targetContext = key.currentContext;
     if (targetContext == null) return null;
     final targetBox = targetContext.findRenderObject();
     final overlayBox = overlayContext.findRenderObject();
-    if (targetBox is! RenderBox ||
-        overlayBox is! RenderBox ||
-        targetBox.debugNeedsLayout ||
-        overlayBox.debugNeedsLayout ||
-        !targetBox.hasSize) {
+    if (targetBox is! RenderBox || overlayBox is! RenderBox) {
       return null;
+    }
+    if (targetBox.debugNeedsLayout || !targetBox.hasSize) {
+      final cached = _helpGlobalRectCache[id];
+      if (cached == null) return null;
+      final overlayOrigin = overlayBox.localToGlobal(Offset.zero);
+      return cached.shift(-overlayOrigin);
     }
     final offset = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
     final viewportBounds = <Rect>[];
@@ -1049,17 +1101,27 @@ extension _HomeScreenHelp on _HomeScreenState {
       }
       ancestor = ancestor.parent;
     }
-    return visibleHelpRect(
+    final resolved = visibleHelpRect(
       target: offset & targetBox.size,
-      overlayBounds: Offset.zero & overlayBox.size,
+      overlayBounds: overlayBounds,
       viewportBounds: viewportBounds,
     );
+    final overlayOrigin = overlayBox.localToGlobal(Offset.zero);
+    _helpGlobalRectCache[id] = resolved.shift(overlayOrigin);
+    return resolved;
   }
 
-  List<_ResolvedHelpStep> _resolvedHelpSteps(BuildContext overlayContext) {
+  List<_ResolvedHelpStep> _resolvedHelpSteps(
+    BuildContext overlayContext, {
+    required Rect overlayBounds,
+  }) {
     return _helpStepsForCurrentMode()
         .map((step) {
-          final rect = _helpRectFor(overlayContext, step.id);
+          final rect = _helpRectFor(
+            overlayContext,
+            step.id,
+            overlayBounds: overlayBounds,
+          );
           if (rect == null || rect.width <= 0 || rect.height <= 0) {
             return null;
           }

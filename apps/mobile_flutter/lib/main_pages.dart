@@ -635,30 +635,29 @@ extension _HomeScreenPages on _HomeScreenState {
                       children: <Widget>[
                         const SizedBox(height: 8),
                         // Row 1: Tonic selector
-                        _helpAnchor(
-                          'scales_tonic',
-                          _buildTonicLetterAccidentalDropdowns(
-                            rootPc: _scaleTonicPc,
-                            savedLetterPc: _scaleTonicLetterPc,
-                            savedAccidental: _scaleTonicAccidental,
-                            onPc: (pc, letterPc, accidental) {
-                              _updateState(() {
-                                _scaleTonicPc = pc;
-                                _scaleTonicLetterPc = letterPc;
-                                _scaleTonicAccidental = accidental;
-                              });
-                              if (!_requestInFlight) {
-                                unawaited(_callGenerateScale());
-                              }
-                            },
-                          ),
+                        _buildTonicLetterAccidentalDropdowns(
+                          rootPc: _scaleTonicPc,
+                          savedLetterPc: _scaleTonicLetterPc,
+                          savedAccidental: _scaleTonicAccidental,
+                          letterHelpId: 'scales_tonic',
+                          accidentalHelpId: 'scales_accidental',
+                          onPc: (pc, letterPc, accidental) {
+                            _updateState(() {
+                              _scaleTonicPc = pc;
+                              _scaleTonicLetterPc = letterPc;
+                              _scaleTonicAccidental = accidental;
+                            });
+                            if (!_requestInFlight) {
+                              unawaited(_callGenerateScale());
+                            }
+                          },
                         ),
                         const SizedBox(height: 6),
                         // Row 2: Scale type + Básicas/Todas toggle
                         Row(
                           children: <Widget>[
                             Expanded(
-                              child: _helpAnchor(
+                              child: _helpFixedHeightAnchor(
                                 'scales_pattern',
                                 DropdownButtonFormField<String>(
                                   key: ValueKey<String>(

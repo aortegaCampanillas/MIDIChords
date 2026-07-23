@@ -37,7 +37,53 @@ void main() {
         .first;
 
     expect(resolver, contains('targetBox.debugNeedsLayout'));
-    expect(resolver, contains('overlayBox.debugNeedsLayout'));
+    expect(resolver, isNot(contains('overlayBox.debugNeedsLayout')));
+    expect(resolver, isNot(contains('overlayBox.size')));
+    expect(resolver, contains('_helpGlobalRectCache[id]'));
     expect(resolver, contains('viewportBox.debugNeedsLayout'));
+  });
+
+  test('scales exposes separate tonic, accidental, and type help anchors', () {
+    final page = File('lib/main_pages.dart').readAsStringSync();
+    final help = File('lib/main_help.dart').readAsStringSync();
+
+    for (final id in <String>[
+      'scales_tonic',
+      'scales_accidental',
+      'scales_pattern',
+    ]) {
+      expect(page, contains("'$id'"));
+      expect(help, contains("id: '$id'"));
+    }
+  });
+
+  test(
+    'help anchors own a stable render box instead of their child layout',
+    () {
+      final help = File('lib/main_help.dart').readAsStringSync();
+      final anchor = help
+          .split('Widget _helpAnchor(')
+          .last
+          .split('List<_HelpStep>')
+          .first;
+
+      expect(anchor, contains('RepaintBoundary(key: _helpAnchorKey(id)'));
+      expect(anchor, isNot(contains('KeyedSubtree')));
+    },
+  );
+
+  test('dropdown help anchors use a fixed-height layout boundary', () {
+    final help = File('lib/main_help.dart').readAsStringSync();
+    final main = File('lib/main.dart').readAsStringSync();
+    final pages = File('lib/main_pages.dart').readAsStringSync();
+
+    expect(help, contains('Widget _helpFixedHeightAnchor('));
+    expect(main, contains('_helpFixedHeightAnchor(helpId, child)'));
+    expect(
+      pages,
+      contains(
+        "_helpFixedHeightAnchor(\n                                'scales_pattern'",
+      ),
+    );
   });
 }

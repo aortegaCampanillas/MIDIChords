@@ -50,7 +50,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
-- **Móvil (ayuda)**: los resaltados de controles situados dentro de zonas desplazables se limitan ahora a la parte realmente visible; la tabla de Generación de intervalos ya no invade el panel inferior cuando necesita scroll y el overlay espera a que Flutter complete el layout antes de medir sus anclas.
+- **Móvil (ayuda de escalas)**: la tónica, su alteración/armadura y el tipo de escala disponen de resaltados y explicaciones independientes; su geometría estable se conserva al activar el overlay para que los desplegables no pierdan el contorno durante su relayout.
+- **Web (ayuda de intervalos)**: el contorno de la tabla se ancla al viewport desplazable visible, que ocupa solo el espacio restante del panel y dibuja su borde hacia dentro para mantener visibles sus cuatro lados.
+- **Web (ayuda de escalas)**: las anclas de tónica y digitación dibujan el contorno hacia dentro del panel para que sean visibles también los bordes izquierdo y derecho.
+- **Móvil (ayuda)**: los resaltados de controles situados dentro de zonas desplazables se limitan ahora a la parte realmente visible; la tabla de Generación de intervalos ya no invade el panel inferior cuando necesita scroll y las anclas conservan una geometría estable durante el relayout del overlay.
 - **Teclado**: al mostrar los nombres de las teclas, cada Do/C incluye ahora su número de octava (`Do4`, `C4`, etc.) en escritorio, web y móvil para facilitar la orientación en el registro.
 - **Móvil (generación de intervalos)**: las zonas táctiles de las dos notas del pentagrama coinciden ahora con sus columnas melódicas visibles, permitiendo pulsar y reproducir también la segunda nota.
 - **Móvil (teclado)**: el centrado inicial se aplica al terminar de restaurar la pantalla y cargar todos sus datos; al entrar en Generación de intervalos también se recalcula con el ancho real disponible, fijando C4 como referencia sin reutilizar el desplazamiento de Detección.

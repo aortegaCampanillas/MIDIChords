@@ -20,6 +20,14 @@ reproducir el comportamiento actual y confirmar que siguen siendo necesarios:
 - Evaluar una selección de tónica/alteración más directa y coherente entre modos.
 - Valorar digitaciones de escalas a dos manos.
 
+## Calidad visual y layouts
+
+- Revisar sistemáticamente el comportamiento al redimensionar las ventanas y
+  cambiar de orientación en escritorio, web y móvil/tablet. Cubrir todos los
+  modos y tamaños representativos; comprobar solapamientos, recortes, scroll,
+  alturas mínimas, paneles e instrumentos, tablas y ayudas contextuales, además
+  de verificar que el estado y el foco se conservan durante el cambio de tamaño.
+
 ## Regla de actualización
 
 - Añadir aquí únicamente trabajo confirmado y aún no completado.

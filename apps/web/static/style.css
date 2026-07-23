@@ -888,7 +888,16 @@ a.btn-link:hover {
 
 .mode-screen.mode-interval_generation .sidebar-top {
   max-height: min(50vh, 500px);
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-screen.mode-interval_generation #panelIntervalGeneration:not(.hidden) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
 }
 
 .mode-screen.mode-interval_generation .instrument-panel.with-inst-dock {
@@ -1154,6 +1163,11 @@ a.btn-link:hover {
   pointer-events: none;
 }
 
+.mode-screen.mode-scales #scaleRootRow.help-target,
+.mode-screen.mode-scales .scale-fingering-row.help-target {
+  outline-offset: -2px;
+}
+
 .fingering-strip {
   position: relative;
   height: 0;
@@ -1403,7 +1417,13 @@ a.btn-link:hover {
 
 .interval-gen-table-wrap {
   margin-top: 12px;
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.interval-gen-table-wrap.help-target {
+  outline-offset: -2px;
 }
 
 .interval-gen-table {

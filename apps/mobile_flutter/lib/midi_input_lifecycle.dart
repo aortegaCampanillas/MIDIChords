@@ -21,7 +21,7 @@ final class MidiInputLifecycle {
     required void Function() onSetupChanged,
   }) => MidiInputLifecycle(
     midiBytes: command.onMidiDataReceived?.map(
-      (packet) => List<int>.unmodifiable(packet.data),
+      (packet) => List<int>.unmodifiable(packet.message.data),
     ),
     setupEvents: command.onMidiSetupChanged,
     onMidiBytes: onMidiBytes,

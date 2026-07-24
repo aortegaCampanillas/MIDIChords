@@ -320,14 +320,16 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
 
     /**
      * playAsset se llama en el hilo del MethodChannel: debe volver rápido para no introducir
-     * lag perceptible al tocar teclas seguidas. El resample/fade (coste de CPU) se hace en un
-     * hilo aparte; solo el AudioTrack.play() de una pista silenciosa "placeholder" ocurre síncrono
-     * para devolver cuanto antes, y el audio real llega en cuanto el hilo de fondo termina.
+     * lag perceptible al tocar teclas seguidas, y sobre todo para no bloquearlo — un ANR real en
+     * un Honor X5B (Android 14) mostró el hilo "main" esperando aquí un decodeLock que tenía
+     * ensureDecoded() en el hilo mc-preload (decodificando el resto del banco de samples en el
+     * arranque). Por eso tanto ensureDecoded como el resample/fade se hacen en el hilo de fondo;
+     * playAsset solo lanza ese hilo y vuelve inmediatamente, sin tocar decodeLock.
      */
     private fun playAsset(path: String, volume: Float, rate: Float, durationMs: Int): Boolean {
-        val sample = ensureDecoded(path) ?: return false
         thread(name = "mc-play", isDaemon = true) {
             try {
+                val sample = ensureDecoded(path) ?: return@thread
                 playDecodedSample(sample, volume, rate, durationMs)
             } catch (_: Throwable) {
             }

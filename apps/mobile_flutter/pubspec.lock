@@ -73,14 +73,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.2.1"
-  bluez:
-    dependency: transitive
-    description:
-      name: bluez
-      sha256: "61a7204381925896a374301498f2f5399e59827c6498ae1e924aaa598751b545"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.8.3"
   boolean_selector:
     dependency: transitive
     description:
@@ -161,6 +153,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  ffi_leak_tracker:
+    dependency: transitive
+    description:
+      name: ffi_leak_tracker
+      sha256: "4093d4ef9ca06ffe2786e73bfb25e22aa92112b9bb4ec941f11e3e6b61489a97"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
   file:
     dependency: transitive
     description:
@@ -202,47 +202,63 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_midi_command
-      sha256: bce9e83d3fb05aef275af83d65c53a40623735516ef1bdcefc0ba1ca5db1d89f
+      sha256: "44e40bafdf85ffd928c30fc79c13bdd40f52d6f48c603ead684f5a6e102ba703"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.3"
+    version: "1.0.7"
+  flutter_midi_command_android:
+    dependency: transitive
+    description:
+      name: flutter_midi_command_android
+      sha256: "2f1998443faf97aefe5befe8457f2d3962ac04b607df3bc5d20dd4e298de65cc"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7"
+  flutter_midi_command_darwin:
+    dependency: transitive
+    description:
+      name: flutter_midi_command_darwin
+      sha256: "8de9e1aac1e6c6734d6cfb54e890cc01283d2780bb35d66cfcbe2a527eda91de"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7"
   flutter_midi_command_linux:
     dependency: transitive
     description:
       name: flutter_midi_command_linux
-      sha256: c4d6dcf136fd4718aa827c201446f935f2752e37b702ed712373c675cbdbb0d0
+      sha256: "24fb744b16d2a07ef06cf141c3772c98f3858a2f5b2ca85f97fcbe2f1e8caa2e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "1.0.7"
   flutter_midi_command_platform_interface:
     dependency: transitive
     description:
       name: flutter_midi_command_platform_interface
-      sha256: "905ebe90f56af5e9e376688d6baedd94d5378c788d302a141da283dd329dc2ce"
+      sha256: a1ec8093692996d15d7d4471e61d1e6d8b291fc7c5e123b31a352e7e1d357a74
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.3"
+    version: "1.0.7"
+  flutter_midi_command_web:
+    dependency: transitive
+    description:
+      name: flutter_midi_command_web
+      sha256: f8e96f4c32e449cdc53422bc0853c6ce30151605e90aac5e4879a43615e99575
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7"
   flutter_midi_command_windows:
     dependency: transitive
     description:
       name: flutter_midi_command_windows
-      sha256: fd85c892d890f462487601e69228de261954e2cd8740f5396f5e3060d23ff097
+      sha256: "5a60a36b16b2f23fb1ac17a7c4125c2ca2c21d710474858bc83ebc306b344b17"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "1.0.7"
   flutter_test:
     dependency: "direct dev"
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_web_bluetooth:
-    dependency: transitive
-    description:
-      name: flutter_web_bluetooth
-      sha256: fcd03e2e5f82edcedcbc940f1b6a0635a50757374183254f447640886c53208e
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.4"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -280,14 +296,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: "53385261521cc4a0c4658fd0ad07a7d14591cf8fc33abbceae306ddb974888dc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.2"
   leak_tracker:
     dependency: transitive
     description:
@@ -348,18 +356,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
+      sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
       url: "https://pub.dev"
     source: hosted
-    version: "1.17.0"
-  midi:
-    dependency: transitive
-    description:
-      name: midi
-      sha256: "737c86a4ffbbe06352a8ec90bf5153774202f4b38dfb8e45af255cee18e2b9de"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.0"
+    version: "1.18.0"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -380,18 +380,18 @@ packages:
     dependency: "direct main"
     description:
       name: package_info_plus
-      sha256: f69da0d3189a4b4ceaeb1a3defb0f329b3b352517f52bed4290f83d4f06bc08d
+      sha256: "127e1751e37ffb2ff4658beeaca77bad0c27bf5f932bd3a501c2296926d4b481"
       url: "https://pub.dev"
     source: hosted
-    version: "9.0.0"
+    version: "10.2.1"
   package_info_plus_platform_interface:
     dependency: transitive
     description:
       name: package_info_plus_platform_interface
-      sha256: "202a487f08836a592a6bd4f901ac69b3a8f146af552bbd14407b6b41e1c3f086"
+      sha256: db762cb2f4f25ee60fb6359773861b0f199e00b90d237bd85a76a1e806b46ef4
       url: "https://pub.dev"
     source: hosted
-    version: "3.2.1"
+    version: "4.1.0"
   path:
     dependency: transitive
     description:
@@ -593,18 +593,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
+      sha256: "949a932224383300f01be9221c39180316445ecb8e7547f70a41a35bf421fb9e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.10"
-  tuple:
-    dependency: transitive
-    description:
-      name: tuple
-      sha256: a97ce2013f240b2f3807bcbaf218765b6f301c3eff91092bcfa23a039e7dd151
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
+    version: "0.7.11"
   typed_data:
     dependency: transitive
     description:
@@ -613,14 +605,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  universal_ble:
-    dependency: transitive
-    description:
-      name: universal_ble
-      sha256: "50011255aa793589ccefb086ceead0f2eaddd30609a6f8b10ee4a0a548c3250e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.11"
   url_launcher:
     dependency: "direct main"
     description:
@@ -713,18 +697,18 @@ packages:
     dependency: "direct main"
     description:
       name: wakelock_plus
-      sha256: "8b12256f616346910c519a35606fb69b1fe0737c06b6a447c6df43888b097f39"
+      sha256: "7253bca0fcf40d8413ddfcf4d2a1fa0a82475e79be25a4f2c564b695c9351486"
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.1"
+    version: "1.7.0"
   wakelock_plus_platform_interface:
     dependency: transitive
     description:
       name: wakelock_plus_platform_interface
-      sha256: "24b84143787220a403491c2e5de0877fbbb87baf3f0b18a2a988973863db4b03"
+      sha256: "0618d1799f0b28bcf98255b4ee8313e6fc4d38589dc4ee5fe5840d57d1aff6da"
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.0"
+    version: "1.6.0"
   web:
     dependency: transitive
     description:
@@ -737,10 +721,10 @@ packages:
     dependency: transitive
     description:
       name: win32
-      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
+      sha256: ba6f4bba816c8d7e3c1580e170f3786d216951cc6b94babc3b814c08d2cb2738
       url: "https://pub.dev"
     source: hosted
-    version: "5.15.0"
+    version: "6.3.0"
   xdg_directories:
     dependency: transitive
     description:
@@ -766,5 +750,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.10.7 <4.0.0"
-  flutter: ">=3.38.4"
+  dart: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"

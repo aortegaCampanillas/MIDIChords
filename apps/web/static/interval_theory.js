@@ -11,6 +11,115 @@ function formatIntervalsFromMidi(notesMidi) {
   return result.join(" ");
 }
 
+// Grado (con alteración respecto a la escala mayor) por semitonos desde la
+// tónica, hasta 24 semitonos (2 octavas) para cubrir 9ª/11ª/13ª.
+const DEGREE_BY_SEMITONE = {
+  0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3", 5: "4", 6: "b5", 7: "5",
+  8: "#5", 9: "6", 10: "b7", 11: "7", 12: "8",
+  13: "b9", 14: "9", 15: "#9", 17: "11", 18: "#11", 20: "b13", 21: "13",
+};
+
+// Calidad abreviada de un intervalo (par de notas consecutivas de un acorde)
+// por semitonos, en notación estándar: P=justo, M=mayor, m=menor, TT=tritono.
+const INTERVAL_QUALITY_BY_SEMITONE = {
+  0: "P1", 1: "m2", 2: "M2", 3: "m3", 4: "M3", 5: "P4", 6: "TT", 7: "P5",
+  8: "m6", 9: "M6", 10: "m7", 11: "M7", 12: "P8",
+};
+
+function intervalQualityAbbrev(semitones) {
+  const value = Number(semitones);
+  const octaves = Math.floor(value / 12);
+  const base = INTERVAL_QUALITY_BY_SEMITONE[value - octaves * 12];
+  if (!base) return `${value}st`;
+  return octaves > 0 ? `${base}+${octaves * 12}` : base;
+}
+
+// Fórmula de grados de un acorde: p. ej. root_pc=0 (Do), notesMidi=[60,64,67] -> "1 3 5".
+function chordFormulaFromRoot(rootPc, notesMidi) {
+  const root = Number(rootPc);
+  const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
+  if (!ordered.length || !Number.isFinite(root)) return "-";
+  const rootMidi = ordered[0] - ((((ordered[0] % 12) - root) + 12) % 12);
+  return ordered.map((n) => DEGREE_BY_SEMITONE[n - rootMidi] || `${n - rootMidi}st`).join(" ");
+}
+
+// Construcción de un acorde como intervalos apilados entre notas consecutivas:
+// p. ej. Do-Mi-Sol -> "M3 + m3".
+function chordConstructionFromMidi(notesMidi) {
+  const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
+  if (ordered.length < 2) return "-";
+  const parts = [];
+  for (let i = 1; i < ordered.length; i++) {
+    parts.push(intervalQualityAbbrev(ordered[i] - ordered[i - 1]));
+  }
+  return parts.join(" + ");
+}
+
+// Paso entre dos notas consecutivas de una escala en tonos (T) y semitonos (S):
+// 1 -> "S", 2 -> "T", 3 -> "T+S", 4 -> "T+T", etc. (combinación de T's y, si es
+// impar, una S final).
+function scaleStepLabel(semitones) {
+  const value = Number(semitones);
+  if (value <= 0) return "";
+  const tones = Math.floor(value / 2);
+  const hasSemitone = value % 2 === 1;
+  const parts = Array(tones).fill("T");
+  if (hasSemitone) parts.push("S");
+  return parts.join("+");
+}
+
+// Patrón T/S de una escala a partir de sus notas MIDI ordenadas:
+// p. ej. Do jónico [60,62,64,65,67,69,71,72] -> "T T S T T T S".
+function scalePatternFromMidi(notesMidi) {
+  const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
+  if (ordered.length < 2) return "-";
+  const parts = [];
+  for (let i = 1; i < ordered.length; i++) {
+    parts.push(scaleStepLabel(ordered[i] - ordered[i - 1]));
+  }
+  return parts.join(" ");
+}
+
+// Grado diatónico (1-7) por semitonos desde la tónica, para escalas. A
+// diferencia de DEGREE_BY_SEMITONE (pensada para acordes, donde 8 semitonos
+// se interpreta como quinta aumentada), aquí cada semitono siempre resuelve a
+// una alteración del grado numérico correspondiente (8 semitonos -> ♭6, no ♯5).
+const SCALE_DEGREE_BY_SEMITONE = {
+  0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3", 5: "4", 6: "b5",
+  7: "5", 8: "b6", 9: "6", 10: "b7", 11: "7", 12: "8",
+};
+
+// Fórmula de grados de una escala a partir de sus notas MIDI ordenadas:
+// p. ej. Do jónico -> "1 2 3 4 5 6 7".
+function scaleFormulaFromMidi(notesMidi) {
+  const ordered = Array.from(new Set((notesMidi || []).map((n) => Number(n)))).sort((a, b) => a - b);
+  if (!ordered.length) return "-";
+  const rootMidi = ordered[0];
+  // La nota final (octava) no se cuenta como grado nuevo en la fórmula.
+  const degreeNotes = ordered.length > 1 && ordered[ordered.length - 1] - rootMidi === 12
+    ? ordered.slice(0, -1)
+    : ordered;
+  return degreeNotes.map((n) => SCALE_DEGREE_BY_SEMITONE[n - rootMidi] || `${n - rootMidi}st`).join(" ");
+}
+
+// Reconstruye el voicing en posición fundamental (raíz en el bajo, resto apilado
+// ascendente) a partir de las pitch-classes presentes en un voicing invertido.
+function rootPositionVoicing(rootPc, notesMidi) {
+  const root = ((Number(rootPc) % 12) + 12) % 12;
+  const pcs = Array.from(new Set((notesMidi || []).map((n) => ((Number(n) % 12) + 12) % 12)));
+  const offsets = pcs.map((pc) => ((pc - root) + 12) % 12).sort((a, b) => a - b);
+  return offsets.map((offset) => 60 + offset);
+}
+
+// Rota una fórmula "1 - 3 - 5" tantas posiciones como indique el índice de
+// inversión: inversion=1 -> "3 - 5 - 1".
+function rotateDegrees(formula, inversion) {
+  const degrees = String(formula || "").split(" - ").filter(Boolean);
+  if (!degrees.length) return formula;
+  const idx = Math.max(0, Math.min(Number(inversion) || 0, degrees.length - 1));
+  return degrees.slice(idx).concat(degrees.slice(0, idx)).join(" - ");
+}
+
 const INTERVAL_NAMES = {
   es: {
     0: "Unísono justo", 1: "Segunda menor", 2: "Segunda mayor",
@@ -151,56 +260,56 @@ const INTERVAL_GRID_COLUMNS = [
     key: "diminished",
     title: { es: "Disminuidas", en: "Diminished" },
     cellsBySemitone: {
-      0: { short: "2d", name: { es: "Segunda disminuida", en: "Diminished Second" } },
-      2: { short: "3d", name: { es: "Tercera disminuida", en: "Diminished Third" } },
-      4: { short: "4d", name: { es: "Cuarta disminuida", en: "Diminished Fourth" } },
-      6: { short: "5d", name: { es: "Quinta disminuida", en: "Diminished Fifth" } },
-      7: { short: "6d", name: { es: "Sexta disminuida", en: "Diminished Sixth" } },
-      9: { short: "7d", name: { es: "Séptima disminuida", en: "Diminished Seventh" } },
-      11: { short: "8d", name: { es: "Octava disminuida", en: "Diminished Octave" } },
+      0: { short: "d2", name: { es: "Segunda disminuida", en: "Diminished Second" } },
+      2: { short: "d3", name: { es: "Tercera disminuida", en: "Diminished Third" } },
+      4: { short: "d4", name: { es: "Cuarta disminuida", en: "Diminished Fourth" } },
+      6: { short: "d5", name: { es: "Quinta disminuida", en: "Diminished Fifth" } },
+      7: { short: "d6", name: { es: "Sexta disminuida", en: "Diminished Sixth" } },
+      9: { short: "d7", name: { es: "Séptima disminuida", en: "Diminished Seventh" } },
+      11: { short: "d8", name: { es: "Octava disminuida", en: "Diminished Octave" } },
     },
   },
   {
     key: "minor",
     title: { es: "Menores", en: "Minor" },
     cellsBySemitone: {
-      1: { short: "2m", name: { es: "Segunda menor", en: "Minor Second" } },
-      3: { short: "3m", name: { es: "Tercera menor", en: "Minor Third" } },
-      8: { short: "6m", name: { es: "Sexta menor", en: "Minor Sixth" } },
-      10: { short: "7m", name: { es: "Séptima menor", en: "Minor Seventh" } },
+      1: { short: "m2", name: { es: "Segunda menor", en: "Minor Second" } },
+      3: { short: "m3", name: { es: "Tercera menor", en: "Minor Third" } },
+      8: { short: "m6", name: { es: "Sexta menor", en: "Minor Sixth" } },
+      10: { short: "m7", name: { es: "Séptima menor", en: "Minor Seventh" } },
     },
   },
   {
     key: "major",
     title: { es: "Mayores", en: "Major" },
     cellsBySemitone: {
-      2: { short: "2M", name: { es: "Segunda mayor", en: "Major Second" } },
-      4: { short: "3M", name: { es: "Tercera mayor", en: "Major Third" } },
-      9: { short: "6M", name: { es: "Sexta mayor", en: "Major Sixth" } },
-      11: { short: "7M", name: { es: "Séptima mayor", en: "Major Seventh" } },
+      2: { short: "M2", name: { es: "Segunda mayor", en: "Major Second" } },
+      4: { short: "M3", name: { es: "Tercera mayor", en: "Major Third" } },
+      9: { short: "M6", name: { es: "Sexta mayor", en: "Major Sixth" } },
+      11: { short: "M7", name: { es: "Séptima mayor", en: "Major Seventh" } },
     },
   },
   {
     key: "perfect",
     title: { es: "Justas", en: "Perfect" },
     cellsBySemitone: {
-      0: { short: "U", name: { es: "Unísono justo", en: "Perfect Unison" } },
-      5: { short: "4J", name: { es: "Cuarta justa", en: "Perfect Fourth" } },
-      7: { short: "5J", name: { es: "Quinta justa", en: "Perfect Fifth" } },
-      12: { short: "8J", name: { es: "Octava justa", en: "Perfect Octave" } },
+      0: { short: "P1", name: { es: "Unísono justo", en: "Perfect Unison" } },
+      5: { short: "P4", name: { es: "Cuarta justa", en: "Perfect Fourth" } },
+      7: { short: "P5", name: { es: "Quinta justa", en: "Perfect Fifth" } },
+      12: { short: "P8", name: { es: "Octava justa", en: "Perfect Octave" } },
     },
   },
   {
     key: "augmented",
     title: { es: "Aumentadas", en: "Augmented" },
     cellsBySemitone: {
-      1: { short: "UA", name: { es: "Unísono aumentado", en: "Augmented Unison" } },
-      3: { short: "2A", name: { es: "Segunda aumentada", en: "Augmented Second" } },
-      5: { short: "3A", name: { es: "Tercera aumentada", en: "Augmented Third" } },
-      6: { short: "4A", name: { es: "Cuarta aumentada", en: "Augmented Fourth" } },
-      8: { short: "5A", name: { es: "Quinta aumentada", en: "Augmented Fifth" } },
-      10: { short: "6A", name: { es: "Sexta aumentada", en: "Augmented Sixth" } },
-      12: { short: "7A", name: { es: "Séptima aumentada", en: "Augmented Seventh" } },
+      1: { short: "A1", name: { es: "Unísono aumentado", en: "Augmented Unison" } },
+      3: { short: "A2", name: { es: "Segunda aumentada", en: "Augmented Second" } },
+      5: { short: "A3", name: { es: "Tercera aumentada", en: "Augmented Third" } },
+      6: { short: "A4", name: { es: "Cuarta aumentada", en: "Augmented Fourth" } },
+      8: { short: "A5", name: { es: "Quinta aumentada", en: "Augmented Fifth" } },
+      10: { short: "A6", name: { es: "Sexta aumentada", en: "Augmented Sixth" } },
+      12: { short: "A7", name: { es: "Séptima aumentada", en: "Augmented Seventh" } },
     },
   },
 ];
@@ -271,6 +380,12 @@ global.MidiChordsIntervalTheory = Object.freeze({
   INTERVAL_MELODIES,
   INTERVAL_GRID_COLUMNS,
   formatIntervalsFromMidi,
+  chordFormulaFromRoot,
+  chordConstructionFromMidi,
+  rootPositionVoicing,
+  rotateDegrees,
+  scaleFormulaFromMidi,
+  scalePatternFromMidi,
   intervalName,
   intervalAltNames,
   intervalSemitones,

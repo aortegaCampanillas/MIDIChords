@@ -265,6 +265,7 @@ const {
   CHORD_VARIANT_GROUPS,
   CHORD_VARIANT_THEORY,
   MAJOR_CHORD_INVERSION_THEORY,
+  CHORD_INVERSION_NAMES,
   chordInversionTheory,
 } = globalThis.MidiChordsChordHelp;
 
@@ -1606,13 +1607,15 @@ function applyTranslations() {
   setText("labelDetectChord", "label_chord");
   setText("labelDetectNotes", "label_notes");
   setText("labelDetectExtras", "label_extras");
-  setText("labelDetectIntervals", "label_intervals");
+  setText("labelDetectFormula", "label_formula");
+  setText("labelDetectConstruction", "label_construction");
   setText("labelGenRoot", "label_tonic");
   setText("labelGenVariant", "label_variant");
   setText("labelGenInversion", "label_inversion");
   setText("labelGenChord", "label_chord");
   setText("labelGenNotes", "label_notes");
-  setText("labelGenIntervals", "label_intervals");
+  setText("labelGenFormula", "label_formula");
+  setText("labelGenConstruction", "label_construction");
   setText("labelCircleChord", "label_chord");
   setText("labelScaleRoot", "label_tonic");
   setText("labelScaleType", "label_type");
@@ -1620,7 +1623,8 @@ function applyTranslations() {
   setText("labelScaleBpm", "label_speed");
   setText("labelScaleName", "label_scale");
   setText("labelScaleNotes", "label_notes");
-  setText("labelScaleIntervals", "label_intervals");
+  setText("labelScaleFormula", "label_formula");
+  setText("labelScalePattern", "label_scale_pattern");
   setText("labelScaleFingering", "scale_fingering_label");
   setText("labelScaleFingeringNo", "scale_fingering_none");
   setText("labelScaleFingeringLeft", "scale_fingering_left");
@@ -2341,6 +2345,12 @@ const {
   INTERVAL_MELODIES,
   INTERVAL_GRID_COLUMNS,
   formatIntervalsFromMidi,
+  chordFormulaFromRoot,
+  chordConstructionFromMidi,
+  rootPositionVoicing,
+  rotateDegrees,
+  scaleFormulaFromMidi,
+  scalePatternFromMidi,
   intervalName,
   intervalAltNames,
   intervalSemitones,
@@ -5391,6 +5401,35 @@ function refreshGenerationInversionControlState() {
   select.disabled = state.instrument === "guitar";
 }
 
+function appendInversionDetail(baseValue, inversionIndex, invertedValue) {
+  if (!inversionIndex) return baseValue;
+  const lang = state.language === "en" ? "en" : "es";
+  const label = CHORD_INVERSION_NAMES[lang][inversionIndex]
+    || (lang === "en" ? `Inversion ${inversionIndex}` : `Inversión ${inversionIndex}`);
+  return `${baseValue} (${label.toLowerCase()}: ${invertedValue})`;
+}
+
+// Fórmula y construcción de un acorde (con detalle de inversión entre paréntesis
+// si aplica) a partir de una respuesta de /api/detect o /api/generate/chord.
+// chordMidi debe ser el voicing ya ordenado tal como se toca/genera (refleja la inversión).
+function chordFormulaAndConstruction(rootPc, suffix, inversion, chordMidi) {
+  if (rootPc == null || !chordMidi.length) return { formula: "-", construction: "-" };
+  const curatedFormula = suffix != null ? CHORD_VARIANT_THEORY[suffix]?.[0] : null;
+  const rootFormula = curatedFormula || chordFormulaFromRoot(rootPc, chordMidi);
+  const inversionIndex = Number(inversion) || 0;
+  const formula = appendInversionDetail(rootFormula, inversionIndex, rotateDegrees(rootFormula, inversionIndex));
+  let construction;
+  if (inversionIndex > 0) {
+    const rootPositionMidi = rootPositionVoicing(rootPc, chordMidi);
+    const rootConstruction = chordConstructionFromMidi(rootPositionMidi);
+    const inversionConstruction = chordConstructionFromMidi(chordMidi);
+    construction = appendInversionDetail(rootConstruction, inversionIndex, inversionConstruction);
+  } else {
+    construction = chordConstructionFromMidi(chordMidi);
+  }
+  return { formula, construction };
+}
+
 async function runDetection() {
   const payload = {
     notes: Array.from(state.activeDetectionNotes).sort((a, b) => a - b),
@@ -5408,7 +5447,11 @@ async function runDetection() {
   if (descEl) descEl.textContent = out.description ? `(${out.description})` : "";
   el("detectNotes").textContent = (out.notes || []).join(" - ") || "-";
   el("detectExtras").textContent = (out.extras || []).join(" - ") || "-";
-  el("detectIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
+  const extrasMidiSet = new Set((out.extras_midi || []).map((n) => Number(n)));
+  const chordOnlyMidi = (out.notes_midi || []).map(Number).filter((n) => !extrasMidiSet.has(n));
+  const { formula, construction } = chordFormulaAndConstruction(out.root_pc, out.suffix, out.inversion, chordOnlyMidi);
+  el("detectFormula").textContent = formula;
+  el("detectConstruction").textContent = construction;
   refreshDetectionButtonsState();
   renderInstrument();
   renderStaff();
@@ -5433,7 +5476,10 @@ async function runGenerateChord() {
   const genDescEl = el("genChordDesc");
   if (genDescEl) genDescEl.textContent = out.description ? `(${out.description})` : "";
   el("genNotes").textContent = (out.notes || []).join(" - ") || "-";
-  el("genIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
+  const genChordMidi = (out.notes_midi || []).map(Number);
+  const genFormulaResult = chordFormulaAndConstruction(out.root_pc, out.suffix, out.inversion, genChordMidi);
+  el("genFormula").textContent = genFormulaResult.formula;
+  el("genConstruction").textContent = genFormulaResult.construction;
   await loadGuitarVariations();
   if (state.mode === "generation") {
     renderInstrument();
@@ -5471,7 +5517,9 @@ async function runGenerateScale() {
   const patternWithAlias = scaleDisplayLabel(out.pattern_name, patternLabel, state.language);
   el("scaleName").textContent = `${tonic} ${patternWithAlias}`.trim();
   el("scaleNotes").textContent = (out.notes || []).map(scaleLabelWithoutOctave).join(" - ") || "-";
-  el("scaleIntervals").textContent = formatIntervalsFromMidi(out.notes_midi || []);
+  const scaleMidi = (out.notes_midi || []).map(Number);
+  el("scaleFormula").textContent = scaleFormulaFromMidi(scaleMidi);
+  el("scalePattern").textContent = scalePatternFromMidi(scaleMidi);
   if (state.mode === "scales") {
     renderInstrument();
     renderStaff();

@@ -161,6 +161,7 @@ global.MidiChordsChordHelp = Object.freeze({
   CHORD_VARIANT_GROUPS,
   CHORD_VARIANT_THEORY,
   MAJOR_CHORD_INVERSION_THEORY,
+  CHORD_INVERSION_NAMES,
   chordInversionTheory,
 });
 })(globalThis);

@@ -18,7 +18,8 @@ const HELP_CALLOUTS_DETECTION = [
   { selector: "#detectFieldChord", textKey: "help_field_chord", side: "left" },
   { selector: "#detectFieldNotes", textKey: "help_field_notes", side: "left" },
   { selector: "#detectFieldExtras", textKey: "help_field_extras", side: "left" },
-  { selector: "#detectFieldIntervals", textKey: "help_field_intervals", side: "left" },
+  { selector: "#detectFieldFormula", textKey: "help_field_formula", side: "left" },
+  { selector: "#detectFieldConstruction", textKey: "help_field_construction", side: "left" },
   { selector: "#sharedPiano", textKey: "help_instrument_surface_detection", side: "top" },
 ];
 const HELP_CALLOUTS_GENERATION = [
@@ -39,7 +40,8 @@ const HELP_CALLOUTS_GENERATION = [
   { selector: "#genVariantHelp", textKey: "help_gen_variant_theory", side: "bottom" },
   { selector: "#genFieldChord", textKey: "help_gen_result_chord", side: "left" },
   { selector: "#genFieldNotes", textKey: "help_gen_result_notes", side: "left" },
-  { selector: "#genFieldIntervals", textKey: "help_gen_result_intervals", side: "left" },
+  { selector: "#genFieldFormula", textKey: "help_gen_result_formula", side: "left" },
+  { selector: "#genFieldConstruction", textKey: "help_gen_result_construction", side: "left" },
   { selector: "#guitarVariationBar", textKey: "help_guitar_variations_bar", side: "top" },
   { selector: "#guitarVariationBar .guitar-var-btn", textKey: "help_guitar_variation_btn", side: "top" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_generation", side: "top" },
@@ -81,7 +83,8 @@ const HELP_CALLOUTS_SCALES = [
   { selector: "#scaleBpm", textKey: "help_scale_bpm", side: "left" },
   { selector: "#scaleName", textKey: "help_scale_result_name", side: "left" },
   { selector: "#scaleNotes", textKey: "help_scale_result_notes", side: "left" },
-  { selector: "#scaleIntervals", textKey: "help_scale_result_intervals", side: "left" },
+  { selector: "#scaleFormula", textKey: "help_scale_result_formula", side: "left" },
+  { selector: "#scalePattern", textKey: "help_scale_result_pattern", side: "left" },
   { selector: ".scale-fingering-row", textKey: "help_scale_fingering", side: "left" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_scales", side: "top" },
 ];

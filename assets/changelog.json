@@ -4,6 +4,27 @@
     "date": "2026-07-23",
     "items": [
       {
+        "date": "2026-07-24",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Detección y Generación de Acordes: el campo Intervalos se sustituye por Fórmula (grados, p. ej. 1 - 3 - 5) y Construcción (terceras apiladas, p. ej. M3 + m3); en inversiones se añade entre paréntesis la fórmula y construcción de esa inversión.",
+        "en": "Chord Detection and Generation: the Intervals field is replaced by Formula (degrees, e.g. 1 - 3 - 5) and Construction (stacked thirds, e.g. M3 + m3); inversions add that inversion's formula and construction in parentheses."
+      },
+      {
+        "date": "2026-07-24",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Escalas: el campo Intervalos se sustituye por Fórmula (grados, p. ej. 1 2 3 4 5 6 7 en Do jónico) y Patrón (tonos/semitonos, p. ej. T T S T T T S).",
+        "en": "Scales: the Intervals field is replaced by Formula (degrees, e.g. 1 2 3 4 5 6 7 for C Ionian) and Pattern (whole/half steps, e.g. T T S T T T S)."
+      },
+      {
+        "date": "2026-07-24",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Generación de Intervalos: la tabla usa notación estándar en todas las columnas (d2-d8, m2/m3/m6/m7, M2/M3/M6/M7, P1/P4/P5/P8, A1-A7) en vez de las abreviaturas anteriores.",
+        "en": "Interval Generation: the table now uses standard notation across all columns (d2-d8, m2/m3/m6/m7, M2/M3/M6/M7, P1/P4/P5/P8, A1-A7) instead of the previous abbreviations."
+      },
+      {
         "date": "2026-07-23",
         "publish": false,
         "platforms": ["desktop"],

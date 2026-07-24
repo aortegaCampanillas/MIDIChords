@@ -29,6 +29,8 @@ UI_TEXTS = {
         "label_active_notes": "Notas",
         "label_extra_notes": "Notas sobrantes",
         "label_intervals": "Intervalos",
+        "label_formula": "Fórmula",
+        "label_construction": "Construcción",
         "mode_interval_detection": "Detección de Intervalos",
         "label_interval_notes": "Notas:",
         "label_interval_name": "Intervalo:",
@@ -51,6 +53,7 @@ UI_TEXTS = {
         "label_fingering_left": "Mano Izquierda",
         "label_scale_notes": "Notas",
         "label_scale_intervals": "Intervalos",
+        "label_scale_pattern": "Patrón",
         "label_metronome_tempo": "Tempo",
         "label_metronome_volume": "Volumen",
         "label_metronome_meter": "Pulsos",
@@ -153,7 +156,8 @@ UI_TEXTS = {
         "help_detect_result_chord": "Acorde: nombre detectado con la mejor coincidencia.",
         "help_detect_result_notes": "Notas: notas que forman el acorde detectado.",
         "help_detect_result_extras": "Sobrantes: notas activas que no encajan en el acorde.",
-        "help_detect_result_intervals": "Intervalos: distancias entre notas respecto a la tónica.",
+        "help_detect_result_formula": "Fórmula: grados del acorde respecto a la tónica (p. ej. 1 - 3 - 5). En una inversión se añade entre paréntesis la fórmula de esa inversión.",
+        "help_detect_result_construction": "Construcción: intervalos apilados entre notas consecutivas del acorde (p. ej. M3 + m3). En una inversión se añade entre paréntesis la construcción de esa inversión.",
         "help_instrument_piano": "Teclado interactivo: pulsa notas para detectar acordes (también vía MIDI).",
         "help_instrument_guitar": "Guitarra interactiva: pulsa cuerdas para detectar acordes.",
         "help_circle_instrument_piano": "Teclado del círculo de quintas: al tocar una nota se resalta en el círculo la tonalidad correspondiente.",
@@ -199,7 +203,8 @@ UI_TEXTS = {
         # Generación — resultado
         "help_gen_result_chord": "Nombre del acorde generado.",
         "help_gen_result_notes": "Notas que forman el acorde generado.",
-        "help_gen_result_intervals": "Intervalos del acorde respecto a su tónica.",
+        "help_gen_result_formula": "Fórmula: grados del acorde respecto a la tónica (p. ej. 1 - 3 - 5). En una inversión se añade entre paréntesis la fórmula de esa inversión.",
+        "help_gen_result_construction": "Construcción: intervalos apilados entre notas consecutivas del acorde (p. ej. M3 + m3). En una inversión se añade entre paréntesis la construcción de esa inversión.",
         "help_gen_instrument_piano": "Vista del acorde generado en el teclado, con sus notas y digitaciones sugeridas. Usa el botón de reproducción para escucharlo.",
         "help_gen_instrument_guitar": "Vista del acorde generado en el diapasón, con la digitación seleccionada. Usa el botón de reproducción para escucharlo.",
         # Círculo de quintas
@@ -214,7 +219,8 @@ UI_TEXTS = {
         "help_scale_fingering": "Digitación documentada para tocar la escala en piano: elige mano derecha o izquierda. Los recuadros naranjas indican el dedo sugerido; los rojos marcan un cruce de dedo.",
         "help_scale_result_name": "Nombre completo de la escala seleccionada.",
         "help_scale_result_notes": "Notas de la escala.",
-        "help_scale_result_intervals": "Intervalos de la escala respecto a la tónica.",
+        "help_scale_result_formula": "Fórmula: grados de la escala respecto a la tónica (p. ej. 1 2 3 4 5 6 7 en Do jónico).",
+        "help_scale_result_pattern": "Patrón: pasos entre notas consecutivas en tonos (T) y semitonos (S), p. ej. T T S T T T S en Do jónico.",
         "help_scale_instrument_piano": "Teclado de escala: toca notas de la escala y las verás en el pentagrama; también puedes seleccionar hasta 3 octavas y ver la digitación sugerida.",
         "help_scale_instrument_guitar": "Guitarra de escala: toca notas de la escala en el diapasón y las verás en el pentagrama; también puedes seleccionar hasta 3 octavas.",
         # Metrónomo — controles adicionales
@@ -228,7 +234,8 @@ UI_TEXTS = {
         # Generación — resultado detallado
         "help_gen_result_name": "Nombre del acorde generado.",
         "help_gen_result_notes": "Notas que forman el acorde generado.",
-        "help_gen_result_intervals": "Intervalos del acorde respecto a su tónica.",
+        "help_gen_result_formula": "Fórmula: grados del acorde respecto a la tónica (p. ej. 1 - 3 - 5). En una inversión se añade entre paréntesis la fórmula de esa inversión.",
+        "help_gen_result_construction": "Construcción: intervalos apilados entre notas consecutivas del acorde (p. ej. M3 + m3). En una inversión se añade entre paréntesis la construcción de esa inversión.",
     },
     "en": {
         "app_title": "MIDI Piano & Guitar Chords",
@@ -255,6 +262,8 @@ UI_TEXTS = {
         "label_active_notes": "Notes",
         "label_extra_notes": "Extra notes",
         "label_intervals": "Intervals",
+        "label_formula": "Formula",
+        "label_construction": "Construction",
         "mode_interval_detection": "Interval Detection",
         "label_interval_notes": "Notes:",
         "label_interval_name": "Interval:",
@@ -277,6 +286,7 @@ UI_TEXTS = {
         "label_fingering_left": "Left",
         "label_scale_notes": "Notes",
         "label_scale_intervals": "Intervals",
+        "label_scale_pattern": "Pattern",
         "label_metronome_tempo": "Tempo",
         "label_metronome_volume": "Volume",
         "label_metronome_meter": "Beats",
@@ -379,7 +389,8 @@ UI_TEXTS = {
         "help_detect_result_chord": "Chord: detected name with the best match.",
         "help_detect_result_notes": "Notes: notes that make up the detected chord.",
         "help_detect_result_extras": "Extras: active notes that do not fit the main chord.",
-        "help_detect_result_intervals": "Intervals: distances between notes relative to the tonic.",
+        "help_detect_result_formula": "Formula: chord degrees relative to the tonic (e.g. 1 - 3 - 5). For an inversion, that inversion's formula is added in parentheses.",
+        "help_detect_result_construction": "Construction: stacked intervals between consecutive chord notes (e.g. M3 + m3). For an inversion, that inversion's construction is added in parentheses.",
         "help_instrument_piano": "Interactive keyboard: press notes to detect chords (also via MIDI).",
         "help_instrument_guitar": "Interactive guitar: press strings to detect chords.",
         "help_circle_instrument_piano": "Circle of fifths keyboard: playing a note highlights the corresponding key in the circle.",
@@ -425,7 +436,8 @@ UI_TEXTS = {
         # Generation — result
         "help_gen_result_chord": "Name of the generated chord.",
         "help_gen_result_notes": "Notes that make up the generated chord.",
-        "help_gen_result_intervals": "Chord intervals relative to its tonic.",
+        "help_gen_result_formula": "Formula: chord degrees relative to the tonic (e.g. 1 - 3 - 5). For an inversion, that inversion's formula is added in parentheses.",
+        "help_gen_result_construction": "Construction: stacked intervals between consecutive chord notes (e.g. M3 + m3). For an inversion, that inversion's construction is added in parentheses.",
         "help_gen_instrument_piano": "Keyboard view of the generated chord, including its notes and suggested fingerings. Use the play button to hear it.",
         "help_gen_instrument_guitar": "Fretboard view of the generated chord with the selected fingering. Use the play button to hear it.",
         # Circle of fifths
@@ -440,7 +452,8 @@ UI_TEXTS = {
         "help_scale_fingering": "Documented fingering for playing the scale on piano: choose right or left hand. Orange boxes show the suggested finger; red boxes mark a thumb crossover.",
         "help_scale_result_name": "Full name of the selected scale.",
         "help_scale_result_notes": "Notes of the scale.",
-        "help_scale_result_intervals": "Scale intervals relative to the tonic.",
+        "help_scale_result_formula": "Formula: scale degrees relative to the tonic (e.g. 1 2 3 4 5 6 7 for C Ionian).",
+        "help_scale_result_pattern": "Pattern: steps between consecutive notes in whole tones (T) and semitones (S), e.g. T T S T T T S for C Ionian.",
         "help_scale_instrument_piano": "Scale keyboard: play scale notes and see them on the staff; you can also select up to 3 octaves and view the suggested fingering.",
         "help_scale_instrument_guitar": "Scale guitar: play scale notes on the fretboard and see them on the staff; you can also select up to 3 octaves.",
         # Metronome — extra controls
@@ -454,7 +467,8 @@ UI_TEXTS = {
         # Generation — detailed result
         "help_gen_result_name": "Name of the generated chord.",
         "help_gen_result_notes": "Notes that make up the generated chord.",
-        "help_gen_result_intervals": "Chord intervals relative to its tonic.",
+        "help_gen_result_formula": "Formula: chord degrees relative to the tonic (e.g. 1 - 3 - 5). For an inversion, that inversion's formula is added in parentheses.",
+        "help_gen_result_construction": "Construction: stacked intervals between consecutive chord notes (e.g. M3 + m3). For an inversion, that inversion's construction is added in parentheses.",
     },
 }
 

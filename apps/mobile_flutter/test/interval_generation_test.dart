@@ -15,7 +15,7 @@ void main() {
           .expand((category) => category.cells)
           .map((cell) => cell.label)
           .toSet(),
-      containsAll(<String>['2d', '3m', '3M', '5J', '4A', '7A']),
+      containsAll(<String>['d2', 'm3', 'M3', 'P5', 'A4', 'A7']),
     );
   });
 

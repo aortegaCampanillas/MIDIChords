@@ -729,25 +729,44 @@ class UiMixin:
             font=(self.ui_mono_font_family, 14),
         )
         self.notes_label.pack(side=tk.LEFT, padx=(4, 0))
-        self.intervals_row = tk.Frame(self.detection_result_inner, bg="#17273a")
-        self.intervals_row.pack(anchor="w", pady=(0, 8), fill=tk.X)
-        self.intervals_caption_label = tk.Label(
-            self.intervals_row,
+        self.formula_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.formula_row.pack(anchor="w", pady=(0, 0), fill=tk.X)
+        self.formula_caption_label = tk.Label(
+            self.formula_row,
             text="",
             bg="#17273a",
             fg=self.color_muted,
             font=(self.ui_font_family, 14),
         )
-        self.intervals_caption_label.pack(side=tk.LEFT)
-        self.intervals_var = tk.StringVar(value="-")
-        self.intervals_label = tk.Label(
-            self.intervals_row,
-            textvariable=self.intervals_var,
+        self.formula_caption_label.pack(side=tk.LEFT)
+        self.formula_var = tk.StringVar(value="-")
+        self.formula_label = tk.Label(
+            self.formula_row,
+            textvariable=self.formula_var,
             bg="#17273a",
             fg=self.color_text,
             font=(self.ui_mono_font_family, 14),
         )
-        self.intervals_label.pack(side=tk.LEFT, padx=(4, 0))
+        self.formula_label.pack(side=tk.LEFT, padx=(4, 0))
+        self.construction_row = tk.Frame(self.detection_result_inner, bg="#17273a")
+        self.construction_row.pack(anchor="w", pady=(0, 8), fill=tk.X)
+        self.construction_caption_label = tk.Label(
+            self.construction_row,
+            text="",
+            bg="#17273a",
+            fg=self.color_muted,
+            font=(self.ui_font_family, 14),
+        )
+        self.construction_caption_label.pack(side=tk.LEFT)
+        self.construction_var = tk.StringVar(value="-")
+        self.construction_label = tk.Label(
+            self.construction_row,
+            textvariable=self.construction_var,
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.construction_label.pack(side=tk.LEFT, padx=(4, 0))
         self.extra_notes_row = tk.Frame(self.detection_result_inner, bg="#17273a")
         self.extra_notes_row.pack(anchor="w", pady=(0, 0), fill=tk.X)
         self.extra_notes_caption_label = tk.Label(
@@ -953,29 +972,51 @@ class UiMixin:
         )
         self.generated_notes_label.pack(anchor="w", pady=(3, 0))
 
-        self.gen_result_intervals_row = tk.Frame(self.generation_result_inner, bg="#17273a")
-        self.gen_result_intervals_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
-        self.generated_intervals_caption_label = tk.Label(
-            self.gen_result_intervals_row,
+        self.gen_result_formula_row = tk.Frame(self.generation_result_inner, bg="#17273a")
+        self.gen_result_formula_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
+        self.generated_formula_caption_label = tk.Label(
+            self.gen_result_formula_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
             font=(self.ui_font_family, 14, "bold"),
         )
-        self.generated_intervals_caption_label.pack(anchor="w")
-        self.generated_intervals_var = tk.StringVar(value="-")
-        self.generated_intervals_label = tk.Label(
-            self.gen_result_intervals_row,
-            textvariable=self.generated_intervals_var,
+        self.generated_formula_caption_label.pack(anchor="w")
+        self.generated_formula_var = tk.StringVar(value="-")
+        self.generated_formula_label = tk.Label(
+            self.gen_result_formula_row,
+            textvariable=self.generated_formula_var,
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.generated_intervals_label.pack(anchor="w", pady=(3, 0))
+        self.generated_formula_label.pack(anchor="w", pady=(3, 0))
+
+        self.gen_result_construction_row = tk.Frame(self.generation_result_inner, bg="#17273a")
+        self.gen_result_construction_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
+        self.generated_construction_caption_label = tk.Label(
+            self.gen_result_construction_row,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.generated_construction_caption_label.pack(anchor="w")
+        self.generated_construction_var = tk.StringVar(value="-")
+        self.generated_construction_label = tk.Label(
+            self.gen_result_construction_row,
+            textvariable=self.generated_construction_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.generated_construction_label.pack(anchor="w", pady=(3, 0))
 
         self.generated_notes_var.trace_add("write", self._refresh_generation_result_height)
-        self.generated_intervals_var.trace_add("write", self._refresh_generation_result_height)
+        self.generated_formula_var.trace_add("write", self._refresh_generation_result_height)
+        self.generated_construction_var.trace_add("write", self._refresh_generation_result_height)
         self._refresh_generation_result_height()
 
         self.tab_generation_frame.columnconfigure(0, weight=0)
@@ -1421,26 +1462,47 @@ class UiMixin:
         )
         self.scale_notes_label.pack(anchor="w", pady=(3, 0))
 
-        self.scale_result_intervals_row = tk.Frame(self.scale_result_inner, bg="#17273a")
-        self.scale_result_intervals_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
-        self.scale_intervals_caption_label = tk.Label(
-            self.scale_result_intervals_row,
+        self.scale_result_formula_row = tk.Frame(self.scale_result_inner, bg="#17273a")
+        self.scale_result_formula_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
+        self.scale_formula_caption_label = tk.Label(
+            self.scale_result_formula_row,
             text="",
             bg="#17273a",
             fg=self.color_text,
             font=(self.ui_font_family, 14, "bold"),
         )
-        self.scale_intervals_caption_label.pack(anchor="w")
-        self.scale_intervals_var = tk.StringVar(value="-")
-        self.scale_intervals_label = tk.Label(
-            self.scale_result_intervals_row,
-            textvariable=self.scale_intervals_var,
+        self.scale_formula_caption_label.pack(anchor="w")
+        self.scale_formula_var = tk.StringVar(value="-")
+        self.scale_formula_label = tk.Label(
+            self.scale_result_formula_row,
+            textvariable=self.scale_formula_var,
             bg="#17273a",
             fg=self.color_text,
             wraplength=420,
             font=(self.ui_mono_font_family, 14),
         )
-        self.scale_intervals_label.pack(anchor="w", pady=(3, 0))
+        self.scale_formula_label.pack(anchor="w", pady=(3, 0))
+
+        self.scale_result_pattern_row = tk.Frame(self.scale_result_inner, bg="#17273a")
+        self.scale_result_pattern_row.pack(anchor="w", fill=tk.X, pady=(4, 0))
+        self.scale_pattern_caption_label = tk.Label(
+            self.scale_result_pattern_row,
+            text="",
+            bg="#17273a",
+            fg=self.color_text,
+            font=(self.ui_font_family, 14, "bold"),
+        )
+        self.scale_pattern_caption_label.pack(anchor="w")
+        self.scale_pattern_var = tk.StringVar(value="-")
+        self.scale_pattern_label = tk.Label(
+            self.scale_result_pattern_row,
+            textvariable=self.scale_pattern_var,
+            bg="#17273a",
+            fg=self.color_text,
+            wraplength=420,
+            font=(self.ui_mono_font_family, 14),
+        )
+        self.scale_pattern_label.pack(anchor="w", pady=(3, 0))
 
         self.tab_scale_frame.columnconfigure(0, weight=0)
         self.tab_scale_frame.columnconfigure(1, weight=1)
@@ -2343,7 +2405,8 @@ class UiMixin:
         self.chord_caption_label.configure(text=self.tr("label_chord"))
         self.notes_caption_label.configure(text=self.tr("label_active_notes") + ":")
         self.extra_notes_caption_label.configure(text=self.tr("label_extra_notes") + ":")
-        self.intervals_caption_label.configure(text=self.tr("label_intervals") + ":")
+        self.formula_caption_label.configure(text=self.tr("label_formula") + ":")
+        self.construction_caption_label.configure(text=self.tr("label_construction") + ":")
         self.generated_title_label.configure(text=self.tr("mode_generation"))
         if hasattr(self, "circle_title_label"):
             self.circle_title_label.configure(text=self.tr("mode_circle_fifths"))
@@ -2355,7 +2418,8 @@ class UiMixin:
         if hasattr(self, "generated_chord_caption_label"):
             self.generated_chord_caption_label.configure(text=self.tr("label_chord"))
         self.generated_notes_caption_label.configure(text=self.tr("label_active_notes"))
-        self.generated_intervals_caption_label.configure(text=self.tr("label_intervals"))
+        self.generated_formula_caption_label.configure(text=self.tr("label_formula"))
+        self.generated_construction_caption_label.configure(text=self.tr("label_construction"))
         self.scale_panel_title_label.configure(text=self.tr("mode_scales"))
         self.scale_tonic_selector_label.configure(text=self.tr("label_scale_tonic"))
         self.scale_type_selector_label.configure(text=self.tr("label_scale_type"))
@@ -2375,7 +2439,8 @@ class UiMixin:
             btn_text = self.tr("basic") if getattr(self, "scale_filter_mode", "basic") == "basic" else self.tr("all")
             self.scale_inline_filter_btn.set_text(btn_text)
         self.scale_notes_caption_label.configure(text=self.tr("label_scale_notes"))
-        self.scale_intervals_caption_label.configure(text=self.tr("label_scale_intervals"))
+        self.scale_formula_caption_label.configure(text=self.tr("label_formula"))
+        self.scale_pattern_caption_label.configure(text=self.tr("label_scale_pattern"))
         self.scale_metronome_volume_label.configure(text=self.tr("label_metronome_volume"))
         self.metronome_volume_label.configure(text=self.tr("label_metronome_volume"))
         self.metronome_tempo_label.configure(text=self.tr("label_metronome_tempo"))
@@ -2668,11 +2733,14 @@ class UiMixin:
         for widget_name in (
             "notes_label",
             "extra_notes_label",
-            "intervals_label",
+            "formula_label",
+            "construction_label",
             "generated_notes_label",
-            "generated_intervals_label",
+            "generated_formula_label",
+            "generated_construction_label",
             "scale_notes_label",
-            "scale_intervals_label",
+            "scale_formula_label",
+            "scale_pattern_label",
         ):
             widget = getattr(self, widget_name, None)
             if widget is not None:
@@ -3615,7 +3683,8 @@ class UiMixin:
                 "chord_row:help_detect_result_chord",
                 "notes_row:help_detect_result_notes",
                 "extra_notes_row:help_detect_result_extras",
-                "intervals_row:help_detect_result_intervals",
+                "formula_row:help_detect_result_formula",
+                "construction_row:help_detect_result_construction",
                 # Detección siempre muestra el piano (ver rama `else` final de
                 # _apply_mode, que fuerza keyboard_qscroll y oculta
                 # guitar_canvas/handedness/variations pase lo que pase);
@@ -3677,7 +3746,8 @@ class UiMixin:
                 # subpanel de resultado: fila por fila
                 "gen_result_chord_row:help_gen_result_name",
                 "gen_result_notes_row:help_gen_result_notes",
-                "gen_result_intervals_row:help_gen_result_intervals",
+                "gen_result_formula_row:help_gen_result_formula",
+                "gen_result_construction_row:help_gen_result_construction",
                 # Selector piano/guitarra: solo vive en el panel inferior en
                 # generación y círculo de quintas (_show_generation_instrument_buttons).
                 "piano_view_btn:help_inst_piano_btn",
@@ -3722,7 +3792,8 @@ class UiMixin:
                 "scale_fingering_row:help_scale_fingering",
                 "scale_name_label:help_scale_result_name",
                 "scale_result_notes_row:help_scale_result_notes",
-                "scale_result_intervals_row:help_scale_result_intervals",
+                "scale_result_formula_row:help_scale_result_formula",
+                "scale_result_pattern_row:help_scale_result_pattern",
                 # Selector piano/guitarra propio de Escalas (distinto de
                 # piano_view_btn/guitar_view_btn, que aquí están ocultos).
                 "scale_mode_piano_btn:help_inst_piano_btn",

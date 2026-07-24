@@ -9,6 +9,8 @@ from midichords.core.music_theory import (
     ROOT_LETTER_PCS,
     ScalePattern,
     root_pc_from_letter_accidental,
+    scale_formula_from_midi,
+    scale_pattern_from_midi,
 )
 from midichords.core.tomplay_fingerings import get_fingering_for_scale
 from midichords.ui.widgets_qt import GrayRoundedButton
@@ -512,10 +514,12 @@ class ScalesMixin:
                 prefer_flats_override=(self.note_accidental == "flat"),
             )
             self.scale_notes_var.set(" - ".join(spelled))
-            self.scale_intervals_var.set(self.format_intervals(set(self.scale_preview_notes)))
+            self.scale_formula_var.set(scale_formula_from_midi(base_notes))
+            self.scale_pattern_var.set(scale_pattern_from_midi(base_notes))
         else:
             self.scale_notes_var.set("-")
-            self.scale_intervals_var.set("-")
+            self.scale_formula_var.set("-")
+            self.scale_pattern_var.set("-")
 
     def _update_scale_tonic_combo(self) -> None:
         if not hasattr(self, "scale_tonic_combo"):

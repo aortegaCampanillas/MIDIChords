@@ -8,7 +8,8 @@ from typing import Optional
 from midichords.core.i18n import NOTE_NAMES
 from midichords.core.music_service import _chord_symbol_prefer_flat
 from midichords.core.midi_idle_inhibit import bump_after_midi_detection_activity
-from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, PC_TO_DIATONIC_FLAT, ChordPattern, analyze_chord_notes, chord_description, format_intervals
+from midichords.core.music_theory import PC_TO_DIATONIC_LETTER, PC_TO_DIATONIC_FLAT, ChordPattern, analyze_chord_notes, chord_description
+from midichords.core.chord_help import chord_formula_and_construction
 from midichords.core.verbose_log import vlog
 
 
@@ -713,8 +714,6 @@ class InputDetectionMixin:
             return name
         octave = midi_note // 12 - 1
         return f"{name}{octave}"
-    def format_intervals(self, notes: set[int]) -> str:
-        return format_intervals(notes)
     def _diatonic_index(self, midi_note: int, prefer_flat: bool = False) -> int:
         octave = midi_note // 12 - 1
         table = PC_TO_DIATONIC_FLAT if prefer_flat else PC_TO_DIATONIC_LETTER
@@ -775,7 +774,13 @@ class InputDetectionMixin:
             self.extra_notes_var.set(" - ".join(detected_map_oct.get(int(note), self.note_name(note)) for note in extra_ordered))
         else:
             self.extra_notes_var.set("")
-        self.intervals_var.set(self.format_intervals(active_set))
+        language = str(self.config_data.get("language", "es"))
+        chord_only_midi = sorted(active_set - self.detection_extra_notes)
+        detect_formula, detect_construction = chord_formula_and_construction(
+            root, self.detection_variant_help_suffix, self.detection_variant_help_inversion, chord_only_midi, language,
+        )
+        self.formula_var.set(detect_formula)
+        self.construction_var.set(detect_construction)
 
         if generated_set:
             generated_ordered = sorted(generated_set)
@@ -785,7 +790,14 @@ class InputDetectionMixin:
             )
         else:
             self.generated_notes_var.set("-")
-        self.generated_intervals_var.set(self.format_intervals(generated_set))
+        gen_root_pc = getattr(self, "generation_root_pc", None)
+        gen_suffix = getattr(self, "generation_pattern_suffix", None)
+        gen_inversion = getattr(self, "generation_inversion", 0)
+        gen_formula, gen_construction = chord_formula_and_construction(
+            gen_root_pc, gen_suffix, gen_inversion, sorted(generated_set), language,
+        )
+        self.generated_formula_var.set(gen_formula)
+        self.generated_construction_var.set(gen_construction)
 
         if self.generation_tab_active:
             self.chord_var.set(self.generated_chord_var.get())

@@ -168,11 +168,24 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: -2,
         ),
         _HelpStep(
-          id: 'detection_result_intervals',
-          titleEs: 'Fila de intervalos',
-          titleEn: 'Intervals row',
-          bodyEs: 'Muestra la distancia entre las notas detectadas.',
-          bodyEn: 'Shows the spacing between detected notes.',
+          id: 'detection_result_formula',
+          titleEs: 'Fila de fórmula',
+          titleEn: 'Formula row',
+          bodyEs:
+              'Grados del acorde respecto a la tónica (p. ej. 1 - 3 - 5). En una inversión se añade entre paréntesis la fórmula de esa inversión.',
+          bodyEn:
+              "The chord's degrees relative to the tonic (e.g. 1 - 3 - 5). For an inversion, that inversion's formula is added in parentheses.",
+          side: _HelpCalloutSide.left,
+          highlightPadding: -2,
+        ),
+        _HelpStep(
+          id: 'detection_result_construction',
+          titleEs: 'Fila de construcción',
+          titleEn: 'Construction row',
+          bodyEs:
+              'Intervalos apilados entre notas consecutivas del acorde (p. ej. M3 + m3). En una inversión se añade entre paréntesis la construcción de esa inversión.',
+          bodyEn:
+              "Stacked intervals between consecutive chord notes (e.g. M3 + m3). For an inversion, that inversion's construction is added in parentheses.",
           side: _HelpCalloutSide.left,
           highlightPadding: -2,
         ),
@@ -280,11 +293,24 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: -2,
         ),
         _HelpStep(
-          id: 'generation_result_intervals',
-          titleEs: 'Intervalos del acorde',
-          titleEn: 'Chord intervals',
-          bodyEs: 'Muestra la distancia entre las notas del acorde generado.',
-          bodyEn: 'Shows the spacing between the notes of the generated chord.',
+          id: 'generation_result_formula',
+          titleEs: 'Fórmula del acorde',
+          titleEn: 'Chord formula',
+          bodyEs:
+              'Grados del acorde respecto a la tónica (p. ej. 1 - 3 - 5). En una inversión se añade entre paréntesis la fórmula de esa inversión.',
+          bodyEn:
+              "The chord's degrees relative to the tonic (e.g. 1 - 3 - 5). For an inversion, that inversion's formula is added in parentheses.",
+          side: _HelpCalloutSide.left,
+          highlightPadding: -2,
+        ),
+        _HelpStep(
+          id: 'generation_result_construction',
+          titleEs: 'Construcción del acorde',
+          titleEn: 'Chord construction',
+          bodyEs:
+              'Intervalos apilados entre notas consecutivas del acorde (p. ej. M3 + m3). En una inversión se añade entre paréntesis la construcción de esa inversión.',
+          bodyEn:
+              "Stacked intervals between consecutive chord notes (e.g. M3 + m3). For an inversion, that inversion's construction is added in parentheses.",
           side: _HelpCalloutSide.left,
           highlightPadding: -2,
         ),
@@ -543,11 +569,24 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: -2,
         ),
         _HelpStep(
-          id: 'scales_result_intervals',
-          titleEs: 'Intervalos de la escala',
-          titleEn: 'Scale intervals',
-          bodyEs: 'Muestra la distancia entre las notas de la escala.',
-          bodyEn: 'Shows the spacing between the notes of the scale.',
+          id: 'scales_result_formula',
+          titleEs: 'Fórmula de la escala',
+          titleEn: 'Scale formula',
+          bodyEs:
+              'Grados de la escala respecto a la tónica (p. ej. 1 2 3 4 5 6 7 en Do jónico).',
+          bodyEn:
+              "The scale's degrees relative to the tonic (e.g. 1 2 3 4 5 6 7 for C Ionian).",
+          side: _HelpCalloutSide.left,
+          highlightPadding: -2,
+        ),
+        _HelpStep(
+          id: 'scales_result_pattern',
+          titleEs: 'Patrón de la escala',
+          titleEn: 'Scale pattern',
+          bodyEs:
+              'Pasos entre notas consecutivas en tonos (T) y semitonos (S), p. ej. T T S T T T S en Do jónico.',
+          bodyEn:
+              'Steps between consecutive notes in whole tones (T) and semitones (S), e.g. T T S T T T S for C Ionian.',
           side: _HelpCalloutSide.left,
           highlightPadding: -2,
         ),

@@ -20,6 +20,7 @@ import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'help_geometry.dart';
 import 'interval_data.dart';
+import 'interval_theory.dart' as interval_theory;
 import 'key_signature_highlight.dart';
 import 'music_catalog.dart';
 import 'music_service.dart';
@@ -3301,10 +3302,21 @@ class _HomeScreenState extends State<HomeScreen>
             .where((e) => e.isNotEmpty)
             .toList(growable: false);
         return extras.isEmpty ? '-' : extras.join(' - ');
-      case 'intervals':
-        final detectedMidi = _extractMidiList(json, <String>['notes_midi']);
-        final text = _intervalTextFromMidiList(detectedMidi).trim();
-        return text.isEmpty ? '-' : text;
+      case 'formula':
+      case 'construction':
+        final extrasMidi = _extractMidiList(json, <String>['extras_midi']).toSet();
+        final chordOnlyMidi = _extractMidiList(json, <String>['notes_midi'])
+            .where((n) => !extrasMidi.contains(n))
+            .toList();
+        final result = interval_theory.chordFormulaAndConstruction(
+          catalog: _chordTheoryCatalog,
+          rootPc: json['root_pc'] as int?,
+          suffix: json['suffix'] as String?,
+          inversion: (json['inversion'] as int?) ?? 0,
+          chordMidi: chordOnlyMidi,
+          language: _language,
+        );
+        return key == 'formula' ? result.formula : result.construction;
       case 'description':
         final desc = json['description'] as String?;
         return desc?.isNotEmpty == true ? desc! : '';
@@ -3370,10 +3382,18 @@ class _HomeScreenState extends State<HomeScreen>
             .where((e) => e.isNotEmpty)
             .toList(growable: false);
         return notes.isEmpty ? '-' : notes.join(' - ');
-      case 'intervals':
+      case 'formula':
+      case 'construction':
         final generatedMidi = _extractMidiList(json, <String>['notes_midi']);
-        final text = _intervalTextFromMidiList(generatedMidi).trim();
-        return text.isEmpty ? '-' : text;
+        final result = interval_theory.chordFormulaAndConstruction(
+          catalog: _chordTheoryCatalog,
+          rootPc: json['root_pc'] as int?,
+          suffix: json['suffix'] as String?,
+          inversion: (json['inversion'] as int?) ?? 0,
+          chordMidi: generatedMidi,
+          language: _language,
+        );
+        return key == 'formula' ? result.formula : result.construction;
       case 'description':
         final desc = json['description'] as String?;
         return desc?.isNotEmpty == true ? desc! : '';
@@ -3442,10 +3462,16 @@ class _HomeScreenState extends State<HomeScreen>
               value: _chordResultValue('notes'),
             ),
             _detectionResultRow(
-              helpId: 'generation_result_intervals',
-              labelEs: 'Intervalos',
-              labelEn: 'Intervals',
-              value: _chordResultValue('intervals'),
+              helpId: 'generation_result_formula',
+              labelEs: 'Fórmula',
+              labelEn: 'Formula',
+              value: _chordResultValue('formula'),
+            ),
+            _detectionResultRow(
+              helpId: 'generation_result_construction',
+              labelEs: 'Construcción',
+              labelEn: 'Construction',
+              value: _chordResultValue('construction'),
             ),
           ],
         ),
@@ -3476,10 +3502,12 @@ class _HomeScreenState extends State<HomeScreen>
             .where((e) => e.isNotEmpty)
             .toList(growable: false);
         return notes.isEmpty ? '-' : notes.join(' - ');
-      case 'intervals':
+      case 'formula':
         final scaleMidi = _extractMidiList(json, <String>['notes_midi']);
-        final text = _intervalTextFromMidiList(scaleMidi).trim();
-        return text.isEmpty ? '-' : text;
+        return interval_theory.scaleFormulaFromMidi(scaleMidi);
+      case 'pattern':
+        final scaleMidi = _extractMidiList(json, <String>['notes_midi']);
+        return interval_theory.scalePatternFromMidi(scaleMidi);
       default:
         return '-';
     }
@@ -3513,10 +3541,16 @@ class _HomeScreenState extends State<HomeScreen>
               value: _scaleResultValue('notes'),
             ),
             _detectionResultRow(
-              helpId: 'scales_result_intervals',
-              labelEs: 'Intervalos',
-              labelEn: 'Intervals',
-              value: _scaleResultValue('intervals'),
+              helpId: 'scales_result_formula',
+              labelEs: 'Fórmula',
+              labelEn: 'Formula',
+              value: _scaleResultValue('formula'),
+            ),
+            _detectionResultRow(
+              helpId: 'scales_result_pattern',
+              labelEs: 'Patrón',
+              labelEn: 'Pattern',
+              value: _scaleResultValue('pattern'),
             ),
           ],
         ),
@@ -3590,10 +3624,16 @@ class _HomeScreenState extends State<HomeScreen>
               value: _detectionResultValue('extras'),
             ),
             _detectionResultRow(
-              helpId: 'detection_result_intervals',
-              labelEs: 'Intervalos',
-              labelEn: 'Intervals',
-              value: _detectionResultValue('intervals'),
+              helpId: 'detection_result_formula',
+              labelEs: 'Fórmula',
+              labelEn: 'Formula',
+              value: _detectionResultValue('formula'),
+            ),
+            _detectionResultRow(
+              helpId: 'detection_result_construction',
+              labelEs: 'Construcción',
+              labelEn: 'Construction',
+              value: _detectionResultValue('construction'),
             ),
           ],
         ),

@@ -2,9 +2,22 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
 from midichords.core.app_constants import ASSETS_DIR
+from midichords.core.music_theory import (
+    chord_construction_from_midi,
+    chord_formula_from_root,
+    root_position_voicing,
+    rotate_degrees,
+)
+
+_INVERSION_LABEL_KEYS = {
+    "es": ["", "primera inversión", "segunda inversión", "tercera inversión",
+           "cuarta inversión", "quinta inversión", "sexta inversión"],
+    "en": ["", "first inversion", "second inversion", "third inversion",
+           "fourth inversion", "fifth inversion", "sixth inversion"],
+}
 
 
 _GROUP_LABELS = {
@@ -113,3 +126,43 @@ def chord_variant_help(suffix: str, inversion: int, language: str) -> tuple[str,
     else:
         inversion_text = chord_inversion_help(formula, int(inversion), lang)
     return formula, theory, inversion_text
+
+
+def _append_inversion_detail(base_value: str, inversion_index: int, inverted_value: str, language: str) -> str:
+    if not inversion_index:
+        return base_value
+    lang = "en" if language == "en" else "es"
+    names = _INVERSION_LABEL_KEYS[lang]
+    label = names[inversion_index] if inversion_index < len(names) else (
+        f"Inversion {inversion_index}" if lang == "en" else f"Inversión {inversion_index}"
+    )
+    return f"{base_value} ({label}: {inverted_value})"
+
+
+def chord_formula_and_construction(
+    root_pc: Optional[int],
+    suffix: Optional[str],
+    inversion: int,
+    chord_midi: list[int],
+    language: str,
+) -> tuple[str, str]:
+    """Fórmula y construcción de un acorde (con detalle de inversión entre
+    paréntesis si aplica), para detección o generación. chord_midi debe ser el
+    voicing ya ordenado tal como se toca/genera (refleja la inversión)."""
+    if root_pc is None or not chord_midi:
+        return "-", "-"
+    catalog = chord_help_catalog()
+    curated = catalog.get("theory", {}).get(str(suffix), {}).get("formula") if suffix is not None else None
+    root_formula = str(curated) if curated else chord_formula_from_root(int(root_pc), chord_midi)
+    inversion_index = int(inversion) or 0
+    formula = _append_inversion_detail(
+        root_formula, inversion_index, rotate_degrees(root_formula, inversion_index), language,
+    )
+    if inversion_index > 0:
+        root_position_midi = root_position_voicing(int(root_pc), chord_midi)
+        root_construction = chord_construction_from_midi(root_position_midi)
+        inversion_construction = chord_construction_from_midi(chord_midi)
+        construction = _append_inversion_detail(root_construction, inversion_index, inversion_construction, language)
+    else:
+        construction = chord_construction_from_midi(chord_midi)
+    return formula, construction

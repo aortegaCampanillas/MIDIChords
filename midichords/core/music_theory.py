@@ -232,6 +232,100 @@ def format_intervals(notes: set[int]) -> str:
     return " ".join(result)
 
 
+# Grado (con alteracion respecto a la escala mayor) por semitonos desde la
+# tonica, hasta 24 semitonos (2 octavas) para cubrir 9a/11a/13a.
+DEGREE_BY_SEMITONE: dict[int, str] = {
+    0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3", 5: "4", 6: "b5", 7: "5",
+    8: "#5", 9: "6", 10: "b7", 11: "7", 12: "8",
+    13: "b9", 14: "9", 15: "#9", 17: "11", 18: "#11", 20: "b13", 21: "13",
+}
+
+# Grado diatonico (1-7) por semitonos desde la tonica, para escalas. A
+# diferencia de DEGREE_BY_SEMITONE (pensada para acordes, donde 8 semitonos se
+# interpreta como quinta aumentada), aqui cada semitono siempre resuelve a una
+# alteracion del grado numerico correspondiente (8 semitonos -> b6, no #5).
+SCALE_DEGREE_BY_SEMITONE: dict[int, str] = {
+    0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3", 5: "4", 6: "b5",
+    7: "5", 8: "b6", 9: "6", 10: "b7", 11: "7", 12: "8",
+}
+
+# Calidad abreviada de un intervalo (par de notas consecutivas de un acorde)
+# por semitonos, en notacion estandar: P=justo, M=mayor, m=menor, TT=tritono.
+INTERVAL_QUALITY_BY_SEMITONE: dict[int, str] = {
+    0: "P1", 1: "m2", 2: "M2", 3: "m3", 4: "M3", 5: "P4", 6: "TT", 7: "P5",
+    8: "m6", 9: "M6", 10: "m7", 11: "M7", 12: "P8",
+}
+
+
+def interval_quality_abbrev(semitones: int) -> str:
+    value = int(semitones)
+    octaves, remainder = divmod(value, 12)
+    base = INTERVAL_QUALITY_BY_SEMITONE.get(remainder)
+    if not base:
+        return f"{value}st"
+    return f"{base}+{octaves * 12}" if octaves > 0 else base
+
+
+def chord_formula_from_root(root_pc: int, notes_midi: list[int]) -> str:
+    ordered = sorted({int(n) for n in notes_midi})
+    if not ordered:
+        return "-"
+    root_midi = ordered[0] - ((ordered[0] % 12 - int(root_pc)) + 12) % 12
+    return " ".join(DEGREE_BY_SEMITONE.get(n - root_midi, f"{n - root_midi}st") for n in ordered)
+
+
+def chord_construction_from_midi(notes_midi: list[int]) -> str:
+    ordered = sorted({int(n) for n in notes_midi})
+    if len(ordered) < 2:
+        return "-"
+    return " + ".join(
+        interval_quality_abbrev(ordered[i] - ordered[i - 1]) for i in range(1, len(ordered))
+    )
+
+
+def root_position_voicing(root_pc: int, notes_midi: list[int]) -> list[int]:
+    root = int(root_pc) % 12
+    pcs = sorted({int(n) % 12 for n in notes_midi})
+    offsets = sorted((pc - root + 12) % 12 for pc in pcs)
+    return [60 + offset for offset in offsets]
+
+
+def rotate_degrees(formula: str, inversion: int) -> str:
+    degrees = [part for part in str(formula).split(" - ") if part]
+    if not degrees:
+        return formula
+    idx = max(0, min(int(inversion), len(degrees) - 1))
+    return " - ".join(degrees[idx:] + degrees[:idx])
+
+
+def scale_step_label(semitones: int) -> str:
+    value = int(semitones)
+    if value <= 0:
+        return ""
+    tones, has_semitone = divmod(value, 2)
+    parts = ["T"] * tones
+    if has_semitone:
+        parts.append("S")
+    return "+".join(parts)
+
+
+def scale_pattern_from_midi(notes_midi: list[int]) -> str:
+    ordered = sorted({int(n) for n in notes_midi})
+    if len(ordered) < 2:
+        return "-"
+    return " ".join(scale_step_label(ordered[i] - ordered[i - 1]) for i in range(1, len(ordered)))
+
+
+def scale_formula_from_midi(notes_midi: list[int]) -> str:
+    ordered = sorted({int(n) for n in notes_midi})
+    if not ordered:
+        return "-"
+    root_midi = ordered[0]
+    # La nota final (octava) no se cuenta como grado nuevo en la formula.
+    degree_notes = ordered[:-1] if len(ordered) > 1 and ordered[-1] - root_midi == 12 else ordered
+    return " ".join(SCALE_DEGREE_BY_SEMITONE.get(n - root_midi, f"{n - root_midi}st") for n in degree_notes)
+
+
 CHORD_SUFFIX_NAMES: dict[str, dict[str, str]] = {
     "es": {
         "": "Mayor",

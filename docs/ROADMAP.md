@@ -28,6 +28,17 @@ reproducir el comportamiento actual y confirmar que siguen siendo necesarios:
   alturas mínimas, paneles e instrumentos, tablas y ayudas contextuales, además
   de verificar que el estado y el foco se conservan durante el cambio de tamaño.
 
+## Posibles implementaciones futuras
+
+- Evaluar soporte AUv3 para iOS y macOS mediante un prototipo técnico aislado.
+  Priorizar como primer alcance un **AUv3 MIDI Processor** que reciba notas del
+  host, detecte o genere acordes e intervalos y pueda devolver MIDI. Evitar
+  inicialmente convertir toda la aplicación Flutter o incorporar generación de
+  audio: la extensión requiere un target nativo, una interfaz adaptada al espacio
+  del plugin y portar a Swift una parte verificable de la teoría musical. Solo
+  plantear un AUv3 Instrument con samples y audio en tiempo real después de
+  validar el prototipo MIDI en varios hosts.
+
 ## Regla de actualización
 
 - Añadir aquí únicamente trabajo confirmado y aún no completado.

@@ -60,6 +60,7 @@
       <h1><a href="/" style="color:inherit;text-decoration:none">MIDI Piano &amp; Guitar Chords</a></h1>
       <div class="topbar-center">
         <select id="modeSelect">
+          <option value="note_detection">Detección de Notas</option>
           <option value="detection">Detección de Acordes</option>
           <option value="generation">Generación de Acordes</option>
           <option value="interval_detection">Detección de Intervalos</option>
@@ -104,6 +105,19 @@
           </section>
           <aside class="sidebar">
             <div class="sidebar-top">
+              <section id="panelNoteDetection" class="mode-panel hidden">
+                <h3 id="headingNoteDetection">Detección de Notas</h3>
+                <p id="noteDetectionHint" class="muted">Pulsa una tecla del piano o usa un dispositivo MIDI para identificar la nota.</p>
+                <div class="controls-inline">
+                  <button id="noteDetectPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir" disabled>▶</button>
+                  <button id="noteDetectClear" disabled>Limpiar</button>
+                  <button id="noteDetectDetailsToggle" type="button" aria-expanded="true">👁 Ocultar</button>
+                </div>
+                <div id="noteDetectResultBlock" class="result-block">
+                  <div id="noteDetectFieldNote"><span id="labelNoteDetectNote" class="label">Nota:</span> <strong id="noteDetectName">-</strong></div>
+                </div>
+              </section>
+
               <section id="panelDetection" class="mode-panel hidden">
                 <h3 id="headingDetection">Detección de Acordes</h3>
                 <p id="detectionHint" class="muted">Pulsa notas en piano/guitarra para detectar acordes.</p>

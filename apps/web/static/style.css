@@ -489,6 +489,7 @@ button:disabled {
   border-color: #4a5360;
 }
 
+#noteDetectDetailsToggle.active,
 #detectDetailsToggle.active,
 #intervalDetailsToggle.active {
   background: #ffd060;
@@ -862,20 +863,24 @@ a.btn-link:hover {
   padding-top: 4px;
 }
 
+.mode-screen.mode-note_detection .staff-panel,
 .mode-screen.mode-detection .staff-panel {
   height: min(49vh, 470px);
   overflow: hidden;
 }
 
+.mode-screen.mode-note_detection #staffCanvas,
 .mode-screen.mode-detection #staffCanvas {
   height: clamp(330px, 39vh, 420px);
 }
 
+.mode-screen.mode-note_detection .sidebar-top,
 .mode-screen.mode-detection .sidebar-top {
   max-height: min(49vh, 470px);
   overflow: auto;
 }
 
+.mode-screen.mode-note_detection .mode-layout,
 .mode-screen.mode-detection .mode-layout {
   min-height: auto;
 }

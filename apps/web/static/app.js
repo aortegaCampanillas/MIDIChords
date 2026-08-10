@@ -34,6 +34,8 @@ const state = {
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
+  noteDetectionNote: null,
+  noteDetectionDetailsVisible: true,
   activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
   detectionResult: null,
@@ -192,6 +194,7 @@ const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
 const MODE_STORAGE_KEY = "lastMode";
 const AVAILABLE_MODES = new Set([
+  "note_detection",
   "detection",
   "interval_detection",
   "interval_generation",
@@ -1577,6 +1580,36 @@ function refreshDetectionDetailsVisibility() {
   });
 }
 
+function refreshNoteDetectionUi() {
+  const note = Number(state.noteDetectionNote);
+  const hasNote = state.noteDetectionNote != null && Number.isFinite(note);
+  const visible = !!state.noteDetectionDetailsVisible;
+  const result = el("noteDetectResultBlock");
+  const name = el("noteDetectName");
+  const play = el("noteDetectPlay");
+  const clear = el("noteDetectClear");
+  const toggle = el("noteDetectDetailsToggle");
+  if (result) result.hidden = !visible;
+  if (name) name.textContent = hasNote ? noteNameWithOctave(note) : "-";
+  if (play) play.disabled = !hasNote;
+  if (clear) clear.disabled = !hasNote;
+  if (toggle) {
+    toggle.textContent = `👁 ${tr(visible ? "hide" : "show")}`;
+    toggle.classList.toggle("active", !visible);
+    toggle.setAttribute("aria-expanded", String(visible));
+  }
+}
+
+function setLastDetectedNote(note, options = {}) {
+  const midi = Number(note);
+  if (!Number.isFinite(midi)) return;
+  state.noteDetectionNote = midi;
+  refreshNoteDetectionUi();
+  renderInstrument();
+  renderStaff();
+  if (options.play !== false) playSingle(midi, "piano");
+}
+
 function applyTranslations() {
   const modeSelect = el("modeSelect");
   if (modeSelect) {
@@ -1585,6 +1618,7 @@ function applyTranslations() {
       if (o) o.textContent = tr(key);
     };
     opt("detection", "mode_detection");
+    opt("note_detection", "mode_note_detection");
     opt("generation", "mode_generation");
     opt("interval_detection", "mode_interval_detection");
     opt("interval_generation", "mode_interval_generation");
@@ -1602,6 +1636,10 @@ function applyTranslations() {
   };
   setText("staffHeader", "staff");
   setText("headingDetection", "heading_detection");
+  setText("headingNoteDetection", "heading_note_detection");
+  setText("noteDetectionHint", "hint_note_detection");
+  setText("noteDetectClear", "clear");
+  setText("labelNoteDetectNote", "label_note_detected");
   setText("headingIntervalDetection", "heading_interval_detection");
   setText("intervalDetectionHint", "hint_interval_detection");
   setText("intervalClear", "clear");
@@ -1622,6 +1660,7 @@ function applyTranslations() {
   setText("headingTuner", "heading_tuner_settings");
   setText("detectionHint", "hint_detection");
   setText("detectClear", "clear");
+  refreshNoteDetectionUi();
   refreshDetectionDetailsVisibility();
   setText("labelDetectChord", "label_chord");
   setText("labelDetectNotes", "label_notes");
@@ -1844,11 +1883,12 @@ async function fetchJson(url, options = {}) {
 }
 
 function activeModeSupportsInstrument() {
-  return state.mode === "detection" || state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
+  return state.mode === "note_detection" || state.mode === "detection" || state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
 }
 
 function activeModeSupportsStaff() {
-  return state.mode === "detection"
+  return state.mode === "note_detection"
+    || state.mode === "detection"
     || state.mode === "interval_detection"
     || state.mode === "interval_generation"
     || state.mode === "generation"
@@ -1944,7 +1984,7 @@ function setMode(mode) {
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
   state.mode = mode;
   saveModePref(mode);
-  if (mode !== "detection" && mode !== "interval_detection") {
+  if (mode !== "note_detection" && mode !== "detection" && mode !== "interval_detection") {
     resetMidiScreenWakeLockFully();
   }
   if (state.help.active && !isHelpAvailableForMode(state.mode)) state.help.active = false;
@@ -1952,7 +1992,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-note_detection", "mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -1961,6 +2001,7 @@ function setMode(mode) {
 
   document.querySelectorAll(".mode-panel").forEach((p) => p.classList.add("hidden"));
   const panelMap = {
+    note_detection: "panelNoteDetection",
     detection: "panelDetection",
     interval_detection: "panelIntervalDetection",
     interval_generation: "panelIntervalGeneration",
@@ -2016,7 +2057,7 @@ function setMode(mode) {
     if (guitarVariationBar) guitarVariationBar.classList.add("hidden");
   }
 
-  if (mode === "detection" || mode === "interval_detection") {
+  if (mode === "note_detection" || mode === "detection" || mode === "interval_detection") {
     setInstrument("piano");
   } else if (mode === "metronome") {
     setInstrument("piano");
@@ -2031,6 +2072,7 @@ function setMode(mode) {
 
   if (supportsInstrument) {
     setInstrument(state.instrument);
+    if (mode === "note_detection") refreshNoteDetectionUi();
     renderInstrument();
     renderStaff();
   } else if (TUNER_FEATURE_ENABLED && mode === "tuner") {
@@ -2226,6 +2268,9 @@ function getActivePcsForMode() {
   if (state.mode === "scales" && state.generatedScale) {
     return new Set((state.generatedScale.notes_midi || []).map((n) => Number(n) % 12));
   }
+  if (state.mode === "note_detection" && state.noteDetectionNote != null) {
+    return new Set([Number(state.noteDetectionNote) % 12]);
+  }
   if (state.mode === "detection") {
     return new Set(Array.from(state.activeDetectionNotes).map((n) => Number(n) % 12));
   }
@@ -2245,6 +2290,9 @@ function getActiveMidiForMode() {
   }
   if (state.mode === "scales" && state.generatedScale) {
     return new Set((state.generatedScale.notes_midi || []).map((n) => Number(n)));
+  }
+  if (state.mode === "note_detection" && state.noteDetectionNote != null) {
+    return new Set([Number(state.noteDetectionNote)]);
   }
   if (state.mode === "detection") {
     return new Set(Array.from(state.activeDetectionNotes));
@@ -2916,7 +2964,9 @@ function renderPiano() {
     }
     if (state.mode !== "scales" && tonicPc !== null && pc === tonicPc) key.classList.add("tonic");
     key.dataset.midi = String(midi);
-    key.innerHTML = pianoKeyLabelHtml(midi);
+    const hideNoteDetectionLabels = state.mode === "note_detection"
+      && !state.noteDetectionDetailsVisible;
+    key.innerHTML = hideNoteDetectionLabels ? "" : pianoKeyLabelHtml(midi);
 
     if (generationPianoMode) {
       const rhFinger = rhFingerByNote.get(midi);
@@ -3406,6 +3456,19 @@ function handleInstrumentNote(note, options = {}) {
   const released = !!options.released;
   const skipAudio = !!options.fromMidi
     && (state.soundOutput === "midi" || !canPlayWebAudioFromMidiInput());
+  if (state.mode === "note_detection") {
+    if (released) {
+      if (!skipAudio) stopHeldInputNote(note);
+      return;
+    }
+    if (pressed) {
+      if (!skipAudio) startHeldInputNote(note, "piano");
+      setLastDetectedNote(note, { play: false });
+    } else {
+      setLastDetectedNote(note);
+    }
+    return;
+  }
   if (state.mode === "detection") {
     if (pressed) {
       detectionManualPress(note, { instrumentHint });
@@ -4367,6 +4430,9 @@ function drawTunerCanvas(ctx, width, height) {
 }
 
 function getStaffNotes() {
+  if (state.mode === "note_detection") {
+    return state.noteDetectionNote == null ? [] : [Number(state.noteDetectionNote)];
+  }
   if (state.mode === "detection") return Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
   if (state.mode === "interval_detection") {
     if (state.intervalMelodyActive) return getIntervalMelodyNotes();
@@ -4550,6 +4616,7 @@ function renderStaff() {
   const extras = getExtraMidiForMode();
   const tonicPc = staffCtx.tonicPc;
   const compactChordStaff = isChordGenerationLikeMode();
+  const noteDetectionStaff = state.mode === "note_detection";
   const detectionStaff = state.mode === "detection";
   const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation";
   const intervalMelodyStaff = state.mode === "interval_detection" && !!state.intervalMelodyActive;
@@ -4557,7 +4624,7 @@ function renderStaff() {
   const scaleStaff = state.mode === "scales";
   state.staff.scaleRegions = [];
   state.staff.intervalRegions = [];
-  if ((detectionStaff || intervalDetectionStaff) && notes.length === 0) {
+  if ((noteDetectionStaff || detectionStaff || intervalDetectionStaff) && notes.length === 0) {
     ctx.fillStyle = "#cfcfcf";
     ctx.font = "italic 13px sans-serif";
     ctx.textAlign = "center";
@@ -4709,7 +4776,7 @@ function renderStaff() {
     }
 
     // Determinar alteración antes de calcular la posición Y (la convención #/b afecta la altura)
-    const noteAcc = (intervalDetectionStaff || detectionStaff || scaleStaff || generationStaff)
+    const noteAcc = (noteDetectionStaff || intervalDetectionStaff || detectionStaff || scaleStaff || generationStaff)
       ? getNoteAccidental(Number(midi), staffCtx.signature)
       : null;
     const notePreferFlat = noteAcc === "♭";
@@ -4748,7 +4815,7 @@ function renderStaff() {
       x = startX + 46 + degreeIdx * 44;
     } else if (intervalDetectionStaff) {
       x = startX + 46 + idx * intervalNoteStep;
-    } else if (detectionStaff) {
+    } else if (noteDetectionStaff || detectionStaff) {
       const placedCols = useTreble ? placedTrebleCols : placedBassCols;
       let c = 0;
       while (true) {
@@ -4764,7 +4831,7 @@ function renderStaff() {
       x = startX + 34 + col * 110 + (idx % 7) * 18 + used * 14;
     }
     const extra = extras.has(midi);
-    const tonic = ((midi % 12) + 12) % 12 === tonicPc;
+    const tonic = !noteDetectionStaff && ((midi % 12) + 12) % 12 === tonicPc;
     const scaleNoteCurrent = scaleStaff && scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi);
     const scaleNoteHovered = scaleStaff && scaleHoveredNote != null && Number(midi) === Number(scaleHoveredNote);
     const scaleNotePressed = scaleStaff && scalePressedNote != null && Number(midi) === Number(scalePressedNote);
@@ -4873,7 +4940,7 @@ function renderStaff() {
       });
     }
 
-    if (!compactChordStaff && !detectionStaff && !intervalDetectionStaff) {
+    if (!compactChordStaff && !noteDetectionStaff && !detectionStaff && !intervalDetectionStaff) {
       const labelCurrent = scaleStaff
         ? (
             scaleNoteCurrent
@@ -6520,7 +6587,7 @@ function resetMidiScreenWakeLockFully() {
 }
 
 async function bumpMidiScreenWakeLockFromMidi() {
-  if (state.mode !== "detection" || !state.midi.enabled) return;
+  if (!["note_detection", "detection", "interval_detection"].includes(state.mode) || !state.midi.enabled) return;
   state.midiScreenWakeLockWanted = true;
   await acquireMidiScreenWakeLock();
   cancelMidiScreenWakeLockTimer();
@@ -6540,6 +6607,17 @@ function handleMidiMessage(event) {
   const isNoteOn = status === 0x90 && velocity > 0;
   const isNoteOff = status === 0x80 || (status === 0x90 && velocity === 0);
   if (!isNoteOn && !isNoteOff) return;
+
+  if (state.mode === "note_detection") {
+    if (isNoteOn) {
+      startHeldMidiInputNote(note, "piano");
+      setLastDetectedNote(note, { play: false });
+    } else {
+      stopHeldMidiInputNote(note);
+    }
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
 
   if (state.mode === "detection") {
     if (isNoteOn) {
@@ -6696,6 +6774,7 @@ function disableMidiInput(options = {}) {
   stopAllHeldMidiInputNotes();
   state.detectionMidiHeldNotes.clear();
   if (state.mode === "detection") refreshDetectionActiveNotes();
+  if (state.mode === "note_detection") refreshNoteDetectionUi();
   if (state.mode === "interval_detection") refreshIntervalResult();
   if (state.mode === "metronome") renderInstrument();
   resetMidiScreenWakeLockFully();
@@ -6889,12 +6968,42 @@ function bindEvents() {
     state.accidental = e.target.value;
     await loadMeta();
     renderInstrument();
+    if (state.mode === "note_detection") refreshNoteDetectionUi();
     if (state.mode === "detection") await runDetection();
     if (state.mode === "interval_detection") refreshIntervalResult();
     if (state.mode === "generation" && state.generatedChord) await runGenerateChord();
     if (state.mode === "circle_fifths" && state.generatedChord) await runGenerateChordCircle();
     if (state.mode === "scales" && state.generatedScale) await runGenerateScale();
     renderStaff();
+  });
+
+  let noteDetectionPlayHeldNote = null;
+  bindImmediatePress(el("noteDetectPlay"), () => {}, {
+    highlightWhilePressed: true,
+    onPress: () => {
+      if (state.noteDetectionNote == null) return;
+      noteDetectionPlayHeldNote = Number(state.noteDetectionNote);
+      startHeldInputNote(noteDetectionPlayHeldNote, "piano");
+    },
+    onRelease: () => {
+      if (noteDetectionPlayHeldNote == null) return;
+      stopHeldInputNote(noteDetectionPlayHeldNote);
+      noteDetectionPlayHeldNote = null;
+    },
+  });
+  listen(el("noteDetectClear"), "click", () => {
+    stopAllHeldInputNotes();
+    stopAllHeldMidiInputNotes();
+    endInputDrag();
+    state.noteDetectionNote = null;
+    refreshNoteDetectionUi();
+    renderInstrument();
+    renderStaff();
+  });
+  listen(el("noteDetectDetailsToggle"), "click", () => {
+    state.noteDetectionDetailsVisible = !state.noteDetectionDetailsVisible;
+    refreshNoteDetectionUi();
+    renderInstrument();
   });
 
   listen(el("detectClear"), "click", () => {

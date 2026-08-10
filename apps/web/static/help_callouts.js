@@ -1,5 +1,20 @@
 (function initHelpCallouts(global) {
-  "use strict";
+"use strict";
+
+const HELP_CALLOUTS_NOTE_DETECTION = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
+  { selector: "#staffCanvas", textKey: "help_note_detection_staff", side: "top" },
+  { selector: "#panelNoteDetection", textKey: "help_note_detection_panel", side: "left" },
+  { selector: "#noteDetectPlay", textKey: "help_note_detection_play", side: "bottom" },
+  { selector: "#noteDetectClear", textKey: "help_note_detection_clear", side: "bottom" },
+  { selector: "#noteDetectDetailsToggle", textKey: "help_note_detection_toggle", side: "bottom" },
+  { selector: "#noteDetectFieldNote", textKey: "help_note_detection_result", side: "left" },
+  { selector: "#sharedPiano", textKey: "help_note_detection_instrument", side: "top" },
+];
 
 const HELP_CALLOUTS_DETECTION = [
   { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
@@ -161,6 +176,7 @@ const HELP_CALLOUTS_INTERVAL_GENERATION = [
 ];
 
 function helpCalloutsForMode(mode) {
+  if (mode === "note_detection") return HELP_CALLOUTS_NOTE_DETECTION;
   if (mode === "detection") return HELP_CALLOUTS_DETECTION;
   if (mode === "interval_detection") return HELP_CALLOUTS_INTERVAL_DETECTION;
   if (mode === "interval_generation") return HELP_CALLOUTS_INTERVAL_GENERATION;

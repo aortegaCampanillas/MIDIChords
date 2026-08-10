@@ -232,11 +232,18 @@ Esto también usa `wrangler dev`; no arranca proxy ni backend adicional. Wrangle
 
 ## Frontend (modos SPA)
 
-El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura, los catálogos y los adaptadores verificables se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI, audio por samples, resaltado de reproducción, matemática del afinador y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, gesto, bus y creación de nodos Web Audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
+El cliente es una **SPA** en **`static/app.js`** y **`static/style.css`**, cargada desde **`app.html`**. La lógica pura, los catálogos y los adaptadores verificables se reparten entre módulos enlazados antes de `app.js`: textos, notación, círculo, intervalos, digitaciones, armaduras, escalas, salida MIDI, audio por samples, resaltado de reproducción, matemática del afinador y ayudas. `app.js` conserva estado, DOM, permisos, entrada MIDI, gesto, bus y creación de nodos Web Audio y renderizado. El selector de modo (`#modeSelect`) alterna entre: **detección de notas**, detección de acordes, **detección de intervalos**, generación de acordes, **círculo de quintas**, escalas, metrónomo y afinador.
 
 Las pruebas JavaScript sin dependencias externas están en **`test/*.test.js`** y se ejecutan con `node --test`; `python scripts/check.py web` las descubre e incluye junto con la comprobación de sintaxis y la construcción del bundle.
 
 El perfil web y el chequeo de salud de producción validan automáticamente todos los scripts y hojas CSS locales enlazados por `app.html`; no mantienen una lista paralela de nombres de assets.
+
+### Detección de notas (`note_detection`)
+
+- **Funcionamiento**: conserva exclusivamente la última nota pulsada desde el piano interactivo o la entrada MIDI; esa misma altura queda marcada en el teclado y se muestra con nombre y octava en el panel.
+- **Pentagrama**: dibuja una sola nota en clave de sol o fa según su altura, siempre sin armadura y sin repetir su nombre como etiqueta textual. Los sostenidos o bemoles necesarios se escriben directamente junto a la cabeza de la nota según el selector global `# / ♭`.
+- **Controles**: ▶ repite la última nota, Limpiar elimina el resultado y el botón de ojo oculta o muestra tanto el subpanel informativo como las etiquetas de todas las teclas. Este último estado solo afecta a `note_detection`.
+- **Ayuda**: `HELP_CALLOUTS_NOTE_DETECTION` documenta pentagrama, panel, controles, resultado y piano.
 
 ### Detección de intervalos (`interval_detection`)
 

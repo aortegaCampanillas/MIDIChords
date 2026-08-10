@@ -23,7 +23,7 @@ extension _HomeScreenPages on _HomeScreenState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                _ui('Detección de acordes', 'Chord detection'),
+                _ui('Detección de Acordes', 'Chord Detection'),
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,

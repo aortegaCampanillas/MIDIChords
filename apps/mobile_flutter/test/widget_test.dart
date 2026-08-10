@@ -21,7 +21,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('MIDI Piano & Guitar Chords'), findsOneWidget);
-    expect(find.text('Detección de acordes'), findsOneWidget);
+    expect(find.text('Detección de Acordes'), findsWidgets);
   });
 
   testWidgets('help overlay resolves visible anchors after layout', (

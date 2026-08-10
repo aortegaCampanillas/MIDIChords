@@ -411,6 +411,7 @@ class _HomeScreenState extends State<HomeScreen>
   int? _intervalPlayingIdx;
   bool _intervalMelodyMode =
       false; // false = play 2 notes, true = play reference melody
+  bool _intervalDetailsVisible = true;
   Timer? _intervalMelodyPlaybackTimer;
   int _intervalGenRootPc = 0;
   int _intervalGenRootLetterPc = 0;
@@ -470,6 +471,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _circleKeyMode = 'major';
   int _circleChordRootPc = 0;
   bool _detectionPlayPressed = false;
+  bool _detectionDetailsVisible = true;
   bool _inputDragActive = false;
   int? _dragPointer;
   int? _dragCurrentNote;
@@ -3304,10 +3306,12 @@ class _HomeScreenState extends State<HomeScreen>
         return extras.isEmpty ? '-' : extras.join(' - ');
       case 'formula':
       case 'construction':
-        final extrasMidi = _extractMidiList(json, <String>['extras_midi']).toSet();
-        final chordOnlyMidi = _extractMidiList(json, <String>['notes_midi'])
-            .where((n) => !extrasMidi.contains(n))
-            .toList();
+        final extrasMidi = _extractMidiList(json, <String>[
+          'extras_midi',
+        ]).toSet();
+        final chordOnlyMidi = _extractMidiList(json, <String>[
+          'notes_midi',
+        ]).where((n) => !extrasMidi.contains(n)).toList();
         final result = interval_theory.chordFormulaAndConstruction(
           catalog: _chordTheoryCatalog,
           rootPc: json['root_pc'] as int?,

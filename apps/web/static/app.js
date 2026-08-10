@@ -37,6 +37,8 @@ const state = {
   activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
   detectionResult: null,
+  detectionDetailsVisible: true,
+  intervalDetailsVisible: true,
   generatedChord: null,
   circleTonicPc: 0,
   /** "major": circleTonicPc es la tónica mayor; "minor": es la fundamental menor (relativa mayor = +3 semitonos). */
@@ -1559,6 +1561,22 @@ function refreshDetectionButtonsState() {
   if (clearBtn) clearBtn.disabled = !hasNotes;
 }
 
+function refreshDetectionDetailsVisibility() {
+  const pairs = [
+    ["detectResultBlock", "detectDetailsToggle", state.detectionDetailsVisible],
+    ["intervalResultBlock", "intervalDetailsToggle", state.intervalDetailsVisible],
+  ];
+  pairs.forEach(([blockId, buttonId, visible]) => {
+    const block = el(blockId);
+    const button = el(buttonId);
+    if (block) block.hidden = !visible;
+    if (!button) return;
+    button.textContent = `👁 ${tr(visible ? "hide" : "show")}`;
+    button.classList.toggle("active", !visible);
+    button.setAttribute("aria-expanded", String(visible));
+  });
+}
+
 function applyTranslations() {
   const modeSelect = el("modeSelect");
   if (modeSelect) {
@@ -1604,6 +1622,7 @@ function applyTranslations() {
   setText("headingTuner", "heading_tuner_settings");
   setText("detectionHint", "hint_detection");
   setText("detectClear", "clear");
+  refreshDetectionDetailsVisibility();
   setText("labelDetectChord", "label_chord");
   setText("labelDetectNotes", "label_notes");
   setText("labelDetectExtras", "label_extras");
@@ -6891,6 +6910,10 @@ function bindEvents() {
     renderInstrument();
     runDetection();
   });
+  listen(el("detectDetailsToggle"), "click", () => {
+    state.detectionDetailsVisible = !state.detectionDetailsVisible;
+    refreshDetectionDetailsVisibility();
+  });
   const soundOutputToggle = el("soundOutputToggle");
   if (soundOutputToggle) listen(soundOutputToggle, "click", async () => {
     state.soundOutput = state.soundOutput === "midi" ? "audio" : "midi";
@@ -6950,6 +6973,10 @@ function bindEvents() {
     stopAllHeldMidiInputNotes();
     state.intervalNotes = [];
     refreshIntervalResult();
+  });
+  listen(el("intervalDetailsToggle"), "click", () => {
+    state.intervalDetailsVisible = !state.intervalDetailsVisible;
+    refreshDetectionDetailsVisibility();
   });
 
   bindImmediatePress(el("intervalPlayReverse"), () => {

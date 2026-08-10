@@ -6,9 +6,9 @@
       {
         "date": "2026-08-10",
         "publish": true,
-        "platforms": ["desktop"],
-        "es": "Detección de Acordes y Detección de Intervalos incorporan un botón con icono de ojo para ocultar o volver a mostrar el subpanel de información detectada.",
-        "en": "Chord Detection and Interval Detection now include an eye-icon button to hide or show the detected-information subpanel."
+        "platforms": ["web", "desktop", "mobile"],
+        "es": "Detección de Acordes y Detección de Intervalos incorporan un botón con icono de ojo para ocultar la información detectada con fines didácticos y volver a mostrarla para comprobar la respuesta.",
+        "en": "Chord Detection and Interval Detection now include an eye-icon button to hide detected information for learning purposes and show it again to check the answer."
       }
     ]
   },

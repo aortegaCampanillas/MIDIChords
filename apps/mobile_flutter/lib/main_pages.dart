@@ -86,16 +86,40 @@ extension _HomeScreenPages on _HomeScreenState {
                       label: Text(_ui('Limpiar', 'Clear')),
                     ),
                   ),
+                  _helpAnchor(
+                    'detection_details_toggle',
+                    OutlinedButton.icon(
+                      onPressed: () => _updateState(
+                        () => _detectionDetailsVisible =
+                            !_detectionDetailsVisible,
+                      ),
+                      icon: const Icon(Icons.visibility),
+                      label: Text(
+                        _detectionDetailsVisible
+                            ? _ui('Ocultar', 'Hide')
+                            : _ui('Mostrar', 'Show'),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: _detectionDetailsVisible
+                            ? null
+                            : _HomeScreenState._accent,
+                        foregroundColor: _detectionDetailsVisible
+                            ? null
+                            : _HomeScreenState._surfaceDark,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              if (compactPhone)
-                SizedBox(
-                  height: resultHeight,
-                  child: _buildDetectionResultBlock(),
-                )
-              else
-                Expanded(child: _buildDetectionResultBlock()),
+              if (_detectionDetailsVisible)
+                if (compactPhone)
+                  SizedBox(
+                    height: resultHeight,
+                    child: _buildDetectionResultBlock(),
+                  )
+                else
+                  Expanded(child: _buildDetectionResultBlock()),
             ],
           );
           if (!compactLandscape) {
@@ -1091,180 +1115,181 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _HomeScreenState._surfaceDark,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _HomeScreenState._border,
-                        width: 1,
+                  if (_intervalDetailsVisible)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _HomeScreenState._surfaceDark,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _HomeScreenState._border,
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          // Notes display
+                          _helpAnchor(
+                            'interval_notes_row',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  _ui('Notas', 'Notes'),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _intervalNotes.isEmpty
+                                      ? '-'
+                                      : (List<int>.from(_intervalNotes)..sort())
+                                            .map(_midiNoteWithOctave)
+                                            .join(' – '),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._accent,
+                                    fontSize: 14,
+                                    fontFamily: 'Courier',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Interval name
+                          _helpAnchor(
+                            'interval_name_row',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  _ui('Intervalo', 'Interval'),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _intervalNotes.length >= 2
+                                      ? _getIntervalName()
+                                      : '-',
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._accent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Interval alternative names
+                          _helpAnchor(
+                            'interval_alt_row',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  _ui('Alternativos', 'Alternatives'),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _intervalNotes.length >= 2
+                                      ? _getIntervalAltNames()
+                                      : '-',
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._accent,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Semitones
+                          _helpAnchor(
+                            'interval_semitones_row',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  _ui('Semitonos', 'Semitones'),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _intervalNotes.length >= 2
+                                      ? (_getIntervalSemitones()?.toString() ??
+                                            '-')
+                                      : '-',
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._accent,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Melody name — tappable toggle
+                          _helpAnchor(
+                            'interval_melody_row',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  _ui('Ejemplo', 'Example'),
+                                  style: const TextStyle(
+                                    color: _HomeScreenState._muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _intervalNotes.length >= 2
+                                      ? _toggleIntervalMelodyMode
+                                      : null,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _intervalMelodyMode
+                                          ? const Color(0x26F3BF2F)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: _intervalMelodyMode
+                                            ? _HomeScreenState._accent
+                                            : _HomeScreenState._border,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _intervalNotes.length >= 2
+                                          ? _getIntervalMelodyName()
+                                          : '-',
+                                      style: TextStyle(
+                                        color: _intervalMelodyMode
+                                            ? _HomeScreenState._accent
+                                            : const Color(0xFFE9EDF2),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // Notes display
-                        _helpAnchor(
-                          'interval_notes_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Notas', 'Notes'),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.isEmpty
-                                    ? '-'
-                                    : (List<int>.from(_intervalNotes)..sort())
-                                          .map(_midiNoteWithOctave)
-                                          .join(' – '),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._accent,
-                                  fontSize: 14,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Interval name
-                        _helpAnchor(
-                          'interval_name_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Intervalo', 'Interval'),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.length >= 2
-                                    ? _getIntervalName()
-                                    : '-',
-                                style: const TextStyle(
-                                  color: _HomeScreenState._accent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Interval alternative names
-                        _helpAnchor(
-                          'interval_alt_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Alternativos', 'Alternatives'),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.length >= 2
-                                    ? _getIntervalAltNames()
-                                    : '-',
-                                style: const TextStyle(
-                                  color: _HomeScreenState._accent,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Semitones
-                        _helpAnchor(
-                          'interval_semitones_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Semitonos', 'Semitones'),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                _intervalNotes.length >= 2
-                                    ? (_getIntervalSemitones()?.toString() ??
-                                          '-')
-                                    : '-',
-                                style: const TextStyle(
-                                  color: _HomeScreenState._accent,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Melody name — tappable toggle
-                        _helpAnchor(
-                          'interval_melody_row',
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Text(
-                                _ui('Ejemplo', 'Example'),
-                                style: const TextStyle(
-                                  color: _HomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _intervalNotes.length >= 2
-                                    ? _toggleIntervalMelodyMode
-                                    : null,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _intervalMelodyMode
-                                        ? const Color(0x26F3BF2F)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: _intervalMelodyMode
-                                          ? _HomeScreenState._accent
-                                          : _HomeScreenState._border,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _intervalNotes.length >= 2
-                                        ? _getIntervalMelodyName()
-                                        : '-',
-                                    style: TextStyle(
-                                      color: _intervalMelodyMode
-                                          ? _HomeScreenState._accent
-                                          : const Color(0xFFE9EDF2),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   // Buttons
                   Wrap(
@@ -1309,6 +1334,29 @@ extension _HomeScreenPages on _HomeScreenState {
                               ? null
                               : _clearIntervalNotes,
                           child: Text(_ui('Limpiar', 'Clear')),
+                        ),
+                      ),
+                      _helpAnchor(
+                        'interval_details_toggle',
+                        OutlinedButton.icon(
+                          onPressed: () => _updateState(
+                            () => _intervalDetailsVisible =
+                                !_intervalDetailsVisible,
+                          ),
+                          icon: const Icon(Icons.visibility),
+                          label: Text(
+                            _intervalDetailsVisible
+                                ? _ui('Ocultar', 'Hide')
+                                : _ui('Mostrar', 'Show'),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: _intervalDetailsVisible
+                                ? null
+                                : _HomeScreenState._accent,
+                            foregroundColor: _intervalDetailsVisible
+                                ? null
+                                : _HomeScreenState._surfaceDark,
+                          ),
                         ),
                       ),
                     ],

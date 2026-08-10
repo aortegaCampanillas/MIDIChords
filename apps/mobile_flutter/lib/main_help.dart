@@ -130,6 +130,17 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: 2,
         ),
         _HelpStep(
+          id: 'detection_details_toggle',
+          titleEs: 'Ocultar o mostrar',
+          titleEn: 'Hide or show',
+          bodyEs:
+              'Con fines didácticos, oculta la información para intentar identificar el acorde por ti mismo y vuelve a mostrarla para comprobar la respuesta.',
+          bodyEn:
+              'For learning purposes, hide the information to identify the chord yourself, then show it again to check your answer.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
           id: 'detection_midi_sound_button',
           titleEs: 'Boton MIDI',
           titleEn: 'MIDI button',
@@ -847,6 +858,16 @@ extension _HomeScreenHelp on _HomeScreenState {
           titleEn: 'Clear',
           bodyEs: 'Limpia las notas activas para comenzar de nuevo.',
           bodyEn: 'Clear active notes and start over.',
+          side: _HelpCalloutSide.left,
+        ),
+        _HelpStep(
+          id: 'interval_details_toggle',
+          titleEs: 'Ocultar o mostrar',
+          titleEn: 'Hide or show',
+          bodyEs:
+              'Con fines didácticos, oculta la información para intentar identificar el intervalo por ti mismo y vuelve a mostrarla para comprobar la respuesta.',
+          bodyEn:
+              'For learning purposes, hide the information to identify the interval yourself, then show it again to check your answer.',
           side: _HelpCalloutSide.left,
         ),
         _HelpStep(

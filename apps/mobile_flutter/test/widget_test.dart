@@ -47,6 +47,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('chord detection can hide and restore didactic details', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('Ocultar'));
+    await tester.pump();
+    expect(find.text('Mostrar'), findsOneWidget);
+
+    await tester.tap(find.text('Mostrar'));
+    await tester.pump();
+    expect(find.text('Ocultar'), findsOneWidget);
+  });
+
+  testWidgets('interval detection can hide and restore didactic details', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{'tabIndex': 5});
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.text('Ocultar'));
+    await tester.pump();
+    expect(find.text('Mostrar'), findsOneWidget);
+
+    await tester.tap(find.text('Mostrar'));
+    await tester.pump();
+    expect(find.text('Ocultar'), findsOneWidget);
+  });
+
   testWidgets('interval generation help resolves its scrollable table', (
     WidgetTester tester,
   ) async {

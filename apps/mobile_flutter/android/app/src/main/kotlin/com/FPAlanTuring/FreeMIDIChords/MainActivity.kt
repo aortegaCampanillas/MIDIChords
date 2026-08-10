@@ -5,9 +5,6 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaFormat
 import android.os.Build
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
@@ -83,24 +80,24 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
     private val decodeLock = Object()
 
     private val pianoBank = mapOf(
-        48 to "assets/samples/grand_piano/C3.mp3",
-        52 to "assets/samples/grand_piano/E3.mp3",
-        55 to "assets/samples/grand_piano/G3.mp3",
-        60 to "assets/samples/grand_piano/C4.mp3",
-        64 to "assets/samples/grand_piano/E4.mp3",
-        67 to "assets/samples/grand_piano/G4.mp3",
-        72 to "assets/samples/grand_piano/C5.mp3",
+        48 to "assets/native_pcm/grand_piano/C3.wav",
+        52 to "assets/native_pcm/grand_piano/E3.wav",
+        55 to "assets/native_pcm/grand_piano/G3.wav",
+        60 to "assets/native_pcm/grand_piano/C4.wav",
+        64 to "assets/native_pcm/grand_piano/E4.wav",
+        67 to "assets/native_pcm/grand_piano/G4.wav",
+        72 to "assets/native_pcm/grand_piano/C5.wav",
     )
     private val guitarBank = mapOf(
-        40 to "assets/samples/guitar_nylon/E2.mp3",
-        45 to "assets/samples/guitar_nylon/A2.mp3",
-        50 to "assets/samples/guitar_nylon/D3.mp3",
-        52 to "assets/samples/guitar_nylon/E3.mp3",
-        55 to "assets/samples/guitar_nylon/G3.mp3",
-        59 to "assets/samples/guitar_nylon/B3.mp3",
-        64 to "assets/samples/guitar_nylon/E4.mp3",
+        40 to "assets/native_pcm/guitar_nylon/E2.wav",
+        45 to "assets/native_pcm/guitar_nylon/A2.wav",
+        50 to "assets/native_pcm/guitar_nylon/D3.wav",
+        52 to "assets/native_pcm/guitar_nylon/E3.wav",
+        55 to "assets/native_pcm/guitar_nylon/G3.wav",
+        59 to "assets/native_pcm/guitar_nylon/B3.wav",
+        64 to "assets/native_pcm/guitar_nylon/E4.wav",
     )
-    private val metronomePath = "assets/metronome.mp3"
+    private val metronomePath = "assets/native_pcm/metronome.wav"
 
     init {
         thread(name = "mc-preload", isDaemon = true) { preloadAll() }
@@ -187,7 +184,7 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
         synchronized(decodeLock) {
             decoded[path]?.let { return it }
             val sample = try {
-                decodeMp3Asset(path)
+                decodePcmWavAsset(path)
             } catch (t: Throwable) {
                 Log.e(tag, "decode failed for $path: $t")
                 null
@@ -197,66 +194,45 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
         }
     }
 
-    private fun decodeMp3Asset(path: String): DecodedSample? {
-        val afd = activity.assets.openFd("flutter_assets/$path")
-        val extractor = MediaExtractor()
-        extractor.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-        afd.close()
-        if (extractor.trackCount == 0) return null
-        val format = extractor.getTrackFormat(0)
-        val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-        extractor.selectTrack(0)
-        val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+    private fun decodePcmWavAsset(path: String): DecodedSample? {
+        val bytes = activity.assets.open("flutter_assets/$path").use { it.readBytes() }
+        if (bytes.size < 44 || bytes.copyOfRange(0, 4).decodeToString() != "RIFF" ||
+            bytes.copyOfRange(8, 12).decodeToString() != "WAVE"
+        ) return null
 
-        val codec = MediaCodec.createDecoderByType(mime)
-        codec.configure(format, null, null, 0)
-        codec.start()
-
-        val pcmOut = ArrayList<Short>(sampleRate * channels)
-        val bufferInfo = MediaCodec.BufferInfo()
-        var sawInputEos = false
-        var sawOutputEos = false
-
-        while (!sawOutputEos) {
-            if (!sawInputEos) {
-                val inIndex = codec.dequeueInputBuffer(10_000)
-                if (inIndex >= 0) {
-                    val inBuffer = codec.getInputBuffer(inIndex) ?: continue
-                    val sampleSize = extractor.readSampleData(inBuffer, 0)
-                    if (sampleSize < 0) {
-                        codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                        sawInputEos = true
-                    } else {
-                        codec.queueInputBuffer(inIndex, 0, sampleSize, extractor.sampleTime, 0)
-                        extractor.advance()
-                    }
+        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        var offset = 12
+        var channels = 0
+        var sampleRate = 0
+        var bitsPerSample = 0
+        var pcmOffset = -1
+        var pcmSize = 0
+        while (offset + 8 <= bytes.size) {
+            val chunkId = bytes.copyOfRange(offset, offset + 4).decodeToString()
+            val chunkSize = buffer.getInt(offset + 4)
+            val dataStart = offset + 8
+            if (chunkSize < 0 || dataStart + chunkSize > bytes.size) return null
+            when (chunkId) {
+                "fmt " -> {
+                    if (chunkSize < 16 || buffer.getShort(dataStart).toInt() != 1) return null
+                    channels = buffer.getShort(dataStart + 2).toInt()
+                    sampleRate = buffer.getInt(dataStart + 4)
+                    bitsPerSample = buffer.getShort(dataStart + 14).toInt()
+                }
+                "data" -> {
+                    pcmOffset = dataStart
+                    pcmSize = chunkSize
                 }
             }
-            val outIndex = codec.dequeueOutputBuffer(bufferInfo, 10_000)
-            if (outIndex >= 0) {
-                val outBuffer = codec.getOutputBuffer(outIndex)
-                if (outBuffer != null && bufferInfo.size > 0) {
-                    outBuffer.order(ByteOrder.LITTLE_ENDIAN)
-                    outBuffer.position(bufferInfo.offset)
-                    outBuffer.limit(bufferInfo.offset + bufferInfo.size)
-                    val shortBuf = outBuffer.asShortBuffer()
-                    val chunk = ShortArray(shortBuf.remaining())
-                    shortBuf.get(chunk)
-                    pcmOut.ensureCapacity(pcmOut.size + chunk.size)
-                    for (s in chunk) pcmOut.add(s)
-                }
-                codec.releaseOutputBuffer(outIndex, false)
-                if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                    sawOutputEos = true
-                }
-            }
+            offset = dataStart + chunkSize + (chunkSize and 1)
         }
-        codec.stop()
-        codec.release()
-        extractor.release()
-
-        return DecodedSample(pcmOut.toShortArray(), sampleRate, channels)
+        if (channels !in 1..2 || sampleRate <= 0 || bitsPerSample != 16 || pcmOffset < 0) {
+            return null
+        }
+        val shorts = ShortArray(pcmSize / 2)
+        buffer.position(pcmOffset)
+        buffer.asShortBuffer().get(shorts)
+        return DecodedSample(shorts, sampleRate, channels)
     }
 
     /**
@@ -302,20 +278,21 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
         return out
     }
 
-    @Volatile private var cachedSpeaker: AudioDeviceInfo? = null
-    @Volatile private var speakerLookedUp = false
-
-    private fun builtInSpeaker(): AudioDeviceInfo? {
-        if (speakerLookedUp) return cachedSpeaker
-        try {
-            val audioManager = activity.getSystemService(AudioManager::class.java)
-            cachedSpeaker = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.firstOrNull {
+    private fun builtInSpeakerWhenUsbAudioIsConnected(): AudioDeviceInfo? {
+        return try {
+            val audioManager = activity.getSystemService(AudioManager::class.java) ?: return null
+            val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            val hasUsbAudio = outputs.any {
+                it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                    it.type == AudioDeviceInfo.TYPE_USB_ACCESSORY ||
+                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+            if (!hasUsbAudio) null else outputs.firstOrNull {
                 it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
             }
         } catch (_: Throwable) {
+            null
         }
-        speakerLookedUp = true
-        return cachedSpeaker
     }
 
     /**
@@ -373,7 +350,7 @@ private class AndroidNativeSampleEngine(private val activity: FlutterActivity) {
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            builtInSpeaker()?.let { track.preferredDevice = it }
+            builtInSpeakerWhenUsbAudioIsConnected()?.let { track.preferredDevice = it }
         }
 
         track.write(finalPcm, 0, finalPcm.size)

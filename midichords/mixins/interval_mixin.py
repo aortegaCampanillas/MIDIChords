@@ -292,6 +292,19 @@ class IntervalMixin:
             font_size=15,
         )
         self.interval_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.interval_details_visible = True
+        self.interval_details_toggle_btn = GrayRoundedButton(
+            controls_row,
+            text=self._get_ui_text("button_hide_detection_details"),
+            command=self._toggle_interval_details,
+            font_family=self.ui_font_family,
+            width=112,
+            height=34,
+            radius=14,
+            font_size=15,
+            selected_text_color="#17273a",
+        )
+        self.interval_details_toggle_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         # Result box — same rounded dark box with dashed border as detection panel
         result_box_bg = "#17273a"
@@ -412,6 +425,22 @@ class IntervalMixin:
             self._refresh_right_panel_wraplengths()
         self._refresh_interval_buttons_state()
 
+    def _set_interval_details_visible(self, visible: bool) -> None:
+        self.interval_details_visible = bool(visible)
+        self.interval_result_canvas.setVisible(self.interval_details_visible)
+        key = (
+            "button_hide_detection_details"
+            if self.interval_details_visible
+            else "button_show_detection_details"
+        )
+        self.interval_details_toggle_btn.set_text(self._get_ui_text(key))
+        self.interval_details_toggle_btn.set_selected(not self.interval_details_visible)
+
+    def _toggle_interval_details(self) -> None:
+        self._set_interval_details_visible(
+            not getattr(self, "interval_details_visible", True)
+        )
+
     def _refresh_interval_ui_language(self) -> None:
         for label, key in getattr(self, "interval_i18n_labels", []):
             label.configure(text=self._get_ui_text(key))
@@ -421,6 +450,10 @@ class IntervalMixin:
             )
         if hasattr(self, "interval_clear_btn"):
             self.interval_clear_btn.set_text(self._get_ui_text("button_clear"))
+        if hasattr(self, "interval_details_toggle_btn"):
+            self._set_interval_details_visible(
+                getattr(self, "interval_details_visible", True)
+            )
 
     def _refresh_interval_buttons_state(self):
         """Enable/disable play buttons and update melody button state."""

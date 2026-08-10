@@ -45,6 +45,7 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
             "generated_chord_row",
             "generation_play_btn",
             "generation_variant_help_btn",
+            "detection_details_toggle_btn",
         )
         for attribute in required_widgets:
             assert isinstance(getattr(window, attribute), QWidget), attribute
@@ -78,6 +79,29 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.scale_type_combo.parent() is not window.tab_scale_frame
         assert window.scale_type_combo.parent().parent() is window.tab_scale_frame
         assert window.scale_inline_filter_btn.parent() is window.scale_type_combo.parent()
+
+        assert window.detection_result_canvas.isHidden() is False
+        QTest.mouseClick(
+            window.detection_details_toggle_btn, Qt.MouseButton.LeftButton
+        )
+        assert window.detection_result_canvas.isHidden() is True
+        QTest.mouseClick(
+            window.detection_details_toggle_btn, Qt.MouseButton.LeftButton
+        )
+        assert window.detection_result_canvas.isHidden() is False
+
+        window._apply_mode("interval_detection")
+        qt_app.processEvents()
+
+        assert window.interval_result_canvas.isHidden() is False
+        QTest.mouseClick(
+            window.interval_details_toggle_btn, Qt.MouseButton.LeftButton
+        )
+        assert window.interval_result_canvas.isHidden() is True
+        QTest.mouseClick(
+            window.interval_details_toggle_btn, Qt.MouseButton.LeftButton
+        )
+        assert window.interval_result_canvas.isHidden() is False
 
         window._apply_mode("interval_generation")
         qt_app.processEvents()

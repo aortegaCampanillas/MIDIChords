@@ -564,6 +564,19 @@ class UiMixin:
             font_size=15,
         )
         self.detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.detection_details_visible = True
+        self.detection_details_toggle_btn = GrayRoundedButton(
+            self.detection_controls_row,
+            text=self.tr("button_hide_detection_details"),
+            command=self._toggle_detection_details,
+            font_family=self.ui_font_family,
+            width=112,
+            height=34,
+            radius=14,
+            font_size=15,
+            selected_text_color="#17273a",
+        )
+        self.detection_details_toggle_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         self.chord_var = tk.StringVar(value="-")
         self.detection_result_canvas = tk.Canvas(
@@ -2398,6 +2411,10 @@ class UiMixin:
         self.chord_title_label.configure(text=self.tr("detection_title"))
         self.detection_help_label.configure(text=self.tr("detection_help"))
         self.detection_clear_btn.set_text(self.tr("button_clear"))
+        if hasattr(self, "detection_details_toggle_btn"):
+            self._set_detection_details_visible(
+                getattr(self, "detection_details_visible", True)
+            )
         if hasattr(self, "interval_clear_btn"):
             self.interval_clear_btn.set_text(self.tr("button_clear"))
         self._refresh_midi_input_sound_toggle_button()
@@ -2804,6 +2821,24 @@ class UiMixin:
     def _on_detection_play_press(self, _event: tk.Event) -> str:
         self._start_detection_hold()
         return "break"
+    def _set_detection_details_visible(self, visible: bool) -> None:
+        self.detection_details_visible = bool(visible)
+        self.detection_result_canvas.setVisible(self.detection_details_visible)
+        key = (
+            "button_hide_detection_details"
+            if self.detection_details_visible
+            else "button_show_detection_details"
+        )
+        self.detection_details_toggle_btn.set_text(self.tr(key))
+        self.detection_details_toggle_btn.set_selected(
+            not self.detection_details_visible
+        )
+
+    def _toggle_detection_details(self) -> None:
+        self._set_detection_details_visible(
+            not getattr(self, "detection_details_visible", True)
+        )
+
     def _refresh_detection_controls_state(self) -> None:
         live = bool(self._current_detection_notes())
         has_fallback = bool(getattr(self, "detection_last_playable_notes", set()))
@@ -3680,6 +3715,7 @@ class UiMixin:
                 "detection_play_btn:help_detect_play",
                 "detection_variant_help_btn:help_detect_variant_theory",
                 "detection_clear_btn:help_detect_clear",
+                "detection_details_toggle_btn:help_detect_details_toggle",
                 "chord_row:help_detect_result_chord",
                 "notes_row:help_detect_result_notes",
                 "extra_notes_row:help_detect_result_extras",
@@ -3699,6 +3735,7 @@ class UiMixin:
                 "interval_play_reverse_btn:help_interval_play_reverse",
                 "interval_play_btn:help_interval_play",
                 "interval_clear_btn:help_interval_clear",
+                "interval_details_toggle_btn:help_interval_details_toggle",
                 # usar las filas (frame etiqueta+valor) en lugar del label de valor solo
                 "interval_notes_row:help_interval_notes",
                 "interval_name_row:help_interval_name",

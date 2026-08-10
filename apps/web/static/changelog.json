@@ -1,5 +1,18 @@
 [
   {
+    "version": "v1.0.7",
+    "date": "2026-08-10",
+    "items": [
+      {
+        "date": "2026-08-10",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "Detección de Acordes y Detección de Intervalos incorporan un botón con icono de ojo para ocultar o volver a mostrar el subpanel de información detectada.",
+        "en": "Chord Detection and Interval Detection now include an eye-icon button to hide or show the detected-information subpanel."
+      }
+    ]
+  },
+  {
     "version": "v1.0.6",
     "date": "2026-07-23",
     "items": [

@@ -1590,7 +1590,7 @@ function refreshNoteDetectionUi() {
   const clear = el("noteDetectClear");
   const toggle = el("noteDetectDetailsToggle");
   if (result) result.hidden = !visible;
-  if (name) name.textContent = hasNote ? noteNameWithOctave(note) : "-";
+  if (name) name.textContent = hasNote ? noteNameFromPc(note % 12) : "-";
   if (play) play.disabled = !hasNote;
   if (clear) clear.disabled = !hasNote;
   if (toggle) {

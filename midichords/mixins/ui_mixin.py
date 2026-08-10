@@ -596,12 +596,13 @@ class UiMixin:
             )
             center_y = h // 2
             canvas.create_text(
-                16, center_y, anchor="w", text=self.tr("label_note_detected"),
+                16, center_y, anchor="w",
+                text=self.tr("label_note_detected") + ":",
                 fill=self.color_text,
                 font=(self.ui_font_family, 15, "bold"),
             )
             canvas.create_text(
-                76, center_y, anchor="w", text=self.note_detection_var.get(),
+                60, center_y, anchor="w", text=self.note_detection_var.get(),
                 fill=self.color_accent,
                 font=(self.ui_font_family, 18, "bold"),
             )

@@ -93,28 +93,36 @@ extension _HomeScreenPages on _HomeScreenState {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: _HomeScreenState._border),
                 ),
-                child: Row(
-                  children: <Widget>[
-                    Text(
-                      _ui('Nota', 'Note'),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const Spacer(),
-                    Text(
-                      note == null
-                          ? '-'
-                          : noteNameLocal(
-                              note,
-                              language: _language,
-                              preferFlat: _accidental == 'flat',
-                            ),
-                      style: const TextStyle(
-                        color: _HomeScreenState._accent,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
+                child: RichText(
+                  text: TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: '${_ui('Nota', 'Note')}: ',
+                        style: const TextStyle(
+                          color: _HomeScreenState._muted,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          height: 1.35,
+                        ),
                       ),
-                    ),
-                  ],
+                      TextSpan(
+                        text: note == null
+                            ? '-'
+                            : noteNameLocal(
+                                note,
+                                language: _language,
+                                preferFlat: _accidental == 'flat',
+                                withOctave: false,
+                              ),
+                        style: const TextStyle(
+                          color: _HomeScreenState._accent,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

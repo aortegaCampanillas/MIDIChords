@@ -375,7 +375,7 @@ class InputDetectionMixin:
 
         if self.current_mode == "note_detection":
             self.note_detection_note = int(note)
-            self.note_detection_var.set(self.note_name(int(note), with_octave=True))
+            self.note_detection_var.set(self.note_name(int(note), with_octave=False))
 
         # Handle interval detection mode
         if self.current_mode == "interval_detection":

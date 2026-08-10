@@ -113,8 +113,8 @@ extension _HomeScreenHelp on _HomeScreenState {
           id: 'note_detection_result',
           titleEs: 'Nota detectada',
           titleEn: 'Detected note',
-          bodyEs: 'Muestra el nombre y la octava de la última nota tocada.',
-          bodyEn: 'Shows the name and octave of the last note played.',
+          bodyEs: 'Muestra el nombre de la última nota tocada.',
+          bodyEn: 'Shows the name of the last note played.',
         ),
         _HelpStep(
           id: 'note_detection_piano',

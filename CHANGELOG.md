@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Detección de Notas**: nuevo modo didáctico que conserva la última nota tocada desde el piano o MIDI, la representa sin armadura en la clave correspondiente y permite repetirla, limpiarla u ocultar su nombre junto con las etiquetas del teclado.
 - Mantenimiento: el changelog de producto tiene ahora una única fuente canónica y las copias necesarias para web y Flutter se generan automáticamente durante lanzamientos, verificaciones y builds web.
 
 ### Versión

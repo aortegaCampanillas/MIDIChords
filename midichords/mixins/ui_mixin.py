@@ -226,6 +226,7 @@ class _HelpMouseFilter(QObject):
 class UiMixin:
     def _available_mode_keys(self) -> list[str]:
         modes = [
+            "note_detection",
             "detection",
             "generation",
             "interval_detection",
@@ -508,6 +509,112 @@ class UiMixin:
         topbar_bg = self.cget("background")
 
         build_main_panel_shell(self, container)
+
+        self.note_detection_title_label = tk.Label(
+            self.tab_note_detection_frame, text=self.tr("mode_note_detection"),
+            bg=self.color_surface_alt, fg=self.color_text,
+            font=(self.ui_font_family, 22, "bold"),
+        )
+        self.note_detection_title_label.pack(anchor="w", pady=(0, 8))
+        self.note_detection_controls_row = tk.Frame(
+            self.tab_note_detection_frame, bg=self.color_surface_alt, bd=0,
+            highlightthickness=0,
+        )
+        self.note_detection_controls_row.pack(fill=tk.X, anchor="w", pady=(0, 10))
+        self.note_detection_play_btn = PlayTransportButton(
+            self.note_detection_controls_row, command=lambda: None, width=58, height=34,
+        )
+        self.note_detection_play_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.note_detection_play_btn.bind("<ButtonPress-1>", self._on_note_detection_play_press)
+        self.note_detection_play_btn.bind("<ButtonRelease-1>", self._on_note_detection_play_release)
+        self.note_detection_clear_btn = GrayRoundedButton(
+            self.note_detection_controls_row, text=self.tr("button_clear"),
+            command=self._clear_note_detection, font_family=self.ui_font_family,
+            width=104, height=34, radius=14, font_size=15,
+        )
+        self.note_detection_clear_btn.pack(side=tk.LEFT, padx=(0, 8))
+        self.note_detection_toggle_btn = GrayRoundedButton(
+            self.note_detection_controls_row,
+            text=self.tr("button_hide_detection_details"),
+            command=self._toggle_note_detection_details,
+            font_family=self.ui_font_family, width=112, height=34, radius=14,
+            font_size=15, selected_text_color="#17273a",
+        )
+        self.note_detection_toggle_btn.pack(side=tk.LEFT)
+        self.note_detection_result_frame = tk.Canvas(
+            self.tab_note_detection_frame, bg=self.color_surface_alt, bd=0,
+            highlightthickness=0, height=58,
+        )
+        self.note_detection_result_frame.pack(fill=tk.X, pady=(4, 10))
+        self.note_detection_var = tk.StringVar(value="-")
+
+        def redraw_note_detection_result(_event: Optional[tk.Event] = None, *_args: object) -> None:
+            canvas = self.note_detection_result_frame
+            canvas.delete("all")
+            w = max(40, int(canvas.winfo_width()))
+            h = max(58, int(canvas.winfo_height()))
+            radius = 15
+            # Mismo fondo redondeado y borde discontinuo que el bloque de
+            # resultados de Detección de Acordes.
+            canvas.create_rectangle(
+                radius, 1, w - radius, h - 1,
+                fill="#17273a", outline="",
+            )
+            canvas.create_rectangle(
+                1, radius, w - 1, h - radius,
+                fill="#17273a", outline="",
+            )
+            for x1, y1, x2, y2, start in (
+                (1, 1, radius * 2 + 1, radius * 2 + 1, 90),
+                (w - radius * 2 - 1, 1, w - 1, radius * 2 + 1, 0),
+                (1, h - radius * 2 - 1, radius * 2 + 1, h - 1, 180),
+                (w - radius * 2 - 1, h - radius * 2 - 1, w - 1, h - 1, 270),
+            ):
+                canvas.create_arc(
+                    x1, y1, x2, y2, fill="#17273a", outline="",
+                    start=start, extent=90, style=tk.PIESLICE,
+                )
+                canvas.create_arc(
+                    x1, y1, x2, y2, outline="#73829a", width=1,
+                    dash=(3, 3), start=start, extent=90, style=tk.ARC,
+                )
+            canvas.create_line(
+                radius + 1, 1, w - radius - 1, 1,
+                fill="#73829a", width=1, dash=(3, 3),
+            )
+            canvas.create_line(
+                radius + 1, h - 1, w - radius - 1, h - 1,
+                fill="#73829a", width=1, dash=(3, 3),
+            )
+            canvas.create_line(
+                1, radius + 1, 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3),
+            )
+            canvas.create_line(
+                w - 1, radius + 1, w - 1, h - radius - 1,
+                fill="#73829a", width=1, dash=(3, 3),
+            )
+            center_y = h // 2
+            canvas.create_text(
+                16, center_y, anchor="w", text=self.tr("label_note_detected"),
+                fill=self.color_text,
+                font=(self.ui_font_family, 15, "bold"),
+            )
+            canvas.create_text(
+                76, center_y, anchor="w", text=self.note_detection_var.get(),
+                fill=self.color_accent,
+                font=(self.ui_font_family, 18, "bold"),
+            )
+
+        self._redraw_note_detection_result = redraw_note_detection_result
+        self.note_detection_result_frame.bind("<Configure>", redraw_note_detection_result)
+        self.note_detection_var.trace_add("write", redraw_note_detection_result)
+        redraw_note_detection_result()
+        # Absorbe todo el alto sobrante, igual que Detección de Acordes,
+        # para mantener controles y resultado anclados en la parte superior.
+        tk.Frame(
+            self.tab_note_detection_frame, bg=self.color_surface_alt
+        ).pack(fill=tk.BOTH, expand=True)
 
         self.chord_title_label = tk.Label(
             self.tab_detection_frame,
@@ -2411,6 +2518,15 @@ class UiMixin:
         self.chord_title_label.configure(text=self.tr("detection_title"))
         self.detection_help_label.configure(text=self.tr("detection_help"))
         self.detection_clear_btn.set_text(self.tr("button_clear"))
+        self.note_detection_title_label.configure(text=self.tr("mode_note_detection"))
+        self.note_detection_clear_btn.set_text(self.tr("button_clear"))
+        self._redraw_note_detection_result()
+        note_toggle_key = (
+            "button_hide_detection_details"
+            if self.note_detection_details_visible
+            else "button_show_detection_details"
+        )
+        self.note_detection_toggle_btn.set_text(self.tr(note_toggle_key))
         if hasattr(self, "detection_details_toggle_btn"):
             self._set_detection_details_visible(
                 getattr(self, "detection_details_visible", True)
@@ -2776,6 +2892,37 @@ class UiMixin:
         self._stop_detection_preview()
         self._clear_live_input_state()
         self.update_music_views()
+    def _clear_note_detection(self) -> None:
+        self._on_note_detection_play_release(None)
+        self.note_detection_note = None
+        self.active_notes = set()
+        self.note_detection_var.set("-")
+        self._clear_live_input_state()
+        self.update_music_views()
+    def _toggle_note_detection_details(self) -> None:
+        self.note_detection_details_visible = not self.note_detection_details_visible
+        self.note_detection_result_frame.setVisible(self.note_detection_details_visible)
+        key = ("button_hide_detection_details" if self.note_detection_details_visible
+               else "button_show_detection_details")
+        self.note_detection_toggle_btn.set_text(self.tr(key))
+        self.note_detection_toggle_btn.set_selected(not self.note_detection_details_visible)
+        self.redraw_keyboard()
+    def _on_note_detection_play_press(self, _event: Optional[tk.Event]) -> str:
+        note = getattr(self, "note_detection_note", None)
+        if note is not None:
+            self.note_detection_play_button_pressed = True
+            self.play_note(int(note), 108)
+            self.note_detection_play_btn.set_playing(True)
+        return "break"
+    def _on_note_detection_play_release(self, _event: Optional[tk.Event]) -> str:
+        self.note_detection_play_button_pressed = False
+        note = getattr(self, "note_detection_note", None)
+        if note is not None:
+            self.stop_note(int(note))
+            self.sounding_notes.discard(int(note))
+        if hasattr(self, "note_detection_play_btn"):
+            self.note_detection_play_btn.set_playing(False)
+        return "break"
     def _play_detection_panel(self) -> None:
         self._start_detection_hold()
     def _start_detection_hold(self) -> None:
@@ -2840,6 +2987,17 @@ class UiMixin:
         )
 
     def _refresh_detection_controls_state(self) -> None:
+        has_note_detection_note = getattr(self, "note_detection_note", None) is not None
+        if hasattr(self, "note_detection_play_btn"):
+            try:
+                self.note_detection_play_btn.set_enabled(has_note_detection_note)
+            except Exception:
+                pass
+        if hasattr(self, "note_detection_clear_btn"):
+            try:
+                self.note_detection_clear_btn.set_enabled(has_note_detection_note)
+            except Exception:
+                pass
         live = bool(self._current_detection_notes())
         has_fallback = bool(getattr(self, "detection_last_playable_notes", set()))
         has_notes = live or has_fallback
@@ -3060,6 +3218,8 @@ class UiMixin:
         update_placeholder()
         return search_var, entry
     def _mode_label(self, mode_key: str) -> str:
+        if mode_key == "note_detection":
+            return self.tr("mode_note_detection")
         if mode_key == "generation":
             return self.tr("mode_generation")
         if mode_key == "circle_fifths":
@@ -3373,6 +3533,7 @@ class UiMixin:
         cards_frame.columnconfigure(1, weight=1)
 
         mode_cards = {
+            "note_detection": ("♩", "#6fe0ff"),
             "detection": ("◎", "#ffa320"),
             "generation": ("♬", "#39c8ff"),
             "circle_fifths": (_CIRCLE_FIFTHS_ICON_MARKER, "#9b7bff"),
@@ -3442,7 +3603,9 @@ class UiMixin:
         self._close_settings_overlay()
         self._stop_staff_scale_note_playback()
         selected = self.mode_var.get()
-        if selected == self._mode_label("generation"):
+        if selected == self._mode_label("note_detection"):
+            self.current_mode = "note_detection"
+        elif selected == self._mode_label("generation"):
             self.current_mode = "generation"
         elif selected == self._mode_label("circle_fifths"):
             self.current_mode = "circle_fifths"
@@ -3517,7 +3680,32 @@ class UiMixin:
         self.metronome_space_pressed = False
         self.tuner_space_pressed = False
 
-        if self.current_mode == "circle_fifths":
+        self.tab_note_detection_frame.pack_forget()
+        if self.current_mode == "note_detection":
+            # No arrastrar al nuevo modo las notas/acordes retenidos por el
+            # modo anterior. La última nota propia de este modo sí se conserva.
+            retained_note = self.note_detection_note
+            self._clear_live_input_state()
+            self.note_detection_note = retained_note
+            self.active_notes = (
+                {int(retained_note)} if retained_note is not None else set()
+            )
+            self.instrument_panel.pack(fill=tk.X, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_handedness_combo.pack_forget()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            for frame in (
+                self.tab_detection_frame, self.tab_generation_frame,
+                self.tab_circle_frame, self.tab_scale_frame,
+                self.tab_metronome_frame, self.tab_tuner_frame,
+                self.tab_interval_frame, self.tab_interval_generation_frame,
+            ):
+                frame.pack_forget()
+            self.tab_note_detection_frame.pack(fill=tk.BOTH, expand=True)
+        elif self.current_mode == "circle_fifths":
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
             self._show_generation_instrument_buttons()
@@ -3709,7 +3897,16 @@ class UiMixin:
         mode = getattr(self, "current_mode", "detection")
         specific: list[tuple[object, str]] = []
 
-        if mode == "detection":
+        if mode == "note_detection":
+            specific = _w(
+                "staff_canvas:help_note_detection_staff",
+                "note_detection_play_btn:help_note_detection_play",
+                "note_detection_clear_btn:help_note_detection_clear",
+                "note_detection_toggle_btn:help_note_detection_toggle",
+                "note_detection_result_frame:help_note_detection_result",
+                "keyboard_qscroll:help_note_detection_piano",
+            )
+        elif mode == "detection":
             specific = _w(
                 "staff_canvas:help_staff",
                 "detection_play_btn:help_detect_play",

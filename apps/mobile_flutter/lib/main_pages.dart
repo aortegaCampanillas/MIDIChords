@@ -1,6 +1,128 @@
 part of 'main.dart';
 
 extension _HomeScreenPages on _HomeScreenState {
+  Widget _buildNoteDetectionPage() {
+    final note = _noteDetectionNote;
+    return _buildModeScaffold(
+      controls: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            _ui('Detección de Notas', 'Note Detection'),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              _helpAnchor(
+                'note_detection_play_button',
+                _holdPlayButton(
+                  enabled: note != null,
+                  active: _noteDetectionPlayPressed,
+                  label: null,
+                  onDown: () async {
+                    if (note == null) return;
+                    _updateState(() => _noteDetectionPlayPressed = true);
+                    await _startHeldChord(<int>[note], instrument: 'piano');
+                  },
+                  onUp: () {
+                    _stopHeldChord();
+                    if (mounted) {
+                      _updateState(() => _noteDetectionPlayPressed = false);
+                    }
+                  },
+                ),
+              ),
+              _helpAnchor(
+                'note_detection_clear_button',
+                OutlinedButton.icon(
+                  onPressed: note == null
+                      ? null
+                      : () {
+                          _stopHeldChord();
+                          _stopHeldMidiInputs();
+                          _updateState(() {
+                            _noteDetectionNote = null;
+                            _noteDetectionPlayPressed = false;
+                          });
+                        },
+                  icon: const Icon(Icons.clear_all),
+                  label: Text(_ui('Limpiar', 'Clear')),
+                ),
+              ),
+              _helpAnchor(
+                'note_detection_details_toggle',
+                OutlinedButton.icon(
+                  onPressed: () => _updateState(
+                    () => _noteDetectionDetailsVisible =
+                        !_noteDetectionDetailsVisible,
+                  ),
+                  icon: Icon(
+                    _noteDetectionDetailsVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  label: Text(
+                    _noteDetectionDetailsVisible
+                        ? _ui('Ocultar', 'Hide')
+                        : _ui('Mostrar', 'Show'),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: _noteDetectionDetailsVisible
+                        ? null
+                        : _HomeScreenState._accent,
+                    foregroundColor: _noteDetectionDetailsVisible
+                        ? null
+                        : _HomeScreenState._surfaceDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_noteDetectionDetailsVisible)
+            _helpAnchor(
+              'note_detection_result',
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _HomeScreenState._surfaceDark,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _HomeScreenState._border),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Text(
+                      _ui('Nota', 'Note'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    Text(
+                      note == null
+                          ? '-'
+                          : noteNameLocal(
+                              note,
+                              language: _language,
+                              preferFlat: _accidental == 'flat',
+                            ),
+                      style: const TextStyle(
+                        color: _HomeScreenState._accent,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetectionPage() {
     final hasNotes = _hasDetectionNotes;
     final detectedSuffix = _detectionResultJson?['suffix'];

@@ -355,6 +355,7 @@ def build_top_bar(app: object, container: tk.Widget) -> None:
 def build_mode_frames(app: object) -> None:
     """Create the mutually exclusive right-panel roots for every desktop mode."""
     specs = (
+        ("tab_note_detection_frame", 0, 3),
         ("tab_detection_frame", 0, 3),
         ("tab_generation_frame", 6, 4),
         ("tab_circle_frame", 6, 4),
@@ -381,6 +382,7 @@ def build_mode_frames(app: object) -> None:
     app.tab_detection_frame.pack(fill=tk.X, expand=False, anchor="nw")
     # Unmanaged Qt children remain visible by default and would cover the active mode.
     for hidden_tab in (
+        app.tab_note_detection_frame,
         app.tab_generation_frame,
         app.tab_circle_frame,
         app.tab_scale_frame,

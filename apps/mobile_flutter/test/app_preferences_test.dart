@@ -72,6 +72,14 @@ void main() {
     expect(preferences.tabIndex, 7);
   });
 
+  test('load restores the note detection screen', () {
+    final preferences = AppPreferencesRepository(
+      _MemoryPreferences(<String, Object>{'tabIndex': 8}),
+    ).load();
+
+    expect(preferences.tabIndex, 8);
+  });
+
   test('save removes an obsolete fingering selection', () async {
     final port = _MemoryPreferences(<String, Object>{
       'scaleFingeringHand': 'right',

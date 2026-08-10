@@ -349,7 +349,9 @@ class RenderMixin:
             return self._key_signature_count_for_tonic(
                 self.generation_root_pc, is_minor, tie_prefer_flats=tie_from_ui
             )
-        if getattr(self, "interval_tab_active", False) or getattr(self, "interval_gen_tab_active", False):
+        if (self.current_mode == "note_detection" or
+                getattr(self, "interval_tab_active", False) or
+                getattr(self, "interval_gen_tab_active", False)):
             return 0, tie_from_ui
         if self.metronome_tab_active or self.tuner_tab_active or not display_notes:
             return 0, False
@@ -391,6 +393,9 @@ class RenderMixin:
             return set(getattr(self, "interval_notes", []))
         if getattr(self, "interval_gen_tab_active", False):
             return set(self.interval_gen_notes())
+        if self.current_mode == "note_detection":
+            note = getattr(self, "note_detection_note", None)
+            return {int(note)} if note is not None else set()
         return self._current_detection_notes()
 
     @staticmethod
@@ -912,6 +917,9 @@ class RenderMixin:
         # desc strip at key_bottom+4 .. key_bottom+22; canvas needs key_bottom+28 when active.
         black_h = int((key_bottom - key_top) * 0.58)
         show_key_names = self.config_data.get("show_keyboard_note_labels", True)
+        if (self.current_mode == "note_detection" and
+                not getattr(self, "note_detection_details_visible", True)):
+            show_key_names = False
 
         white_index: dict[int, int] = {}
         idx = 0
@@ -1483,6 +1491,9 @@ class RenderMixin:
                     display_notes = set(getattr(self, "interval_notes", []))
             elif getattr(self, "interval_gen_tab_active", False):
                 display_notes = set(self.interval_gen_notes())
+            elif self.current_mode == "note_detection":
+                note = getattr(self, "note_detection_note", None)
+                display_notes = {int(note)} if note is not None else set()
             else:
                 display_notes = self._current_detection_notes()
             if self.generation_tab_active:
@@ -2368,11 +2379,7 @@ class RenderMixin:
                     anchor="s",
                 )
                 y -= line_step
-        elif (
-            not self.generation_tab_active
-            and not self.scale_tab_active
-            and not getattr(self, "interval_tab_active", False)
-        ):
+        elif self.current_mode == "detection":
             canvas.create_text(
                 w / 2,
                 h - 14,

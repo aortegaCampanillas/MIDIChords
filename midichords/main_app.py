@@ -147,6 +147,9 @@ class MidiChordAnalyzerApp(
         self._preview_chord_after_id: Optional[str] = None
         self.generation_play_space_pressed = False
         self.detection_play_button_pressed = False
+        self.note_detection_note: Optional[int] = None
+        self.note_detection_details_visible = True
+        self.note_detection_play_button_pressed = False
         self.generation_space_release_after_id: Optional[str] = None
         self.white_key_regions: list[tuple[int, float, float, float, float]] = []
         self.black_key_regions: list[tuple[int, float, float, float, float]] = []
@@ -181,6 +184,7 @@ class MidiChordAnalyzerApp(
         }
         self.current_mode = str(self.config_data.get("mode", "detection"))
         allowed_modes = {
+            "note_detection",
             "detection",
             "generation",
             "circle_fifths",
@@ -1532,6 +1536,8 @@ class MidiChordAnalyzerApp(
             self.scale_transport_pressed_mode = None
         if self.detection_play_button_pressed:
             self._stop_detection_hold()
+        if self.note_detection_play_button_pressed:
+            self._on_note_detection_play_release(None)
         if self.generation_play_button_pressed:
             self._stop_generated_hold(source="button")
 

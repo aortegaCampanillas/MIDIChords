@@ -309,6 +309,9 @@ class _HomeScreenState extends State<HomeScreen>
   );
 
   int _tabIndex = 0;
+  int? _noteDetectionNote;
+  bool _noteDetectionDetailsVisible = true;
+  bool _noteDetectionPlayPressed = false;
   bool _requestInFlight = false;
   String _instrumentView = 'piano';
 
@@ -496,12 +499,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _enabledModeIndexes() {
     return _kEnableMobileTuner
-        ? const <int>[0, 1, 2, 3, 4, 5, 6, 7]
-        : const <int>[0, 1, 2, 3, 4, 5, 7];
+        ? const <int>[0, 1, 2, 3, 4, 5, 6, 7, 8]
+        : const <int>[0, 1, 2, 3, 4, 5, 7, 8];
   }
 
   /// Same display order as the web mode selector.
-  static const List<int> _kWebModeOrder = <int>[0, 1, 5, 7, 2, 3, 4, 6];
+  static const List<int> _kWebModeOrder = <int>[8, 0, 1, 5, 7, 2, 3, 4, 6];
 
   List<int> _orderedEnabledModes(List<int> enabledModes) {
     final enabledSet = enabledModes.toSet();
@@ -666,6 +669,8 @@ class _HomeScreenState extends State<HomeScreen>
         return _ui('Afinador', 'Tuner');
       case 7:
         return _ui('Generación de Intervalos', 'Interval Generation');
+      case 8:
+        return _ui('Detección de Notas', 'Note Detection');
       default:
         return _ui('Detección de Acordes', 'Chord Detection');
     }
@@ -1254,7 +1259,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Equivalente a `getStaffContext()` en `app.js` (armadura del pentagrama).
   ({int count, bool preferFlats}) _staffKeySignatureForCurrentTab() {
-    if (_tabIndex == 5) return (count: 0, preferFlats: _preferFlat);
+    if (_tabIndex == 5 || _tabIndex == 8) {
+      return (count: 0, preferFlats: _preferFlat);
+    }
     final tieFromSelect = _preferFlat;
     if (_tabIndex == 3 && _generatedScaleJson != null) {
       final name =
@@ -1493,6 +1500,18 @@ class _HomeScreenState extends State<HomeScreen>
       if (!isNoteOn && !isNoteOff) continue;
       hadNoteChannelMessage = true;
 
+      if (_tabIndex == 8) {
+        if (isNoteOn) {
+          setState(() => _noteDetectionNote = note);
+          if (_midiInputSoundEnabled) {
+            unawaited(_startHeldMidiInputNote(note, instrument: 'piano'));
+          }
+        } else {
+          _releaseHeldMidiInputNote(note);
+        }
+        continue;
+      }
+
       // Generation / Circle of fifths mode handling (tabIndex 1 or 2): mismo
       // resaltado/aviso de nota prohibida que con dedo/ratón, sin reenviar
       // por MIDI-out la nota que ya llega de un teclado MIDI externo.
@@ -1665,6 +1684,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _staffNotesForCurrentTab() {
+    if (_tabIndex == 8) {
+      return _noteDetectionNote == null ? <int>{} : <int>{_noteDetectionNote!};
+    }
     if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
@@ -1732,6 +1754,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Set<int> _activeMidiForInstrument() {
+    if (_tabIndex == 8) {
+      return _noteDetectionNote == null ? <int>{} : <int>{_noteDetectionNote!};
+    }
     if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
@@ -2613,6 +2638,17 @@ class _HomeScreenState extends State<HomeScreen>
     required bool pressed,
     bool fromMidi = false,
   }) async {
+    if (_tabIndex == 8) {
+      if (pressed) {
+        setState(() => _noteDetectionNote = midi);
+        if (!fromMidi || _midiInputSoundEnabled) {
+          await playNote(midi, instrument: 'piano');
+        }
+      } else if (!fromMidi) {
+        await stopNote(midi);
+      }
+      return;
+    }
     if (_tabIndex == 7) {
       if (fromMidi && !pressed) return;
       final notes = _intervalGenerationNotes();
@@ -4818,6 +4854,7 @@ class _HomeScreenState extends State<HomeScreen>
       _buildIntervalDetectionPage(),
       _buildTunerPage(),
       _buildIntervalGenerationPage(),
+      _buildNoteDetectionPage(),
     ];
 
     return Stack(
@@ -4905,7 +4942,7 @@ class _HomeScreenState extends State<HomeScreen>
                         setState(() {
                           _tabIndex = value;
                           _setHelpMode(false);
-                          if (value == 0) {
+                          if (value == 0 || value == 8) {
                             _instrumentView = 'piano';
                           }
                           _requestPianoScrollForMode(value);
@@ -5867,13 +5904,14 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
-    final metronomeFixedPiano = _tabIndex == 4;
+    final metronomeFixedPiano = _tabIndex == 4 || _tabIndex == 8;
     final showRightControls =
         _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3 || _tabIndex == 7;
     final displayInstrumentView = metronomeFixedPiano
         ? 'piano'
         : _instrumentView;
     final pianoHelpId = switch (_tabIndex) {
+      8 => 'note_detection_piano',
       3 => 'scales_instrument_piano',
       2 => 'circle_instrument_piano_btn',
       7 => 'interval_generation_instrument_piano',
@@ -6678,7 +6716,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                   child: Stack(
                                     children: <Widget>[
-                                      if (_showKeyNames)
+                                      if (_showKeyNames &&
+                                          !(_tabIndex == 8 &&
+                                              !_noteDetectionDetailsVisible))
                                         Align(
                                           alignment: Alignment.bottomCenter,
                                           child: Padding(
@@ -6903,7 +6943,9 @@ class _HomeScreenState extends State<HomeScreen>
                                       ),
                                       child: Stack(
                                         children: <Widget>[
-                                          if (_showKeyNames)
+                                          if (_showKeyNames &&
+                                              !(_tabIndex == 8 &&
+                                                  !_noteDetectionDetailsVisible))
                                             Align(
                                               alignment: Alignment.bottomCenter,
                                               child: Padding(

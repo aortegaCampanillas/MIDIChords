@@ -14,14 +14,14 @@ extension _HomeScreenHelp on _HomeScreenState {
 
   List<_HelpStep> _helpStepsForCurrentMode() {
     final modeSelectBodyEs = _kEnableMobileTuner
-        ? 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
+        ? 'Aqui cambias entre deteccion de notas, deteccion de acordes, deteccion de intervalos, '
               'generacion, circulo de quintas, escalas, metronomo y afinador.'
-        : 'Aqui cambias entre deteccion de acordes, deteccion de intervalos, '
+        : 'Aqui cambias entre deteccion de notas, deteccion de acordes, deteccion de intervalos, '
               'generacion, circulo de quintas, escalas y metronomo.';
     final modeSelectBodyEn = _kEnableMobileTuner
-        ? 'Switch between chord detection, interval detection, generation, '
+        ? 'Switch between note detection, chord detection, interval detection, generation, '
               'circle of fifths, scales, metronome, and tuner here.'
-        : 'Switch between chord detection, interval detection, generation, '
+        : 'Switch between note detection, chord detection, interval detection, generation, '
               'circle of fifths, scales, and metronome here.';
     final common = <_HelpStep>[
       _HelpStep(
@@ -76,6 +76,56 @@ extension _HomeScreenHelp on _HomeScreenState {
       ),
     ];
     final modeSpecific = switch (_tabIndex) {
+      8 => <_HelpStep>[
+        _HelpStep(
+          id: 'note_detection_staff',
+          titleEs: 'Pentagrama',
+          titleEn: 'Staff',
+          bodyEs:
+              'Muestra la última nota en la clave correspondiente, sin armadura y con su alteración escrita directamente.',
+          bodyEn:
+              'Shows the last note in the appropriate clef, without a key signature and with its accidental written directly.',
+        ),
+        _HelpStep(
+          id: 'note_detection_play_button',
+          titleEs: 'Repetir nota',
+          titleEn: 'Repeat note',
+          bodyEs: 'Repite la última nota mientras mantienes pulsado el botón.',
+          bodyEn: 'Repeats the last note while you hold the button down.',
+        ),
+        _HelpStep(
+          id: 'note_detection_clear_button',
+          titleEs: 'Limpiar',
+          titleEn: 'Clear',
+          bodyEs: 'Borra la última nota detectada.',
+          bodyEn: 'Clears the last detected note.',
+        ),
+        _HelpStep(
+          id: 'note_detection_details_toggle',
+          titleEs: 'Ocultar o mostrar',
+          titleEn: 'Hide or show',
+          bodyEs:
+              'Con fines didácticos, oculta el nombre detectado y las etiquetas del piano para reconocer la nota por ti mismo; vuelve a mostrarlos para comprobarla.',
+          bodyEn:
+              'For learning purposes, hides the detected name and piano labels so you can identify the note yourself; show them again to check it.',
+        ),
+        _HelpStep(
+          id: 'note_detection_result',
+          titleEs: 'Nota detectada',
+          titleEn: 'Detected note',
+          bodyEs: 'Muestra el nombre y la octava de la última nota tocada.',
+          bodyEn: 'Shows the name and octave of the last note played.',
+        ),
+        _HelpStep(
+          id: 'note_detection_piano',
+          titleEs: 'Piano y MIDI',
+          titleEn: 'Piano and MIDI',
+          bodyEs:
+              'Toca una nota en el piano o mediante MIDI; solo la última queda marcada.',
+          bodyEn:
+              'Play a note on the piano or via MIDI; only the last one remains highlighted.',
+        ),
+      ],
       0 => <_HelpStep>[
         _HelpStep(
           id: 'detection_staff',
@@ -1321,6 +1371,7 @@ extension _HomeScreenHelp on _HomeScreenState {
     5 => 'interval_detection_staff',
     6 => 'tuner_staff',
     7 => 'interval_generation_staff',
+    8 => 'note_detection_staff',
     _ => 'detection_staff',
   };
 }

@@ -249,6 +249,14 @@ class InputDetectionMixin:
 
     def _compute_next_sounding_state(self) -> tuple[set[int], set[int]]:
         play_midi_input = self._should_play_midi_input_locally()
+        if self.current_mode == "note_detection":
+            next_active = ({int(self.note_detection_note)}
+                           if self.note_detection_note is not None else set())
+            held = self.midi_held_notes | self.mouse_held_notes | self.sustain_latched_notes
+            next_sounding = next_active & held
+            if not play_midi_input:
+                next_sounding -= self.midi_held_notes | self.midi_latched_notes
+            return next_active, next_sounding
         if self.current_mode == "interval_detection":
             # interval_notes is the displayed pair (kept after key-up so both
             # notes stay visible for comparison). El sonido sigue el mismo
@@ -364,6 +372,10 @@ class InputDetectionMixin:
         velocity = int(max(1, min(127, velocity)))
         self.note_velocity[note] = velocity
         self.sustain_latched_notes.discard(note)
+
+        if self.current_mode == "note_detection":
+            self.note_detection_note = int(note)
+            self.note_detection_var.set(self.note_name(int(note), with_octave=True))
 
         # Handle interval detection mode
         if self.current_mode == "interval_detection":
@@ -701,7 +713,7 @@ class InputDetectionMixin:
                 10: "B♭",
             }
         if prefer_flat is None:
-            in_note_modes = self.current_mode in {"detection", "generation", "scales", "interval_detection"}
+            in_note_modes = self.current_mode in {"note_detection", "detection", "generation", "scales", "interval_detection"}
             prefer_flat = in_note_modes and str(self.config_data.get("note_accidental", "sharp")) == "flat"
         flat_name = flat_aliases.get(pc)
         name = flat_name if (prefer_flat and flat_name is not None) else sharp_name

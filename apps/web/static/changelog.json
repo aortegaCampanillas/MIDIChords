@@ -6,7 +6,7 @@
       {
         "date": "2026-08-10",
         "publish": true,
-        "platforms": ["web"],
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Nuevo modo Detección de Notas: identifica la última nota tocada desde el piano o MIDI, la muestra en la clave correspondiente del pentagrama sin armadura y permite repetirla, limpiarla u ocultar con fines didácticos su nombre y las etiquetas del teclado.",
         "en": "New Note Detection mode: identify the last note played from the piano or MIDI, see it in the appropriate staff clef without a key signature, and replay, clear, or hide its name and keyboard labels for learning purposes."
       },

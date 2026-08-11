@@ -135,6 +135,24 @@
     }
     .hero-preview img { width: 100%; height: auto; display: block; border-radius: 10px; }
 
+    /* ── RECOGNITION ── */
+    .award-wrap { padding: 0 24px 42px; }
+    .award-card {
+      max-width: 900px; margin: 0 auto; padding: 22px 28px;
+      display: grid; grid-template-columns: 112px minmax(0, 1fr) auto;
+      gap: 24px; align-items: center;
+      background: linear-gradient(135deg, rgba(91,141,238,.12), rgba(224,120,40,.08));
+      border: 1px solid rgba(123,164,245,.32); border-radius: var(--radius);
+    }
+    .award-card img { width: 112px; height: 112px; display: block; }
+    .award-kicker {
+      color: var(--accent2); font-size: .72rem; font-weight: 750;
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px;
+    }
+    .award-card h2 { font-size: clamp(1.05rem, 2vw, 1.3rem); line-height: 1.35; margin-bottom: 6px; }
+    .award-card p { color: var(--muted); font-size: .875rem; line-height: 1.65; }
+    .award-link { white-space: nowrap; }
+
     .audience-strip {
       max-width: 1040px; margin: 0 auto; padding: 6px 24px 38px;
       display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px;
@@ -390,6 +408,9 @@
       .screenshots-grid .screenshot-item:last-child:nth-child(odd) {
         grid-column: auto; width: 100%;
       }
+      .award-card { grid-template-columns: 82px 1fr; gap: 16px; padding: 18px; }
+      .award-card img { width: 82px; height: 82px; }
+      .award-link { grid-column: 1 / -1; justify-self: stretch; justify-content: center; }
     }
     @media (max-width: 900px) {
       .hero { padding-top: 58px; }
@@ -443,6 +464,19 @@
     </div>
   </div>
 </section>
+
+<!-- RECOGNITION -->
+<aside class="award-wrap" aria-labelledby="awardTitle">
+  <div class="award-card">
+    <img src="/static/oe-awards-2026-nominee.png" width="600" height="600" alt="2026 Open Education Award for Excellence Nominee badge" />
+    <div>
+      <div class="award-kicker" data-i18n="award_kicker">International recognition</div>
+      <h2 id="awardTitle" data-i18n="award_title">Nominated for a 2026 Open Education Award for Excellence</h2>
+      <p data-i18n="award_text">Open Education Global has nominated FreeMIDIChords in the Open Assets category as a free and open-source music education tool.</p>
+    </div>
+    <a class="btn-ghost award-link" href="https://openbadgefactory.com/obv3/credentials/894ae643f6424fdea170bd46062283c78d85966b" target="_blank" rel="noopener noreferrer" data-i18n="award_cta">View badge →</a>
+  </div>
+</aside>
 
 <div class="audience-strip" aria-label="Designed for">
   <span class="audience-label" data-i18n="audience_label">Made for</span>
@@ -662,6 +696,10 @@ const TRANSLATIONS = {
     hero_p:             "Play on the interactive piano or guitar \u2014 or connect a MIDI keyboard \u2014 to identify chords and intervals, explore scales, and understand harmony visually.",
     hero_explore:       "See how it works",
     hero_note:          "Free, no account, no installation, and no ads.",
+    award_kicker:       "International recognition",
+    award_title:        "Nominated for a 2026 Open Education Award for Excellence",
+    award_text:         "Open Education Global has nominated FreeMIDIChords in the Open Assets category as a free and open-source music education tool.",
+    award_cta:          "View badge \u2192",
     audience_label:     "Made for",
     audience_students:  "music students",
     audience_teachers:  "teachers",
@@ -741,6 +779,10 @@ const TRANSLATIONS = {
     hero_p:             "Toca en el piano o la guitarra interactivos, o conecta un teclado MIDI, para identificar acordes e intervalos, explorar escalas y comprender la armon\u00eda visualmente.",
     hero_explore:       "Ver c\u00f3mo funciona",
     hero_note:          "Gratis, sin cuenta, sin instalaci\u00f3n y sin anuncios.",
+    award_kicker:       "Reconocimiento internacional",
+    award_title:        "Nominada a los Open Education Awards for Excellence 2026",
+    award_text:         "Open Education Global ha nominado a FreeMIDIChords en la categor\u00eda Open Assets como herramienta educativa musical gratuita y de c\u00f3digo abierto.",
+    award_cta:          "Ver insignia \u2192",
     audience_label:     "Pensado para",
     audience_students:  "estudiantes de m\u00fasica",
     audience_teachers:  "docentes",

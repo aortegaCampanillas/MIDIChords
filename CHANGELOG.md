@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **PianoPilot (landing)**: sincronizados la versión pública y el historial bilingüe con la versión 1.0.4 del proyecto fuente, incluida la corrección de conexión MIDI en Windows.
 - **Web (landing)**: la portada muestra la insignia oficial de nominación de FreeMIDIChords a los Open Education Awards for Excellence 2026, con contexto bilingüe y enlace a la credencial verificable.
 - **Móvil / audio Android**: los samples nativos se reproducen desde PCM precodificado y solo fuerzan el altavoz interno cuando existe una salida de audio USB, evitando la creación repetida de decodificadores y la reconstrucción innecesaria de pistas de audio.
 - **Detección de Notas**: nuevo modo didáctico que conserva la última nota tocada desde el piano o MIDI, la representa sin armadura en la clave correspondiente y permite repetirla, limpiarla u ocultar su nombre junto con las etiquetas del teclado.

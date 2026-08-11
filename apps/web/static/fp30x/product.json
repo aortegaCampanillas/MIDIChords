@@ -2,7 +2,7 @@
   "schema_version": 1,
   "product": "PianoPilot",
   "supported_model": "Roland FP-30X",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "tone_count": 153,
   "platforms": {
     "macos": "10.15+",
@@ -32,6 +32,36 @@
     "english_spanish_ui"
   ],
   "release_notes": [
+    {
+      "version": "1.0.4",
+      "date": "2026-07-20",
+      "en": [
+        "Fixed: on Windows, the piano state did not synchronize after connecting when the MIDI input and output ports had different system indices"
+      ],
+      "es": [
+        "Corregido: en Windows, el estado del piano no se sincronizaba tras conectar cuando los puertos MIDI de entrada y salida tenían índices distintos en el sistema"
+      ]
+    },
+    {
+      "version": "1.0.3",
+      "date": "2026-07-20",
+      "en": [
+        "Fixed: opening a tone dropdown in the Tones tab and leaving it idle would reset the highlighted selection back to the piano's current tone"
+      ],
+      "es": [
+        "Corregido: al abrir un desplegable de tono en la pestaña Tones y dejarlo quieto, la selección resaltada volvía sola al tono actual del piano"
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-07-20",
+      "en": [
+        "Internal maintenance and stability improvements"
+      ],
+      "es": [
+        "Mejoras internas de mantenimiento y estabilidad"
+      ]
+    },
     {
       "version": "1.0.1",
       "date": "2026-07-06",

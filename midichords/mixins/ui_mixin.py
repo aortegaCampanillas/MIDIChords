@@ -231,6 +231,7 @@ class UiMixin:
             "generation",
             "interval_detection",
             "interval_generation",
+            "interval_practice",
             "circle_fifths",
             "scales",
             "metronome",
@@ -2618,6 +2619,9 @@ class UiMixin:
             self._refresh_interval_ui_language()
         if hasattr(self, "_refresh_interval_gen_ui_language"):
             self._refresh_interval_gen_ui_language()
+        if hasattr(self, "_refresh_interval_practice_ui_language"):
+            self._refresh_interval_practice_ui_language()
+            self._refresh_interval_practice_ui()
         if not self.active_notes:
             self.status_var.set(self.tr("status_no_notes"))
     def _refresh_note_accidental_toggle_styles(self) -> None:
@@ -3231,6 +3235,8 @@ class UiMixin:
             return self.tr("mode_interval_detection")
         if mode_key == "interval_generation":
             return self.tr("mode_interval_generation")
+        if mode_key == "interval_practice":
+            return self.tr("mode_interval_practice")
         if mode_key == "metronome":
             return self.tr("mode_metronome")
         if mode_key == "tuner":
@@ -3541,6 +3547,7 @@ class UiMixin:
             "scales": ("♪", "#e4eb3f"),
             "interval_detection": ("⎵", "#ff69b4"),
             "interval_generation": ("↕", "#ff9ecf"),
+            "interval_practice": ("?", "#71d995"),
             "metronome": ("⏱", "#ff8f40"),
             "tuner": ("🎸", "#8eea6b"),
         }
@@ -3620,6 +3627,8 @@ class UiMixin:
             self.current_mode = "interval_detection"
         elif selected == self._mode_label("interval_generation"):
             self.current_mode = "interval_generation"
+        elif selected == self._mode_label("interval_practice"):
+            self.current_mode = "interval_practice"
         else:
             self.current_mode = "detection"
         if self.current_mode != "detection":
@@ -3646,7 +3655,8 @@ class UiMixin:
         self.metronome_tab_active = self.current_mode == "metronome"
         self.tuner_tab_active = self.current_mode == "tuner"
         self.interval_tab_active = self.current_mode == "interval_detection"
-        self.interval_gen_tab_active = self.current_mode == "interval_generation"
+        self.interval_gen_tab_active = self.current_mode in ("interval_generation", "interval_practice")
+        self.interval_practice_tab_active = self.current_mode == "interval_practice"
         self._set_tuner_spectrum_visible(self.tuner_tab_active)
         if self.generation_space_release_after_id is not None:
             try:
@@ -3682,6 +3692,7 @@ class UiMixin:
         self.tuner_space_pressed = False
 
         self.tab_note_detection_frame.pack_forget()
+        self.tab_interval_practice_frame.pack_forget()
         if self.current_mode == "note_detection":
             # No arrastrar al nuevo modo las notas/acordes retenidos por el
             # modo anterior. La última nota propia de este modo sí se conserva.
@@ -3820,6 +3831,25 @@ class UiMixin:
             if hasattr(self, '_clear_interval_notes'):
                 self._clear_interval_notes()
             self.active_notes = set()
+        elif self.interval_practice_tab_active:
+            self.instrument_panel.pack(fill=tk.X, expand=False)
+            self.instrument_switch_frame.pack_forget()
+            self.scale_transport_frame.pack_forget()
+            self.guitar_handedness_combo.pack_forget()
+            self.guitar_variations_frame.pack_forget()
+            self.guitar_canvas.pack_forget()
+            self.keyboard_qscroll.pack(fill=tk.X, expand=False)
+            self._clear_live_input_state()
+            self.tab_detection_frame.pack_forget()
+            self.tab_generation_frame.pack_forget()
+            self.tab_circle_frame.pack_forget()
+            self.tab_scale_frame.pack_forget()
+            self.tab_metronome_frame.pack_forget()
+            self.tab_tuner_frame.pack_forget()
+            self.tab_interval_frame.pack_forget()
+            self.tab_interval_generation_frame.pack_forget()
+            self._setup_interval_practice_ui()
+            self.tab_interval_practice_frame.pack(fill=tk.BOTH, expand=True)
         elif self.interval_gen_tab_active:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
@@ -3950,11 +3980,11 @@ class UiMixin:
             specific = _w(
                 "staff_canvas:help_interval_gen_staff",
                 "interval_gen_root_combo+interval_gen_root_accidental_combo:help_interval_gen_root",
+                "interval_gen_playback_mode_btn:help_interval_gen_playback_mode",
                 "interval_gen_play_reverse_btn:help_interval_gen_play_reverse",
                 "interval_gen_play_btn:help_interval_gen_play",
                 "interval_gen_notes_row:help_interval_gen_notes",
                 "interval_gen_name_row:help_interval_gen_name",
-                "interval_gen_alt_row:help_interval_gen_alt",
                 "interval_gen_semitones_row:help_interval_gen_semitones",
                 "interval_gen_table_frame:help_interval_gen_table",
                 "piano_view_btn:help_inst_piano_btn",
@@ -3969,6 +3999,23 @@ class UiMixin:
                     "guitar_canvas:help_interval_gen_instrument",
                     "guitar_handedness_combo:help_guitar_handedness",
                 )
+
+        elif mode == "interval_practice":
+            specific = _w(
+                "staff_canvas:help_interval_practice_staff",
+                "interval_practice_start_btn:help_interval_practice_start",
+                "interval_practice_repeat_btn:help_interval_practice_repeat",
+                "interval_practice_next_btn:help_interval_practice_next",
+                "interval_practice_help_btn:help_interval_practice_process",
+                "interval_practice_random_btn+interval_practice_ascending_btn:help_interval_practice_options",
+                "interval_practice_repetitions_entry:help_interval_practice_repetitions",
+                "interval_practice_filter_btn:help_interval_practice_filter",
+                "interval_practice_playback_btn:help_interval_practice_playback",
+                "interval_practice_score_label:help_interval_practice_score",
+                "interval_practice_name_label:help_interval_practice_result",
+                "interval_practice_table_frame:help_interval_practice_table",
+                "keyboard_qscroll:help_interval_practice_piano",
+            )
 
         elif mode == "generation":
             specific = _w(

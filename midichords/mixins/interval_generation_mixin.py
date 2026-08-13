@@ -1,7 +1,7 @@
 """Interval generation mixin: pick a tonic and an interval from a grid to hear it."""
 
 import midichords.qt.tk_compat as tk
-from midichords.core.interval_data import INTERVAL_GRID_COLUMNS
+from midichords.core.interval_data import INTERVAL_ALT_NAMES, INTERVAL_GRID_COLUMNS
 from midichords.core.music_theory import (
     ROOT_LETTER_PCS,
     ROOT_LETTER_ACCIDENTALS,
@@ -26,6 +26,8 @@ class IntervalGenerationMixin:
         self.interval_gen_playing_idx: int | None = None
         self.interval_gen_playback_timer: object | None = None
         self.interval_gen_input_clear_timer: object | None = None
+        self.interval_gen_playback_mode = "melodic"
+        self.interval_gen_playing_notes: set[int] = set()
 
     def interval_gen_root_pc(self) -> int:
         return root_pc_from_letter_accidental(
@@ -34,6 +36,8 @@ class IntervalGenerationMixin:
 
     def interval_gen_notes(self) -> list[int]:
         """Tonic (C4=60) + the chosen semitone offset, or [] if nothing selected."""
+        if getattr(self, "interval_practice_tab_active", False):
+            return self.interval_practice_display_notes()
         if self.interval_gen_semitones is None:
             return []
         tonic_midi = 60 + self.interval_gen_root_pc()
@@ -80,6 +84,9 @@ class IntervalGenerationMixin:
                 continue
             name = cell["name"].get(lang) or cell["name"]["es"]
             if name and name != selected:
+                names.append(name)
+        for name in INTERVAL_ALT_NAMES.get(lang, {}).get(semitones, []):
+            if name and name != selected and name not in names:
                 names.append(name)
         return ", ".join(names) if names else "-"
 
@@ -141,7 +148,33 @@ class IntervalGenerationMixin:
         if len(notes) != 2:
             return
         ordered = sorted(notes, reverse=bool(self.interval_gen_reverse))
+        if self.interval_gen_playback_mode == "harmonic":
+            self.interval_gen_playing_note = None
+            self.interval_gen_playing_idx = None
+            self.interval_gen_playing_notes = set(ordered)
+            for note in ordered:
+                self.play_note(note, velocity=80)
+            self.update_music_views()
+            self.interval_gen_playback_timer = self.after(
+                460, lambda: self._clear_interval_gen_harmonic(ordered)
+            )
+            return
         self._play_interval_gen_sequence(ordered)
+
+    def _clear_interval_gen_harmonic(self, notes: list[int]) -> None:
+        for note in notes:
+            self.stop_note(note)
+        self.interval_gen_playing_notes.clear()
+        self.update_music_views()
+
+    def _toggle_interval_gen_playback_mode(self) -> None:
+        self.interval_gen_playback_mode = (
+            "harmonic" if self.interval_gen_playback_mode == "melodic" else "melodic"
+        )
+        if self.interval_gen_playback_mode == "harmonic":
+            self.interval_gen_reverse = False
+            self.interval_gen_last_play_reverse = False
+        self._refresh_interval_gen_buttons_state()
 
     def _play_interval_gen_reverse(self) -> None:
         self.interval_gen_reverse = True
@@ -156,6 +189,8 @@ class IntervalGenerationMixin:
         self._play_interval_gen_current()
 
     def _handle_interval_gen_input(self, note: int, *, source: str = "mouse") -> bool:
+        if getattr(self, "interval_practice_tab_active", False):
+            return self._handle_interval_practice_input(note, source=source)
         notes = self.interval_gen_notes()
         if len(notes) != 2:
             return False
@@ -204,6 +239,7 @@ class IntervalGenerationMixin:
             self.after_cancel(self.interval_gen_playback_timer)
             self.interval_gen_playback_timer = None
         if index == 0:
+            self.interval_gen_playing_notes.clear()
             prev = {n for n in notes if n is not None} & set(self.sounding_notes)
             for note in prev:
                 self.stop_note(note)
@@ -214,8 +250,13 @@ class IntervalGenerationMixin:
             self.update_music_views()
             return
         note = notes[index]
-        self.interval_gen_playing_note = note
-        self.interval_gen_playing_idx = index
+        hide_practice_second = (
+            getattr(self, "interval_practice_tab_active", False)
+            and getattr(self, "_interval_practice_hide_second", False)
+            and index > 0
+        )
+        self.interval_gen_playing_note = None if hide_practice_second else note
+        self.interval_gen_playing_idx = None if hide_practice_second else index
         if self.instrument_view == "guitar":
             self.pluck_note(note, velocity=96, duration_seconds=0.48)
         else:
@@ -306,6 +347,17 @@ class IntervalGenerationMixin:
         )
         self._qt_apply_dark_combobox_style(self.interval_gen_root_accidental_combo)
 
+        self.interval_gen_playback_mode_btn = GrayRoundedButton(
+            root_row,
+            text="",
+            command=self._toggle_interval_gen_playback_mode,
+            width=96,
+            height=34,
+            radius=14,
+            font_size=13,
+        )
+        self.interval_gen_playback_mode_btn.pack(side=tk.LEFT, padx=(0, 8))
+
         self.interval_gen_play_reverse_btn = PlayTransportButton(
             root_row,
             command=self._play_interval_gen_reverse,
@@ -349,7 +401,6 @@ class IntervalGenerationMixin:
         self.interval_gen_name_row, self.interval_gen_name_display = _result_row(
             result_frame, "label_interval_name", self.color_accent
         )
-        self.interval_gen_alt_row, self.interval_gen_alt_display = _result_row(result_frame, "label_interval_alt")
         self.interval_gen_semitones_row, self.interval_gen_semitones_display = _result_row(
             result_frame, "label_interval_semitones"
         )
@@ -451,6 +502,8 @@ class IntervalGenerationMixin:
         for label, key in getattr(self, "interval_gen_i18n_labels", []):
             label.configure(text=self._get_ui_text_interval_gen(key))
         self._refresh_interval_gen_table_language()
+        self._refresh_interval_gen_buttons_state()
+        self._update_interval_generation_display()
 
     def _apply_interval_gen_table_titles(self, title_col_w: int) -> None:
         for column, title_cell, title_label in self.interval_gen_title_labels:
@@ -462,12 +515,22 @@ class IntervalGenerationMixin:
             return
         has_selection = self.interval_gen_semitones is not None
         self.interval_gen_play_btn.set_enabled(has_selection)
-        self.interval_gen_play_reverse_btn.set_enabled(has_selection)
+        harmonic = self.interval_gen_playback_mode == "harmonic"
+        self.interval_gen_play_reverse_btn.set_enabled(has_selection and not harmonic)
+        if hasattr(self, "interval_gen_playback_mode_btn"):
+            self.interval_gen_playback_mode_btn.set_text(
+                self._get_ui_text_interval_gen(
+                    "interval_practice_playback_harmonic" if harmonic else "interval_practice_playback_melodic"
+                )
+            )
+            # El texto indica el modo activo; el fondo del selector permanece
+            # neutro en ambos estados para que no parezca un botón de selección.
+            self.interval_gen_playback_mode_btn.set_selected(False)
         self.interval_gen_play_btn.set_selected(
             has_selection and self.interval_gen_last_play_reverse is False
         )
         self.interval_gen_play_reverse_btn.set_selected(
-            has_selection and self.interval_gen_last_play_reverse is True
+            has_selection and not harmonic and self.interval_gen_last_play_reverse is True
         )
 
     def _refresh_interval_gen_table_selection(self):
@@ -497,13 +560,15 @@ class IntervalGenerationMixin:
         if not notes:
             self.interval_gen_notes_display.configure(text="-")
             self.interval_gen_name_display.configure(text="-")
-            self.interval_gen_alt_display.configure(text="-")
             self.interval_gen_semitones_display.configure(text="-")
             return
         semitones = int(self.interval_gen_semitones)
         self.interval_gen_notes_display.configure(
             text=f"{self.note_name(notes[0])} - {self.note_name(notes[1])}"
         )
-        self.interval_gen_name_display.configure(text=self.get_interval_gen_name())
-        self.interval_gen_alt_display.configure(text=self.get_interval_gen_alt_names())
+        alternatives = self.get_interval_gen_alt_names()
+        name = self.get_interval_gen_name()
+        self.interval_gen_name_display.configure(
+            text=name if alternatives == "-" else f"{name}, {alternatives}"
+        )
         self.interval_gen_semitones_display.configure(text=str(semitones))

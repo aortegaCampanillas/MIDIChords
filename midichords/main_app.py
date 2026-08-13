@@ -50,6 +50,7 @@ from midichords.mixins.generation_mixin import GenerationMixin
 from midichords.mixins.circle_fifths_mixin import CircleFifthsMixin
 from midichords.mixins.interval_mixin import IntervalMixin
 from midichords.mixins.interval_generation_mixin import IntervalGenerationMixin
+from midichords.mixins.interval_practice_mixin import IntervalPracticeMixin
 from midichords.mixins.midi_io_mixin import MidiIOMixin
 from midichords.mixins.input_detection_mixin import InputDetectionMixin
 from midichords.mixins.ui_mixin import UiMixin
@@ -68,6 +69,7 @@ class MidiChordAnalyzerApp(
     CircleFifthsMixin,
     IntervalMixin,
     IntervalGenerationMixin,
+    IntervalPracticeMixin,
     MidiIOMixin,
     InputDetectionMixin,
     ChangelogMixin,
@@ -192,6 +194,7 @@ class MidiChordAnalyzerApp(
             "metronome",
             "interval_detection",
             "interval_generation",
+            "interval_practice",
         }
         if self.tuner_enabled:
             allowed_modes.add("tuner")
@@ -203,6 +206,7 @@ class MidiChordAnalyzerApp(
         self.tuner_tab_active = False
         self.interval_tab_active = False
         self.interval_gen_tab_active = False
+        self.interval_practice_tab_active = False
         self.mode_var = QtStringVar()
         loaded_note_accidental = str(self.config_data.get("note_accidental", "sharp")).lower()
         self.note_accidental = "flat" if loaded_note_accidental == "flat" else "sharp"
@@ -292,6 +296,7 @@ class MidiChordAnalyzerApp(
         self.detection_midi_held_notes: set[int] = set()
         self._init_interval_state()
         self._init_interval_generation_state()
+        self._init_interval_practice_state()
         self.detection_last_playable_notes: set[int] = set()
         self.detection_shift_pressed = False
         self._scroll_targets: list[tuple[tk.Widget, tk.Canvas]] = []

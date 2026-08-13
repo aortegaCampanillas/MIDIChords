@@ -39,6 +39,7 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
             "tab_circle_frame",
             "tab_scale_frame",
             "tab_interval_frame",
+            "tab_interval_practice_frame",
             "tab_metronome_frame",
             "generation_variant_combo",
             "generation_inversion_combo",
@@ -117,6 +118,15 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         qt_app.processEvents()
 
         assert interval_clicks == [(2, "major")]
+
+        window._apply_mode("interval_practice")
+        qt_app.processEvents()
+
+        assert window.current_mode == "interval_practice"
+        assert window.interval_practice_tab_active is True
+        assert window.interval_practice_panel.isHidden() is False
+        assert window.interval_practice_repetitions_var.get() == "10"
+        assert window.interval_practice_allowed_semitones == set(range(13))
 
         window._apply_mode("circle_fifths")
         qt_app.processEvents()

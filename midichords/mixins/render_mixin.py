@@ -788,6 +788,8 @@ class RenderMixin:
                 if current_interval_note is not None
                 else set()
             )
+            if getattr(self, "interval_gen_tab_active", False):
+                display_active_notes |= set(getattr(self, "interval_gen_playing_notes", set()))
         if self.generation_tab_active and self.instrument_view == "piano":
             # Keep the generated right-hand chord visible while any key is pressed.
             display_active_notes = set(self.generated_preview_notes) | set(self.generated_playing_notes)
@@ -816,6 +818,20 @@ class RenderMixin:
             interval_marker_notes = [int(note) for note in self.interval_gen_notes()]
         interval_marker_set = set(interval_marker_notes)
         interval_root_note = interval_marker_notes[0] if interval_marker_notes else None
+        practice_answer = getattr(self, "interval_practice_answer", None) if getattr(self, "interval_practice_tab_active", False) else None
+        practice_correct_note = (
+            self.interval_practice_question_notes()[1]
+            if practice_answer and len(self.interval_practice_question_notes()) == 2
+            else None
+        )
+        practice_wrong_note = (
+            int(practice_answer["note"])
+            if practice_answer and not practice_answer.get("correct")
+            else None
+        )
+        practice_playing_notes = set(getattr(self, "interval_gen_playing_notes", set()))
+        if getattr(self, "interval_gen_playing_note", None) is not None:
+            practice_playing_notes.add(int(self.interval_gen_playing_note))
         scale_name_map = self._scale_note_name_map() if self.scale_tab_active else {}
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
         _non_detection_like = (
@@ -1084,8 +1100,15 @@ class RenderMixin:
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 11, "bold"))
             elif note in interval_marker_set:
-                circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
-                circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
+                if note in practice_playing_notes:
+                    circle_fill, circle_outline = self.color_accent, "#ffffff"
+                elif note == practice_wrong_note:
+                    circle_fill, circle_outline = "#e35d67", "#8f2730"
+                elif note == practice_correct_note:
+                    circle_fill, circle_outline = "#39c66d", "#1e8c38"
+                else:
+                    circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
+                    circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
                 cx = (x1 + x2) / 2
                 r = max(11, min(17, white_w * 0.28))
                 cy = key_bottom - (42 if show_key_names else 28)
@@ -1195,8 +1218,15 @@ class RenderMixin:
                 circle_text = scale_name_map.get(note % 12, self.note_name(note, with_octave=False))
                 canvas.create_text(cx, cy, text=circle_text, fill="#101010", font=("Helvetica", 8, "bold"))
             elif note in interval_marker_set:
-                circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
-                circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
+                if note in practice_playing_notes:
+                    circle_fill, circle_outline = self.color_accent, "#ffffff"
+                elif note == practice_wrong_note:
+                    circle_fill, circle_outline = "#e35d67", "#8f2730"
+                elif note == practice_correct_note:
+                    circle_fill, circle_outline = "#39c66d", "#1e8c38"
+                else:
+                    circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"
+                    circle_outline = "#1e8c38" if note == interval_root_note else "#8d6b00"
                 cx = (x1_i + x2_i) / 2
                 cy = key_top + black_h - 22
                 r = max(9, min(13, black_w * 0.28))
@@ -2117,9 +2147,23 @@ class RenderMixin:
                     else:
                         note_fill = "" if _is_hollow else "#d7dde7"
                         note_outline = "#d7dde7"
+                elif getattr(self, "interval_practice_tab_active", False) and getattr(self, "interval_practice_answer", None):
+                    _correct = self.interval_practice_question_notes()[1]
+                    _wrong = int(self.interval_practice_answer["note"]) if not self.interval_practice_answer.get("correct") else None
+                    if note in getattr(self, "interval_gen_playing_notes", set()) or note == getattr(self, "interval_gen_playing_note", None):
+                        note_fill = note_outline = self.color_accent
+                    elif note == _wrong:
+                        note_fill, note_outline = "#e35d67", "#ff9a9a"
+                    elif note == _correct:
+                        note_fill, note_outline = "#39c66d", "#8ff0ad"
+                    else:
+                        note_fill, note_outline = "", "#d7dde7"
                 elif (
                     getattr(self, "interval_gen_tab_active", False)
-                    and note == getattr(self, "interval_gen_playing_note", None)
+                    and (
+                        note == getattr(self, "interval_gen_playing_note", None)
+                        or note in getattr(self, "interval_gen_playing_notes", set())
+                    )
                 ):
                     note_fill = self.color_accent
                     note_outline = self.color_accent
@@ -2202,6 +2246,18 @@ class RenderMixin:
                     outline=note_outline,
                     width=_oval_w,
                 )
+                if (
+                    getattr(self, "interval_practice_tab_active", False)
+                    and not getattr(self, "interval_practice_answer", None)
+                    and note_idx == 0
+                ):
+                    canvas.create_text(
+                        x + note_rx * 3.2,
+                        treble_top + 2 * line_space,
+                        text="?",
+                        fill="#d7dde7",
+                        font=(self.ui_font_family, max(18, int(line_space * 1.5)), "bold"),
+                    )
                 if _imel:
                     _dur_full = _mel_dur_map[_mi]
                     _dur_base = _dur_full.rstrip(".")

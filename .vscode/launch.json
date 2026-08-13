@@ -6,6 +6,23 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/launch.py",
+      "args": ["desktop"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+      },
+      "env": {
+        "MIDICHORDS_FORCE_MIDI_OPEN": "1"
+      }
+    },
+    {
+      "name": "Desktop: MIDIChords (verbose)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/launch.py",
       "args": ["desktop", "/verbose"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

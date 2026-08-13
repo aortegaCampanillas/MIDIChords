@@ -100,6 +100,8 @@ class OverlaysMixin:
         en metronome_mixin.py) — con ttk.Checkbutton nativo, la caja alrededor
         del check no se pinta cuando está marcado."""
         row = ttk.Frame(parent)
+        enabled_flag = {"value": True}
+        muted = "#666e7a"
         indicator = tk.Canvas(
             row, width=18, height=18, bg=self.color_surface_alt, highlightthickness=0, bd=0, cursor="hand2"
         )
@@ -110,16 +112,31 @@ class OverlaysMixin:
         text_label.pack(side=tk.LEFT)
 
         def _toggle(_e: Optional[Any] = None) -> str:
+            if not enabled_flag["value"]:
+                return "break"
             variable.set(not bool(variable.get()))
             return "break"
 
         def _redraw(*_args: Any) -> None:
-            self._draw_metronome_checkbox(indicator, bool(variable.get()))
+            self._draw_metronome_checkbox(
+                indicator, bool(variable.get()), enabled=enabled_flag["value"]
+            )
 
         indicator.bind("<Button-1>", _toggle)
         text_label.bind("<Button-1>", _toggle)
         indicator.bind("<Configure>", _redraw)
         variable.trace_add("write", _redraw)
+
+        def _set_enabled(enabled: bool) -> None:
+            enabled_flag["value"] = bool(enabled)
+            text_label.configure(fg=self.color_text if enabled else muted)
+            _redraw()
+
+        def _set_text(value: str) -> None:
+            text_label.configure(text=value)
+
+        row.set_enabled = _set_enabled  # type: ignore[attr-defined]
+        row.set_text = _set_text  # type: ignore[attr-defined]
         return row
 
     def _qt_append_dark_native_controls_stylesheet(self, root: Any) -> None:

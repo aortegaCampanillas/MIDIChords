@@ -157,6 +157,75 @@ const List<IntervalGridCategory> intervalGridCategories = [
   ),
 ];
 
+String intervalGridCellName(String categoryKey, String label, String language) {
+  final degree = int.tryParse(label.substring(1)) ?? 1;
+  if (language == 'en') {
+    final quality = switch (categoryKey) {
+      'diminished' => 'Diminished',
+      'minor' => 'Minor',
+      'major' => 'Major',
+      'perfect' => 'Perfect',
+      'augmented' => 'Augmented',
+      _ => '',
+    };
+    const degrees = <int, String>{
+      1: 'Unison',
+      2: 'Second',
+      3: 'Third',
+      4: 'Fourth',
+      5: 'Fifth',
+      6: 'Sixth',
+      7: 'Seventh',
+      8: 'Octave',
+    };
+    return '$quality ${degrees[degree] ?? degree}'.trim();
+  }
+  final degreeName = switch (degree) {
+    1 => 'Unísono',
+    2 => 'Segunda',
+    3 => 'Tercera',
+    4 => 'Cuarta',
+    5 => 'Quinta',
+    6 => 'Sexta',
+    7 => 'Séptima',
+    8 => 'Octava',
+    _ => '$degree',
+  };
+  final feminine = degree != 1;
+  final quality = switch (categoryKey) {
+    'diminished' => feminine ? 'disminuida' : 'disminuido',
+    'minor' => 'menor',
+    'major' => 'mayor',
+    'perfect' => feminine ? 'justa' : 'justo',
+    'augmented' => feminine ? 'aumentada' : 'aumentado',
+    _ => '',
+  };
+  return '$degreeName $quality'.trim();
+}
+
+List<String> intervalGridDisplayNames({
+  required String selectedCategoryKey,
+  required String selectedLabel,
+  required int semitones,
+  required String language,
+}) {
+  final names = <String>[];
+  void add(String name) {
+    if (name.isNotEmpty && !names.contains(name)) names.add(name);
+  }
+
+  add(intervalGridCellName(selectedCategoryKey, selectedLabel, language));
+  for (final category in intervalGridCategories) {
+    for (final cell in category.cells) {
+      if (cell.semitones == semitones) {
+        add(intervalGridCellName(category.key, cell.label, language));
+      }
+    }
+  }
+  if (semitones == 6) add(language == 'en' ? 'Tritone' : 'Tritono');
+  return names;
+}
+
 List<int> generateIntervalNotes(int rootPc, int semitones) {
   final normalizedRoot = rootPc % 12;
   final rootMidi = 60 + normalizedRoot;

@@ -15,6 +15,7 @@ const state = {
   guitarHandedness: "right",
   language: "es",
   accidental: "sharp",
+  generationHand: "both",
   // Letra natural + alteración elegidas explícitamente en el combo de tónica
   // (varias combinaciones dan el mismo pc, p. ej. Reb y Do#: se guarda la
   // elección real del usuario en vez de recalcular una enarmonía "canónica"
@@ -1758,6 +1759,10 @@ function applyTranslations() {
   setText("labelGenRoot", "label_tonic");
   setText("labelGenVariant", "label_variant");
   setText("labelGenInversion", "label_inversion");
+  setText("labelGenHand", "label_hand");
+  setText("labelGenHandLeft", "hand_left");
+  setText("labelGenHandRight", "hand_right");
+  setText("labelGenHandBoth", "hand_both");
   setText("labelGenChord", "label_chord");
   setText("labelGenNotes", "label_notes");
   setText("labelGenFormula", "label_formula");
@@ -2408,7 +2413,10 @@ function getActiveMidiForMode() {
   }
   if (state.mode === "interval_detection") {
     if (state.intervalPlayingNote != null) return new Set([Number(state.intervalPlayingNote)]);
-    return new Set(state.intervalNotes.map((n) => Number(n)));
+    // The retained interval is already represented by its note badges. Keys
+    // themselves are active only while their corresponding note is sounding,
+    // otherwise the two persistent highlights obscure playback direction.
+    return new Set();
   }
   if (state.mode === "interval_generation") {
     if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote)]);
@@ -3081,7 +3089,7 @@ function getMelodyBarLines(durations, beatsPerBar, anacrusis = 0) {
 /** Plays notes one by one with piano/staff highlighting. Generation counter cancels previous runs.
  *  audioNotes: array paralela opcional (pitch de audio distinto al visual).
  *  durations:  array paralela con "w"/"h"/"q"/"e"/null; si se omite todas duran stepMs. */
-function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = null) {
+function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = null, displayIndices = null) {
   const gen = ++state.intervalPlayGeneration;
   if (state.intervalPreviewClearTimer != null) {
     clearTimeout(state.intervalPreviewClearTimer);
@@ -3101,6 +3109,7 @@ function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = 
   const totalMs = cursor;
 
   notes.forEach((midi, idx) => {
+    const displayIdx = displayIndices?.[idx] ?? idx;
     const t = startTimes[idx];
     const beats = durations ? (DURATION_BEATS[durations[idx]] ?? 0.5) : 1;
     const noteMs = beats * stepMs;
@@ -3120,14 +3129,14 @@ function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = 
     setTimeout(() => {
       if (state.intervalPlayGeneration !== gen) return;
       state.intervalPlayingNote = Number(midi);
-      state.intervalPlayingIdx = idx;
+      state.intervalPlayingIdx = displayIdx;
       playSingle(playMidi, "piano");
       renderInstrument();
       renderStaff();
     }, t);
     setTimeout(() => {
       if (state.intervalPlayGeneration !== gen) return;
-      if (state.intervalPlayingIdx === idx) {
+      if (state.intervalPlayingIdx === displayIdx) {
         state.intervalPlayingNote = null;
         state.intervalPlayingIdx = null;
         renderInstrument();
@@ -3143,6 +3152,10 @@ function playIntervalNoteSequence(notes, stepMs, audioNotes = null, durations = 
     renderInstrument();
     renderStaff();
   }, totalMs);
+}
+
+function intervalDisplayIndicesForPlayback(notes) {
+  return notes.map((note) => state.intervalNotes.findIndex((displayNote) => Number(displayNote) === Number(note)));
 }
 
 function refreshIntervalButtonsState() {
@@ -3435,12 +3448,22 @@ function renderPiano() {
   const generationPianoMode = isChordGenerationLikeMode() && state.instrument === "piano" && state.generatedChord;
   const generationCurrentMidi = isChordGenerationLikeMode() ? Number(state.generationCurrentNote) : null;
   const scalePianoMode = state.mode === "scales" && getScalePlaybackInstrument() === "piano";
-  const rhNotes = generationPianoMode
+  const generationBaseRhNotes = generationPianoMode
     ? Array.from(new Set((state.generatedChord.notes_midi || []).map((n) => Number(n)))).sort((a, b) => a - b)
     : [];
-  const lhNotes = generationPianoMode
-    ? rhNotes.map((n) => n - 12).filter((n) => n >= low && n <= high)
+  const rhNotes = generationPianoMode && generationHandShows("right")
+    ? generationBaseRhNotes
     : [];
+  const lhNotes = generationPianoMode && generationHandShows("left")
+    ? generationBaseRhNotes.map((n) => n - 12).filter((n) => n >= low && n <= high)
+    : [];
+  const generationPlaybackPianoNotes = new Set();
+  if (generationPianoMode) {
+    state.generationPlayingNotes.forEach((note) => {
+      const midi = Number(note);
+      if (midi >= low && midi <= high) generationPlaybackPianoNotes.add(midi);
+    });
+  }
   const rhFingers = pianoFingeringForCount(rhNotes.length, "right");
   const lhFingers = pianoFingeringForCount(lhNotes.length, "left");
   const rhFingerByNote = new Map(rhNotes.map((n, i) => [n, rhFingers[Math.min(i, rhFingers.length - 1)]]));
@@ -3492,7 +3515,7 @@ function renderPiano() {
       if (lhFingerByNote.has(midi)) key.classList.add("lh");
       if (
         (generationCurrentMidi != null && Number(midi) === generationCurrentMidi)
-        || isPlaybackNoteActive(midi, state.generationPlayingNotes)
+        || generationPlaybackPianoNotes.has(midi)
         || state.generationMidiHeldNotes.has(midi)
       ) key.classList.add("active");
     } else if (state.mode === "detection") {
@@ -5079,7 +5102,9 @@ function getStaffNotes() {
       return Array.from(new Set(rh)).sort((a, b) => a - b);
     }
     const lh = rh.map((n) => n - 12).filter((n) => n >= 0);
-    return Array.from(new Set([...rh, ...lh])).sort((a, b) => a - b);
+    const visibleRh = generationHandShows("right") ? rh : [];
+    const visibleLh = generationHandShows("left") ? lh : [];
+    return Array.from(new Set([...visibleRh, ...visibleLh])).sort((a, b) => a - b);
   }
   if (state.mode === "scales" && state.generatedScale) {
     return getScaleRhLhDisplayNotes().display;
@@ -5153,8 +5178,28 @@ function drawTimeSignature(ctx, x, staffTop, gap, numerator, denominator, color)
  * Devuelve el símbolo de alteración necesario para una nota dado la armadura activa,
  * o null si la nota es natural o está cubierta por la armadura.
  */
+function chordStaffAccidentalForMidi(midi) {
+  const chord = state.mode === "detection"
+    ? state.detectionResult
+    : (isChordGenerationLikeMode() ? state.generatedChord : null);
+  const midiNotes = Array.isArray(chord?.notes_midi) ? chord.notes_midi : [];
+  const labels = Array.isArray(chord?.notes) ? chord.notes : [];
+  const target = Number(midi);
+  let index = midiNotes.findIndex((note) => Number(note) === target);
+  if (index < 0) {
+    const pc = ((target % 12) + 12) % 12;
+    index = midiNotes.findIndex((note) => ((Number(note) % 12) + 12) % 12 === pc);
+  }
+  const label = index >= 0 ? String(labels[index] || "") : "";
+  if (label.includes("♭")) return "♭";
+  if (label.includes("#")) return "♯";
+  return null;
+}
+
 function getNoteAccidental(midi, signature) {
   const pc = ((midi % 12) + 12) % 12;
+  const chordAccidental = chordStaffAccidentalForMidi(midi);
+  if (chordAccidental != null) return chordAccidental;
   const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]); // C D E F G A B
   if (NATURAL_PCS.has(pc)) return null;
   const SHARP_PC_ORDER = [6, 1, 8, 3, 10]; // F# C# G# D# A#
@@ -5278,10 +5323,10 @@ function renderStaff() {
   const generationCurrentMidi = isChordGenerationLikeMode() ? state.generationCurrentNote : null;
   const generationPlaying = isChordGenerationLikeMode() ? state.generationPlayingNotes : new Set();
   const generationPlayingDisplay = new Set(Array.from(generationPlaying).map((n) => Number(n)));
-  const generationRhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord
+  const generationRhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord && generationHandShows("right")
     ? new Set(getGenerationBaseNotes())
     : new Set();
-  const generationLhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord
+  const generationLhDisplayNotes = isChordGenerationLikeMode() && state.generatedChord && generationHandShows("left")
     ? new Set((state.generatedChord.notes_midi || []).map((n) => Number(n) - 12).filter((n) => n >= 0))
     : new Set();
   let generationCurrentDisplayMidi = generationCurrentMidi;
@@ -6144,8 +6189,28 @@ function updateInversionMax() {
 
 function refreshGenerationInversionControlState() {
   const select = el("genInversion");
-  if (!select) return;
-  select.disabled = state.instrument === "guitar";
+  if (select) select.disabled = state.instrument === "guitar";
+  const disabled = state.instrument === "guitar";
+  document.querySelectorAll("input[name='generationHand']").forEach((input) => {
+    input.disabled = disabled;
+    input.checked = input.value === state.generationHand;
+  });
+  document.querySelector(".generation-hand-row")?.classList.toggle("disabled", disabled);
+}
+
+function generationHandShows(hand) {
+  if (state.mode !== "generation" || state.instrument !== "piano") return true;
+  return state.generationHand === "both" || state.generationHand === hand;
+}
+
+function getGenerationPlaybackNotes() {
+  const right = getGenerationBaseNotes();
+  if (state.mode !== "generation" || state.instrument !== "piano") return right;
+  const left = right.map((note) => Number(note) - 12).filter((note) => note >= 0);
+  return Array.from(new Set([
+    ...(generationHandShows("right") ? right : []),
+    ...(generationHandShows("left") ? left : []),
+  ])).sort((a, b) => a - b);
 }
 
 function appendInversionDetail(baseValue, inversionIndex, invertedValue) {
@@ -6204,7 +6269,7 @@ async function runDetection() {
   renderStaff();
 }
 
-async function runGenerateChord() {
+async function runGenerateChord({ play = false } = {}) {
   const payload = {
     root_pc: currentGenRootPc(),
     tonic_letter_pc: Number(el("genRootLetter")?.value ?? 0),
@@ -6231,8 +6296,8 @@ async function runGenerateChord() {
   if (state.mode === "generation") {
     renderInstrument();
     renderStaff();
-    const notes = getGenerationBaseNotes();
-    if (notes.length) {
+    const notes = getGenerationPlaybackNotes();
+    if (play && notes.length) {
       playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
     }
   }
@@ -7788,7 +7853,8 @@ function bindEvents() {
 
   bindImmediatePress(el("intervalPlayReverse"), () => {
     if (state.intervalNotes.length < 2) return;
-    playIntervalNoteSequence([...state.intervalNotes].sort((a, b) => b - a), 500);
+    const notes = [...state.intervalNotes].sort((a, b) => b - a);
+    playIntervalNoteSequence(notes, 500, null, null, intervalDisplayIndicesForPlayback(notes));
   }, { highlightWhilePressed: true });
 
   bindImmediatePress(el("intervalPlay"), () => {
@@ -7801,7 +7867,8 @@ function bindEvents() {
       playIntervalNoteSequence(melodyNotes, melody?.playbackStepMs || 420, null, melodyDurs);
     } else {
       if (state.intervalNotes.length < 2) return;
-      playIntervalNoteSequence([...state.intervalNotes].sort((a, b) => a - b), 500);
+      const notes = [...state.intervalNotes].sort((a, b) => a - b);
+      playIntervalNoteSequence(notes, 500, null, null, intervalDisplayIndicesForPlayback(notes));
     }
   }, { highlightWhilePressed: true });
 
@@ -7936,30 +8003,38 @@ function bindEvents() {
     populateAccidentalSelect("genRootAccidental", Number(e.target.value));
     state.genRootLetterPc = Number(e.target.value);
     state.genRootAccidental = el("genRootAccidental")?.value || "natural";
-    runGenerateChord();
+    runGenerateChord({ play: true });
   });
   listen(el("genRootAccidental"), "change", (e) => {
     state.genRootAccidental = e.target.value;
-    runGenerateChord();
+    runGenerateChord({ play: true });
   });
   listen(el("genVariant"), "change", () => {
     state.guitarSelectedVariationIdx = 0;
     updateInversionMax();
-    runGenerateChord();
+    runGenerateChord({ play: true });
   });
   listen(el("genInversion"), "change", () => {
-    runGenerateChord();
+    runGenerateChord({ play: true });
+  });
+  document.querySelectorAll("input[name='generationHand']").forEach((input) => {
+    listen(input, "change", () => {
+      if (!input.checked) return;
+      state.generationHand = ["left", "right", "both"].includes(input.value) ? input.value : "both";
+      renderInstrument();
+      renderStaff();
+    });
   });
   bindImmediatePress(el("genPlay"), () => {
     if (!state.generatedChord) return;
-    const notes = getGenerationBaseNotes();
+    const notes = getGenerationPlaybackNotes();
     if (!notes.length) return;
     playChordMidi(notes, { instrument: state.instrument === "guitar" ? "guitar" : "piano" });
   }, {
     highlightWhilePressed: true,
     onPress: () => {
       if (!state.generatedChord) return;
-      const notes = getGenerationBaseNotes();
+      const notes = getGenerationPlaybackNotes();
       if (!notes.length) return;
       startHeldChord(notes, state.instrument === "guitar" ? "guitar" : "piano");
     },

@@ -1533,6 +1533,30 @@ class RenderMixin:
                 # Incluir notas actualmente pulsadas en el piano (LH) para que se marquen en el pentagrama.
                 display_notes = display_notes | set(self.generated_playing_notes)
         generation_name_map = self._generation_note_name_map(with_octave=False) if self.generation_tab_active else {}
+        detection_name_map = (
+            dict(getattr(self, "detection_overlay_note_names", {}))
+            if self.current_mode == "detection"
+            else {}
+        )
+        staff_chord_name_map = generation_name_map or detection_name_map
+
+        def _note_prefers_flat_spelling(note: int) -> bool:
+            label = staff_chord_name_map.get(int(note))
+            if label is None:
+                label = next(
+                    (
+                        candidate
+                        for mapped_note, candidate in staff_chord_name_map.items()
+                        if int(mapped_note) % 12 == int(note) % 12
+                    ),
+                    None,
+                )
+            if label is not None:
+                if "♭" in str(label):
+                    return True
+                if "#" in str(label):
+                    return False
+            return bool(prefer_flat_signature)
 
         w = max(300, canvas.winfo_width())
         h = max(260, canvas.winfo_height())
@@ -2038,6 +2062,7 @@ class RenderMixin:
             for note_idx, note in enumerate(ordered):
                 degree_idx = int(note_idx)
                 scale_is_bass = False
+                note_prefers_flat = _note_prefers_flat_spelling(int(note))
                 if self.scale_tab_active and note_idx < len(scale_staff_entries):
                     degree_idx = int(scale_staff_entries[note_idx][1])
                     scale_is_bass = bool(scale_staff_entries[note_idx][2])
@@ -2046,7 +2071,7 @@ class RenderMixin:
                     if self.scale_tab_active and not scale_is_bass and degree_idx < len(scale_diatonic_indices):
                         diatonic_idx = scale_diatonic_indices[degree_idx]
                     else:
-                        diatonic_idx = self._diatonic_index(note, prefer_flat_signature)
+                        diatonic_idx = self._diatonic_index(note, note_prefers_flat)
                     diatonic_steps = diatonic_idx - treble_bottom_line_diatonic
                     y = treble_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28
@@ -2055,7 +2080,7 @@ class RenderMixin:
                     staff_base_y = treble_top + 4 * line_space
                 else:
                     placed_cols = placed_bass_cols
-                    diatonic_idx = self._diatonic_index(note, prefer_flat_signature)
+                    diatonic_idx = self._diatonic_index(note, note_prefers_flat)
                     diatonic_steps = diatonic_idx - bass_bottom_line_diatonic
                     y = bass_top + 4 * line_space - diatonic_steps * staff_step
                     label_y_base = treble_top - 28
@@ -2156,6 +2181,12 @@ class RenderMixin:
                     else:
                         note_fill = "" if _is_hollow else "#d7dde7"
                         note_outline = "#d7dde7"
+                elif (
+                    getattr(self, "interval_tab_active", False)
+                    and note == getattr(self, "interval_playing_note", None)
+                ):
+                    note_fill = self.color_accent
+                    note_outline = self.color_accent
                 elif getattr(self, "interval_practice_tab_active", False) and getattr(self, "interval_practice_answer", None):
                     _correct = self.interval_practice_question_notes()[1]
                     _wrong = int(self.interval_practice_answer["note"]) if not self.interval_practice_answer.get("correct") else None
@@ -2197,7 +2228,7 @@ class RenderMixin:
                     letter_idx = diatonic_idx % 7
                 natural_base_pc = natural_pc_by_letter[letter_idx]
                 acc_note_pt = self._staff_accidental_font_pt(
-                    int(line_space), prefer_flat=prefer_flat_signature
+                    int(line_space), prefer_flat=note_prefers_flat
                 )
                 nat_pt = self._staff_natural_font_pt(int(line_space))
                 if self.scale_tab_active:
@@ -2234,7 +2265,7 @@ class RenderMixin:
                     accidental_x = (x - acc_dx_scale) if self.scale_tab_active else (
                         (chord_x - acc_dx_scale - 6) if col > 0 else (x - acc_dx_scale)
                     )
-                    accidental_text = "♭" if prefer_flat_signature else "#"
+                    accidental_text = "♭" if note_prefers_flat else "#"
                     accidental_font = ("Helvetica", acc_note_pt, "bold")
                     canvas.create_text(
                         accidental_x,

@@ -14,4 +14,9 @@ void main() {
       100,
     );
   });
+
+  test('key signatures leave room for accidentals belonging to notes', () {
+    expect(staffKeySignatureTrailingGap(compactWidth: false), 32);
+    expect(staffKeySignatureTrailingGap(compactWidth: true), 20);
+  });
 }

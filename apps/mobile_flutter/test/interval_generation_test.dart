@@ -2,6 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:midichords/interval_data.dart';
 
 void main() {
+  test('selected interval spelling is shown before its alternatives', () {
+    expect(
+      intervalGridDisplayNames(
+        selectedCategoryKey: 'diminished',
+        selectedLabel: 'd6',
+        semitones: 7,
+        language: 'es',
+      ),
+      <String>['Sexta disminuida', 'Quinta justa'],
+    );
+    expect(
+      intervalGridDisplayNames(
+        selectedCategoryKey: 'augmented',
+        selectedLabel: 'A4',
+        semitones: 6,
+        language: 'en',
+      ),
+      <String>['Augmented Fourth', 'Diminished Fifth', 'Tritone'],
+    );
+  });
+
   test('interval generation catalog matches the shared theoretical grid', () {
     expect(intervalGridCategories.map((category) => category.key), <String>[
       'diminished',

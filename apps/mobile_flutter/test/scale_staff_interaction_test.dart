@@ -56,6 +56,7 @@ void main() {
     ).single;
 
     expect(signed.center.dx, greaterThan(plain.center.dx));
+    expect(signed.center.dx - plain.center.dx, greaterThan(50));
     expect(
       scaleStaffHitAt(
         position: Offset.zero,
@@ -106,6 +107,21 @@ void main() {
         region.midi,
       );
     }
+  });
+
+  test('grand staff separates boundary notes vertically, not horizontally', () {
+    const size = Size(800, 320);
+    final regions = buildStaffNoteHitRegions(
+      size: size,
+      notes: const <int>{59, 60},
+      keySignatureCount: 0,
+      preferFlats: true,
+    );
+    final bass = regions.firstWhere((region) => region.midi == 59);
+    final treble = regions.firstWhere((region) => region.midi == 60);
+
+    expect(bass.center.dx, treble.center.dx);
+    expect((bass.center.dy - treble.center.dy).abs(), greaterThan(10));
   });
 
   test('finds both interval notes in their painted sequence columns', () {

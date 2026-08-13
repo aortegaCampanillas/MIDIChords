@@ -9,6 +9,8 @@ void main() {
     expect(modeUsesCenteredTheoryPiano(2), isTrue);
     expect(modeUsesCenteredTheoryPiano(3), isTrue);
     expect(modeUsesCenteredTheoryPiano(7), isTrue);
+    expect(modeUsesCenteredTheoryPiano(8), isTrue);
+    expect(modeUsesCenteredTheoryPiano(9), isTrue);
   });
 
   test('does not recenter unrelated modes', () {
@@ -24,9 +26,11 @@ void main() {
     expect(memory.hasOffset(1), isFalse);
     memory.remember(1, 128.5);
     memory.remember(2, 242.0);
+    memory.remember(9, 314.0);
 
     expect(memory.offsetFor(1), 128.5);
     expect(memory.offsetFor(2), 242.0);
+    expect(memory.offsetFor(9), 314.0);
     expect(memory.hasOffset(3), isFalse);
   });
 

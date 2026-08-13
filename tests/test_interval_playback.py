@@ -38,6 +38,7 @@ def test_first_reverse_play_releases_retained_notes_before_attack() -> None:
     assert set(app.events[:first_on]) == {("off", 60), ("off", 69)}
     assert app.sounding_notes == set()
     assert app.timers
+    assert app.interval_playing_note == 69
 
 
 def test_first_forward_play_also_retriggers_retained_notes() -> None:
@@ -47,3 +48,17 @@ def test_first_forward_play_also_retriggers_retained_notes() -> None:
 
     first_on = app.events.index(("on", 60))
     assert set(app.events[:first_on]) == {("off", 60), ("off", 69)}
+    assert app.interval_playing_note == 60
+
+
+def test_interval_playback_clears_visual_highlight_after_last_note() -> None:
+    app = _IntervalPlaybackHarness()
+
+    app.play_interval_melody()
+    app.timers[-1][1]()
+    assert app.interval_playing_note == 69
+    app.timers[-1][1]()
+
+    assert app.interval_playing_note is None
+    assert app.interval_playing_idx is None
+    assert app.interval_melody_playback_timer is None

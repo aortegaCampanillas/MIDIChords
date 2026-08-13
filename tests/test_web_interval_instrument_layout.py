@@ -51,3 +51,52 @@ def test_interval_generation_staff_registers_clickable_note_regions():
     )[1].split("function renderChangelog", 1)[0]
     assert "state.staff.scaleRegions.forEach" in interactive_branch
     assert "handleInstrumentNote(Number(hit.note))" in interactive_branch
+
+
+def test_interval_detection_playback_maps_sound_order_to_staff_order():
+    source = (ROOT / "apps" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    sequence = source.split("function playIntervalNoteSequence(", 1)[1].split(
+        "function refreshIntervalButtonsState", 1
+    )[0]
+    assert "displayIndices = null" in sequence
+    assert "const displayIdx = displayIndices?.[idx] ?? idx" in sequence
+    assert "state.intervalPlayingIdx = displayIdx" in sequence
+
+    assert "function intervalDisplayIndicesForPlayback(notes)" in source
+    assert source.count("intervalDisplayIndicesForPlayback(notes)") == 3
+
+
+def test_interval_detection_piano_only_activates_the_sounding_note():
+    source = (ROOT / "apps" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    active_midi = source.split("function getActiveMidiForMode()", 1)[1].split(
+        "const {", 1
+    )[0]
+    interval_branch = active_midi.split(
+        'if (state.mode === "interval_detection") {', 1
+    )[1].split("}", 1)[0]
+
+    assert "state.intervalPlayingNote" in interval_branch
+    assert "return new Set();" in interval_branch
+    assert "state.intervalNotes.map" not in interval_branch
+
+
+def test_chord_staff_uses_the_spelling_returned_for_each_chord_note():
+    source = (ROOT / "apps" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    spelling = source.split("function chordStaffAccidentalForMidi", 1)[1].split(
+        "function getNoteAccidental", 1
+    )[0]
+    accidental = source.split("function getNoteAccidental", 1)[1].split(
+        "function renderStaff", 1
+    )[0]
+    assert "chord?.notes_midi" in spelling
+    assert "chord?.notes" in spelling
+    assert 'label.includes("♭")' in spelling
+    assert "chordStaffAccidentalForMidi(midi)" in accidental

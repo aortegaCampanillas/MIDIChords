@@ -39,7 +39,7 @@ List<ScaleStaffHitRegion> buildScaleStaffHitRegions({
   final compactWidth = size.width < 520;
   final left = compactWidth ? 28.0 : 52.0;
   final gap = math.max(10.0, math.min(16.0, size.height / 24));
-  final grandGap = math.max(64.0, gap * 6.2);
+  final grandGap = math.max(76.0, gap * 7.2);
   final systemHeight = grandGap + 4 * gap;
   final trebleTop = (size.height - systemHeight) / 2;
   final bassTop = trebleTop + grandGap;
@@ -49,7 +49,9 @@ List<ScaleStaffHitRegion> buildScaleStaffHitRegions({
     final signatureStartX = left + (compactWidth ? 54.0 : 82.0);
     final signatureEndX =
         signatureStartX + keySignatureCount.clamp(0, 7) * signatureStep;
-    noteStartX = signatureEndX + (compactWidth ? 8.0 : 12.0);
+    noteStartX =
+        signatureEndX +
+        staffKeySignatureTrailingGap(compactWidth: compactWidth);
   }
   final noteStepX = compactWidth ? 24.0 : 32.0;
   final noteWidth = compactWidth ? 13.0 : 16.0;
@@ -117,6 +119,7 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
   required Iterable<int> notes,
   required int keySignatureCount,
   required bool preferFlats,
+  Map<int, bool> notePreferFlats = const <int, bool>{},
   bool intervalSequenceMode = false,
 }) {
   final sortedNotes = notes.toSet().toList()..sort();
@@ -126,7 +129,7 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
   final compactWidth = size.width < 520;
   final left = compactWidth ? 28.0 : 52.0;
   final gap = math.max(10.0, math.min(16.0, size.height / 24));
-  final grandGap = math.max(64.0, gap * 6.2);
+  final grandGap = math.max(76.0, gap * 7.2);
   final systemHeight = grandGap + 4 * gap;
   final trebleTop = (size.height - systemHeight) / 2;
   final bassTop = trebleTop + grandGap;
@@ -137,7 +140,7 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
     noteStartX =
         signatureStartX +
         keySignatureCount.clamp(0, 7) * signatureStep +
-        (compactWidth ? 8.0 : 12.0);
+        staffKeySignatureTrailingGap(compactWidth: compactWidth);
   }
   final noteWidth = compactWidth ? 13.0 : 16.0;
   final noteHeight = compactWidth ? 10.0 : 12.0;
@@ -152,8 +155,18 @@ List<ScaleStaffHitRegion> buildStaffNoteHitRegions({
     final midi = sortedNotes[index];
     final treble = midi >= 60;
     final y = treble
-        ? _midiToTrebleY(midi, trebleTop, gap, preferFlats)
-        : _midiToBassY(midi, bassTop, gap, preferFlats);
+        ? _midiToTrebleY(
+            midi,
+            trebleTop,
+            gap,
+            notePreferFlats[midi] ?? preferFlats,
+          )
+        : _midiToBassY(
+            midi,
+            bassTop,
+            gap,
+            notePreferFlats[midi] ?? preferFlats,
+          );
     final placedColumns = treble ? placedTrebleColumns : placedBassColumns;
     var column = 0;
     while ((placedColumns[column] ?? const <double>[]).any(
@@ -194,6 +207,7 @@ ScaleStaffHitRegion? staffNoteHitAt({
   required Iterable<int> notes,
   required int keySignatureCount,
   required bool preferFlats,
+  Map<int, bool> notePreferFlats = const <int, bool>{},
   bool intervalSequenceMode = false,
 }) {
   ScaleStaffHitRegion? best;
@@ -203,6 +217,7 @@ ScaleStaffHitRegion? staffNoteHitAt({
     notes: notes,
     keySignatureCount: keySignatureCount,
     preferFlats: preferFlats,
+    notePreferFlats: notePreferFlats,
     intervalSequenceMode: intervalSequenceMode,
   )) {
     final distance = region.normalizedDistanceSquared(position);

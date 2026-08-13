@@ -1318,7 +1318,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         // Row 1: Tonic selector
                         _buildTonicLetterAccidentalDropdowns(
                           rootPc: _scaleTonicPc,
@@ -1326,6 +1326,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           savedAccidental: _scaleTonicAccidental,
                           letterHelpId: 'scales_tonic',
                           accidentalHelpId: 'scales_accidental',
+                          helpAnchorHeight: 48,
                           onPc: (pc, letterPc, accidental) {
                             _updateState(() {
                               _scaleTonicPc = pc;
@@ -1337,7 +1338,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             }
                           },
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         // Row 2: Scale type + Básicas/Todas toggle
                         Row(
                           children: <Widget>[
@@ -1362,6 +1363,11 @@ extension _HomeScreenPages on _HomeScreenState {
                                   ),
                                   decoration: InputDecoration(
                                     labelText: _ui('Tipo', 'Type'),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 10,
+                                    ),
                                   ),
                                   items: buildScaleDropdownItems(
                                     patterns: filteredPatterns,
@@ -1377,6 +1383,7 @@ extension _HomeScreenPages on _HomeScreenState {
                                     }
                                   },
                                 ),
+                                height: 48,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1417,7 +1424,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         // Row 3: Play + Metro buttons (left) + Octaves selector (right)
                         Row(
                           children: <Widget>[
@@ -1803,15 +1810,15 @@ extension _HomeScreenPages on _HomeScreenState {
                           _helpAnchor(
                             'interval_notes_row',
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  _ui('Notas', 'Notes'),
+                                  '${_ui('Notas', 'Notes')}:',
                                   style: const TextStyle(
                                     color: _HomeScreenState._muted,
                                     fontSize: 12,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 Text(
                                   _intervalNotes.isEmpty
                                       ? '-'
@@ -1832,20 +1839,19 @@ extension _HomeScreenPages on _HomeScreenState {
                           _helpAnchor(
                             'interval_name_row',
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  _ui('Intervalo', 'Interval'),
+                                  '${_ui('Intervalo', 'Interval')}:',
                                   style: const TextStyle(
                                     color: _HomeScreenState._muted,
                                     fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     intervalDisplayName,
-                                    textAlign: TextAlign.right,
+                                    textAlign: TextAlign.left,
                                     softWrap: true,
                                     style: const TextStyle(
                                       color: _HomeScreenState._accent,
@@ -1862,15 +1868,15 @@ extension _HomeScreenPages on _HomeScreenState {
                           _helpAnchor(
                             'interval_semitones_row',
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  _ui('Semitonos', 'Semitones'),
+                                  '${_ui('Semitonos', 'Semitones')}:',
                                   style: const TextStyle(
                                     color: _HomeScreenState._muted,
                                     fontSize: 12,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 Text(
                                   _intervalNotes.length >= 2
                                       ? (_getIntervalSemitones()?.toString() ??
@@ -1889,15 +1895,15 @@ extension _HomeScreenPages on _HomeScreenState {
                           _helpAnchor(
                             'interval_melody_row',
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  _ui('Ejemplo', 'Example'),
+                                  '${_ui('Ejemplo', 'Example')}:',
                                   style: const TextStyle(
                                     color: _HomeScreenState._muted,
                                     fontSize: 12,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 GestureDetector(
                                   onTap: _intervalNotes.length >= 2
                                       ? _toggleIntervalMelodyMode
@@ -2030,10 +2036,12 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildIntervalGenerationPage() {
     final notes = _intervalGenerationNotes();
-    final selectedCategory = intervalGridCategories.firstWhere(
-      (category) => category.key == _intervalGenCategoryKey,
-      orElse: () => intervalGridCategories[3],
-    );
+    final generatedIntervalName = intervalGridDisplayNames(
+      selectedCategoryKey: _intervalGenCategoryKey,
+      selectedLabel: _intervalGenLabel,
+      semitones: _intervalGenSemitones,
+      language: _language,
+    ).join(', ');
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
@@ -2133,7 +2141,7 @@ extension _HomeScreenPages on _HomeScreenState {
                         const SizedBox(height: 8),
                         _intervalGenerationResultRow(
                           _ui('Intervalo', 'Interval'),
-                          '${selectedCategory.name(_language)} · $_intervalGenLabel',
+                          generatedIntervalName,
                           helpId: 'interval_generation_name',
                         ),
                         const SizedBox(height: 8),
@@ -2293,20 +2301,18 @@ extension _HomeScreenPages on _HomeScreenState {
       helpId,
       Row(
         children: <Widget>[
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: _HomeScreenState._muted,
-                fontSize: 12,
-              ),
+          Text(
+            '$label:',
+            style: const TextStyle(
+              color: _HomeScreenState._muted,
+              fontSize: 12,
             ),
           ),
-          Flexible(
-            flex: 2,
+          const SizedBox(width: 6),
+          Expanded(
             child: Text(
               value,
-              textAlign: TextAlign.end,
+              textAlign: TextAlign.left,
               style: const TextStyle(
                 color: _HomeScreenState._accent,
                 fontWeight: FontWeight.w600,

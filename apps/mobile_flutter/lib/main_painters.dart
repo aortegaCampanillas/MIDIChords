@@ -16,6 +16,7 @@ class _MiniStaffPainter extends CustomPainter {
     this.scaleGuitarMode = false,
     this.keySignatureCount = 0,
     this.keySignaturePreferFlats = false,
+    this.notePreferFlats = const <int, bool>{},
     this.activeKeySignatureIndex = -1,
     this.intervalMelodyMode = false,
     this.intervalMelodyNotes = const <int?>[],
@@ -82,6 +83,7 @@ class _MiniStaffPainter extends CustomPainter {
   final bool scaleGuitarMode;
   final int keySignatureCount;
   final bool keySignaturePreferFlats;
+  final Map<int, bool> notePreferFlats;
   final int activeKeySignatureIndex;
   final bool intervalMelodyMode;
   final List<int?> intervalMelodyNotes;
@@ -111,7 +113,7 @@ class _MiniStaffPainter extends CustomPainter {
     final left = compactWidth ? 28.0 : 52.0;
     final right = size.width - 16;
     final gap = math.max(10.0, math.min(16.0, size.height / 24));
-    final grandGap = math.max(64.0, gap * 6.2);
+    final grandGap = math.max(76.0, gap * 7.2);
     final systemH = grandGap + (4 * gap);
     final trebleTop = (size.height - systemH) / 2;
     final bassTop = trebleTop + grandGap;
@@ -196,7 +198,8 @@ class _MiniStaffPainter extends CustomPainter {
         tpAcc.paint(canvas, Offset(ox, yBass - oyOff));
         xKey += sigStep;
       }
-      noteStartX = xKey + (compactWidth ? 8.0 : 12.0);
+      noteStartX =
+          xKey + staffKeySignatureTrailingGap(compactWidth: compactWidth);
     }
 
     if (intervalMelodyMode && intervalMelodyNotes.isNotEmpty) {
@@ -297,19 +300,10 @@ class _MiniStaffPainter extends CustomPainter {
       final overlapThreshold = math.max(1.0, noteH - 1.0);
       for (int i = 0; i < list.length; i += 1) {
         final midi = list[i];
+        final notePreferFlat = notePreferFlats[midi] ?? keySignaturePreferFlats;
         final y = midi >= 60
-            ? _midiToTrebleY(
-                midi.toDouble(),
-                trebleTop,
-                gap,
-                keySignaturePreferFlats,
-              )
-            : _midiToBassY(
-                midi.toDouble(),
-                bassTop,
-                gap,
-                keySignaturePreferFlats,
-              );
+            ? _midiToTrebleY(midi.toDouble(), trebleTop, gap, notePreferFlat)
+            : _midiToBassY(midi.toDouble(), bassTop, gap, notePreferFlat);
         final placedCols = midi >= 60 ? placedTrebleCols : placedBassCols;
         var col = 0;
         while (true) {
@@ -387,6 +381,7 @@ class _MiniStaffPainter extends CustomPainter {
           gap: gap,
           treble: midi >= 60,
           color: noteOutline.color,
+          preferFlat: notePreferFlat,
         );
         if (fillColor != null) {
           canvas.drawOval(oval, Paint()..color = fillColor);
@@ -396,6 +391,7 @@ class _MiniStaffPainter extends CustomPainter {
           midi,
           keySignatureCount: keySignatureCount,
           keySignaturePreferFlats: keySignaturePreferFlats,
+          notePreferFlat: notePreferFlat,
         );
         if (accSym != null) {
           final accStyle = TextStyle(
@@ -513,13 +509,15 @@ class _MiniStaffPainter extends CustomPainter {
     int midi, {
     required int keySignatureCount,
     required bool keySignaturePreferFlats,
+    bool? notePreferFlat,
   }) {
     final pc = ((midi % 12) + 12) % 12;
     const naturalPcs = <int>{0, 2, 4, 5, 7, 9, 11};
     if (naturalPcs.contains(pc)) return null;
     const sharpPcOrder = <int>[6, 1, 8, 3, 10]; // F# C# G# D# A#
     const flatPcOrder = <int>[10, 3, 8, 1, 6]; // Bb Eb Ab Db Gb
-    if (keySignaturePreferFlats) {
+    final preferFlat = notePreferFlat ?? keySignaturePreferFlats;
+    if (preferFlat) {
       final covered = flatPcOrder.take(keySignatureCount).toSet();
       if (covered.contains(pc)) return null;
       return '♭';
@@ -537,8 +535,9 @@ class _MiniStaffPainter extends CustomPainter {
     required double gap,
     required bool treble,
     required Color color,
+    bool preferFlat = false,
   }) {
-    final d = _midiToDiatonic(midi).round();
+    final d = _midiToDiatonic(midi, preferFlat).round();
     final bottomLineD = treble ? 30 : 18;
     final topLineD = bottomLineD + 8;
     if (d >= bottomLineD && d <= topLineD) return;
@@ -1091,6 +1090,7 @@ class _MiniStaffPainter extends CustomPainter {
     if (oldDelegate.keySignaturePreferFlats != keySignaturePreferFlats) {
       return true;
     }
+    if (!mapEquals(oldDelegate.notePreferFlats, notePreferFlats)) return true;
     if (oldDelegate.activeKeySignatureIndex != activeKeySignatureIndex) {
       return true;
     }

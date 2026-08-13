@@ -182,6 +182,13 @@ Flujo resumido (detalles completos en `README.md` → *Publicar en iOS App Store
 
 Bundle ID: `com.FPAlanTuring.FreeMIDIChords` · Team ID: `977G5A733H`
 
+### Capturas para App Store Connect
+
+- Antes de entregar o subir capturas de escritorio, verificar sus dimensiones reales.
+- Apple solo admite estas resoluciones para este conjunto: `1280 × 800`, `1440 × 900`, `2560 × 1600` o `2880 × 1800` píxeles.
+- No basta con conservar la proporción: el ancho y el alto deben coincidir exactamente con una resolución admitida.
+- Si hay que adaptar una captura, recortarla centrada a proporción `16:10` y redimensionarla después, evitando deformar la interfaz.
+
 ## Otros documentos
 
 - **CONTRIBUTING.md**: ramas, estilo, cómo hacer PRs.

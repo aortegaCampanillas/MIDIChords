@@ -167,6 +167,10 @@ class IntervalMixin:
         """Play a sequence of notes with timing from melody info."""
         if index >= len(notes):
             self.interval_melody_playing = False
+            self.interval_playing_note = None
+            self.interval_playing_idx = None
+            self.interval_melody_playback_timer = None
+            self.update_music_views()
             return
 
         note = notes[index]

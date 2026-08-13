@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -14,6 +15,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'circle_of_fifths.dart';
+import 'changelog_filter.dart';
+import 'chord_staff_spelling.dart';
 import 'app_preferences.dart';
 import 'audio_player_port.dart';
 import 'chord_variant_help.dart';
@@ -978,7 +981,11 @@ class _HomeScreenState extends State<HomeScreen>
               .map((v) {
                 final publishedItems = (v['items'] as List<dynamic>? ?? [])
                     .cast<Map<String, dynamic>>()
-                    .where((it) => it['publish'] == true)
+                    .where(
+                      (it) =>
+                          it['publish'] == true &&
+                          changelogItemTargetsMobile(it),
+                    )
                     .map(
                       (it) =>
                           (_language == 'en' ? it['en'] : it['es'])
@@ -4336,6 +4343,7 @@ class _HomeScreenState extends State<HomeScreen>
     Key? accidentalKeyPrefix,
     String? letterHelpId,
     String? accidentalHelpId,
+    double helpAnchorHeight = 56,
   }) {
     int letterPc;
     String accidental;
@@ -4349,8 +4357,11 @@ class _HomeScreenState extends State<HomeScreen>
     final safeAccidental = accidentals.contains(accidental)
         ? accidental
         : 'natural';
-    Widget withHelp(String? helpId, Widget child) =>
-        helpId == null ? child : _helpFixedHeightAnchor(helpId, child);
+    Widget withHelp(String? helpId, Widget child) => helpId == null
+        ? child
+        : helpAnchorHeight == 56
+        ? _helpFixedHeightAnchor(helpId, child)
+        : _helpFixedHeightAnchor(helpId, child, height: helpAnchorHeight);
 
     return Row(
       children: <Widget>[
@@ -4361,9 +4372,17 @@ class _HomeScreenState extends State<HomeScreen>
             DropdownButtonFormField<int>(
               key: letterKey ?? ValueKey<int>(letterPc),
               initialValue: letterPc,
+              isExpanded: true,
               dropdownColor: _surfaceDark,
               style: const TextStyle(color: _text),
-              decoration: InputDecoration(labelText: _ui('Tónica', 'Tonic')),
+              decoration: InputDecoration(
+                labelText: _ui('Tónica', 'Tonic'),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+              ),
               items: _kRootLetterPcs
                   .map(
                     (pc) => DropdownMenuItem<int>(
@@ -4397,9 +4416,17 @@ class _HomeScreenState extends State<HomeScreen>
                   accidentalKeyPrefix ??
                   ValueKey<String>('acc-$letterPc-$safeAccidental'),
               initialValue: safeAccidental,
+              isExpanded: true,
               dropdownColor: _surfaceDark,
               style: const TextStyle(color: _text),
-              decoration: const InputDecoration(labelText: ''),
+              decoration: const InputDecoration(
+                labelText: '',
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+              ),
               items: accidentals
                   .map(
                     (a) => DropdownMenuItem<String>(
@@ -5020,10 +5047,13 @@ class _HomeScreenState extends State<HomeScreen>
                         setState(() {
                           _tabIndex = value;
                           _setHelpMode(false);
-                          if (value == 0 || value == 8) {
+                          if (value == 0 ||
+                              value == 5 ||
+                              value == 7 ||
+                              value == 8 ||
+                              value == 9) {
                             _instrumentView = 'piano';
                           }
-                          if (value == 9) _instrumentView = 'piano';
                           _requestPianoScrollForMode(value);
                         });
                         if (value != 3) {
@@ -5434,6 +5464,14 @@ class _HomeScreenState extends State<HomeScreen>
             'notes_midi',
           ]).map((n) => n - 12).where((n) => n >= 0).toList()
         : const <int>[];
+    final chordForStaff = _tabIndex == 0
+        ? _detectionResultJson
+        : ((_tabIndex == 1 || _tabIndex == 2) ? _generatedChordJson : null);
+    final notePreferFlats = chordStaffNotePreferFlats(
+      chord: chordForStaff,
+      displayToSourceNote: displayToSourceNote,
+      additionalDisplayNotes: displayGenerationLhNotes,
+    );
     final bool generationPlaybackActive =
         (_tabIndex == 1 || _tabIndex == 2) &&
         (_generationPlayPressed ||
@@ -5683,6 +5721,7 @@ class _HomeScreenState extends State<HomeScreen>
                           notes: displayNotes,
                           keySignatureCount: staffKeySig.count,
                           preferFlats: staffKeySig.preferFlats,
+                          notePreferFlats: notePreferFlats,
                           intervalSequenceMode:
                               _tabIndex == 5 ||
                               _tabIndex == 7 ||
@@ -5720,6 +5759,7 @@ class _HomeScreenState extends State<HomeScreen>
                               _tabIndex == 3 && _instrumentView == 'guitar',
                           keySignatureCount: staffKeySig.count,
                           keySignaturePreferFlats: staffKeySig.preferFlats,
+                          notePreferFlats: notePreferFlats,
                           activeKeySignatureIndex: activeKeySigIndex,
                           intervalMelodyMode: imelMode,
                           intervalMelodyNotes: imelNotes,
@@ -6028,7 +6068,7 @@ class _HomeScreenState extends State<HomeScreen>
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
     final metronomeFixedPiano =
-        _tabIndex == 4 || _tabIndex == 8 || _tabIndex == 9;
+        _tabIndex == 4 || _tabIndex == 5 || _tabIndex == 8 || _tabIndex == 9;
     final showRightControls =
         _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3 || _tabIndex == 7;
     final displayInstrumentView = metronomeFixedPiano
@@ -6070,10 +6110,12 @@ class _HomeScreenState extends State<HomeScreen>
     };
     final panelHeight = switch (_tabIndex) {
       4 => portrait ? 152.0 : 168.0,
+      7 => compactPhone ? 220.0 : (_instrumentView == 'guitar' ? 188.0 : 148.0),
       9 => compactPhone ? 168.0 : 156.0,
       3 when _scaleMetronomeOnly =>
         compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
-      1 || 2 || 3 =>
+      3 => compactPhone ? (portrait ? 204.0 : 232.0) : 188.0,
+      1 || 2 =>
         compactPhone ? (portrait ? 204.0 : 232.0) : (portrait ? 188.0 : 220.0),
       _ => 220.0,
     };
@@ -8130,11 +8172,21 @@ class _HomeScreenState extends State<HomeScreen>
         offsets: [0, 0],
         durations: ['q', 'q'],
       );
-      _playMelodySequence(ordered, dummyMelody, 0);
+      _playMelodySequence(
+        ordered,
+        dummyMelody,
+        0,
+        displayIndices: reversed ? const <int>[1, 0] : null,
+      );
     }
   }
 
-  void _playMelodySequence(List<int?> notes, IntervalMelody melody, int index) {
+  void _playMelodySequence(
+    List<int?> notes,
+    IntervalMelody melody,
+    int index, {
+    List<int>? displayIndices,
+  }) {
     if (index >= notes.length) {
       setState(() {
         _intervalPlayingIdx = null;
@@ -8146,7 +8198,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (note != null) {
       unawaited(playNote(note, instrument: _instrumentView));
       setState(() {
-        _intervalPlayingIdx = index;
+        _intervalPlayingIdx = displayIndices?[index] ?? index;
       });
     }
 
@@ -8157,7 +8209,12 @@ class _HomeScreenState extends State<HomeScreen>
     _intervalMelodyPlaybackTimer = Timer(
       Duration(milliseconds: durationMs),
       () {
-        _playMelodySequence(notes, melody, index + 1);
+        _playMelodySequence(
+          notes,
+          melody,
+          index + 1,
+          displayIndices: displayIndices,
+        );
       },
     );
   }

@@ -276,6 +276,7 @@ def test_playing_interval_highlights_the_key_not_its_note_badge() -> None:
     assert "display_active_notes = (" in desktop
     assert "{int(current_interval_note)}" in desktop
     assert 'getattr(self, "interval_playing_note", None)' in desktop
+    assert 'note == getattr(self, "interval_playing_note", None)' in desktop
     assert 'circle_fill = "#32d74b" if note == interval_root_note else "#f6b60b"' in desktop
     assert 'midi === intervalCurrentMidi ? "current" : ""' not in web
     assert 'key.classList.add("active")' in web
@@ -283,3 +284,14 @@ def test_playing_interval_highlights_the_key_not_its_note_badge() -> None:
     assert "color: isIntervalCurrent" in mobile
     assert "_tabIndex == 5 || _tabIndex == 7" in mobile
     assert "active: midi == intervalCurrentMidi" not in mobile
+
+
+def test_desktop_staff_uses_each_chord_notes_diatonic_spelling() -> None:
+    desktop = (
+        PROJECT_ROOT / "midichords" / "mixins" / "render_mixin.py"
+    ).read_text(encoding="utf-8")
+
+    assert "staff_chord_name_map = generation_name_map or detection_name_map" in desktop
+    assert "def _note_prefers_flat_spelling(note: int)" in desktop
+    assert 'if "♭" in str(label)' in desktop
+    assert "self._diatonic_index(note, note_prefers_flat)" in desktop

@@ -1261,14 +1261,16 @@ a.btn-link:hover {
   border-color: #ffd060;
 }
 
-.scale-fingering-row {
+.scale-fingering-row,
+.generation-hand-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 6px 0 2px;
 }
 
-.scale-fingering-row .label {
+.scale-fingering-row .label,
+.generation-hand-row .label {
   padding-top: 2px;
   white-space: nowrap;
 }
@@ -1295,7 +1297,8 @@ a.btn-link:hover {
   cursor: pointer;
 }
 
-.scale-fingering-row.disabled .scale-fingering-opts label {
+.scale-fingering-row.disabled .scale-fingering-opts label,
+.generation-hand-row.disabled .scale-fingering-opts label {
   opacity: 0.38;
   pointer-events: none;
 }

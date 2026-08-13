@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Distribución iOS**: actualizado el requisito mínimo a iOS 15 para cumplir las nuevas condiciones de App Store Connect.
 - **Audio**: aumentado el nivel general del escritorio manteniendo margen seguro para acordes.
 - **Práctica de intervalos**: el resaltado de la primera nota ya no puede desaparecer por temporizadores pendientes al cambiar de modo o avanzar rápidamente.
 - **Presentación**: renovadas las capturas bilingües de la portada y corregidos varios ajustes visuales del escritorio.

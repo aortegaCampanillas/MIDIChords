@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Presentación**: renovadas las capturas bilingües de la portada y corregidos varios ajustes visuales del escritorio.
 - **Web / escritorio (práctica de intervalos)**: nuevo modo de entrenamiento auditivo con respuestas desde piano, MIDI o tabla, configuración del ejercicio, corrección visual, puntuación y revisión de resultados.
 - **PianoPilot (landing)**: sincronizados la versión pública y el historial bilingüe con la versión 1.0.4 del proyecto fuente, incluida la corrección de conexión MIDI en Windows.
 - **Web (landing)**: la portada muestra la insignia oficial de nominación de FreeMIDIChords a los Open Education Awards for Excellence 2026, con contexto bilingüe y enlace a la credencial verificable.

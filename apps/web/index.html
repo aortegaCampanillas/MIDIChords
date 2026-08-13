@@ -224,13 +224,19 @@
     }
     .feat-detail-title { font-size: 1.1rem; font-weight: 700; }
     .feat-detail-body { font-size: .9rem; color: var(--muted); line-height: 1.75; }
+    .feat-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
     .feat-detail-cta {
-      display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+      display: inline-flex; align-items: center; gap: 6px;
       background: var(--accent); color: #fff; border-radius: 8px;
       padding: 9px 20px; font-size: .875rem; font-weight: 600;
-      text-decoration: none; transition: background .2s; align-self: flex-start;
+      text-decoration: none; transition: background .2s; border: 0;
+      cursor: pointer; font-family: inherit;
     }
     .feat-detail-cta:hover { background: var(--accent2); }
+    .feat-detail-image {
+      background: transparent; color: var(--text); border: 1px solid var(--border);
+    }
+    .feat-detail-image:hover { background: rgba(91,141,238,.08); border-color: var(--accent); }
 
     /* ── SECTION ── */
     .section { padding: 80px 24px; max-width: 1140px; margin: 0 auto; }
@@ -488,8 +494,10 @@
 
 <!-- FEATURES STRIP -->
 <div class="features-strip" id="featStrip">
+  <button class="feat-pill" data-feat="notes" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('notes')"><span>🎶</span> <span data-i18n="pill_notes">Note detection</span></button>
   <button class="feat-pill" data-feat="chords" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('chords')"><span>🎹</span> <span data-i18n="pill_chords">Chord detection</span></button>
   <button class="feat-pill" data-feat="intervals" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('intervals')"><span>🎵</span> <span data-i18n="pill_intervals">Interval detection</span></button>
+  <button class="feat-pill" data-feat="interval_practice" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('interval_practice')"><span>👂</span> <span data-i18n="pill_interval_practice">Interval practice</span></button>
   <button class="feat-pill" data-feat="generation" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('generation')"><span>🎹🎸</span> <span data-i18n="pill_generation">Chord generation</span></button>
   <button class="feat-pill" data-feat="circle" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
   <button class="feat-pill" data-feat="scales" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
@@ -507,7 +515,10 @@
       <div class="feat-detail-title" id="featDetailTitle"></div>
     </div>
     <div class="feat-detail-body" id="featDetailBody"></div>
-    <a class="feat-detail-cta" href="/app" id="featDetailCta" data-i18n="feat_cta">Try it now →</a>
+    <div class="feat-detail-actions">
+      <button class="feat-detail-cta feat-detail-image" type="button" id="featDetailImage" onclick="showActiveFeatureImage()" data-i18n="feat_view_image">View image</button>
+      <a class="feat-detail-cta" href="/app" id="featDetailCta" data-i18n="feat_cta">Try it now →</a>
+    </div>
   </div>
 </div>
 
@@ -578,33 +589,45 @@
     <span class="section-label" data-i18n="ss_label">Screenshots</span>
     <h2 class="section-title" data-i18n="ss_title">See it in action</h2>
     <div class="screenshots-grid">
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/detection.webp')">
-        <img src="/static/screenshots/detection.webp" width="1400" height="1050" alt="Chord detection" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="notes" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/note-detection.webp" width="1400" height="1050" alt="Note detection" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap8">Note Detection</div>
+      </button>
+      <button type="button" class="screenshot-item" data-screenshot-key="chords" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/chord-detection.webp" width="1400" height="1050" alt="Chord detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap1">Chord Detection</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/interval-detection.webp')">
-        <img src="/static/screenshots/interval-detection.webp" width="1400" height="1050" alt="Interval detection" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="intervals" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/interval-detection.webp" width="1400" height="1050" alt="Interval detection" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap6">Interval Detection</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/generation.webp')">
-        <img src="/static/screenshots/generation.webp" width="1400" height="1050" alt="Chord generation" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="generation" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/chord-generation-piano.webp" width="1400" height="1050" alt="Chord generation" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap2">Chord Generation</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/guitar.webp')">
-        <img src="/static/screenshots/guitar.webp" width="1400" height="1050" alt="Guitar chords" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="guitar" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/chord-generation-guitar.webp" width="1400" height="1050" alt="Guitar chords" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap3">Guitar Chords</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/scales.webp')">
-        <img src="/static/screenshots/scales.webp" width="1400" height="1050" alt="Scales" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="interval_generation" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/interval-generation.webp" width="1400" height="1050" alt="Interval generation" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap10">Interval Generation</div>
+      </button>
+      <button type="button" class="screenshot-item" data-screenshot-key="scales" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/scales.webp" width="1400" height="1050" alt="Scales" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap4">Scales</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/circle-of-fifths.webp')">
-        <img src="/static/screenshots/circle-of-fifths.webp" width="1400" height="1050" alt="Interactive circle of fifths" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="circle" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/circle-of-fifths.webp" width="1400" height="1050" alt="Interactive circle of fifths" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap5">Circle of Fifths</div>
       </button>
-      <button type="button" class="screenshot-item" onclick="openLightbox('/static/screenshots/metronome.webp')">
-        <img src="/static/screenshots/metronome.webp" width="1400" height="1050" alt="Metronome" loading="lazy" />
+      <button type="button" class="screenshot-item" data-screenshot-key="metro" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/metronome.webp" width="1400" height="1050" alt="Metronome" loading="lazy" />
         <div class="screenshot-cap" data-i18n="ss_cap7">Metronome</div>
+      </button>
+      <button type="button" class="screenshot-item" data-screenshot-key="interval_practice" onclick="openGalleryScreenshot(this)">
+        <img src="/static/screenshots/en/interval-practice.webp" width="1400" height="1050" alt="Interval practice" loading="lazy" />
+        <div class="screenshot-cap" data-i18n="ss_cap9">Interval Practice</div>
       </button>
     </div>
   </div>
@@ -693,7 +716,7 @@ const TRANSLATIONS = {
     nav_cta:            "Open web app",
     hero_eyebrow:       "Chords, scales \u0026 harmony",
     hero_h1:            "Understand what you play.<br><em>See it, hear it, learn it.</em>",
-    hero_p:             "Play on the interactive piano or guitar \u2014 or connect a MIDI keyboard \u2014 to identify chords and intervals, explore scales, and understand harmony visually.",
+    hero_p:             "Play on the interactive piano or guitar \u2014 or connect a MIDI keyboard \u2014 to identify notes, chords, and intervals, practise your ear, explore scales, and understand harmony visually.",
     hero_explore:       "See how it works",
     hero_note:          "Free, no account, no installation, and no ads.",
     award_kicker:       "International recognition",
@@ -705,8 +728,10 @@ const TRANSLATIONS = {
     audience_teachers:  "teachers",
     audience_keyboard:  "piano \u0026 MIDI players",
     audience_guitar:    "guitarists",
+    pill_notes:         "Note detection",
     pill_chords:        "Chord detection",
     pill_intervals:     "Interval detection",
+    pill_interval_practice: "Interval practice",
     pill_generation:    "Chord generation",
     pill_circle:        "Circle of fifths",
     pill_scales:        "Scales",
@@ -717,10 +742,15 @@ const TRANSLATIONS = {
     feat_free_body:     "FreeMIDIChords is a non-profit project with no ads and no paid plans. It will always be free. We only ask for optional donations to cover what running it actually costs: web hosting and the annual fees to publish on the App Store and Google Play.",
     feat_free_donate:   "Donate →",
     feat_cta:           "Try it now →",
+    feat_view_image:    "View image",
+    feat_notes_title:   "Note Detection",
+    feat_notes_body:    "Play a note on the interactive piano or a connected MIDI keyboard and identify it instantly on the piano and staff. A clear starting point for learning note names, pitch, and notation.",
     feat_chords_title:  "Chord Detection",
     feat_chords_body:   "Play notes on the interactive piano or guitar — or connect a MIDI keyboard — and FreeMIDIChords identifies the chord in real time. Supports complex voicings, inversions, and extended chords (7th, 9th, suspended, diminished…). Hold notes with Shift to build chords step by step.",
     feat_intervals_title: "Interval Detection",
     feat_intervals_body:  "Play two notes and instantly see the interval name, its quality (major, minor, perfect…), and how many semitones apart they are. Great for ear-training and understanding harmonic relationships.",
+    feat_interval_practice_title: "Interval Practice",
+    feat_interval_practice_body:  "Train your ear with configurable interval exercises. Listen melodically or harmonically, answer from the piano, MIDI keyboard, or interval table, filter the possible target notes, and review every correct answer and mistake at the end.",
     feat_generation_title: "Chord Generation",
     feat_generation_body:  "Choose any root, quality, and voicing and FreeMIDIChords generates the full chord on piano and guitar. See fingering suggestions, switch between left and right hand, browse guitar position variations, and hear it played back with real instrument samples.",
     feat_circle_title:  "Circle of Fifths",
@@ -733,7 +763,7 @@ const TRANSLATIONS = {
     feat_midi_body:     "Connect any USB or Bluetooth MIDI keyboard and use it directly in the app. Notes you play are detected in real time and reflected on the piano, guitar, and staff — no drivers needed in modern browsers.",
     products_title:     "Use it wherever you practise",
     card_web_title:     "Web App",
-    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.",
+    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect notes, chords, and intervals, practise intervals, generate piano and guitar chords, explore scales and the circle of fifths, and use the metronome. MIDI keyboard optional.",
     card_open:          "Open \u2192",
     card_mobile_title:  "Mobile App",
     card_mobile_desc:   "Take FreeMIDIChords anywhere. Same chord tools and circle of fifths, optimized for touch on iPhone, iPad and Android.",
@@ -753,6 +783,9 @@ const TRANSLATIONS = {
     ss_cap5:  "Circle of Fifths",
     ss_cap6:  "Interval Detection",
     ss_cap7:  "Metronome",
+    ss_cap8:  "Note Detection",
+    ss_cap9:  "Interval Practice",
+    ss_cap10: "Interval Generation",
     sup_donate_title:   "Support the project",
     sup_donate_text:    "This project is designed to stay free and ad-free forever. Your support helps cover development, maintenance, infrastructure, and support time.",
     sup_donate_btn:     "Donate",
@@ -776,7 +809,7 @@ const TRANSLATIONS = {
     nav_cta:            "Abrir app web",
     hero_eyebrow:       "Acordes, escalas y armon\u00eda",
     hero_h1:            "Comprende lo que tocas.<br><em>Visualiza, escucha y aprende.</em>",
-    hero_p:             "Toca en el piano o la guitarra interactivos, o conecta un teclado MIDI, para identificar acordes e intervalos, explorar escalas y comprender la armon\u00eda visualmente.",
+    hero_p:             "Toca en el piano o la guitarra interactivos, o conecta un teclado MIDI, para identificar notas, acordes e intervalos, practicar el o\u00eddo, explorar escalas y comprender la armon\u00eda visualmente.",
     hero_explore:       "Ver c\u00f3mo funciona",
     hero_note:          "Gratis, sin cuenta, sin instalaci\u00f3n y sin anuncios.",
     award_kicker:       "Reconocimiento internacional",
@@ -788,8 +821,10 @@ const TRANSLATIONS = {
     audience_teachers:  "docentes",
     audience_keyboard:  "pianistas y usuarios MIDI",
     audience_guitar:    "guitarristas",
+    pill_notes:         "Detecci\u00f3n de notas",
     pill_chords:        "Detecci\u00f3n de acordes",
     pill_intervals:     "Detecci\u00f3n de intervalos",
+    pill_interval_practice: "Pr\u00e1ctica de intervalos",
     pill_generation:    "Generaci\u00f3n de acordes",
     pill_circle:        "C\u00edrculo de quintas",
     pill_scales:        "Escalas",
@@ -800,10 +835,15 @@ const TRANSLATIONS = {
     feat_free_body:     "FreeMIDIChords es un proyecto sin \u00e1nimo de lucro, sin publicidad y sin planes de pago. Siempre ser\u00e1 gratuito. Solo pedimos donaciones voluntarias para cubrir lo que realmente cuesta mantenerlo: el hospedaje web y las cuotas anuales de publicaci\u00f3n en el App Store y Google Play.",
     feat_free_donate:   "Donar \u2192",
     feat_cta:           "Probarlo ahora \u2192",
+    feat_view_image:    "Ver imagen",
+    feat_notes_title:   "Detecci\u00f3n de notas",
+    feat_notes_body:    "Toca una nota en el piano interactivo o en un teclado MIDI conectado e identif\u00edcala al instante en el piano y el pentagrama. Un punto de partida claro para aprender nombres de notas, alturas y notaci\u00f3n.",
     feat_chords_title:  "Detecci\u00f3n de acordes",
     feat_chords_body:   "Toca notas en el piano o la guitarra interactivos \u2014 o conecta un teclado MIDI \u2014 y FreeMIDIChords identifica el acorde en tiempo real. Soporta voicings complejos, inversiones y acordes extendidos (7\u00aa, 9\u00aa, suspendidos, disminuidos\u2026). Mant\u00e9n notas con Shift para construir el acorde paso a paso.",
     feat_intervals_title: "Detecci\u00f3n de intervalos",
     feat_intervals_body:  "Toca dos notas y ve al instante el nombre del intervalo, su calidad (mayor, menor, justo\u2026) y cu\u00e1ntos semitonos los separan. Perfecto para el entrenamiento auditivo y para entender relaciones arm\u00f3nicas.",
+    feat_interval_practice_title: "Pr\u00e1ctica de intervalos",
+    feat_interval_practice_body:  "Entrena el o\u00eddo con ejercicios de intervalos configurables. Escucha en modo mel\u00f3dico o arm\u00f3nico, responde desde el piano, un teclado MIDI o la tabla de intervalos, filtra las notas posibles y revisa al final cada acierto y cada error.",
     feat_generation_title: "Generaci\u00f3n de acordes",
     feat_generation_body:  "Elige ra\u00edz, calidad y voicing y FreeMIDIChords genera el acorde completo en piano y guitarra. Consulta sugerencias de digitaci\u00f3n, cambia entre mano izquierda y derecha, explora variaciones de posici\u00f3n en guitarra y esc\u00facha el acorde con muestras reales de instrumentos.",
     feat_circle_title:  "C\u00edrculo de quintas",
@@ -816,7 +856,7 @@ const TRANSLATIONS = {
     feat_midi_body:     "Conecta cualquier teclado MIDI por USB o Bluetooth y \u00fasalo directamente en la app. Las notas que toques se detectan en tiempo real y se reflejan en el piano, la guitarra y el pentagrama \u2014 sin instalar controladores en navegadores modernos.",
     products_title:     "\u00dasalo donde practiques",
     card_web_title:     "App Web",
-    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta acordes e intervalos, genera acordes de piano y guitarra, c\u00edrculo de quintas interactivo, escalas y metr\u00f3nomo. Teclado MIDI opcional.",
+    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta notas, acordes e intervalos, practica intervalos, genera acordes de piano y guitarra, explora escalas y el c\u00edrculo de quintas, y utiliza el metr\u00f3nomo. Teclado MIDI opcional.",
     card_open:          "Abrir \u2192",
     card_mobile_title:  "App M\u00f3vil",
     card_mobile_desc:   "Lleva FreeMIDIChords a todas partes. Las mismas herramientas de acordes y el c\u00edrculo de quintas, optimizadas para pantalla t\u00e1ctil en iPhone, iPad y Android.",
@@ -836,6 +876,9 @@ const TRANSLATIONS = {
     ss_cap5:  "C\u00edrculo de quintas",
     ss_cap6:  "Detecci\u00f3n de intervalos",
     ss_cap7:  "Metr\u00f3nomo",
+    ss_cap8:  "Detecci\u00f3n de notas",
+    ss_cap9:  "Pr\u00e1ctica de intervalos",
+    ss_cap10: "Generaci\u00f3n de intervalos",
     sup_donate_title:   "Apoya el proyecto",
     sup_donate_text:    "Este proyecto est\u00e1 pensado para mantenerse siempre gratis y sin publicidad. Tu ayuda permite cubrir costes de desarrollo, mantenimiento, infraestructura y soporte.",
     sup_donate_btn:     "Donar",
@@ -859,6 +902,9 @@ function toggleFeatContent(lang, id) {
   const t = TRANSLATIONS[lang];
   document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
   document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
+  const imageButton = document.getElementById("featDetailImage");
+  imageButton.textContent = t.feat_view_image || "View image";
+  imageButton.style.display = FEAT_SCREENSHOT_KEYS[id] ? "" : "none";
   const cta = document.getElementById("featDetailCta");
   if (id === "free") {
     cta.textContent = t["feat_free_donate"] || "Donate →";
@@ -871,8 +917,10 @@ function toggleFeatContent(lang, id) {
 
 // ── FEATURE DETAIL TOGGLE ──
 const FEAT_ICONS = {
+  notes:      "🎶",
   chords:     "🎹",
   intervals:  "🎵",
+  interval_practice: "👂",
   generation: "🎹🎸",
   circle:     "⭕",
   scales:     "🎼",
@@ -880,6 +928,69 @@ const FEAT_ICONS = {
   midi:       "🎛️",
   free:       "🆓",
 };
+
+const SCREENSHOTS = {
+  en: {
+    notes: "note-detection.webp",
+    chords: "chord-detection.webp",
+    intervals: "interval-detection.webp",
+    interval_practice: "interval-practice.webp",
+    interval_generation: "interval-generation.webp",
+    generation: "chord-generation-piano.webp",
+    guitar: "chord-generation-guitar.webp",
+    circle: "circle-of-fifths.webp",
+    scales: "scales.webp",
+    metro: "metronome.webp",
+  },
+  es: {
+    notes: "deteccion-notas.webp",
+    chords: "deteccion-acordes.webp",
+    intervals: "deteccion-intervalos.webp",
+    interval_practice: "practicar-intervalos.webp",
+    interval_generation: "generacion-intervalos.webp",
+    generation: "generacion-acordes-piano.webp",
+    guitar: "generacion-acordes-guitarra.webp",
+    circle: "circulo-quintas.webp",
+    scales: "escalas.webp",
+    metro: "metronomo.webp",
+  },
+};
+
+const FEAT_SCREENSHOT_KEYS = {
+  notes: "notes",
+  chords: "chords",
+  intervals: "intervals",
+  interval_practice: "interval_practice",
+  generation: "generation",
+  circle: "circle",
+  scales: "scales",
+  metro: "metro",
+};
+
+function screenshotSource(language, key) {
+  const lang = language === "es" ? "es" : "en";
+  const filename = SCREENSHOTS[lang][key];
+  return filename ? `/static/screenshots/${lang}/${filename}` : "";
+}
+
+function updateScreenshotGallery(language) {
+  document.querySelectorAll("[data-screenshot-key]").forEach((item) => {
+    const src = screenshotSource(language, item.dataset.screenshotKey);
+    const image = item.querySelector("img");
+    if (image && src) image.src = src;
+  });
+}
+
+function openGalleryScreenshot(item) {
+  const src = screenshotSource(detectLang(), item.dataset.screenshotKey);
+  if (src) openLightbox(src);
+}
+
+function showActiveFeatureImage() {
+  const key = FEAT_SCREENSHOT_KEYS[activeFeat];
+  const src = key ? screenshotSource(detectLang(), key) : "";
+  if (src) openLightbox(src);
+}
 
 let activeFeat = null;
 
@@ -904,6 +1015,9 @@ function toggleFeat(id) {
   document.getElementById("featDetailIcon").textContent  = FEAT_ICONS[id] || "";
   document.getElementById("featDetailTitle").textContent = t["feat_" + id + "_title"] || "";
   document.getElementById("featDetailBody").textContent  = t["feat_" + id + "_body"]  || "";
+  const imageButton = document.getElementById("featDetailImage");
+  imageButton.textContent = t.feat_view_image || "View image";
+  imageButton.style.display = FEAT_SCREENSHOT_KEYS[id] ? "" : "none";
   const cta = document.getElementById("featDetailCta");
   if (id === "free") {
     cta.textContent = t["feat_free_donate"] || "Donate →";
@@ -955,6 +1069,7 @@ MidiChordsLanding.init({
     },
   },
   onLanguageChanged: (language) => {
+    updateScreenshotGallery(language);
     if (activeFeat) toggleFeatContent(language, activeFeat);
   },
 });

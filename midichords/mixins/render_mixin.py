@@ -2075,7 +2075,16 @@ class RenderMixin:
                     _mi = _ord_to_mel.get(note_idx, note_idx)
                     x = _mel_x_map[_mi]
                 elif getattr(self, "interval_gen_tab_active", False):
-                    x = chord_x + (note_idx * note_rx * 3.2)
+                    # En la corrección de práctica pueden aparecer dos notas
+                    # cromáticas contiguas (p. ej. La y La#). Necesitan más
+                    # separación para que la alteración de la nota errónea no
+                    # invada ninguna de las dos cabezas.
+                    practice_correction = bool(
+                        getattr(self, "interval_practice_tab_active", False)
+                        and getattr(self, "interval_practice_answer", None)
+                    )
+                    note_spacing = 4.6 if practice_correction else 3.2
+                    x = chord_x + (note_idx * note_rx * note_spacing)
                 else:
                     while any(abs(y - prev_y) < overlap_threshold for prev_y in placed_cols.get(col, [])):
                         col += 1

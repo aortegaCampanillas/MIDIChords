@@ -311,7 +311,7 @@ class IntervalMixin:
         self.interval_result_canvas = tk.Canvas(
             self.interval_panel,
             bg=bg,
-            height=130,
+            height=112,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
@@ -330,7 +330,7 @@ class IntervalMixin:
 
         def _redraw_interval_result_block(_event: Optional[tk.Event] = None) -> None:
             w = max(40, int(self.interval_result_canvas.winfo_width()))
-            h = max(130, int(self.interval_result_canvas.winfo_height()))
+            h = max(112, int(self.interval_result_canvas.winfo_height()))
             self.interval_result_canvas.delete("interval_block_bg")
             radius = 15
             self.interval_result_canvas.create_rectangle(
@@ -387,7 +387,6 @@ class IntervalMixin:
 
         self.interval_notes_row, self.interval_notes_display = _result_row('label_interval_notes')
         self.interval_name_row, self.interval_name_display = _result_row('label_interval_name', self.color_accent)
-        self.interval_alt_row, self.interval_alt_display = _result_row('label_interval_alt')
         self.interval_semitones_row, self.interval_semitones_display = _result_row('label_interval_semitones')
 
         # Ejemplo row: label + clickable button value
@@ -480,13 +479,12 @@ class IntervalMixin:
             alt_names = self.get_interval_alt_names()
             semitones = self.get_interval_semitones()
             melody_name = self.get_interval_melody_name()
-            self.interval_name_display.configure(text=name)
-            self.interval_alt_display.configure(text=alt_names)
+            combined_name = name if alt_names == "-" else f"{name}, {alt_names}"
+            self.interval_name_display.configure(text=combined_name)
             self.interval_semitones_display.configure(text=str(semitones) if semitones else "-")
             self.interval_melody_btn.set_text(melody_name)
         else:
             self.interval_name_display.configure(text="-")
-            self.interval_alt_display.configure(text="-")
             self.interval_semitones_display.configure(text="-")
             self.interval_melody_btn.set_text("-")
 

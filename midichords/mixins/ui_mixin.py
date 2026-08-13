@@ -482,8 +482,9 @@ class UiMixin:
         if combo is None or not hasattr(combo, "setFixedHeight"):
             return
         try:
-            # Web: min-width 86px; en escritorio alineamos al ancho de Piano/Guitarra (124).
-            combo.setMinimumWidth(124)
+            # El texto inglés "Right-handed" necesita más espacio que los
+            # botones Piano/Guitarra una vez reservada la zona de la flecha.
+            combo.setMinimumWidth(148)
         except Exception:
             pass
         try:
@@ -2522,6 +2523,10 @@ class UiMixin:
         self.detection_clear_btn.set_text(self.tr("button_clear"))
         self.note_detection_title_label.configure(text=self.tr("mode_note_detection"))
         self.note_detection_clear_btn.set_text(self.tr("button_clear"))
+        if self.note_detection_note is not None:
+            self.note_detection_var.set(
+                self.note_name(int(self.note_detection_note), with_octave=False)
+            )
         self._redraw_note_detection_result()
         note_toggle_key = (
             "button_hide_detection_details"
@@ -2792,8 +2797,10 @@ class UiMixin:
                 else:
                     variations_h = 0
 
-                # Margen extra para separación visual entre canvas y botones.
-                min_required = guitar_h + variations_h + 12
+                # Reserva la separación y el padding exterior completo del panel.
+                # Con la altura habitual de la ventana, 12 px dejaban el borde
+                # inferior de los botones de variantes parcialmente recortado.
+                min_required = guitar_h + variations_h + 20
 
                 # Forzamos reserva de altura para evitar recortes del `guitar_canvas`.
                 for target_name in ("instrument_canvas_holder", "instrument_body_row"):
@@ -3967,7 +3974,6 @@ class UiMixin:
                 # usar las filas (frame etiqueta+valor) en lugar del label de valor solo
                 "interval_notes_row:help_interval_notes",
                 "interval_name_row:help_interval_name",
-                "interval_alt_row:help_interval_alt",
                 "interval_semitones_row:help_interval_semitones",
                 "interval_ejemplo_row:help_interval_melody",
                 # Igual que en Detección: este modo siempre muestra el piano

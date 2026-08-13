@@ -81,6 +81,12 @@ def test_desktop_ui_exposes_stable_widget_and_mode_contract(monkeypatch) -> None
         assert window.scale_type_combo.parent().parent() is window.tab_scale_frame
         assert window.scale_inline_filter_btn.parent() is window.scale_type_combo.parent()
 
+        window.note_detection_note = 60
+        window.note_detection_var.set("C")
+        window.config_data["language"] = "es"
+        window.apply_ui_language()
+        assert window.note_detection_var.get() == "Do"
+
         assert window.detection_result_canvas.isHidden() is False
         QTest.mouseClick(
             window.detection_details_toggle_btn, Qt.MouseButton.LeftButton

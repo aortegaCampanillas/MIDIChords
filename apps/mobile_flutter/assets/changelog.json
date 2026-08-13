@@ -4,6 +4,13 @@
     "date": "2026-08-10",
     "items": [
       {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["web", "desktop"],
+        "es": "Capturas bilingües renovadas y varios ajustes visuales corregidos.",
+        "en": "Refreshed bilingual screenshots and several visual fixes."
+      },
+      {
         "date": "2026-08-12",
         "publish": true,
         "platforms": ["web", "desktop"],

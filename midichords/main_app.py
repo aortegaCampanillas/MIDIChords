@@ -672,7 +672,10 @@ class MidiChordAnalyzerApp(
             # dejar el subpanel de variaciones sin altura visible.
             self.guitar_canvas.pack(fill=tk.X, expand=False)
             if self.generation_tab_active:
-                self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 0))
+                # Mantener la fila completa dentro del panel inferior. Sin margen
+                # inferior, Qt coloca los botones sobre el borde de la ventana y
+                # recorta su parte baja en la altura habitual de escritorio.
+                self.guitar_variations_frame.pack(fill=tk.X, pady=(6, 8))
             else:
                 self.guitar_variations_frame.pack_forget()
         else:

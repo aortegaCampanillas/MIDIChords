@@ -219,6 +219,7 @@ class MidiChordAnalyzerApp(
         self.generation_root_accidental = "natural"
         self.generation_pattern_suffix = ""
         self.generation_inversion = 0
+        self.generation_hand = "both"
         self.circle_tonic_pc = 0
         self.circle_key_mode = "major"
         self.circle_chord_root_pc = 0

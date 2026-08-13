@@ -31,4 +31,71 @@ void main() {
     expect(scales, contains("'scales_pattern'"));
     expect(scales, contains('height: 48'));
   });
+
+  test('wide chord generation gives tonic enough room beside variant', () {
+    final source = File('lib/main_pages.dart').readAsStringSync();
+    final generationStart = source.indexOf(
+      'Widget _buildChordGenerationPage()',
+    );
+    final generationEnd = source.indexOf(
+      'Widget _buildCircleOfFifthsPage()',
+      generationStart,
+    );
+    final generation = source.substring(generationStart, generationEnd);
+
+    expect(
+      generation,
+      contains(
+        "flex: 4,\n                      child: _helpAnchor(\n                        'generation_tonic'",
+      ),
+    );
+    expect(
+      generation,
+      contains(
+        "flex: 5,\n                      child: _helpAnchor(\n                        'generation_variant'",
+      ),
+    );
+    expect(
+      'isExpanded: true'.allMatches(generation).length,
+      greaterThanOrEqualTo(4),
+    );
+    expect(
+      'overflow: TextOverflow.ellipsis'.allMatches(generation).length,
+      greaterThanOrEqualTo(4),
+    );
+  });
+
+  test('wide chord piano releases unused height for generation controls', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final panelHeight = source
+        .split('final panelHeight = switch (_tabIndex)')
+        .last
+        .split('final chordVariations =')
+        .first;
+
+    expect(panelHeight, contains("_instrumentView == 'guitar'"));
+    expect(panelHeight, contains(': 148.0'));
+    expect(
+      panelHeight,
+      contains("_instrumentView == 'guitar' ? 188.0 : 148.0"),
+    );
+  });
+
+  test('wide generation places inversion beside play and help', () {
+    final source = File('lib/main_pages.dart').readAsStringSync();
+    final generation = source
+        .split('if (!compactGenerationLayout) ...<Widget>[')
+        .last
+        .split("const SizedBox(height: 8),\n              if (compactPhone)")
+        .first;
+
+    final play = generation.indexOf("'generation_play_button'");
+    final help = generation.indexOf('_buildChordVariantTheoryButton()');
+    final inversion = generation.indexOf("'generation_inversion'");
+    final hand = generation.indexOf('_buildGenerationHandRow()');
+    expect(play, greaterThanOrEqualTo(0));
+    expect(help, greaterThan(play));
+    expect(inversion, greaterThan(help));
+    expect(hand, greaterThan(inversion));
+  });
 }

@@ -458,6 +458,17 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: 2,
         ),
         _HelpStep(
+          id: 'generation_hand',
+          titleEs: 'Mano',
+          titleEn: 'Hand',
+          bodyEs:
+              'Elige si el acorde se muestra y suena con la mano izquierda, la derecha o ambas.',
+          bodyEn:
+              'Choose whether the chord is shown and played with the left hand, right hand, or both.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
           id: 'generation_result_chord',
           titleEs: 'Resultado del acorde',
           titleEn: 'Chord result',

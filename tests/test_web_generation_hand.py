@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / "apps/web/app.html").read_text(encoding="utf-8")
 APP_JS = (ROOT / "apps/web/static/app.js").read_text(encoding="utf-8")
+HELP_CALLOUTS = (ROOT / "apps/web/static/help_callouts.js").read_text(encoding="utf-8")
 
 
 def test_generation_hand_control_defaults_to_both():
@@ -29,3 +30,7 @@ def test_entering_generation_does_not_autoplay_the_chord():
     assert 'async function runGenerateChord({ play = false } = {})' in APP_JS
     assert 'if (play && notes.length)' in APP_JS
     assert 'runGenerateChord({ play: true });' in APP_JS
+
+
+def test_generation_hand_has_its_own_contextual_help_step():
+    assert '{ selector: ".generation-hand-row", textKey: "help_gen_hand", side: "left" }' in HELP_CALLOUTS

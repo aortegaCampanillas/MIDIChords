@@ -397,6 +397,7 @@ class _HomeScreenState extends State<HomeScreen>
   );
   String _soundOutput =
       'audio'; // 'audio' or 'midi' - controls note playback routing
+  String _generationHand = 'both'; // 'left', 'right', or 'both'
 
   int _scaleTonicPc = 0;
   int _scaleTonicLetterPc = 0;
@@ -1756,7 +1757,10 @@ class _HomeScreenState extends State<HomeScreen>
         return selected.isNotEmpty ? selected : rh.toSet();
       }
       final lh = rh.map((n) => n - 12).where((n) => n >= 0);
-      return <int>{...rh, ...lh};
+      return <int>{
+        if (_generationHandShows('right')) ...rh,
+        if (_generationHandShows('left')) ...lh,
+      };
     }
     if (_tabIndex == 3 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
@@ -1764,6 +1768,27 @@ class _HomeScreenState extends State<HomeScreen>
       return <int>{...rh, ...lh};
     }
     return <int>{};
+  }
+
+  bool _generationHandShows(String hand) {
+    if (_tabIndex != 1 || _instrumentView != 'piano') return true;
+    return _generationHand == 'both' || _generationHand == hand;
+  }
+
+  List<int> _generationPlaybackNotes() {
+    if (_generatedChordJson == null) return const <int>[];
+    if (_instrumentView == 'guitar') {
+      return _selectedChordGuitarNotes().toList()..sort();
+    }
+    final right = _extractMidiList(_generatedChordJson!, <String>[
+      'notes_midi',
+    ]);
+    if (_tabIndex != 1) return right..sort();
+    final left = right.map((note) => note - 12).where((note) => note >= 0);
+    return <int>{
+      if (_generationHandShows('right')) ...right,
+      if (_generationHandShows('left')) ...left,
+    }.toList()..sort();
   }
 
   Set<int> _generationPlayingNotesForStaff() {
@@ -1822,7 +1847,10 @@ class _HomeScreenState extends State<HomeScreen>
         return selected.isNotEmpty ? selected : rh;
       }
       final lh = rh.map((n) => n - 12).where((n) => n >= 0);
-      return <int>{...rh, ...lh};
+      return <int>{
+        if (_generationHandShows('right')) ...rh,
+        if (_generationHandShows('left')) ...lh,
+      };
     }
     if (_tabIndex == 3 && _generatedScaleJson != null) {
       final rh = _scaleRhNotes();
@@ -2807,8 +2835,9 @@ class _HomeScreenState extends State<HomeScreen>
       final allowed = _instrumentView == 'guitar'
           ? chordNotes.map((n) => n % 12).toSet().contains(midi % 12)
           : <int>{
-              ...chordNotes,
-              ...chordNotes.map((n) => n - 12),
+              if (_generationHandShows('right')) ...chordNotes,
+              if (_generationHandShows('left'))
+                ...chordNotes.map((n) => n - 12),
             }.contains(midi);
       if (!allowed) {
         _showForbiddenOnPiano(midi);
@@ -3768,15 +3797,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (_generatedChordJson == null) {
       return;
     }
-    final List<int> notes;
-    if (_instrumentView == 'guitar') {
-      final g = _selectedChordGuitarNotes();
-      notes = g.toList()..sort();
-    } else {
-      notes = List<int>.from(
-        _extractMidiList(_generatedChordJson!, <String>['notes_midi']),
-      );
-    }
+    final notes = _generationPlaybackNotes();
     if (notes.isEmpty) {
       return;
     }
@@ -3786,7 +3807,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Future<void> _callGenerateChord() async {
+  Future<void> _callGenerateChord({bool playPreview = false}) async {
     if (_requestInFlight) {
       return;
     }
@@ -3818,7 +3839,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       }
-      unawaited(_playChordPreviewFromSelection());
+      if (playPreview) unawaited(_playChordPreviewFromSelection());
     } catch (err) {
       _generatedChordJson = null;
       _chordOutputController.text = '${_ui('Error', 'Error')}: $err';
@@ -5449,16 +5470,19 @@ class _HomeScreenState extends State<HomeScreen>
         ((_tabIndex == 1 || _tabIndex == 2) && _generatedChordJson != null)
         ? (_instrumentView == 'guitar'
               ? List<int>.from(displayNotes)
-              : guitarDisplayVoicing(
-                  _extractMidiList(_generatedChordJson!, <String>[
-                    'notes_midi',
-                  ]),
-                  lowerBass: lowerGuitarBass,
-                ))
+              : (_generationHandShows('right')
+                    ? guitarDisplayVoicing(
+                        _extractMidiList(_generatedChordJson!, <String>[
+                          'notes_midi',
+                        ]),
+                        lowerBass: lowerGuitarBass,
+                      )
+                    : const <int>[]))
         : const <int>[];
     final displayGenerationLhNotes =
         ((_tabIndex == 1 || _tabIndex == 2) &&
             _instrumentView == 'piano' &&
+            _generationHandShows('left') &&
             _generatedChordJson != null)
         ? _extractMidiList(_generatedChordJson!, <String>[
             'notes_midi',
@@ -6116,7 +6140,9 @@ class _HomeScreenState extends State<HomeScreen>
         compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
       3 => compactPhone ? (portrait ? 204.0 : 232.0) : 188.0,
       1 || 2 =>
-        compactPhone ? (portrait ? 204.0 : 232.0) : (portrait ? 188.0 : 220.0),
+        compactPhone
+            ? (portrait ? 204.0 : 232.0)
+            : (_instrumentView == 'guitar' ? 188.0 : 148.0),
       _ => 220.0,
     };
     final chordVariations =
@@ -6712,10 +6738,18 @@ class _HomeScreenState extends State<HomeScreen>
     final chordGenPiano =
         (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'piano';
     final chordRh = chordGenPiano && _generatedChordJson != null
+        ? (_generationHandShows('right')
+              ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
+              : const <int>[])
+        : const <int>[];
+    final generationBaseRh = chordGenPiano && _generatedChordJson != null
         ? _extractMidiList(_generatedChordJson!, <String>['notes_midi'])
         : const <int>[];
-    final chordLh = chordGenPiano
-        ? chordRh.map((n) => n - 12).where((n) => n >= _kPianoLowMidi).toList()
+    final chordLh = chordGenPiano && _generationHandShows('left')
+        ? generationBaseRh
+              .map((n) => n - 12)
+              .where((n) => n >= _kPianoLowMidi)
+              .toList()
         : const <int>[];
     final chordRhSet = chordRh.toSet();
     final chordLhSet = chordLh.toSet();

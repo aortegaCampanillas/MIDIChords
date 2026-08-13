@@ -191,6 +191,29 @@ class GenerationMixin:
             muted = getattr(self, "color_muted", "#5a6370")
             text_color = getattr(self, "color_text", "#e9edf2")
             self.generation_inversion_label.configure(fg=(text_color if inversion_enabled else muted))
+        if hasattr(self, "generation_hand_frame"):
+            self.generation_hand_frame.set_enabled(inversion_enabled)
+        if hasattr(self, "generation_hand_label"):
+            muted = getattr(self, "color_muted", "#5a6370")
+            text_color = getattr(self, "color_text", "#e9edf2")
+            self.generation_hand_label.configure(fg=(text_color if inversion_enabled else muted))
+
+    def _generation_hand_shows(self, hand: str) -> bool:
+        if not self.generation_tab_active or self.instrument_view != "piano":
+            return True
+        selected = str(getattr(self, "generation_hand", "both"))
+        return selected == "both" or selected == hand
+
+    def _set_generation_hand(self, hand: str) -> None:
+        selected = str(hand)
+        if selected not in {"left", "right", "both"}:
+            selected = "both"
+        self.generation_hand = selected
+        if hasattr(self, "generation_hand_var"):
+            self.generation_hand_var.set(selected)
+        if self.generation_tab_active:
+            self.redraw_keyboard()
+            self.redraw_staff()
 
     def _sync_generation_root_letter_state(self) -> tuple[int, str]:
         """Devuelve (letra, alteración) elegidas explícitamente por el usuario.
@@ -580,7 +603,11 @@ class GenerationMixin:
                 return set(self.guitar_selected_variation_notes)
             return set(self.generated_preview_notes)
         rh = set(self.generated_preview_notes)
-        return rh | {int(n - 12) for n in rh if int(n - 12) >= 0}
+        left = {int(n - 12) for n in rh if int(n - 12) >= 0}
+        return (
+            (rh if self._generation_hand_shows("right") else set())
+            | (left if self._generation_hand_shows("left") else set())
+        )
     def _update_generation_preview(self) -> None:
         # No usar `generated_playing_notes` aquí: incluye notas sueltas (MIDI/clic) y al
         # recalcular la vista previa no deben borrarse (p. ej. Qt puede refrescar combos
@@ -822,7 +849,11 @@ class GenerationMixin:
             allowed_notes = set(self.generated_preview_notes)
             if self.generation_tab_active:
                 # Permitir notas mano izquierda (clave de fa): una octava abajo.
-                allowed_notes |= {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
+                left_notes = {int(n - 12) for n in set(self.generated_preview_notes) if int(n - 12) >= 0}
+                allowed_notes = (
+                    (allowed_notes if self._generation_hand_shows("right") else set())
+                    | (left_notes if self._generation_hand_shows("left") else set())
+                )
         if note not in allowed_notes:
             return
         if additive:

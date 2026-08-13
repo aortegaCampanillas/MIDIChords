@@ -52,6 +52,7 @@ const HELP_CALLOUTS_GENERATION = [
   { selector: "#genRootRow", textKey: "help_gen_root", side: "left" },
   { selector: "#genVariant", textKey: "help_gen_variant", side: "left" },
   { selector: "#genInversion", textKey: "help_gen_inversion", side: "left" },
+  { selector: ".generation-hand-row", textKey: "help_gen_hand", side: "left" },
   { selector: "#genPlay", textKey: "help_gen_play", side: "bottom" },
   { selector: "#genVariantHelp", textKey: "help_gen_variant_theory", side: "bottom" },
   { selector: "#genFieldChord", textKey: "help_gen_result_chord", side: "left" },

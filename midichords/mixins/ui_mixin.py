@@ -10,6 +10,7 @@ from midichords.ui.widgets_qt import GrayRoundedButton, GreenRoundedButton, Play
 from midichords.ui.desktop_ui_builders import (
     build_generation_action_row,
     build_generation_choice_selectors,
+    build_generation_hand_selector,
     build_generation_root_selector,
     build_main_panel_shell,
     build_scale_tonic_selector,
@@ -923,6 +924,7 @@ class UiMixin:
 
         build_generation_root_selector(self)
         build_generation_choice_selectors(self)
+        build_generation_hand_selector(self)
 
         build_generation_action_row(self)
         self.bind_all("<ButtonRelease-1>", self._on_global_mouse_release)
@@ -938,8 +940,8 @@ class UiMixin:
         )
         # En Qt, si la altura de la ventana cambia, el QGridLayout puede repartir el "stretch"
         # entre filas y acabar variando los huecos entre los botones superiores.
-        # Forzamos que la fila del canvas (row=5) sea la que absorbe el cambio de tamaño.
-        self.generation_result_canvas.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=(2, 2))
+        # Forzamos que la fila del canvas (row=6) sea estable al cambiar la ventana.
+        self.generation_result_canvas.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(2, 2))
         self.generation_result_inner = tk.Frame(
             self.generation_result_canvas,
             bg="#17273a",
@@ -1151,9 +1153,10 @@ class UiMixin:
         self.tab_generation_frame.rowconfigure(3, weight=0)
         self.tab_generation_frame.rowconfigure(4, weight=0)
         self.tab_generation_frame.rowconfigure(5, weight=0)
-        # Row 6: empty spacer that absorbs extra vertical space
-        tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt).grid(row=6, column=0, columnspan=2, sticky="nsew")
-        self.tab_generation_frame.rowconfigure(6, weight=1)
+        self.tab_generation_frame.rowconfigure(6, weight=0)
+        # Row 7: empty spacer that absorbs extra vertical space
+        tk.Frame(self.tab_generation_frame, bg=self.color_surface_alt).grid(row=7, column=0, columnspan=2, sticky="nsew")
+        self.tab_generation_frame.rowconfigure(7, weight=1)
 
         self.circle_title_label = tk.Label(
             self.tab_circle_frame,
@@ -2555,6 +2558,16 @@ class UiMixin:
         self.generation_root_label.configure(text=self.tr("label_root_note"))
         self.generation_variant_label.configure(text=self.tr("label_variant"))
         self.generation_inversion_label.configure(text=self.tr("label_inversion"))
+        if hasattr(self, "generation_hand_label"):
+            self.generation_hand_label.configure(text=self.tr("label_hand"))
+        if hasattr(self, "generation_hand_frame"):
+            self.generation_hand_frame.set_labels(
+                {
+                    "left": self.tr("label_hand_left"),
+                    "right": self.tr("label_hand_right"),
+                    "both": self.tr("label_hand_both"),
+                }
+            )
         if hasattr(self, "generated_chord_caption_label"):
             self.generated_chord_caption_label.configure(text=self.tr("label_chord"))
         self.generated_notes_caption_label.configure(text=self.tr("label_active_notes"))
@@ -4031,6 +4044,7 @@ class UiMixin:
                 "generation_variant_combo:help_gen_variant",
                 "generation_variant_help_btn:help_gen_variant_theory",
                 "generation_inversion_combo:help_gen_inversion",
+                "generation_hand_row:help_gen_hand",
                 # subpanel de resultado: fila por fila
                 "gen_result_chord_row:help_gen_result_name",
                 "gen_result_notes_row:help_gen_result_notes",

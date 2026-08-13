@@ -111,7 +111,7 @@ def build_generation_action_row(app: object) -> tk.Frame:
         bd=0,
         highlightthickness=0,
     )
-    row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 3))
+    row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(4, 3))
     app.generated_chord_row = row
 
     app.generation_play_btn = PlayTransportButton(
@@ -133,6 +133,39 @@ def build_generation_action_row(app: object) -> tk.Frame:
         font_size=18,
     )
     app.generation_variant_help_btn.pack(side=tk.LEFT, padx=(8, 0))
+    return row
+
+
+def build_generation_hand_selector(app: object) -> tk.Frame:
+    """Build the piano hand selector using the scale-fingering radio style."""
+    row = tk.Frame(
+        app.tab_generation_frame,
+        bg=app.color_surface_alt,
+        bd=0,
+        highlightthickness=0,
+    )
+    row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 2))
+    app.generation_hand_row = row
+    app.generation_hand_label = tk.Label(
+        row,
+        text="",
+        bg=app.color_surface_alt,
+        fg="#a8b6c8",
+        font=(app.ui_font_family, 12),
+    )
+    app.generation_hand_label.pack(side=tk.LEFT, padx=(0, 8))
+    app.generation_hand_var = tk.StringVar(value="both")
+    app.generation_hand_frame = app._build_radio_row(
+        row,
+        [
+            ("left", app.tr("label_hand_left")),
+            ("right", app.tr("label_hand_right")),
+            ("both", app.tr("label_hand_both")),
+        ],
+        app.generation_hand_var,
+        command=app._set_generation_hand,
+    )
+    app.generation_hand_frame.pack(side=tk.LEFT)
     return row
 
 

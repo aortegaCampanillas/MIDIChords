@@ -840,15 +840,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             active: _generationPlayPressed,
                             label: null,
                             onDown: () async {
-                              final notes = <int>[
-                                if (_generatedChordJson != null)
-                                  ...(_instrumentView == 'guitar'
-                                      ? _selectedChordGuitarNotes()
-                                      : _extractMidiList(
-                                          _generatedChordJson!,
-                                          <String>['notes_midi'],
-                                        )),
-                              ]..sort();
+                              final notes = _generationPlaybackNotes();
                               if (notes.isEmpty) return;
                               _updateState(() => _generationPlayPressed = true);
                               await _startHeldChord(
@@ -885,7 +877,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   _chordRootAccidental = accidental;
                                 });
                                 if (!_requestInFlight) {
-                                  unawaited(_callGenerateChord());
+                                  unawaited(
+                                    _callGenerateChord(playPreview: true),
+                                  );
                                 }
                               },
                             ),
@@ -903,6 +897,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             DropdownButtonFormField<String>(
                               key: ValueKey<String>('suffix_$_chordSuffix'),
                               initialValue: _chordSuffix,
+                              isExpanded: true,
                               dropdownColor: _HomeScreenState._surfaceDark,
                               style: const TextStyle(
                                 color: _HomeScreenState._text,
@@ -915,6 +910,24 @@ extension _HomeScreenPages on _HomeScreenState {
                                 patterns: _chordPatterns,
                                 language: _language,
                               ),
+                              selectedItemBuilder: (context) =>
+                                  buildChordVariantDropdownItems(
+                                    catalog: _chordTheoryCatalog,
+                                    patterns: _chordPatterns,
+                                    language: _language,
+                                  ).map((item) {
+                                    final value = item.value ?? '';
+                                    return Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        item.enabled
+                                            ? (value.isEmpty ? 'maj' : value)
+                                            : '',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    );
+                                  }).toList(),
                               onChanged: (value) {
                                 if (value == null) {
                                   return;
@@ -925,7 +938,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   _recomputeMaxInversion();
                                 });
                                 if (!_requestInFlight) {
-                                  unawaited(_callGenerateChord());
+                                  unawaited(
+                                    _callGenerateChord(playPreview: true),
+                                  );
                                 }
                               },
                             ),
@@ -978,7 +993,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                         () => _chordInversion = value,
                                       );
                                       if (!_requestInFlight) {
-                                        unawaited(_callGenerateChord());
+                                        unawaited(
+                                          _callGenerateChord(playPreview: true),
+                                        );
                                       }
                                     },
                             ),
@@ -986,12 +1003,15 @@ extension _HomeScreenPages on _HomeScreenState {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    _buildGenerationHandRow(),
                   ],
                 )
               else
                 Row(
                   children: <Widget>[
                     Expanded(
+                      flex: 4,
                       child: _helpAnchor(
                         'generation_tonic',
                         _buildTonicLetterAccidentalDropdowns(
@@ -1005,7 +1025,7 @@ extension _HomeScreenPages on _HomeScreenState {
                               _chordRootAccidental = accidental;
                             });
                             if (!_requestInFlight) {
-                              unawaited(_callGenerateChord());
+                              unawaited(_callGenerateChord(playPreview: true));
                             }
                           },
                         ),
@@ -1013,12 +1033,13 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
+                      flex: 5,
                       child: _helpAnchor(
                         'generation_variant',
                         DropdownButtonFormField<String>(
                           key: ValueKey<String>('suffix_$_chordSuffix'),
                           initialValue: _chordSuffix,
+                          isExpanded: true,
                           dropdownColor: _HomeScreenState._surfaceDark,
                           style: const TextStyle(color: _HomeScreenState._text),
                           decoration: InputDecoration(
@@ -1029,6 +1050,24 @@ extension _HomeScreenPages on _HomeScreenState {
                             patterns: _chordPatterns,
                             language: _language,
                           ),
+                          selectedItemBuilder: (context) =>
+                              buildChordVariantDropdownItems(
+                                catalog: _chordTheoryCatalog,
+                                patterns: _chordPatterns,
+                                language: _language,
+                              ).map((item) {
+                                final value = item.value ?? '';
+                                return Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    item.enabled
+                                        ? (value.isEmpty ? 'maj' : value)
+                                        : '',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                );
+                              }).toList(),
                           onChanged: (value) {
                             if (value == null) {
                               return;
@@ -1039,7 +1078,7 @@ extension _HomeScreenPages on _HomeScreenState {
                               _recomputeMaxInversion();
                             });
                             if (!_requestInFlight) {
-                              unawaited(_callGenerateChord());
+                              unawaited(_callGenerateChord(playPreview: true));
                             }
                           },
                         ),
@@ -1051,6 +1090,38 @@ extension _HomeScreenPages on _HomeScreenState {
               if (!compactGenerationLayout) ...<Widget>[
                 Row(
                   children: <Widget>[
+                    _helpAnchor(
+                      'generation_play_button',
+                      _holdPlayButton(
+                        enabled:
+                            _generatedChordJson != null &&
+                            _extractMidiList(_generatedChordJson!, <String>[
+                              'notes_midi',
+                            ]).isNotEmpty,
+                        active: _generationPlayPressed,
+                        label: null,
+                        onDown: () async {
+                          final notes = _generationPlaybackNotes();
+                          if (notes.isEmpty) return;
+                          _updateState(() => _generationPlayPressed = true);
+                          await _startHeldChord(
+                            notes,
+                            instrument: _instrumentView == 'guitar'
+                                ? 'guitar'
+                                : 'piano',
+                          );
+                        },
+                        onUp: () {
+                          _stopHeldChord();
+                          if (mounted) {
+                            _updateState(() => _generationPlayPressed = false);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildChordVariantTheoryButton(),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _helpAnchor(
                         'generation_inversion',
@@ -1093,7 +1164,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   if (value == null) return;
                                   _updateState(() => _chordInversion = value);
                                   if (!_requestInFlight) {
-                                    unawaited(_callGenerateChord());
+                                    unawaited(
+                                      _callGenerateChord(playPreview: true),
+                                    );
                                   }
                                 },
                         ),
@@ -1102,55 +1175,7 @@ extension _HomeScreenPages on _HomeScreenState {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _helpAnchor(
-                        'generation_play_button',
-                        _holdPlayButton(
-                          enabled:
-                              _generatedChordJson != null &&
-                              _extractMidiList(_generatedChordJson!, <String>[
-                                'notes_midi',
-                              ]).isNotEmpty,
-                          active: _generationPlayPressed,
-                          label: null,
-                          onDown: () async {
-                            final notes = <int>[
-                              if (_generatedChordJson != null)
-                                ...(_instrumentView == 'guitar'
-                                    ? _selectedChordGuitarNotes()
-                                    : _extractMidiList(
-                                        _generatedChordJson!,
-                                        <String>['notes_midi'],
-                                      )),
-                            ]..sort();
-                            if (notes.isEmpty) return;
-                            _updateState(() => _generationPlayPressed = true);
-                            await _startHeldChord(
-                              notes,
-                              instrument: _instrumentView == 'guitar'
-                                  ? 'guitar'
-                                  : 'piano',
-                            );
-                          },
-                          onUp: () {
-                            _stopHeldChord();
-                            if (mounted) {
-                              _updateState(
-                                () => _generationPlayPressed = false,
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildChordVariantTheoryButton(),
-                    ],
-                  ),
-                ),
+                _buildGenerationHandRow(),
               ],
               const SizedBox(height: 8),
               if (compactPhone)
@@ -1668,6 +1693,101 @@ extension _HomeScreenPages on _HomeScreenState {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildGenerationHandRow() {
+    const options = <(String, String, String)>[
+      ('left', 'Izquierda', 'Left'),
+      ('right', 'Derecha', 'Right'),
+      ('both', 'Ambas', 'Both'),
+    ];
+    final enabled = _instrumentView == 'piano';
+    return _helpAnchor(
+      'generation_hand',
+      Opacity(
+        opacity: enabled ? 1 : 0.42,
+        child: IgnorePointer(
+          ignoring: !enabled,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _HomeScreenState._surfaceDark,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _HomeScreenState._border),
+            ),
+            child: Row(
+              children: <Widget>[
+                Text(
+                  _ui('Mano:', 'Hand:'),
+                  style: const TextStyle(
+                    color: _HomeScreenState._muted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 6,
+                    children: options.map((opt) {
+                      final value = opt.$1;
+                      final active = _generationHand == value;
+                      return GestureDetector(
+                        onTap: () =>
+                            _updateState(() => _generationHand = value),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: active
+                                    ? _HomeScreenState._accent
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color: active
+                                      ? _HomeScreenState._accent
+                                      : _HomeScreenState._muted,
+                                  width: active ? 2 : 1.5,
+                                ),
+                              ),
+                              child: active
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 8,
+                                        height: 8,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Color(0xFF1A222D),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _language == 'en' ? opt.$3 : opt.$2,
+                              style: const TextStyle(
+                                color: _HomeScreenState._text,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

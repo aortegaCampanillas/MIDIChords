@@ -33,3 +33,21 @@ def test_filter_keeps_unison_and_octave_independent():
     app.interval_practice_allowed_semitones = {12}
     choices = app._interval_practice_choices()
     assert {choice["semitones"] for choice in choices} == {12}
+
+
+def test_new_question_playback_cancels_pending_single_note_clear():
+    app = _PracticeHarness()
+    app.interval_practice_playback_mode = "melodic"
+    app.interval_practice_single_timer = "old-clear"
+    app.interval_gen_input_clear_timer = "previous-mode-clear"
+    app.cancelled = []
+    app.played = []
+    app.after_cancel = app.cancelled.append
+    app._play_interval_gen_sequence = app.played.append
+
+    app._play_interval_practice_notes([60, 64], hide_second=True)
+
+    assert app.cancelled == ["old-clear", "previous-mode-clear"]
+    assert app.interval_practice_single_timer is None
+    assert app.interval_gen_input_clear_timer is None
+    assert app.played == [[60, 64]]

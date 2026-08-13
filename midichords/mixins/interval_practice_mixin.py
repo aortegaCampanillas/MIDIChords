@@ -33,6 +33,7 @@ class IntervalPracticeMixin:
         self.interval_practice_history: list[dict] = []
         self.interval_practice_review_index: int | None = None
         self.interval_practice_review_timer = None
+        self.interval_practice_single_timer = None
 
     def _interval_practice_text(self, key: str) -> str:
         from midichords.core.i18n import UI_TEXTS
@@ -119,7 +120,11 @@ class IntervalPracticeMixin:
 
     def _stop_interval_practice(self) -> None:
         self.interval_practice_running = False
-        for timer_name in ("interval_gen_playback_timer", "interval_practice_review_timer"):
+        for timer_name in (
+            "interval_gen_playback_timer",
+            "interval_practice_review_timer",
+            "interval_practice_single_timer",
+        ):
             timer = getattr(self, timer_name, None)
             if timer:
                 try:
@@ -161,6 +166,20 @@ class IntervalPracticeMixin:
         self._play_interval_practice_question()
 
     def _play_interval_practice_notes(self, notes: list[int], *, hide_second: bool = False) -> None:
+        # Una audición manual realizada tras responder deja programada una
+        # limpieza breve. Si el usuario pulsa Siguiente antes de que venza,
+        # aquella callback no debe borrar el resaltado del nuevo intervalo.
+        for timer_name in (
+            "interval_practice_single_timer",
+            "interval_gen_input_clear_timer",
+        ):
+            timer = getattr(self, timer_name, None)
+            if timer:
+                try:
+                    self.after_cancel(timer)
+                except Exception:
+                    pass
+                setattr(self, timer_name, None)
         if self.interval_practice_playback_mode == "harmonic":
             if self.interval_gen_playback_timer:
                 try:
@@ -240,10 +259,18 @@ class IntervalPracticeMixin:
         self.play_note(note, velocity=100)
         self.interval_gen_playing_note = note
         self.update_music_views()
-        self.after(460, lambda: self._clear_interval_practice_single(note))
+        if self.interval_practice_single_timer:
+            try:
+                self.after_cancel(self.interval_practice_single_timer)
+            except Exception:
+                pass
+        self.interval_practice_single_timer = self.after(
+            460, lambda: self._clear_interval_practice_single(note)
+        )
         return True
 
     def _clear_interval_practice_single(self, note: int) -> None:
+        self.interval_practice_single_timer = None
         self.stop_note(int(note))
         if self.interval_gen_playing_note == int(note):
             self.interval_gen_playing_note = None

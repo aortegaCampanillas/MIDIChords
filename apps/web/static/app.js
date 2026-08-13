@@ -2720,7 +2720,18 @@ function playIntervalPracticeQuestion() {
   if (notes.length === 2) playIntervalPracticeNotes(notes, { hideSecond: true });
 }
 
+function cancelIntervalPracticeInputClearTimer() {
+  if (state.intervalGenInputClearTimer == null) return;
+  clearTimeout(state.intervalGenInputClearTimer);
+  state.intervalGenInputClearTimer = null;
+  state.intervalGenInputCurrentNote = null;
+}
+
 function playIntervalPracticeNotes(notes, { hideSecond = false } = {}) {
+  // Una pulsación manual posterior a la respuesta puede dejar una limpieza
+  // pendiente. Al avanzar o repetir, no debe borrar el resaltado de esta
+  // reproducción nueva.
+  cancelIntervalPracticeInputClearTimer();
   const values = notes.map((note) => Number(note));
   state.intervalPracticePlayingNotes.clear();
   if (state.intervalPracticePlaybackMode !== "harmonic") {

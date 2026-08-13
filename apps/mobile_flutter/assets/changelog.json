@@ -7,6 +7,13 @@
         "date": "2026-08-13",
         "publish": false,
         "platforms": ["web", "desktop"],
+        "es": "Práctica de intervalos mantiene visible la primera nota al cambiar de modo o avanzar rápidamente.",
+        "en": "Interval Practice keeps the first note visible when switching modes or advancing quickly."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["web", "desktop"],
         "es": "Capturas bilingües renovadas y varios ajustes visuales corregidos.",
         "en": "Refreshed bilingual screenshots and several visual fixes."
       },

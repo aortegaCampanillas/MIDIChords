@@ -6138,7 +6138,7 @@ class _HomeScreenState extends State<HomeScreen>
     final panelHeight = switch (_tabIndex) {
       4 => portrait ? 152.0 : 168.0,
       7 => compactPhone ? 220.0 : (_instrumentView == 'guitar' ? 188.0 : 148.0),
-      9 => compactPhone ? 168.0 : 156.0,
+      9 => compactPhone ? 156.0 : 132.0,
       3 when _scaleMetronomeOnly =>
         compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
       3 => compactPhone ? (portrait ? 204.0 : 232.0) : 188.0,
@@ -7969,6 +7969,23 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
     _playIntervalPracticeNotes(<int>[question.first, guessedNote]);
+  }
+
+  void _selectIntervalPracticeTableCell(int semitones) {
+    if (_intervalPracticeAnswerCorrect == null) {
+      _answerIntervalPractice(semitones: semitones);
+      return;
+    }
+    final wrongDistance = (_intervalPracticeAnswerNote! - _intervalPracticeRoot)
+        .abs();
+    if (semitones != _intervalPracticeSemitones && semitones != wrongDistance) {
+      return;
+    }
+    final direction = _intervalPracticeDirection < 0 ? -1 : 1;
+    _playIntervalPracticeNotes(<int>[
+      _intervalPracticeRoot,
+      _intervalPracticeRoot + direction * semitones,
+    ]);
   }
 
   void _loadIntervalPracticeHistory(int index) {

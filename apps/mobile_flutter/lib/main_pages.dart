@@ -24,7 +24,7 @@ extension _HomeScreenPages on _HomeScreenState {
                   fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -129,7 +129,7 @@ extension _HomeScreenPages on _HomeScreenState {
                   ],
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -143,12 +143,22 @@ extension _HomeScreenPages on _HomeScreenState {
                         Text(_ui('Repeticiones', 'Repetitions')),
                         const SizedBox(width: 8),
                         SizedBox(
-                          width: 72,
+                          width: 64,
+                          height: 40,
                           child: TextFormField(
                             key: ValueKey<int>(_intervalPracticeRepetitions),
                             initialValue: '$_intervalPracticeRepetitions',
                             enabled: !_intervalPracticeRunning,
                             keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 9,
+                              ),
+                            ),
                             onChanged: (value) {
                               final parsed = int.tryParse(value);
                               if (parsed != null) {
@@ -190,7 +200,7 @@ extension _HomeScreenPages on _HomeScreenState {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               _helpAnchor(
                 'interval_practice_result',
                 Container(
@@ -220,7 +230,7 @@ extension _HomeScreenPages on _HomeScreenState {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               _helpAnchor(
                 'interval_practice_table',
                 _buildIntervalPracticeTable(constraints.maxWidth),
@@ -326,10 +336,17 @@ extension _HomeScreenPages on _HomeScreenState {
                         color: color,
                         onTap:
                             allowed &&
-                                _intervalPracticeRunning &&
-                                _intervalPracticeAnswerCorrect == null
-                            ? () =>
-                                  _answerIntervalPractice(semitones: semitones)
+                                ((_intervalPracticeRunning &&
+                                        _intervalPracticeAnswerCorrect ==
+                                            null) ||
+                                    (_intervalPracticeAnswerCorrect != null &&
+                                        (semitones ==
+                                                _intervalPracticeSemitones ||
+                                            semitones ==
+                                                (_intervalPracticeAnswerNote! -
+                                                        _intervalPracticeRoot)
+                                                    .abs())))
+                            ? () => _selectIntervalPracticeTableCell(semitones)
                             : null,
                       );
                     }(),
@@ -480,9 +497,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           border: Border.all(color: const Color(0xFF718096)),
                         ),
                         child: Text(
-                          semitones == 12
-                              ? '${_pcLabel(0)}2'
-                              : _pcLabel(semitones),
+                          _pcLabel(semitones % 12),
                           style: const TextStyle(
                             color: Color(0xFF15202C),
                             fontSize: 11,

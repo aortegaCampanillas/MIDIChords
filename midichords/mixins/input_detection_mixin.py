@@ -713,8 +713,9 @@ class InputDetectionMixin:
                 10: "B♭",
             }
         if prefer_flat is None:
-            in_note_modes = self.current_mode in {"note_detection", "detection", "generation", "scales", "interval_detection"}
-            prefer_flat = in_note_modes and str(self.config_data.get("note_accidental", "sharp")) == "flat"
+            # La preferencia global #/♭ también controla las etiquetas del
+            # teclado; no depende del modo que esté visible.
+            prefer_flat = str(self.config_data.get("note_accidental", "sharp")) == "flat"
         flat_name = flat_aliases.get(pc)
         name = flat_name if (prefer_flat and flat_name is not None) else sharp_name
         if include_flat_alias and not with_octave:

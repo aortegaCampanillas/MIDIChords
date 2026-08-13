@@ -2654,7 +2654,7 @@ function renderIntervalPracticeFilterPiano() {
     key.className = `filter-piano-key white${selected.has(semitones) ? " selected" : ""}`;
     key.dataset.semitones = String(semitones);
     key.setAttribute("aria-pressed", selected.has(semitones) ? "true" : "false");
-    key.textContent = noteNameWithOctave(60 + semitones);
+    key.textContent = noteNameFromPc(semitones);
     piano.appendChild(key);
   });
   blackKeys.forEach(({ pc: semitones, left }) => {
@@ -2664,7 +2664,7 @@ function renderIntervalPracticeFilterPiano() {
     key.style.left = `calc(${left} * (100% / 8) - 3.1%)`;
     key.dataset.semitones = String(semitones);
     key.setAttribute("aria-pressed", selected.has(semitones) ? "true" : "false");
-    key.textContent = noteNameWithOctave(60 + semitones);
+    key.textContent = noteNameFromPc(semitones);
     piano.appendChild(key);
   });
   const accept = el("intervalPracticeFilterAccept");
@@ -2865,6 +2865,16 @@ function toggleIntervalPractice() {
 }
 
 function answerIntervalPractice({ note = null, semitones = null } = {}) {
+  if (state.intervalPracticeAnswer && semitones != null) {
+    const selected = Number(semitones);
+    const correctDistance = Number(state.intervalPracticeSemitones);
+    const wrongDistance = Number(state.intervalPracticeAnswer.semitones);
+    if (selected !== correctDistance && selected !== wrongDistance) return;
+    const root = Number(state.intervalPracticeRoot);
+    const direction = Number(state.intervalPracticeDirection) < 0 ? -1 : 1;
+    playIntervalPracticeNotes([root, root + (direction * selected)]);
+    return;
+  }
   if (!state.intervalPracticeRunning || state.intervalPracticeAnswer) return;
   const target = Number(state.intervalPracticeSemitones);
   const root = Number(state.intervalPracticeRoot);

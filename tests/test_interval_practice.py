@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from midichords.mixins.interval_practice_mixin import IntervalPracticeMixin
 
 
@@ -51,3 +53,33 @@ def test_new_question_playback_cancels_pending_single_note_clear():
     assert app.interval_practice_single_timer is None
     assert app.interval_gen_input_clear_timer is None
     assert app.played == [[60, 64]]
+
+
+def test_filter_keyboards_show_pitch_names_without_octaves_on_every_platform():
+    desktop = Path("midichords/mixins/interval_practice_mixin.py").read_text()
+    web = Path("apps/web/static/app.js").read_text()
+    mobile = Path("apps/mobile_flutter/lib/main_pages.dart").read_text()
+
+    assert "self.note_name(60 + semitones, with_octave=False)" in desktop
+    assert "key.textContent = noteNameFromPc(semitones);" in web
+    assert "_pcLabel(semitones % 12)" in mobile
+
+
+def test_answered_table_cell_replays_selected_descending_interval():
+    app = _PracticeHarness()
+    app.interval_practice_running = False
+    app.interval_practice_root = 60
+    app.interval_practice_direction = -1
+    app.interval_practice_semitones = 7
+    app.interval_practice_answer = {
+        "note": 57,
+        "semitones": 3,
+        "correct": False,
+    }
+    app.played = []
+    app._play_interval_practice_notes = app.played.append
+
+    assert app._answer_interval_practice(semitones=7)
+    assert app._answer_interval_practice(semitones=3)
+    assert not app._answer_interval_practice(semitones=5)
+    assert app.played == [[60, 53], [60, 57]]

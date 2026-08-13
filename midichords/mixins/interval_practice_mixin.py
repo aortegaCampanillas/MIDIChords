@@ -218,6 +218,15 @@ class IntervalPracticeMixin:
             self._play_interval_practice_question()
 
     def _answer_interval_practice(self, *, note: int | None = None, semitones: int | None = None) -> bool:
+        if self.interval_practice_answer and semitones is not None:
+            selected = int(semitones)
+            answer_distance = int(self.interval_practice_answer["semitones"])
+            if selected not in {int(self.interval_practice_semitones), answer_distance}:
+                return False
+            root = int(self.interval_practice_root)
+            direction = -1 if int(self.interval_practice_direction) < 0 else 1
+            self._play_interval_practice_notes([root, root + direction * selected])
+            return True
         if not self.interval_practice_running or self.interval_practice_answer:
             return False
         if semitones is not None and int(semitones) not in self.interval_practice_allowed_semitones:
@@ -364,7 +373,7 @@ class IntervalPracticeMixin:
         checks = []
         white_steps = [0, 2, 4, 5, 7, 9, 11, 12]
         for index, semitones in enumerate(white_steps):
-            key = QPushButton(self.note_name(60 + semitones), piano)
+            key = QPushButton(self.note_name(60 + semitones, with_octave=False), piano)
             key.setCheckable(True); key.setChecked(semitones in self.interval_practice_allowed_semitones)
             key.setProperty("semitones", semitones); key.setGeometry(index * 95, 0, 95, 132)
             key.setStyleSheet(
@@ -373,7 +382,7 @@ class IntervalPracticeMixin:
             )
             checks.append(key)
         for semitones, boundary in ((1, 1), (3, 2), (6, 4), (8, 5), (10, 6)):
-            key = QPushButton(self.note_name(60 + semitones), piano)
+            key = QPushButton(self.note_name(60 + semitones, with_octave=False), piano)
             key.setCheckable(True); key.setChecked(semitones in self.interval_practice_allowed_semitones)
             key.setProperty("semitones", semitones); key.setGeometry(boundary * 95 - 28, 0, 56, 82)
             key.setStyleSheet(
@@ -599,7 +608,11 @@ class IntervalPracticeMixin:
                 bg, fg = "#39c66d", "#17273a"
             elif answered and not self.interval_practice_answer["correct"] and semitones == self.interval_practice_answer["semitones"]:
                 bg, fg = "#e35d67", "#ffffff"
-            cursor = "pointinghand" if exists and allowed and not answered else ""
+            playable_answer = answered and semitones in {
+                int(self.interval_practice_semitones),
+                int(self.interval_practice_answer["semitones"]),
+            }
+            cursor = "pointinghand" if exists and allowed and (not answered or playable_answer) else ""
             cell_frame.configure(bg=bg, cursor=cursor)
             label.configure(bg=bg, fg=fg, cursor=cursor)
         for semitones, header in self.interval_practice_headers.items():

@@ -60,6 +60,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (generación de intervalos)**: compactado el panel de resultados y la separación entre controles para aprovechar mejor la altura disponible.
 - **Web (detección de notas)**: nuevo primer modo para identificar la última nota tocada desde el piano o MIDI, verla en la clave correspondiente del pentagrama sin armadura, repetirla, limpiarla y ocultar con fines didácticos tanto su resultado como los nombres sobre el teclado.
 - **Detección de acordes e intervalos**: incorporado, junto a Limpiar, un botón con icono de ojo para ocultar la información detectada con fines didácticos y volver a mostrarla para comprobar la respuesta.
 - **Móvil (ayuda de escalas)**: la tónica, su alteración/armadura y el tipo de escala disponen de resaltados y explicaciones independientes; su geometría estable se conserva al activar el overlay para que los desplegables no pierdan el contorno durante su relayout.

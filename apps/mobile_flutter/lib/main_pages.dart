@@ -2193,7 +2193,7 @@ extension _HomeScreenPages on _HomeScreenState {
                       fontSize: 18,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   Row(
                     children: <Widget>[
                       Expanded(
@@ -2257,10 +2257,13 @@ extension _HomeScreenPages on _HomeScreenState {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: _HomeScreenState._surfaceDark,
                       border: Border.all(color: _HomeScreenState._border),
@@ -2268,27 +2271,36 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                     child: Column(
                       children: <Widget>[
-                        _intervalGenerationResultRow(
-                          _ui('Notas', 'Notes'),
-                          notes.map(_midiNoteWithOctave).join(' – '),
-                          helpId: 'interval_generation_notes',
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              flex: 2,
+                              child: _intervalGenerationResultRow(
+                                _ui('Notas', 'Notes'),
+                                notes.map(_midiNoteWithOctave).join(' – '),
+                                helpId: 'interval_generation_notes',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _intervalGenerationResultRow(
+                                _ui('Semitonos', 'Semitones'),
+                                '$_intervalGenSemitones',
+                                helpId: 'interval_generation_semitones',
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         _intervalGenerationResultRow(
                           _ui('Intervalo', 'Interval'),
                           generatedIntervalName,
                           helpId: 'interval_generation_name',
                         ),
-                        const SizedBox(height: 8),
-                        _intervalGenerationResultRow(
-                          _ui('Semitonos', 'Semitones'),
-                          '$_intervalGenSemitones',
-                          helpId: 'interval_generation_semitones',
-                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 6),
                   Text(
                     _ui('Selecciona un intervalo', 'Select an interval'),
                     style: const TextStyle(
@@ -2296,7 +2308,7 @@ extension _HomeScreenPages on _HomeScreenState {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 2),
                   _helpAnchor(
                     'interval_generation_table',
                     _buildIntervalGenerationTable(constraints.maxWidth),

@@ -7,6 +7,20 @@
         "date": "2026-08-13",
         "publish": false,
         "platforms": ["mobile"],
+        "es": "Con la tablet en vertical, la barra principal centra y amplía el selector de modo; los controles de Piano/Guitarra y mano derecha/izquierda usan iconos accesibles y ocupan menos espacio para ampliar el instrumento.",
+        "en": "With a tablet in portrait orientation, the main bar centers and widens the mode selector; Piano/Guitar and right/left-hand controls use accessible icons and take less space to enlarge the instrument."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Detección de acordes centra correctamente el piano en Do4 al abrir el modo con la tablet en vertical.",
+        "en": "Chord Detection correctly centers the piano on C4 when opening the mode with a tablet in portrait orientation."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["mobile"],
         "es": "Generación de intervalos aprovecha mejor la altura disponible con un panel de resultados y separaciones más compactos.",
         "en": "Interval Generation makes better use of the available height with a more compact results panel and spacing."
       },

@@ -60,6 +60,8 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (tablet)**: en orientación vertical, la barra principal centra y amplía el selector de modo; los controles de Piano/Guitarra y mano derecha/izquierda usan iconos accesibles y ocupan menos espacio para ampliar el instrumento.
+- **Móvil (detección de acordes)**: al abrir el modo, el piano se centra correctamente en Do4 también con la tablet en vertical.
 - **Móvil (generación de intervalos)**: compactado el panel de resultados y la separación entre controles para aprovechar mejor la altura disponible.
 - **Web (detección de notas)**: nuevo primer modo para identificar la última nota tocada desde el piano o MIDI, verla en la clave correspondiente del pentagrama sin armadura, repetirla, limpiarla y ocultar con fines didácticos tanto su resultado como los nombres sobre el teclado.
 - **Detección de acordes e intervalos**: incorporado, junto a Limpiar, un botón con icono de ojo para ocultar la información detectada con fines didácticos y volver a mostrarla para comprobar la respuesta.

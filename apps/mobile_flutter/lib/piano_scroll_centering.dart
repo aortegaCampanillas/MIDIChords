@@ -1,4 +1,5 @@
 bool modeUsesCenteredTheoryPiano(int tabIndex) =>
+    tabIndex == 0 ||
     tabIndex == 1 ||
     tabIndex == 2 ||
     tabIndex == 3 ||

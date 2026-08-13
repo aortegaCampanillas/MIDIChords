@@ -4958,6 +4958,7 @@ class _HomeScreenState extends State<HomeScreen>
     final media = MediaQuery.of(context);
     final portrait = media.orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
+    final tabletPortrait = !compactPhone && portrait;
     final enabledModes = _enabledModeIndexes();
     final currentTab = enabledModes.contains(_tabIndex) ? _tabIndex : 0;
     if (currentTab != _tabIndex) {
@@ -4993,9 +4994,13 @@ class _HomeScreenState extends State<HomeScreen>
                 ? (portrait ? 60 : 64)
                 : (portrait ? 64 : 74),
             automaticallyImplyLeading: false,
-            leadingWidth: compactPhone ? 196.0 : 340.0,
+            leadingWidth: compactPhone
+                ? 196.0
+                : (tabletPortrait ? 220.0 : 340.0),
             leading: Padding(
-              padding: EdgeInsets.only(left: compactPhone ? 8.0 : 16.0),
+              padding: EdgeInsets.only(
+                left: compactPhone ? 8.0 : (tabletPortrait ? 10.0 : 16.0),
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -5003,7 +5008,7 @@ class _HomeScreenState extends State<HomeScreen>
                   style: TextStyle(
                     fontSize: compactPhone
                         ? (portrait ? 15 : 18)
-                        : (portrait ? 19 : 24),
+                        : (tabletPortrait ? 14 : 24),
                     color: _text,
                     fontWeight: FontWeight.w500,
                   ),
@@ -5011,16 +5016,18 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-            // Sin centrar: así Flutter ajusta `title` al espacio libre real
-            // entre `leading` y `actions` (que varía según si el botón "Salida
-            // MIDI/Audio" está visible), en vez de tener que estimarlo a mano.
-            centerTitle: false,
-            titleSpacing: 8,
+            // En tablet vertical el selector ocupa el centro geométrico y el
+            // nombre aprovecha íntegramente el bloque izquierdo. En el resto
+            // de layouts se ajusta al espacio libre real entre ambos lados.
+            centerTitle: tabletPortrait,
+            titleSpacing: tabletPortrait ? 4 : 8,
             title: LayoutBuilder(
               builder: (context, titleConstraints) {
                 // Margen de seguridad extra para que el combo no quede pegado
                 // a los botones vecinos de `actions`.
-                final safetyMargin = compactPhone ? 16.0 : 20.0;
+                final safetyMargin = tabletPortrait
+                    ? 8.0
+                    : (compactPhone ? 16.0 : 20.0);
                 final availableForTitle = math.max(
                   80.0,
                   titleConstraints.maxWidth - safetyMargin,
@@ -5028,7 +5035,7 @@ class _HomeScreenState extends State<HomeScreen>
                 final dropdownW = math.min(
                   compactPhone
                       ? (portrait ? 260.0 : 300.0)
-                      : (portrait ? 380.0 : 340.0),
+                      : (tabletPortrait ? 220.0 : 340.0),
                   availableForTitle,
                 );
                 return SizedBox(
@@ -5042,12 +5049,19 @@ class _HomeScreenState extends State<HomeScreen>
                       initialValue: currentTab,
                       isExpanded: true,
                       dropdownColor: _surfaceDark,
-                      style: const TextStyle(color: _text),
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: tabletPortrait ? 14 : null,
+                      ),
                       decoration: InputDecoration(
                         hintText: _ui('Modo', 'Mode'),
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: compactPhone ? 10 : 12,
-                          vertical: compactPhone ? 6 : (portrait ? 8 : 10),
+                          horizontal: tabletPortrait
+                              ? 8
+                              : (compactPhone ? 10 : 12),
+                          vertical: tabletPortrait
+                              ? 6
+                              : (compactPhone ? 6 : 10),
                         ),
                         isDense: true,
                       ),
@@ -5130,7 +5144,9 @@ class _HomeScreenState extends State<HomeScreen>
               _helpAnchor(
                 'midi_toggle',
                 Padding(
-                  padding: EdgeInsets.only(right: compactPhone ? 6 : 8),
+                  padding: EdgeInsets.only(
+                    right: tabletPortrait ? 4 : (compactPhone ? 6 : 8),
+                  ),
                   child: OutlinedButton(
                     onPressed: _toggleMidiInput,
                     style: OutlinedButton.styleFrom(
@@ -5145,8 +5161,13 @@ class _HomeScreenState extends State<HomeScreen>
                           ? _accent
                           : _surfaceDark,
                       padding: EdgeInsets.symmetric(
-                        horizontal: compactPhone ? 10 : 14,
-                        vertical: compactPhone ? 6 : 8,
+                        horizontal: tabletPortrait
+                            ? 8
+                            : (compactPhone ? 10 : 14),
+                        vertical: tabletPortrait ? 6 : (compactPhone ? 6 : 8),
+                      ),
+                      textStyle: TextStyle(
+                        fontSize: tabletPortrait ? 14 : null,
                       ),
                     ),
                     child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
@@ -5157,7 +5178,9 @@ class _HomeScreenState extends State<HomeScreen>
                 _helpAnchor(
                   'sound_output',
                   Padding(
-                    padding: EdgeInsets.only(right: compactPhone ? 6 : 8),
+                    padding: EdgeInsets.only(
+                      right: tabletPortrait ? 4 : (compactPhone ? 6 : 8),
+                    ),
                     child: OutlinedButton.icon(
                       onPressed: () => setState(() {
                         _soundOutput = _soundOutput == 'audio'
@@ -5176,13 +5199,18 @@ class _HomeScreenState extends State<HomeScreen>
                             ? _accent
                             : _surfaceDark,
                         padding: EdgeInsets.symmetric(
-                          horizontal: compactPhone ? 8 : 12,
-                          vertical: compactPhone ? 6 : 8,
+                          horizontal: tabletPortrait
+                              ? 7
+                              : (compactPhone ? 8 : 12),
+                          vertical: tabletPortrait ? 6 : (compactPhone ? 6 : 8),
+                        ),
+                        textStyle: TextStyle(
+                          fontSize: tabletPortrait ? 13 : null,
                         ),
                       ),
                       icon: Icon(
                         _soundOutput == 'midi' ? Icons.piano : Icons.volume_up,
-                        size: 16,
+                        size: tabletPortrait ? 14 : 16,
                       ),
                       label: Text(
                         _soundOutput == 'midi'
@@ -5195,10 +5223,14 @@ class _HomeScreenState extends State<HomeScreen>
               _helpAnchor(
                 'accidental',
                 Container(
-                  constraints: BoxConstraints(minWidth: compactPhone ? 64 : 76),
-                  margin: EdgeInsets.only(right: compactPhone ? 6 : 8),
+                  constraints: BoxConstraints(
+                    minWidth: tabletPortrait ? 54 : (compactPhone ? 64 : 76),
+                  ),
+                  margin: EdgeInsets.only(
+                    right: tabletPortrait ? 4 : (compactPhone ? 6 : 8),
+                  ),
                   padding: EdgeInsets.symmetric(
-                    horizontal: compactPhone ? 6 : 8,
+                    horizontal: tabletPortrait ? 6 : (compactPhone ? 6 : 8),
                   ),
                   decoration: BoxDecoration(
                     color: _surfaceDark,
@@ -5209,7 +5241,10 @@ class _HomeScreenState extends State<HomeScreen>
                     child: DropdownButton<String>(
                       value: _accidental,
                       dropdownColor: _surfaceDark,
-                      style: const TextStyle(color: _text),
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: tabletPortrait ? 14 : null,
+                      ),
                       iconEnabledColor: _muted,
                       items: const <DropdownMenuItem<String>>[
                         DropdownMenuItem<String>(
@@ -5251,10 +5286,15 @@ class _HomeScreenState extends State<HomeScreen>
                 'help_toggle',
                 IconButton(
                   tooltip: _ui('Ayuda', 'Help'),
+                  visualDensity: tabletPortrait ? VisualDensity.compact : null,
+                  padding: tabletPortrait
+                      ? const EdgeInsets.all(6)
+                      : const EdgeInsets.all(8),
                   onPressed: _toggleHelpMode,
                   icon: Icon(
                     _helpActive ? Icons.help_center : Icons.help_outline,
                     color: _helpActive ? _accent : null,
+                    size: tabletPortrait ? 22 : null,
                   ),
                 ),
               ),
@@ -5262,11 +5302,15 @@ class _HomeScreenState extends State<HomeScreen>
                 'settings',
                 IconButton(
                   tooltip: _ui('Configuración', 'Settings'),
+                  visualDensity: tabletPortrait ? VisualDensity.compact : null,
+                  padding: tabletPortrait
+                      ? const EdgeInsets.all(6)
+                      : const EdgeInsets.all(8),
                   onPressed: _openSettingsPanel,
-                  icon: const Icon(Icons.settings),
+                  icon: Icon(Icons.settings, size: tabletPortrait ? 22 : null),
                 ),
               ),
-              SizedBox(width: compactPhone ? 4 : 8),
+              SizedBox(width: tabletPortrait ? 2 : (compactPhone ? 4 : 8)),
             ],
           ),
           body: Container(
@@ -6093,6 +6137,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
+    final tabletPortrait = !compactPhone && portrait;
     final metronomeFixedPiano =
         _tabIndex == 4 || _tabIndex == 5 || _tabIndex == 8 || _tabIndex == 9;
     final showRightControls =
@@ -6192,7 +6237,7 @@ class _HomeScreenState extends State<HomeScreen>
                         runSpacing: 8,
                         children: <Widget>[
                           SizedBox(
-                            width: 140,
+                            width: 64,
                             child: _helpAnchor(
                               instrumentToggleHelpId,
                               _instrumentToggle(),
@@ -6230,7 +6275,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ],
                           if (_instrumentView == 'guitar')
                             SizedBox(
-                              width: 180,
+                              width: 64,
                               child: _helpAnchor(
                                 handHelpId,
                                 _guitarHandednessToggle(),
@@ -6257,9 +6302,9 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       if (showRightControls) ...<Widget>[
-                        const SizedBox(width: 10),
+                        SizedBox(width: tabletPortrait ? 6 : 10),
                         SizedBox(
-                          width: 172,
+                          width: 64,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
@@ -6268,7 +6313,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 _instrumentToggle(),
                               ),
                               if (_instrumentView == 'guitar') ...<Widget>[
-                                const SizedBox(height: 8),
+                                SizedBox(height: tabletPortrait ? 5 : 8),
                                 _helpAnchor(
                                   handHelpId,
                                   _guitarHandednessToggle(),
@@ -6327,53 +6372,55 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _instToggle(String key, String label) {
+  Widget _instToggle(String key, String tooltip, Widget icon) {
     final compactPhone = _isCompactPhone(context);
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        minimumSize: compactPhone ? const Size(112, 42) : const Size(150, 56),
-        padding: compactPhone
-            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        backgroundColor: _surfaceDark,
-        side: const BorderSide(color: _border),
-        foregroundColor: _text,
-      ),
-      onPressed: () {
-        final instrumentChanging = _instrumentView != key;
-        if (instrumentChanging && _instrumentView == 'piano') {
-          _rememberPianoScrollForMode(_tabIndex);
-        }
-        setState(() {
-          if (instrumentChanging && (_tabIndex == 1 || _tabIndex == 2)) {
-            _generationInputStaffNotes.clear();
-            _clearGenerationNoteHighlight();
-            _stopHeldChord();
-            _stopHeldInputs();
-            _generationPlayPressed = false;
-          }
-          _instrumentView = key;
-          if (instrumentChanging && key == 'piano') {
-            _requestPianoScrollForMode(_tabIndex);
-          }
-          if (_tabIndex == 3) {
-            // _scaleRhNotes() fuerza 1 octava en guitarra; al volver a
-            // piano hay que recalcular la digitación con las octavas
-            // realmente seleccionadas, si no se queda con solo 1 octava.
-            _updateScaleFingeringsMap();
-          }
-        });
-        if (instrumentChanging && key == 'guitar') {
-          _scrollGuitarToNut();
-        }
-      },
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          label,
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.visible,
+    final tabletPortrait =
+        !compactPhone &&
+        MediaQuery.of(context).orientation == Orientation.portrait;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        label: tooltip,
+        button: true,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: tabletPortrait
+                ? const Size(52, 40)
+                : (compactPhone ? const Size(52, 42) : const Size(60, 48)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            backgroundColor: _surfaceDark,
+            side: const BorderSide(color: _border),
+            foregroundColor: _text,
+          ),
+          onPressed: () {
+            final instrumentChanging = _instrumentView != key;
+            if (instrumentChanging && _instrumentView == 'piano') {
+              _rememberPianoScrollForMode(_tabIndex);
+            }
+            setState(() {
+              if (instrumentChanging && (_tabIndex == 1 || _tabIndex == 2)) {
+                _generationInputStaffNotes.clear();
+                _clearGenerationNoteHighlight();
+                _stopHeldChord();
+                _stopHeldInputs();
+                _generationPlayPressed = false;
+              }
+              _instrumentView = key;
+              if (instrumentChanging && key == 'piano') {
+                _requestPianoScrollForMode(_tabIndex);
+              }
+              if (_tabIndex == 3) {
+                // _scaleRhNotes() fuerza 1 octava en guitarra; al volver a
+                // piano hay que recalcular la digitación con las octavas
+                // realmente seleccionadas, si no se queda con solo 1 octava.
+                _updateScaleFingeringsMap();
+              }
+            });
+            if (instrumentChanging && key == 'guitar') {
+              _scrollGuitarToNut();
+            }
+          },
+          child: icon,
         ),
       ),
     );
@@ -6381,34 +6428,51 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _instrumentToggle() {
     final next = _instrumentView == 'piano' ? 'guitar' : 'piano';
-    final label = _instrumentView == 'guitar'
+    final tooltip = _instrumentView == 'guitar'
         ? _ui('Guitarra', 'Guitar')
         : 'Piano';
-    return _instToggle(next, label);
+    final icon = _instrumentView == 'guitar'
+        ? const Text('🎸', style: TextStyle(fontSize: 25))
+        : const Icon(Icons.piano, size: 25);
+    return _instToggle(next, tooltip, icon);
   }
 
   Widget _guitarHandednessToggle() {
     final compactPhone = _isCompactPhone(context);
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        minimumSize: compactPhone ? const Size(112, 42) : const Size(150, 48),
-        backgroundColor: _surfaceDark,
-        side: const BorderSide(color: _border),
-        foregroundColor: _text,
-      ),
-      onPressed: () {
-        setState(() {
-          _guitarHandedness = _guitarHandedness == 'right' ? 'left' : 'right';
-        });
-        _scrollGuitarToNut();
-      },
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          _guitarHandedness == 'right'
-              ? _ui('Diestro', 'Right-handed')
-              : _ui('Zurdo', 'Left-handed'),
-          maxLines: 1,
+    final tabletPortrait =
+        !compactPhone &&
+        MediaQuery.of(context).orientation == Orientation.portrait;
+    final rightHanded = _guitarHandedness == 'right';
+    final tooltip = rightHanded
+        ? _ui('Mano derecha', 'Right hand')
+        : _ui('Mano izquierda', 'Left hand');
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        label: tooltip,
+        button: true,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: tabletPortrait
+                ? const Size(52, 40)
+                : (compactPhone ? const Size(52, 42) : const Size(60, 48)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            backgroundColor: _surfaceDark,
+            side: const BorderSide(color: _border),
+            foregroundColor: _text,
+          ),
+          onPressed: () {
+            setState(() {
+              _guitarHandedness = _guitarHandedness == 'right'
+                  ? 'left'
+                  : 'right';
+            });
+            _scrollGuitarToNut();
+          },
+          child: Transform.flip(
+            flipX: !rightHanded,
+            child: const Icon(Icons.back_hand_outlined, size: 25),
+          ),
         ),
       ),
     );

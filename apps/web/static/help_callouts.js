@@ -165,14 +165,37 @@ const HELP_CALLOUTS_INTERVAL_GENERATION = [
   { selector: "#staffCanvas", textKey: "help_staff_interval_generation", side: "top" },
   { selector: "#panelIntervalGeneration", textKey: "help_interval_gen_panel", side: "left" },
   { selector: "#intervalGenRootRow", textKey: "help_interval_gen_root", side: "left" },
+  { selector: "#intervalGenPlaybackMode", textKey: "help_interval_gen_playback_mode", side: "bottom" },
   { selector: "#intervalGenPlayReverse", textKey: "help_interval_gen_play_reverse", side: "bottom" },
   { selector: "#intervalGenPlay", textKey: "help_interval_gen_play", side: "bottom" },
   { selector: "#intervalGenFieldNotes", textKey: "help_interval_gen_field_notes", side: "left" },
   { selector: "#intervalGenFieldName", textKey: "help_interval_gen_field_name", side: "left" },
-  { selector: "#intervalGenFieldAlt", textKey: "help_interval_field_alt", side: "left" },
   { selector: "#intervalGenFieldSemitones", textKey: "help_interval_field_semitones", side: "left" },
   { selector: "#intervalGenTableWrap", textKey: "help_interval_gen_table", side: "left" },
   { selector: "#instrumentArea", textKey: "help_instrument_surface_interval_generation", side: "top" },
+];
+
+const HELP_CALLOUTS_INTERVAL_PRACTICE = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#accidental", textKey: "help_accidental", side: "bottom" },
+  { selector: "#midiToggle", textKey: "help_midi_toggle", side: "bottom" },
+  { selector: "#soundOutputToggle", textKey: "help_sound_output", side: "bottom" },
+  { selector: "#staffCanvas", textKey: "help_interval_practice_staff", side: "top" },
+  { selector: "#panelIntervalPractice", textKey: "help_interval_practice_panel", side: "left" },
+  { selector: "#intervalPracticeStart", textKey: "help_interval_practice_start", side: "bottom" },
+  { selector: "#intervalPracticeRepeat", textKey: "help_interval_practice_repeat", side: "bottom" },
+  { selector: "#intervalPracticeNext", textKey: "help_interval_practice_next", side: "bottom" },
+  { selector: "#intervalPracticeHelp", textKey: "help_interval_practice_process", side: "bottom" },
+  { selector: "#intervalPracticeReview", textKey: "help_interval_practice_review", side: "bottom" },
+  { selector: "#intervalPracticeOptions", textKey: "help_interval_practice_options", side: "left" },
+  { selector: "#intervalPracticeRepetitionsRow", textKey: "help_interval_practice_repetitions", side: "left" },
+  { selector: "#intervalPracticeFilter", textKey: "help_interval_practice_filter", side: "bottom" },
+  { selector: "#intervalPracticePlaybackMode", textKey: "help_interval_practice_playback", side: "bottom" },
+  { selector: "#intervalPracticeScoreField", textKey: "help_interval_practice_score", side: "left" },
+  { selector: "#intervalPracticeNameField", textKey: "help_interval_practice_result", side: "left" },
+  { selector: "#intervalPracticeTableWrap", textKey: "help_interval_practice_table", side: "left" },
+  { selector: "#sharedPiano", textKey: "help_interval_practice_piano", side: "top" },
 ];
 
 function helpCalloutsForMode(mode) {
@@ -180,6 +203,7 @@ function helpCalloutsForMode(mode) {
   if (mode === "detection") return HELP_CALLOUTS_DETECTION;
   if (mode === "interval_detection") return HELP_CALLOUTS_INTERVAL_DETECTION;
   if (mode === "interval_generation") return HELP_CALLOUTS_INTERVAL_GENERATION;
+  if (mode === "interval_practice") return HELP_CALLOUTS_INTERVAL_PRACTICE;
   if (mode === "generation") return HELP_CALLOUTS_GENERATION;
   if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
   if (mode === "scales") return HELP_CALLOUTS_SCALES;

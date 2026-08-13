@@ -65,6 +65,7 @@
           <option value="generation">Generación de Acordes</option>
           <option value="interval_detection">Detección de Intervalos</option>
           <option value="interval_generation">Generación de Intervalos</option>
+          <option value="interval_practice">Practicar Intervalos</option>
           <option value="circle_fifths">Círculo de quintas</option>
           <option value="scales">Escalas</option>
           <option value="metronome">Metrónomo</option>
@@ -160,17 +161,49 @@
                   <label id="labelIntervalGenRoot" for="intervalGenRootLetter">Tónica</label>
                   <select id="intervalGenRootLetter"></select>
                   <select id="intervalGenRootAccidental" class="accidental-select"></select>
+                  <button id="intervalGenPlaybackMode" type="button">Melódico</button>
                   <button id="intervalGenPlayReverse" class="icon-play-btn" aria-label="Reproducir descendente" title="Reproducir descendente" disabled>◀</button>
                   <button id="intervalGenPlay" class="icon-play-btn" aria-label="Reproducir" title="Reproducir" disabled>▶</button>
                 </div>
                 <div class="result-block">
                   <div id="intervalGenFieldNotes"><span id="labelIntervalGenNotes" class="label">Notas:</span> <span id="intervalGenNoteNames">-</span></div>
                   <div id="intervalGenFieldName"><span id="labelIntervalGenName" class="label">Intervalo:</span> <strong id="intervalGenName">-</strong></div>
-                  <div id="intervalGenFieldAlt"><span id="labelIntervalGenAlt" class="label">Alternativos:</span> <span id="intervalGenAltNames">-</span></div>
                   <div id="intervalGenFieldSemitones"><span id="labelIntervalGenSemitones" class="label">Semitonos:</span> <span id="intervalGenSemitonesValue">-</span></div>
                 </div>
                 <div id="intervalGenTableWrap" class="interval-gen-table-wrap">
                   <table id="intervalGenTable" class="interval-gen-table"></table>
+                </div>
+              </section>
+
+              <section id="panelIntervalPractice" class="mode-panel hidden">
+                <h3 id="headingIntervalPractice">Practicar Intervalos</h3>
+                <div id="intervalPracticeActions" class="controls-inline interval-practice-actions">
+                  <button id="intervalPracticeStart" type="button">Iniciar</button>
+                  <button id="intervalPracticeRepeat" class="icon-play-btn" type="button" aria-label="Repetir intervalo" title="Repetir intervalo" disabled>↻</button>
+                  <button id="intervalPracticeNext" type="button" aria-label="Siguiente" title="Siguiente" disabled>Siguiente</button>
+                  <button id="intervalPracticeHelp" class="icon-help-btn" type="button" aria-label="Ayuda de la práctica" title="Ayuda de la práctica">?</button>
+                  <div id="intervalPracticeReview" class="interval-practice-review hidden">
+                    <span id="labelIntervalPracticeReview">Ver resultados</span>
+                    <button id="intervalPracticeReviewPrev" class="icon-play-btn" type="button" aria-label="Resultado anterior" title="Resultado anterior">◀</button>
+                    <button id="intervalPracticeReviewNext" class="icon-play-btn" type="button" aria-label="Resultado siguiente" title="Resultado siguiente">▶</button>
+                  </div>
+                </div>
+                <div id="intervalPracticeOptions" class="controls-inline interval-practice-options">
+                  <label><input id="intervalPracticeRandomTonic" type="checkbox"> <span id="labelIntervalPracticeRandomTonic">Tónica aleatoria</span></label>
+                  <label><input id="intervalPracticeAscendingOnly" type="checkbox" checked> <span id="labelIntervalPracticeAscendingOnly">Solo ascendentes</span></label>
+                </div>
+                <div id="intervalPracticeRepetitionsRow" class="interval-practice-repetitions">
+                  <label for="intervalPracticeRepetitions"><span id="labelIntervalPracticeRepetitions">Repeticiones</span></label>
+                  <input id="intervalPracticeRepetitions" type="number" min="1" max="100" step="1" value="10" inputmode="numeric">
+                  <button id="intervalPracticeFilter" type="button">Filtrar</button>
+                  <button id="intervalPracticePlaybackMode" type="button">Melódico</button>
+                </div>
+                <div class="result-block interval-practice-result">
+                  <div id="intervalPracticeScoreField"><span id="labelIntervalPracticeScore" class="label">Aciertos:</span> <strong id="intervalPracticeScore">0/0</strong></div>
+                  <div id="intervalPracticeNameField"><span id="labelIntervalPracticeName" class="label">Intervalo:</span> <strong id="intervalPracticeName">-</strong></div>
+                </div>
+                <div id="intervalPracticeTableWrap" class="interval-gen-table-wrap">
+                  <table id="intervalPracticeTable" class="interval-gen-table"></table>
                 </div>
               </section>
 
@@ -461,6 +494,22 @@
         <p id="chordVariantHelpInversionText" class="chord-variant-help-inversion"></p>
         <div class="controls-inline chord-variant-help-actions">
           <button id="chordVariantHelpCloseBtn" type="button" class="ghost">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="intervalPracticeFilterModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="intervalPracticeFilterTitle">
+      <div class="modal-card interval-practice-filter-card">
+        <h3 id="intervalPracticeFilterTitle">Filtrar intervalos</h3>
+        <p id="intervalPracticeFilterText">Selecciona las notas que podrán aparecer como segunda nota del intervalo.</p>
+        <div class="controls-inline interval-practice-filter-selection-actions">
+          <button id="intervalPracticeFilterSelectAll" type="button">Seleccionar todo</button>
+          <button id="intervalPracticeFilterClear" type="button" class="ghost">Eliminar selección</button>
+        </div>
+        <div id="intervalPracticeFilterPiano" class="interval-practice-filter-piano" role="group" aria-label="Notas permitidas"></div>
+        <div class="controls-inline interval-practice-filter-confirm-actions">
+          <button id="intervalPracticeFilterAccept" type="button">Aceptar</button>
+          <button id="intervalPracticeFilterCancel" type="button" class="ghost">Cancelar</button>
         </div>
       </div>
     </div>

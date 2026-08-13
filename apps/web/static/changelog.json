@@ -4,6 +4,13 @@
     "date": "2026-08-10",
     "items": [
       {
+        "date": "2026-08-12",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Nuevo modo Practicar Intervalos para entrenamiento auditivo, con respuestas desde piano, MIDI o tabla, configuración del ejercicio, corrección visual, puntuación y revisión de resultados.",
+        "en": "New Interval Practice ear-training mode with answers from the piano, MIDI, or table, exercise settings, visual correction, scoring, and result review."
+      },
+      {
         "date": "2026-08-10",
         "publish": true,
         "platforms": ["web", "desktop", "mobile"],

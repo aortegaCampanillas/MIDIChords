@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Web (práctica de intervalos)**: nuevo modo de entrenamiento auditivo con respuestas desde piano, MIDI o tabla, configuración del ejercicio, corrección visual, puntuación y revisión de resultados.
 - **PianoPilot (landing)**: sincronizados la versión pública y el historial bilingüe con la versión 1.0.4 del proyecto fuente, incluida la corrección de conexión MIDI en Windows.
 - **Web (landing)**: la portada muestra la insignia oficial de nominación de FreeMIDIChords a los Open Education Awards for Excellence 2026, con contexto bilingüe y enlace a la credencial verificable.
 - **Móvil / audio Android**: los samples nativos se reproducen desde PCM precodificado y solo fuerzan el altavoz interno cuando existe una salida de audio USB, evitando la creación repetida de decodificadores y la reconstrucción innecesaria de pistas de audio.

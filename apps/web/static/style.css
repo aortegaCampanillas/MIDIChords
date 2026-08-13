@@ -564,6 +564,7 @@ a.btn-link:hover {
 #chordVariantHelpText {
   color: var(--text);
   line-height: 1.55;
+  white-space: pre-line;
 }
 
 .modal-card .chord-variant-help-inversion {
@@ -885,24 +886,42 @@ a.btn-link:hover {
   min-height: auto;
 }
 
-.mode-screen.mode-interval_generation .mode-layout {
+.mode-screen.mode-interval_generation .mode-layout,
+.mode-screen.mode-interval_practice .mode-layout {
   grid-template-columns: minmax(380px, 1fr) minmax(460px, 58%);
 }
 
-.mode-screen.mode-interval_generation .staff-panel {
+.mode-screen.mode-interval_generation .staff-panel,
+.mode-screen.mode-interval_practice .staff-panel {
   height: min(50vh, 500px);
   overflow: hidden;
 }
 
-.mode-screen.mode-interval_generation #staffCanvas {
+.mode-screen.mode-interval_generation #staffCanvas,
+.mode-screen.mode-interval_practice #staffCanvas {
   height: clamp(260px, 34vh, 360px);
 }
 
-.mode-screen.mode-interval_generation .sidebar-top {
+.mode-screen.mode-interval_generation .sidebar-top,
+.mode-screen.mode-interval_practice .sidebar-top {
   max-height: min(50vh, 500px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* La generación necesita una fila adicional para mostrar completas las cinco
+   categorías de la tabla sin desplazarla en ventanas de escritorio. */
+.mode-screen.mode-interval_generation .sidebar-top {
+  height: min(56vh, 550px);
+  max-height: min(56vh, 550px);
+}
+
+/* Práctica añade controles y una fila de repeticiones antes de la tabla.
+   Le damos más altura para mantener visibles sus cinco categorías completas. */
+.mode-screen.mode-interval_practice .sidebar-top {
+  height: min(62vh, 610px);
+  max-height: min(62vh, 610px);
 }
 
 .mode-screen.mode-interval_generation #panelIntervalGeneration:not(.hidden) {
@@ -910,6 +929,112 @@ a.btn-link:hover {
   flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
+}
+
+.mode-screen.mode-interval_practice #panelIntervalPractice:not(.hidden) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.interval-practice-actions,
+.interval-practice-options {
+  margin-bottom: 10px;
+}
+
+.interval-practice-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.interval-practice-review.hidden {
+  display: none;
+}
+
+.interval-practice-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.interval-practice-repetitions input {
+  width: 4.5em;
+}
+
+.interval-practice-repetitions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.interval-practice-filter-card {
+  width: min(680px, 96vw);
+}
+
+.interval-practice-filter-selection-actions,
+.interval-practice-filter-confirm-actions {
+  justify-content: center;
+}
+
+.interval-practice-filter-piano {
+  position: relative;
+  display: flex;
+  height: 180px;
+  margin: 18px 0;
+  overflow: hidden;
+  border: 1px solid #65758c;
+  border-radius: 10px;
+  background: #101923;
+}
+
+.filter-piano-key {
+  min-width: 0;
+  border-radius: 0;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.filter-piano-key.white {
+  flex: 1 1 calc(100% / 8);
+  height: 100%;
+  padding: 138px 2px 8px;
+  border: 0;
+  border-right: 1px solid #8593a5;
+  background: #f4f6f8;
+  color: #1b2735;
+}
+
+.filter-piano-key.black {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  width: 6.2%;
+  height: 62%;
+  padding: 76px 1px 6px;
+  border: 1px solid #05080c;
+  background: #101820;
+  color: #f2f5f8;
+}
+
+.filter-piano-key.white.selected {
+  background: #79dfa0;
+  box-shadow: inset 0 0 0 3px #2ebf69;
+}
+
+.filter-piano-key.black.selected {
+  background: #238d55;
+  box-shadow: inset 0 0 0 3px #69e69b;
+}
+
+.interval-practice-result {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .mode-screen.mode-interval_generation .instrument-panel.with-inst-dock {
@@ -1490,9 +1615,23 @@ a.btn-link:hover {
   opacity: 0;
 }
 
+.interval-gen-cell:disabled.filter-disabled {
+  opacity: 0.32;
+}
+
+.interval-gen-table thead th.filter-disabled {
+  opacity: 0.38;
+}
+
 .interval-gen-cell.selected {
   background: var(--accent);
   color: #17273a;
+  font-weight: 700;
+}
+
+.interval-gen-cell.practice-wrong {
+  background: var(--danger);
+  color: #fff;
   font-weight: 700;
 }
 
@@ -1582,6 +1721,33 @@ a.btn-link:hover {
   outline: 2px solid var(--danger);
   outline-offset: -2px;
   background: #ffc1c1;
+}
+
+.key.practice-correct {
+  outline: 2px solid #34c96b;
+  outline-offset: -2px;
+  background: #91e5aa;
+}
+
+.key.black.practice-correct {
+  background: #168a42;
+}
+
+.key.practice-wrong {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+  background: #ffc1c1;
+}
+
+.key.black.practice-wrong {
+  background: #8b1f1f;
+}
+
+.key.practice-playing,
+.key.black.practice-playing {
+  outline: 2px solid #6fe0ff;
+  outline-offset: -2px;
+  background: #2faeff;
 }
 
 .key.black.extra {

@@ -31,6 +31,27 @@ const state = {
   intervalGenLastPlayReverse: null,
   intervalGenInputCurrentNote: null,
   intervalGenInputClearTimer: null,
+  intervalGenPlaybackMode: "melodic",
+  intervalGenPlayingNotes: new Set(),
+  intervalPracticeStarted: false,
+  intervalPracticeRunning: false,
+  intervalPracticeRoot: null,
+  intervalPracticeSemitones: null,
+  intervalPracticeDirection: 1,
+  intervalPracticeColumnKey: null,
+  intervalPracticeAnswer: null,
+  intervalPracticeCorrect: 0,
+  intervalPracticeTotal: 0,
+  intervalPracticeRepetitions: 10,
+  intervalPracticeHistory: [],
+  intervalPracticeReviewIndex: null,
+  intervalPracticeSemitoneDeck: [],
+  intervalPracticeLastSemitones: null,
+  intervalPracticeReviewReplayTimer: null,
+  intervalPracticeAllowedSemitones: new Set(Array.from({ length: 13 }, (_, semitones) => semitones)),
+  intervalPracticeFilterDraft: null,
+  intervalPracticePlaybackMode: "melodic",
+  intervalPracticePlayingNotes: new Set(),
   chordPatterns: [],
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
@@ -198,6 +219,7 @@ const AVAILABLE_MODES = new Set([
   "detection",
   "interval_detection",
   "interval_generation",
+  "interval_practice",
   "generation",
   "circle_fifths",
   "scales",
@@ -1050,6 +1072,21 @@ function selectedChordVariantTheory(source = chordVariantHelpSource) {
 }
 
 function refreshChordVariantHelpContent() {
+  if (chordVariantHelpSource === "interval_practice") {
+    el("chordVariantHelpTitle").textContent = tr("interval_practice_help_title");
+    const formula = el("chordVariantHelpFormula");
+    if (formula) {
+      formula.textContent = "";
+      formula.classList.add("hidden");
+    }
+    el("chordVariantHelpText").textContent = tr("interval_practice_help_text");
+    const nextText = el("chordVariantHelpInversionText");
+    if (nextText) {
+      nextText.textContent = tr("interval_practice_help_next");
+      nextText.classList.remove("hidden");
+    }
+    return true;
+  }
   const { suffix, theory, description, inversion } = selectedChordVariantTheory();
   if (!theory) return false;
   let variantDescription = description;
@@ -1062,6 +1099,7 @@ function refreshChordVariantHelpContent() {
   const variant = variantDescription || el("genVariant")?.selectedOptions?.[0]?.textContent || suffix || "maj";
   el("chordVariantHelpTitle").textContent = trTemplate("chord_variant_help_title", { variant });
   el("chordVariantHelpFormula").textContent = trTemplate("chord_variant_help_formula", { formula: theory[0] });
+  el("chordVariantHelpFormula").classList.remove("hidden");
   el("chordVariantHelpText").textContent = state.language === "en" ? theory[2] : theory[1];
   const inversionText = el("chordVariantHelpInversionText");
   const inversionTheory = suffix === ""
@@ -1083,7 +1121,10 @@ function showChordVariantHelpModal(source = "generation") {
 
 function hideChordVariantHelpModal() {
   el("chordVariantHelpModal")?.classList.add("hidden");
-  el(chordVariantHelpSource === "detection" ? "detectVariantHelp" : "genVariantHelp")?.focus();
+  const sourceButton = chordVariantHelpSource === "detection"
+    ? "detectVariantHelp"
+    : (chordVariantHelpSource === "interval_practice" ? "intervalPracticeHelp" : "genVariantHelp");
+  el(sourceButton)?.focus();
 }
 
 const SEO_META = {
@@ -1622,6 +1663,7 @@ function applyTranslations() {
     opt("generation", "mode_generation");
     opt("interval_detection", "mode_interval_detection");
     opt("interval_generation", "mode_interval_generation");
+    opt("interval_practice", "mode_interval_practice");
     opt("circle_fifths", "mode_circle_fifths");
     opt("scales", "mode_scales");
     opt("metronome", "mode_metronome");
@@ -1649,10 +1691,56 @@ function applyTranslations() {
   setText("labelIntervalSemitones", "label_interval_semitones");
   setText("labelIntervalRecuerda", "label_interval_recuerda");
   setText("headingIntervalGeneration", "heading_interval_generation");
+  setText("headingIntervalPractice", "heading_interval_practice");
+  setText("labelIntervalPracticeRandomTonic", "interval_practice_random_tonic");
+  setText("labelIntervalPracticeAscendingOnly", "interval_practice_ascending_only");
+  setText("labelIntervalPracticeScore", "interval_practice_score");
+  setText("labelIntervalPracticeRepetitions", "interval_practice_repetitions");
+  setText("intervalPracticeFilter", "interval_practice_filter");
+  setText(
+    "intervalPracticePlaybackMode",
+    state.intervalPracticePlaybackMode === "harmonic"
+      ? "interval_practice_playback_harmonic"
+      : "interval_practice_playback_melodic",
+  );
+  setText("intervalPracticeFilterTitle", "interval_practice_filter_title");
+  setText("intervalPracticeFilterText", "interval_practice_filter_text");
+  setText("intervalPracticeFilterSelectAll", "interval_practice_filter_select_all");
+  setText("intervalPracticeFilterClear", "interval_practice_filter_clear");
+  setText("intervalPracticeFilterAccept", "interval_practice_filter_accept");
+  setText("intervalPracticeFilterCancel", "interval_practice_filter_cancel");
+  const filterPiano = el("intervalPracticeFilterPiano");
+  if (filterPiano) filterPiano.setAttribute("aria-label", tr("interval_practice_filter_piano"));
+  setText("labelIntervalPracticeReview", "interval_practice_review");
+  const reviewPrev = el("intervalPracticeReviewPrev");
+  const reviewNext = el("intervalPracticeReviewNext");
+  if (reviewPrev) {
+    reviewPrev.setAttribute("aria-label", tr("interval_practice_review_prev"));
+    reviewPrev.title = tr("interval_practice_review_prev");
+  }
+  if (reviewNext) {
+    reviewNext.setAttribute("aria-label", tr("interval_practice_review_next"));
+    reviewNext.title = tr("interval_practice_review_next");
+  }
+  setText("labelIntervalPracticeName", "label_interval_name");
+  const practiceNext = el("intervalPracticeNext");
+  if (practiceNext) {
+    practiceNext.textContent = tr("interval_practice_next");
+    practiceNext.setAttribute("aria-label", tr("interval_practice_next"));
+    practiceNext.title = tr("interval_practice_next");
+  }
+  const practiceRepeat = el("intervalPracticeRepeat");
+  if (practiceRepeat) {
+    const reviewing = !state.intervalPracticeRunning && state.intervalPracticeHistory.length > 0;
+    const actionKey = reviewing ? "interval_practice_listen_again" : "interval_practice_repeat";
+    practiceRepeat.textContent = "↻";
+    practiceRepeat.setAttribute("aria-label", tr(actionKey));
+    practiceRepeat.title = tr(actionKey);
+  }
+  refreshIntervalPracticeUi();
   setText("labelIntervalGenRoot", "label_tonic");
   setText("labelIntervalGenNotes", "label_interval_notes");
   setText("labelIntervalGenName", "label_interval_name");
-  setText("labelIntervalGenAlt", "label_interval_alt");
   setText("labelIntervalGenSemitones", "label_interval_semitones");
   setText("headingGeneration", "heading_generation");
   setText("headingScales", "heading_scales");
@@ -1738,6 +1826,11 @@ function applyTranslations() {
     button.setAttribute("aria-label", tr("chord_variant_help_button"));
     button.setAttribute("title", tr("chord_variant_help_button"));
   });
+  const intervalPracticeHelp = el("intervalPracticeHelp");
+  if (intervalPracticeHelp) {
+    intervalPracticeHelp.setAttribute("aria-label", tr("interval_practice_help_button"));
+    intervalPracticeHelp.setAttribute("title", tr("interval_practice_help_button"));
+  }
   if (!el("chordVariantHelpModal")?.classList.contains("hidden")) refreshChordVariantHelpContent();
   setText("midiStartupTitle", "midi_startup_title");
   setText("midiStartupText", "midi_startup_text");
@@ -1760,6 +1853,7 @@ function applyTranslations() {
   const intervalPlayReverse = el("intervalPlayReverse");
   const intervalGenPlay = el("intervalGenPlay");
   const intervalGenPlayReverse = el("intervalGenPlayReverse");
+  const intervalGenPlaybackMode = el("intervalGenPlaybackMode");
   const genPlay = el("genPlay");
   const scaleModeMetronome = el("scaleModeMetronome");
   if (detectPlay) {
@@ -1781,6 +1875,14 @@ function applyTranslations() {
   if (intervalGenPlayReverse) {
     intervalGenPlayReverse.setAttribute("aria-label", tr("interval_play_reverse"));
     intervalGenPlayReverse.setAttribute("title", tr("interval_play_reverse"));
+  }
+  if (intervalGenPlaybackMode) {
+    const harmonic = state.intervalGenPlaybackMode === "harmonic";
+    intervalGenPlaybackMode.textContent = tr(harmonic
+      ? "interval_practice_playback_harmonic"
+      : "interval_practice_playback_melodic");
+    intervalGenPlaybackMode.classList.toggle("active", harmonic);
+    intervalGenPlaybackMode.setAttribute("aria-pressed", harmonic ? "true" : "false");
   }
   if (genPlay) {
     genPlay.setAttribute("aria-label", tr("play"));
@@ -1883,7 +1985,7 @@ async function fetchJson(url, options = {}) {
 }
 
 function activeModeSupportsInstrument() {
-  return state.mode === "note_detection" || state.mode === "detection" || state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
+  return state.mode === "note_detection" || state.mode === "detection" || state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "interval_practice" || state.mode === "generation" || state.mode === "circle_fifths" || state.mode === "scales" || state.mode === "metronome";
 }
 
 function activeModeSupportsStaff() {
@@ -1891,6 +1993,7 @@ function activeModeSupportsStaff() {
     || state.mode === "detection"
     || state.mode === "interval_detection"
     || state.mode === "interval_generation"
+    || state.mode === "interval_practice"
     || state.mode === "generation"
     || state.mode === "circle_fifths"
     || state.mode === "scales"
@@ -1992,7 +2095,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-note_detection", "mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-note_detection", "mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-interval_practice", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -2005,6 +2108,7 @@ function setMode(mode) {
     detection: "panelDetection",
     interval_detection: "panelIntervalDetection",
     interval_generation: "panelIntervalGeneration",
+    interval_practice: "panelIntervalPractice",
     generation: "panelGeneration",
     circle_fifths: "panelCircleFifths",
     scales: "panelScales",
@@ -2058,6 +2162,8 @@ function setMode(mode) {
   }
 
   if (mode === "note_detection" || mode === "detection" || mode === "interval_detection") {
+    setInstrument("piano");
+  } else if (mode === "interval_practice") {
     setInstrument("piano");
   } else if (mode === "metronome") {
     setInstrument("piano");
@@ -2281,6 +2387,9 @@ function getActivePcsForMode() {
   if (state.mode === "interval_generation") {
     return new Set(intervalGenNotes().map((n) => Number(n) % 12));
   }
+  if (state.mode === "interval_practice") {
+    return new Set(intervalPracticeStaffNotes().map((n) => Number(n) % 12));
+  }
   return new Set();
 }
 
@@ -2305,6 +2414,7 @@ function getActiveMidiForMode() {
     if (state.intervalGenPlayingNote != null) return new Set([Number(state.intervalGenPlayingNote)]);
     return new Set();
   }
+  if (state.mode === "interval_practice") return new Set();
   if (state.mode === "metronome") {
     return new Set(Array.from(state.activeMidiLiveNotes));
   }
@@ -2481,6 +2591,381 @@ function getIntervalGenAltNames(semitones) {
     .filter((name) => name && name !== selected);
 }
 
+function intervalPracticeQuestionNotes() {
+  if (!state.intervalPracticeStarted || state.intervalPracticeRoot == null || state.intervalPracticeSemitones == null) return [];
+  return [
+    Number(state.intervalPracticeRoot),
+    Number(state.intervalPracticeRoot) + (Number(state.intervalPracticeDirection) * Number(state.intervalPracticeSemitones)),
+  ];
+}
+
+function intervalPracticeStaffNotes() {
+  const question = intervalPracticeQuestionNotes();
+  if (!question.length) return [];
+  const answer = state.intervalPracticeAnswer;
+  if (!answer) {
+    const playing = state.intervalGenPlayingNote == null ? null : Number(state.intervalGenPlayingNote);
+    return playing != null && playing !== question[0] ? [question[0], playing] : [question[0]];
+  }
+  if (answer.correct) return [question[0], question[1]];
+  return [question[0], Number(answer.note), question[1]];
+}
+
+function intervalPracticeChoices() {
+  const randomTonic = !!el("intervalPracticeRandomTonic")?.checked;
+  const ascendingOnly = !!el("intervalPracticeAscendingOnly")?.checked;
+  const roots = randomTonic ? Array.from({ length: 12 }, (_, pc) => 60 + pc) : [60];
+  const cells = [];
+  INTERVAL_GRID_COLUMNS.forEach((column) => {
+    Object.keys(column.cellsBySemitone).forEach((value) => {
+      const semitones = Number(value);
+      roots.forEach((root) => {
+        const directions = ascendingOnly || semitones === 0 ? [1] : [1, -1];
+        directions.forEach((direction) => {
+          const target = root + (direction * semitones);
+          if (!state.intervalPracticeAllowedSemitones.has(semitones)) return;
+          cells.push({ root, semitones, columnKey: column.key, direction });
+        });
+      });
+    });
+  });
+  return cells;
+}
+
+function renderIntervalPracticeFilterPiano() {
+  const piano = el("intervalPracticeFilterPiano");
+  if (!piano) return;
+  const selected = state.intervalPracticeFilterDraft || state.intervalPracticeAllowedSemitones;
+  const whiteSteps = [0, 2, 4, 5, 7, 9, 11, 12];
+  const blackKeys = [
+    { pc: 1, left: 1 }, { pc: 3, left: 2 }, { pc: 6, left: 4 },
+    { pc: 8, left: 5 }, { pc: 10, left: 6 },
+  ];
+  piano.innerHTML = "";
+  whiteSteps.forEach((semitones) => {
+    const key = document.createElement("button");
+    key.type = "button";
+    key.className = `filter-piano-key white${selected.has(semitones) ? " selected" : ""}`;
+    key.dataset.semitones = String(semitones);
+    key.setAttribute("aria-pressed", selected.has(semitones) ? "true" : "false");
+    key.textContent = noteNameWithOctave(60 + semitones);
+    piano.appendChild(key);
+  });
+  blackKeys.forEach(({ pc: semitones, left }) => {
+    const key = document.createElement("button");
+    key.type = "button";
+    key.className = `filter-piano-key black${selected.has(semitones) ? " selected" : ""}`;
+    key.style.left = `calc(${left} * (100% / 8) - 3.1%)`;
+    key.dataset.semitones = String(semitones);
+    key.setAttribute("aria-pressed", selected.has(semitones) ? "true" : "false");
+    key.textContent = noteNameWithOctave(60 + semitones);
+    piano.appendChild(key);
+  });
+  const accept = el("intervalPracticeFilterAccept");
+  if (accept) accept.disabled = selected.size === 0;
+}
+
+function showIntervalPracticeFilterModal() {
+  if (state.intervalPracticeRunning) return;
+  state.intervalPracticeFilterDraft = new Set(state.intervalPracticeAllowedSemitones);
+  renderIntervalPracticeFilterPiano();
+  el("intervalPracticeFilterModal")?.classList.remove("hidden");
+}
+
+function hideIntervalPracticeFilterModal() {
+  el("intervalPracticeFilterModal")?.classList.add("hidden");
+  state.intervalPracticeFilterDraft = null;
+}
+
+function acceptIntervalPracticeFilter() {
+  if (!state.intervalPracticeFilterDraft?.size) return;
+  state.intervalPracticeAllowedSemitones = new Set(state.intervalPracticeFilterDraft);
+  state.intervalPracticeSemitoneDeck = [];
+  refreshIntervalPracticeUi();
+  hideIntervalPracticeFilterModal();
+}
+
+function shuffledIntervalPracticeSemitones(choices) {
+  const values = Array.from(new Set(choices.map((choice) => Number(choice.semitones))));
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
+  }
+  if (values.length > 1 && values[0] === state.intervalPracticeLastSemitones) {
+    [values[0], values[1]] = [values[1], values[0]];
+  }
+  return values;
+}
+
+function drawIntervalPracticeChoice() {
+  const choices = intervalPracticeChoices();
+  if (!choices.length) return null;
+  const availableSemitones = new Set(choices.map((choice) => Number(choice.semitones)));
+  state.intervalPracticeSemitoneDeck = state.intervalPracticeSemitoneDeck
+    .filter((semitones) => availableSemitones.has(Number(semitones)));
+  if (!state.intervalPracticeSemitoneDeck.length) {
+    state.intervalPracticeSemitoneDeck = shuffledIntervalPracticeSemitones(choices);
+  }
+  const semitones = Number(state.intervalPracticeSemitoneDeck.shift());
+  const matching = choices.filter((choice) => Number(choice.semitones) === semitones);
+  const choice = matching[Math.floor(Math.random() * matching.length)] || null;
+  state.intervalPracticeLastSemitones = semitones;
+  return choice;
+}
+
+function playIntervalPracticeQuestion() {
+  const notes = intervalPracticeQuestionNotes();
+  // La segunda nota debe seguir siendo una incógnita: suena, pero no se
+  // resalta ni en el instrumento ni en el pentagrama antes de responder.
+  if (notes.length === 2) playIntervalPracticeNotes(notes, { hideSecond: true });
+}
+
+function playIntervalPracticeNotes(notes, { hideSecond = false } = {}) {
+  const values = notes.map((note) => Number(note));
+  state.intervalPracticePlayingNotes.clear();
+  if (state.intervalPracticePlaybackMode !== "harmonic") {
+    playIntervalGenNoteSequence(values, 500, { highlightIndices: hideSecond ? [0] : null });
+    return;
+  }
+  const gen = ++state.intervalGenPlayGeneration;
+  state.intervalGenPlayingNote = null;
+  state.intervalGenPlayingIdx = null;
+  state.intervalPracticePlayingNotes = new Set(hideSecond ? values.slice(0, 1) : values);
+  values.forEach((note) => playSingle(note, state.instrument === "guitar" ? "guitar" : "piano"));
+  renderInstrument();
+  renderStaff();
+  setTimeout(() => {
+    if (state.intervalGenPlayGeneration !== gen) return;
+    state.intervalPracticePlayingNotes.clear();
+    renderInstrument();
+    renderStaff();
+  }, 460);
+}
+
+function intervalPracticeRepetitionLimit() {
+  return Math.max(1, Math.min(100, Math.trunc(Number(state.intervalPracticeRepetitions) || 10)));
+}
+
+function nextIntervalPracticeQuestion() {
+  if (state.intervalPracticeReviewReplayTimer != null) {
+    clearTimeout(state.intervalPracticeReviewReplayTimer);
+    state.intervalPracticeReviewReplayTimer = null;
+  }
+  const choice = drawIntervalPracticeChoice();
+  if (!choice) return;
+  state.intervalPracticeRoot = choice.root;
+  state.intervalPracticeSemitones = choice.semitones;
+  state.intervalPracticeColumnKey = choice.columnKey;
+  state.intervalPracticeDirection = choice.direction;
+  state.intervalPracticeAnswer = null;
+  refreshIntervalPracticeUi();
+  playIntervalPracticeQuestion();
+}
+
+function startIntervalPractice() {
+  if (state.intervalPracticeReviewReplayTimer != null) {
+    clearTimeout(state.intervalPracticeReviewReplayTimer);
+    state.intervalPracticeReviewReplayTimer = null;
+  }
+  const repetitionsInput = el("intervalPracticeRepetitions");
+  state.intervalPracticeRepetitions = Math.max(1, Math.min(100, Math.trunc(Number(repetitionsInput?.value) || 10)));
+  if (repetitionsInput) repetitionsInput.value = String(state.intervalPracticeRepetitions);
+  state.intervalPracticeStarted = true;
+  state.intervalPracticeRunning = true;
+  state.intervalPracticeCorrect = 0;
+  state.intervalPracticeTotal = 0;
+  state.intervalPracticeHistory = [];
+  state.intervalPracticeReviewIndex = null;
+  state.intervalPracticeSemitoneDeck = [];
+  state.intervalPracticeLastSemitones = null;
+  nextIntervalPracticeQuestion();
+}
+
+function showIntervalPracticeHistoryEntry(index) {
+  const history = state.intervalPracticeHistory;
+  if (!history.length) return;
+  if (state.intervalPracticeReviewReplayTimer != null) {
+    clearTimeout(state.intervalPracticeReviewReplayTimer);
+    state.intervalPracticeReviewReplayTimer = null;
+  }
+  state.intervalGenPlayGeneration += 1;
+  state.intervalGenPlayingNote = null;
+  state.intervalGenPlayingIdx = null;
+  const bounded = Math.max(0, Math.min(history.length - 1, Number(index) || 0));
+  const entry = history[bounded];
+  state.intervalPracticeReviewIndex = bounded;
+  state.intervalPracticeStarted = true;
+  state.intervalPracticeRoot = entry.root;
+  state.intervalPracticeSemitones = entry.semitones;
+  state.intervalPracticeColumnKey = entry.columnKey;
+  state.intervalPracticeDirection = entry.direction;
+  state.intervalPracticeAnswer = { ...entry.answer };
+  state.intervalPracticeCorrect = entry.scoreCorrect;
+  state.intervalPracticeTotal = entry.scoreTotal;
+  refreshIntervalPracticeUi();
+}
+
+function replayIntervalPracticeResult() {
+  if (!state.intervalPracticeAnswer) return;
+  if (state.intervalPracticeReviewReplayTimer != null) {
+    clearTimeout(state.intervalPracticeReviewReplayTimer);
+    state.intervalPracticeReviewReplayTimer = null;
+  }
+  const root = Number(state.intervalPracticeRoot);
+  const correctNote = root
+    + ((Number(state.intervalPracticeDirection) < 0 ? -1 : 1) * Number(state.intervalPracticeSemitones));
+  const answer = { ...state.intervalPracticeAnswer };
+  playIntervalPracticeNotes([root, correctNote]);
+  if (!answer.correct) {
+    const wrongNote = Number(answer.note);
+    state.intervalPracticeReviewReplayTimer = setTimeout(() => {
+      state.intervalPracticeReviewReplayTimer = null;
+      playIntervalPracticeNotes([root, wrongNote]);
+    }, 1150);
+  }
+}
+
+function stopIntervalPractice() {
+  state.intervalPracticeRunning = false;
+  state.intervalGenPlayGeneration += 1;
+  state.intervalGenPlayingNote = null;
+  state.intervalGenPlayingIdx = null;
+  if (state.intervalPracticeHistory.length) {
+    showIntervalPracticeHistoryEntry(state.intervalPracticeHistory.length - 1);
+  } else {
+    state.intervalPracticeStarted = false;
+    state.intervalPracticeRoot = null;
+    state.intervalPracticeSemitones = null;
+    state.intervalPracticeColumnKey = null;
+    state.intervalPracticeAnswer = null;
+    refreshIntervalPracticeUi();
+  }
+}
+
+function toggleIntervalPractice() {
+  if (state.intervalPracticeRunning) stopIntervalPractice();
+  else startIntervalPractice();
+}
+
+function answerIntervalPractice({ note = null, semitones = null } = {}) {
+  if (!state.intervalPracticeRunning || state.intervalPracticeAnswer) return;
+  const target = Number(state.intervalPracticeSemitones);
+  const root = Number(state.intervalPracticeRoot);
+  const direction = Number(state.intervalPracticeDirection) < 0 ? -1 : 1;
+  const targetNote = root + (direction * target);
+  const guessedSemitones = semitones == null ? Math.abs(Number(note) - root) : Number(semitones);
+  const correct = note == null ? guessedSemitones === target : Number(note) === targetNote;
+  const guessedNote = note == null ? root + (direction * Number(semitones)) : Number(note);
+  state.intervalPracticeAnswer = { correct, note: guessedNote, semitones: guessedSemitones };
+  state.intervalPracticeTotal += 1;
+  if (correct) state.intervalPracticeCorrect += 1;
+  state.intervalPracticeHistory.push({
+    root,
+    semitones: target,
+    columnKey: state.intervalPracticeColumnKey,
+    direction,
+    answer: { ...state.intervalPracticeAnswer },
+    scoreCorrect: state.intervalPracticeCorrect,
+    scoreTotal: state.intervalPracticeTotal,
+  });
+  state.intervalPracticeReviewIndex = null;
+  if (state.intervalPracticeTotal >= intervalPracticeRepetitionLimit()) {
+    state.intervalPracticeRunning = false;
+  }
+  if (note != null || semitones != null) {
+    playIntervalPracticeNotes([root, guessedNote]);
+  }
+  refreshIntervalPracticeUi();
+}
+
+function refreshIntervalPracticeUi() {
+  const start = el("intervalPracticeStart");
+  const repeat = el("intervalPracticeRepeat");
+  const next = el("intervalPracticeNext");
+  const playbackMode = el("intervalPracticePlaybackMode");
+  if (start) start.textContent = tr(state.intervalPracticeRunning ? "interval_practice_stop" : "interval_practice_start");
+  const sessionComplete = state.intervalPracticeStarted
+    && state.intervalPracticeTotal >= intervalPracticeRepetitionLimit();
+  const reviewing = !state.intervalPracticeRunning && state.intervalPracticeHistory.length > 0;
+  if (repeat) {
+    const actionKey = (reviewing || state.intervalPracticeAnswer)
+      ? "interval_practice_listen_again"
+      : "interval_practice_repeat";
+    repeat.textContent = "↻";
+    repeat.setAttribute("aria-label", tr(actionKey));
+    repeat.title = tr(actionKey);
+    repeat.disabled = !(reviewing || state.intervalPracticeRunning);
+  }
+  if (next) {
+    next.textContent = tr("interval_practice_next");
+    next.setAttribute("aria-label", tr("interval_practice_next"));
+    next.title = tr("interval_practice_next");
+    next.disabled = !state.intervalPracticeRunning || !state.intervalPracticeAnswer || sessionComplete;
+  }
+  if (playbackMode) {
+    const harmonic = state.intervalPracticePlaybackMode === "harmonic";
+    playbackMode.textContent = tr(harmonic
+      ? "interval_practice_playback_harmonic"
+      : "interval_practice_playback_melodic");
+    playbackMode.classList.toggle("active", harmonic);
+    playbackMode.setAttribute("aria-pressed", harmonic ? "true" : "false");
+  }
+  ["intervalPracticeRandomTonic", "intervalPracticeAscendingOnly", "intervalPracticeRepetitions", "intervalPracticeFilter", "intervalPracticePlaybackMode"].forEach((id) => {
+    const control = el(id);
+    if (control) control.disabled = state.intervalPracticeRunning;
+  });
+  const review = el("intervalPracticeReview");
+  const reviewPrev = el("intervalPracticeReviewPrev");
+  const reviewNext = el("intervalPracticeReviewNext");
+  const canReview = reviewing;
+  if (review) review.classList.toggle("hidden", !canReview);
+  const reviewIndex = state.intervalPracticeReviewIndex == null
+    ? state.intervalPracticeHistory.length - 1
+    : state.intervalPracticeReviewIndex;
+  if (reviewPrev) reviewPrev.disabled = !canReview || reviewIndex <= 0;
+  if (reviewNext) reviewNext.disabled = !canReview || reviewIndex >= state.intervalPracticeHistory.length - 1;
+  if (el("intervalPracticeScore")) el("intervalPracticeScore").textContent = `${state.intervalPracticeCorrect}/${state.intervalPracticeTotal}`;
+  const name = el("intervalPracticeName");
+  if (name) {
+    if (state.intervalPracticeAnswer) {
+      const selectedName = intervalGridCellName(
+        state.language,
+        state.intervalPracticeColumnKey,
+        state.intervalPracticeSemitones,
+      ) || getIntervalName(state.intervalPracticeSemitones);
+      const alternativeNames = intervalGridNamesForSemitones(
+        state.language,
+        state.intervalPracticeSemitones,
+      ).filter((alternative) => alternative && alternative !== selectedName);
+      name.textContent = [selectedName, ...alternativeNames].join(", ");
+    } else {
+      name.textContent = "-";
+    }
+  }
+  const table = el("intervalPracticeTable");
+  if (table) {
+    table.querySelectorAll("thead th[data-semitones]").forEach((header) => {
+      const allowed = state.intervalPracticeAllowedSemitones.has(Number(header.dataset.semitones));
+      header.classList.toggle("filter-disabled", !allowed);
+    });
+    table.querySelectorAll(".interval-gen-cell").forEach((button) => {
+      button.classList.remove("selected", "practice-wrong");
+      const hasInterval = button.textContent.trim() !== "";
+      const allowed = state.intervalPracticeAllowedSemitones.has(Number(button.dataset.semitones));
+      button.disabled = !hasInterval || !allowed;
+      button.classList.toggle("filter-disabled", hasInterval && !allowed);
+      button.tabIndex = button.disabled ? -1 : 0;
+      if (!state.intervalPracticeAnswer) return;
+      if (Number(button.dataset.semitones) === Number(state.intervalPracticeSemitones)) button.classList.add("selected");
+      if (Number(button.dataset.semitones) === Number(state.intervalPracticeAnswer.semitones) && !state.intervalPracticeAnswer.correct) button.classList.add("practice-wrong");
+    });
+  }
+  if (state.mode === "interval_practice") {
+    renderInstrument();
+    renderStaff();
+  }
+}
+
 /** Reproduce el intervalo actual en el sentido recordado (ascendente/descendente). */
 function playIntervalGenCurrent() {
   const notes = intervalGenNotes();
@@ -2488,6 +2973,22 @@ function playIntervalGenCurrent() {
   const ordered = state.intervalGenReverse
     ? [...notes].sort((a, b) => b - a)
     : [...notes].sort((a, b) => a - b);
+  if (state.intervalGenPlaybackMode === "harmonic") {
+    const gen = ++state.intervalGenPlayGeneration;
+    state.intervalGenPlayingNote = null;
+    state.intervalGenPlayingIdx = null;
+    state.intervalGenPlayingNotes = new Set(ordered.map(Number));
+    ordered.forEach((note) => playSingle(Number(note), state.instrument === "guitar" ? "guitar" : "piano"));
+    renderInstrument();
+    renderStaff();
+    setTimeout(() => {
+      if (state.intervalGenPlayGeneration !== gen) return;
+      state.intervalGenPlayingNotes.clear();
+      renderInstrument();
+      renderStaff();
+    }, 460);
+    return;
+  }
   playIntervalGenNoteSequence(ordered, 500);
 }
 
@@ -2687,16 +3188,21 @@ function noteNameWithOctave(midi) {
   return noteNameFromPc(m % 12) + octave;
 }
 
-function playIntervalGenNoteSequence(notes, stepMs) {
+function playIntervalGenNoteSequence(notes, stepMs, { highlightIndices = null } = {}) {
   const gen = ++state.intervalGenPlayGeneration;
+  const noteDurationMs = 460;
+  state.intervalPracticePlayingNotes.clear();
+  state.intervalGenPlayingNotes.clear();
+  const highlighted = highlightIndices == null ? null : new Set(highlightIndices);
   state.intervalGenPlayingNote = null;
   state.intervalGenPlayingIdx = null;
   notes.forEach((midi, idx) => {
     const t = idx * stepMs;
     setTimeout(() => {
       if (state.intervalGenPlayGeneration !== gen) return;
-      state.intervalGenPlayingNote = Number(midi);
-      state.intervalGenPlayingIdx = idx;
+      const shouldHighlight = highlighted == null || highlighted.has(idx);
+      state.intervalGenPlayingNote = shouldHighlight ? Number(midi) : null;
+      state.intervalGenPlayingIdx = shouldHighlight ? idx : null;
       playSingle(Number(midi), state.instrument === "guitar" ? "guitar" : "piano");
       renderInstrument();
       renderStaff();
@@ -2709,7 +3215,7 @@ function playIntervalGenNoteSequence(notes, stepMs) {
         renderInstrument();
         renderStaff();
       }
-    }, t + Math.round(stepMs * 0.82));
+    }, t + noteDurationMs);
   });
   setTimeout(() => {
     if (state.intervalGenPlayGeneration !== gen) return;
@@ -2722,6 +3228,7 @@ function playIntervalGenNoteSequence(notes, stepMs) {
 
 function refreshIntervalGenButtonsState() {
   const hasSelection = state.intervalGenSemitones != null;
+  const harmonic = state.intervalGenPlaybackMode === "harmonic";
   const playBtn = el("intervalGenPlay");
   const playRevBtn = el("intervalGenPlayReverse");
   if (playBtn) {
@@ -2729,8 +3236,8 @@ function refreshIntervalGenButtonsState() {
     playBtn.classList.toggle("active", hasSelection && state.intervalGenLastPlayReverse === false);
   }
   if (playRevBtn) {
-    playRevBtn.disabled = !hasSelection;
-    playRevBtn.classList.toggle("active", hasSelection && state.intervalGenLastPlayReverse === true);
+    playRevBtn.disabled = !hasSelection || harmonic;
+    playRevBtn.classList.toggle("active", hasSelection && !harmonic && state.intervalGenLastPlayReverse === true);
   }
 }
 
@@ -2744,15 +3251,13 @@ function refreshIntervalGenResult() {
   if (notes.length === 0) {
     el("intervalGenNoteNames").textContent = "-";
     el("intervalGenName").textContent = "-";
-    el("intervalGenAltNames").textContent = "-";
     el("intervalGenSemitonesValue").textContent = "-";
     return;
   }
   const semitones = Number(state.intervalGenSemitones);
   const altNames = getIntervalGenAltNames(semitones);
   el("intervalGenNoteNames").textContent = noteNameWithOctave(notes[0]) + " – " + noteNameWithOctave(notes[1]);
-  el("intervalGenName").textContent = getIntervalGenSelectedName(semitones);
-  el("intervalGenAltNames").textContent = altNames.length ? altNames.join(", ") : "-";
+  el("intervalGenName").textContent = [getIntervalGenSelectedName(semitones), ...altNames].join(", ");
   el("intervalGenSemitonesValue").textContent = String(semitones);
 }
 
@@ -2816,6 +3321,48 @@ function buildIntervalGenTable() {
   });
   table.appendChild(tbody);
   renderIntervalGenTableSelection();
+}
+
+function buildIntervalPracticeTable() {
+  const table = el("intervalPracticeTable");
+  if (!table) return;
+  table.innerHTML = "";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headRow.appendChild(document.createElement("th"));
+  for (let semitones = 0; semitones <= 12; semitones += 1) {
+    const th = document.createElement("th");
+    th.textContent = String(semitones);
+    th.className = "interval-gen-row-semitone";
+    th.dataset.semitones = String(semitones);
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  INTERVAL_GRID_COLUMNS.forEach((column) => {
+    const row = document.createElement("tr");
+    const title = document.createElement("th");
+    title.textContent = column.title[state.language] || column.title.es;
+    row.appendChild(title);
+    for (let semitones = 0; semitones <= 12; semitones += 1) {
+      const td = document.createElement("td");
+      const button = document.createElement("button");
+      const cell = column.cellsBySemitone[semitones];
+      button.type = "button";
+      button.className = "interval-gen-cell";
+      button.dataset.semitones = String(semitones);
+      button.dataset.column = column.key;
+      button.textContent = cell?.short || "";
+      button.disabled = !cell;
+      if (!cell) button.tabIndex = -1;
+      td.appendChild(button);
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  refreshIntervalPracticeUi();
 }
 
 const { pianoFingeringForCount, computeScaleFingering } =
@@ -2953,6 +3500,21 @@ function renderPiano() {
       && midi === Number(state.intervalGenInputCurrentNote)
     ) {
       key.classList.add("active");
+    } else if (
+      state.mode === "interval_generation"
+      && state.intervalGenPlayingNotes.has(midi)
+    ) {
+      key.classList.add("active");
+    } else if (state.mode === "interval_practice") {
+      const question = intervalPracticeQuestionNotes();
+      const answer = state.intervalPracticeAnswer;
+      if (question.length && midi === question[0]) key.classList.add("tonic");
+      if (answer && midi === question[1]) key.classList.add("practice-correct");
+      if (answer && !answer.correct && midi === Number(answer.note)) key.classList.add("practice-wrong");
+      if (state.intervalGenPlayingNote != null && midi === Number(state.intervalGenPlayingNote)) {
+        key.classList.add("practice-playing");
+      }
+      if (state.intervalPracticePlayingNotes.has(midi)) key.classList.add("practice-playing");
     } else if (state.mode !== "scales" && allActiveMidi.has(midi)) {
       key.classList.add("active");
     }
@@ -3258,6 +3820,7 @@ function renderGuitar() {
             state.intervalGenInputCurrentNote != null
             && pc === (Number(state.intervalGenInputCurrentNote) % 12)
           )
+          || state.intervalGenPlayingNotes.has(Number(note))
           || (
             state.intervalGenPlayingNote != null
             && pc === (Number(state.intervalGenPlayingNote) % 12)
@@ -3524,6 +4087,56 @@ function handleInstrumentNote(note, options = {}) {
     }, 720);
     return;
   }
+  if (state.mode === "interval_practice") {
+    if (!state.intervalPracticeAnswer) {
+      if (released || !state.intervalPracticeRunning) return;
+      answerIntervalPractice({ note: Number(note) });
+      return;
+    }
+
+    const midi = Number(note);
+    const allowed = new Set(intervalPracticeStaffNotes().map((value) => Number(value)));
+    if (!allowed.has(midi)) {
+      if (!released) showForbiddenOnPianoKey(midi);
+      return;
+    }
+
+    if (state.intervalGenInputClearTimer != null) {
+      clearTimeout(state.intervalGenInputClearTimer);
+      state.intervalGenInputClearTimer = null;
+    }
+    if (released) {
+      if (!skipAudio) stopHeldInputNote(midi);
+      if (state.intervalGenPlayingNote === midi) {
+        state.intervalGenPlayingNote = null;
+        state.intervalGenPlayingIdx = null;
+        renderInstrument();
+        renderStaff();
+      }
+      return;
+    }
+
+    if (!skipAudio) {
+      if (pressed) startHeldInputNote(midi, "piano");
+      else playSingle(midi, "piano");
+    }
+    state.intervalGenPlayingNote = midi;
+    state.intervalGenPlayingIdx = intervalPracticeStaffNotes().indexOf(midi);
+    renderInstrument();
+    renderStaff();
+    if (!pressed) {
+      state.intervalGenInputClearTimer = setTimeout(() => {
+        state.intervalGenPlayingNote = null;
+        state.intervalGenPlayingIdx = null;
+        state.intervalGenInputClearTimer = null;
+        if (state.mode === "interval_practice") {
+          renderInstrument();
+          renderStaff();
+        }
+      }, 460);
+    }
+    return;
+  }
   if (isChordGenerationLikeMode() && state.generatedChord) {
     const setGenerationCurrent = (midi) => {
       if (state.generationCurrentClearTimer != null) {
@@ -3711,6 +4324,13 @@ function applyFlatKeySigIfUiFlatAndTie(sig, tonicPc, isMinor) {
 
 function getStaffContext() {
   const tieFromSelect = currentAccidentalValue() === "flat";
+  if (state.mode === "interval_practice" && state.intervalPracticeRoot != null) {
+    return {
+      signature: { count: 0, preferFlats: tieFromSelect },
+      tonicPc: ((Number(state.intervalPracticeRoot) % 12) + 12) % 12,
+      isScale: false,
+    };
+  }
   if (state.mode === "scales" && state.generatedScale) {
     const patternName = String(state.generatedScale.pattern_name || "");
     const isMinor = scalePrefersMinor(patternName);
@@ -4441,6 +5061,7 @@ function getStaffNotes() {
   if (state.mode === "interval_generation") {
     return [...intervalGenNotes()].sort((a, b) => a - b);
   }
+  if (state.mode === "interval_practice") return intervalPracticeStaffNotes();
   if (isChordGenerationLikeMode() && state.generatedChord) {
     const rh = getGenerationBaseNotes();
     if (state.instrument === "guitar") {
@@ -4618,7 +5239,7 @@ function renderStaff() {
   const compactChordStaff = isChordGenerationLikeMode();
   const noteDetectionStaff = state.mode === "note_detection";
   const detectionStaff = state.mode === "detection";
-  const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation";
+  const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "interval_practice";
   const intervalMelodyStaff = state.mode === "interval_detection" && !!state.intervalMelodyActive;
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
@@ -4830,7 +5451,10 @@ function renderStaff() {
     } else {
       x = startX + 34 + col * 110 + (idx % 7) * 18 + used * 14;
     }
-    const extra = extras.has(midi);
+    const practiceAnswer = state.mode === "interval_practice" ? state.intervalPracticeAnswer : null;
+    const practiceCorrectNote = practiceAnswer && idx === notes.length - 1;
+    const practiceWrongNote = practiceAnswer && !practiceAnswer.correct && idx === 1;
+    const extra = extras.has(midi) || practiceWrongNote;
     const tonic = !noteDetectionStaff && ((midi % 12) + 12) % 12 === tonicPc;
     const scaleNoteCurrent = scaleStaff && scaleCurrentDisplayMidi != null && Number(midi) === Number(scaleCurrentDisplayMidi);
     const scaleNoteHovered = scaleStaff && scaleHoveredNote != null && Number(midi) === Number(scaleHoveredNote);
@@ -4842,8 +5466,23 @@ function renderStaff() {
       || (isChordGenerationLikeMode() && generationPlayingDisplay.has(Number(midi)))
       || (isChordGenerationLikeMode() && generationMidiHeldDisplay.has(Number(midi)))
       || (state.mode === "interval_detection" && state.intervalPlayingIdx != null && idx === state.intervalPlayingIdx)
-      || (state.mode === "interval_generation" && state.intervalGenPlayingIdx != null && idx === state.intervalGenPlayingIdx);
-    const currentStroke = current
+      || (state.mode === "interval_generation" && (
+        (state.intervalGenPlayingIdx != null && idx === state.intervalGenPlayingIdx)
+        || state.intervalGenPlayingNotes.has(Number(midi))
+      ))
+      || (state.mode === "interval_practice" && (
+        (state.intervalGenPlayingNote != null && Number(midi) === Number(state.intervalGenPlayingNote))
+        || state.intervalPracticePlayingNotes.has(Number(midi))
+      ))
+      || practiceCorrectNote;
+    const practicePlayingNote = state.mode === "interval_practice"
+      && state.intervalGenPlayingNote != null
+      && Number(midi) === Number(state.intervalGenPlayingNote);
+    const currentStroke = practicePlayingNote
+      ? "#6fe0ff"
+      : practiceCorrectNote
+      ? "#34c96b"
+      : current
       ? (
           ((isChordGenerationLikeMode()
             && state.instrument === "piano"
@@ -4968,6 +5607,16 @@ function renderStaff() {
       }
     }
   });
+
+  if (state.mode === "interval_practice" && state.intervalPracticeStarted && !state.intervalPracticeAnswer && notes.length < 2) {
+    ctx.save();
+    ctx.fillStyle = "#d7dde7";
+    ctx.font = `bold ${Math.round(gap * 2.4)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", startX + 46 + intervalNoteStep, trebleTop + gap * 2);
+    ctx.restore();
+  }
 
   // Dibujar barras (beams) entre notas barradas
   if (intervalMelodyStaff && melodyBeamGroups.length > 0) {
@@ -5390,6 +6039,7 @@ function buildSelectors() {
   setRootLetterSelectsFromPc("scaleRootLetter", "scaleRootAccidental", prevScaleRootPc, "scaleRootLetterPc", "scaleRootAccidental");
   setRootLetterSelectsFromPc("intervalGenRootLetter", "intervalGenRootAccidental", prevIntervalGenRootPc, "intervalGenRootLetterPc", "intervalGenRootAccidental");
   buildIntervalGenTable();
+  buildIntervalPracticeTable();
 
   genVariant.innerHTML = "";
   const patternsBySuffix = new Map(state.chordPatterns.map((pattern) => [pattern.suffix, pattern]));
@@ -6659,6 +7309,13 @@ function handleMidiMessage(event) {
     return;
   }
 
+  if (state.mode === "interval_practice") {
+    if (isNoteOn) handleInstrumentNote(note, { pressed: true, fromMidi: true });
+    else handleInstrumentNote(note, { released: true, fromMidi: true });
+    void bumpMidiScreenWakeLockFromMidi();
+    return;
+  }
+
   if (isChordGenerationLikeMode()) {
     if (isNoteOn) {
       handleInstrumentNote(note, { pressed: true, fromMidi: true });
@@ -6901,6 +7558,36 @@ function bindEvents() {
   if (genVariantHelp) listen(genVariantHelp, "click", () => showChordVariantHelpModal("generation"));
   const detectVariantHelp = el("detectVariantHelp");
   if (detectVariantHelp) listen(detectVariantHelp, "click", () => showChordVariantHelpModal("detection"));
+  const intervalPracticeHelp = el("intervalPracticeHelp");
+  if (intervalPracticeHelp) listen(intervalPracticeHelp, "click", () => showChordVariantHelpModal("interval_practice"));
+  listen(el("intervalPracticeFilter"), "click", showIntervalPracticeFilterModal);
+  listen(el("intervalPracticePlaybackMode"), "click", () => {
+    if (state.intervalPracticeRunning) return;
+    state.intervalPracticePlaybackMode = state.intervalPracticePlaybackMode === "melodic" ? "harmonic" : "melodic";
+    applyTranslations();
+  });
+  listen(el("intervalPracticeFilterSelectAll"), "click", () => {
+    state.intervalPracticeFilterDraft = new Set(Array.from({ length: 13 }, (_, semitones) => semitones));
+    renderIntervalPracticeFilterPiano();
+  });
+  listen(el("intervalPracticeFilterClear"), "click", () => {
+    state.intervalPracticeFilterDraft = new Set();
+    renderIntervalPracticeFilterPiano();
+  });
+  listen(el("intervalPracticeFilterPiano"), "click", (event) => {
+    const key = event.target.closest(".filter-piano-key");
+    if (!key || !state.intervalPracticeFilterDraft) return;
+    const semitones = Number(key.dataset.semitones);
+    if (state.intervalPracticeFilterDraft.has(semitones)) state.intervalPracticeFilterDraft.delete(semitones);
+    else state.intervalPracticeFilterDraft.add(semitones);
+    renderIntervalPracticeFilterPiano();
+  });
+  listen(el("intervalPracticeFilterAccept"), "click", acceptIntervalPracticeFilter);
+  bindModalControls(uiLifecycle, {
+    modal: el("intervalPracticeFilterModal"),
+    closeButton: el("intervalPracticeFilterCancel"),
+    onClose: hideIntervalPracticeFilterModal,
+  });
   const chordVariantHelpCloseBtn = el("chordVariantHelpCloseBtn");
   const chordVariantHelpModal = el("chordVariantHelpModal");
   bindModalControls(uiLifecycle, {
@@ -7169,11 +7856,51 @@ function bindEvents() {
     refreshIntervalGenButtonsState();
     playIntervalGenCurrent();
   });
+  listen(el("intervalGenPlaybackMode"), "click", () => {
+    state.intervalGenPlaybackMode = state.intervalGenPlaybackMode === "melodic" ? "harmonic" : "melodic";
+    if (state.intervalGenPlaybackMode === "harmonic") {
+      state.intervalGenReverse = false;
+      state.intervalGenLastPlayReverse = false;
+    }
+    applyTranslations();
+    refreshIntervalGenButtonsState();
+  });
 
+  listen(el("intervalPracticeStart"), "click", toggleIntervalPractice);
+  bindImmediatePress(el("intervalPracticeRepeat"), () => {
+    if (state.intervalPracticeAnswer) replayIntervalPracticeResult();
+    else if (state.intervalPracticeRunning) playIntervalPracticeQuestion();
+  });
+  bindImmediatePress(el("intervalPracticeNext"), () => {
+    if (!state.intervalPracticeRunning) return;
+    if (state.intervalPracticeTotal >= intervalPracticeRepetitionLimit()) return;
+    if (state.intervalPracticeAnswer) nextIntervalPracticeQuestion();
+  });
+  listen(el("intervalPracticeTable"), "click", (event) => {
+    const button = event.target.closest(".interval-gen-cell");
+    if (!button || button.disabled) return;
+    answerIntervalPractice({ semitones: Number(button.dataset.semitones) });
+  });
+  listen(el("intervalPracticeReviewPrev"), "click", () => {
+    const index = state.intervalPracticeReviewIndex == null
+      ? state.intervalPracticeHistory.length - 1
+      : state.intervalPracticeReviewIndex;
+    showIntervalPracticeHistoryEntry(index - 1);
+  });
+  listen(el("intervalPracticeReviewNext"), "click", () => {
+    const index = state.intervalPracticeReviewIndex == null
+      ? state.intervalPracticeHistory.length - 1
+      : state.intervalPracticeReviewIndex;
+    showIntervalPracticeHistoryEntry(index + 1);
+  });
   bindKeyboardUiEvents(uiLifecycle, {
     documentTarget: document,
     windowTarget: window,
     onEscape: () => {
+      if (!el("intervalPracticeFilterModal")?.classList.contains("hidden")) {
+        hideIntervalPracticeFilterModal();
+        return;
+      }
       if (!el("chordVariantHelpModal")?.classList.contains("hidden")) {
         hideChordVariantHelpModal();
         return;

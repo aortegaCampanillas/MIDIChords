@@ -221,6 +221,7 @@ test("interval theory identifies intervals and preserves melody timing", () => {
     intervalSemitones,
     intervalMelodyNotes,
     intervalMelodySongName,
+    intervalGridNamesForSemitones,
   } = globalThis.MidiChordsIntervalTheory;
 
   assert.equal(Object.keys(INTERVAL_MELODIES).length, 12);
@@ -231,6 +232,14 @@ test("interval theory identifies intervals and preserves melody timing", () => {
   assert.equal(intervalName("es", 7), "Quinta justa");
   assert.equal(intervalName("en", 3), "Minor Third");
   assert.equal(intervalName("unknown", 3), "Tercera menor");
+  assert.deepEqual(
+    intervalGridNamesForSemitones("es", 6),
+    ["Quinta disminuida", "Cuarta aumentada", "Tritono"],
+  );
+  assert.deepEqual(
+    intervalGridNamesForSemitones("en", 6),
+    ["Diminished Fifth", "Augmented Fourth", "Tritone"],
+  );
   assert.equal(formatIntervalsFromMidi([67, 60, 64, 64]), "0 +4 +3");
   assert.equal(intervalMelodySongName("es", [60, 62]), "Cumpleaños feliz");
 
@@ -319,6 +328,7 @@ test("every contextual help item has bilingual text", () => {
     "detection",
     "interval_detection",
     "interval_generation",
+    "interval_practice",
     "generation",
     "circle_fifths",
     "scales",

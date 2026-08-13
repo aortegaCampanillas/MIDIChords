@@ -324,12 +324,14 @@ function intervalGridCellName(language, columnKey, semitones) {
 
 /** Todos los nombres completos válidos (de cualquier columna) para un semitono dado. */
 function intervalGridNamesForSemitones(language, semitones) {
+  const lang = language in INTERVAL_ALT_NAMES ? language : "es";
   const names = [];
   INTERVAL_GRID_COLUMNS.forEach((col) => {
     const cell = col.cellsBySemitone[semitones];
     if (cell) names.push(cell.name[language] || cell.name.es);
   });
-  return names;
+  (INTERVAL_ALT_NAMES[lang][semitones] || []).forEach((name) => names.push(name));
+  return Array.from(new Set(names));
 }
 
 function intervalName(language, semitones) {

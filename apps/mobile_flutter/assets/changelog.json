@@ -4,6 +4,27 @@
     "date": "2026-08-10",
     "items": [
       {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Generación y Práctica de intervalos reducen la altura del pentagrama en tablet para mostrar más contenido de sus paneles.",
+        "en": "Interval Generation and Interval Practice reduce the staff height on tablets to show more content in their panels."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Detección de intervalos centra correctamente el piano en Do4 al entrar en el modo y al cambiar la orientación.",
+        "en": "Interval Detection correctly centers the piano on C4 when entering the mode and when changing orientation."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Generación de acordes vuelve a centrar el piano en Do4 al cambiar a orientación vertical, sin reutilizar desplazamientos calculados con otro ancho.",
+        "en": "Chord Generation centers the piano on C4 again when switching to portrait orientation instead of reusing offsets calculated for a different width."
+      },
+      {
         "date": "2026-08-13",
         "publish": false,
         "platforms": ["mobile"],

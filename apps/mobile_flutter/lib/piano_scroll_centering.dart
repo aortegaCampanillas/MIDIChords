@@ -3,6 +3,7 @@ bool modeUsesCenteredTheoryPiano(int tabIndex) =>
     tabIndex == 1 ||
     tabIndex == 2 ||
     tabIndex == 3 ||
+    tabIndex == 5 ||
     tabIndex == 7 ||
     tabIndex == 8 ||
     tabIndex == 9;
@@ -19,4 +20,6 @@ class PianoScrollMemory {
   bool hasOffset(int tabIndex) => _offsets.containsKey(tabIndex);
 
   double? offsetFor(int tabIndex) => _offsets[tabIndex];
+
+  void clear() => _offsets.clear();
 }

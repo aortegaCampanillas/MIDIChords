@@ -9,6 +9,7 @@ void main() {
     expect(modeUsesCenteredTheoryPiano(1), isTrue);
     expect(modeUsesCenteredTheoryPiano(2), isTrue);
     expect(modeUsesCenteredTheoryPiano(3), isTrue);
+    expect(modeUsesCenteredTheoryPiano(5), isTrue);
     expect(modeUsesCenteredTheoryPiano(7), isTrue);
     expect(modeUsesCenteredTheoryPiano(8), isTrue);
     expect(modeUsesCenteredTheoryPiano(9), isTrue);
@@ -16,7 +17,6 @@ void main() {
 
   test('does not recenter unrelated modes', () {
     expect(modeUsesCenteredTheoryPiano(4), isFalse);
-    expect(modeUsesCenteredTheoryPiano(5), isFalse);
     expect(modeUsesCenteredTheoryPiano(6), isFalse);
   });
 
@@ -42,6 +42,17 @@ void main() {
     expect(memory.hasOffset(4), isFalse);
   });
 
+  test('clears remembered positions when the piano viewport changes', () {
+    final memory = PianoScrollMemory()
+      ..remember(0, 80)
+      ..remember(1, 160);
+
+    memory.clear();
+
+    expect(memory.hasOffset(0), isFalse);
+    expect(memory.hasOffset(1), isFalse);
+  });
+
   test('mode selection and piano toggle restore the saved position', () {
     final source = File('lib/main.dart').readAsStringSync();
 
@@ -62,6 +73,9 @@ void main() {
     expect(syncMethod, contains('if (!_pianoScrollController.hasClients)'));
     expect(syncMethod, contains('attempt(retriesLeft - 1, lastMaxExt);'));
     expect(syncMethod, contains('anchorMidi = _kPianoMiddleCMidi;'));
+    expect(syncMethod, contains('(previousViewportW - viewportW).abs() > 1'));
+    expect(syncMethod, contains('_pianoScrollMemory.clear();'));
+    expect(syncMethod, contains('_pendingPianoScrollOffset = null;'));
   });
 
   test('restored startup mode schedules a fresh mandatory C4 centering', () {

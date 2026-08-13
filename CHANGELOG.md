@@ -60,6 +60,9 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Mejorado
 
+- **Móvil (generación y práctica de intervalos)**: en tablet, el pentagrama ocupa menos altura y los paneles de selección y práctica ganan espacio para mostrar todo su contenido.
+- **Móvil (detección de intervalos)**: el piano se centra correctamente en Do4 al entrar en el modo y al cambiar la orientación.
+- **Móvil (generación de acordes)**: el piano vuelve a centrarse en Do4 al cambiar a orientación vertical, sin reutilizar desplazamientos calculados con otro ancho.
 - **Móvil (tablet)**: en orientación vertical, la barra principal centra y amplía el selector de modo; los controles de Piano/Guitarra y mano derecha/izquierda usan iconos accesibles y ocupan menos espacio para ampliar el instrumento.
 - **Móvil (detección de acordes)**: al abrir el modo, el piano se centra correctamente en Do4 también con la tablet en vertical.
 - **Móvil (generación de intervalos)**: compactado el panel de resultados y la separación entre controles para aprovechar mejor la altura disponible.

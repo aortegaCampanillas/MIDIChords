@@ -37,6 +37,14 @@ void main() {
       );
       expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 42 : 57'));
       expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 58 : 43'));
+      expect(
+        main,
+        contains('flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 56'),
+      );
+      expect(
+        main,
+        contains('flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 44'),
+      );
       expect(main, contains("_instrumentView == 'guitar' ? 188.0 : 148.0"));
       expect(main, contains('value == 5 ||'));
       expect(main, contains('value == 7 ||'));

@@ -519,6 +519,7 @@ class _HomeScreenState extends State<HomeScreen>
   double? _pendingPianoScrollOffset;
   bool _startupPianoCenterPending = true;
   int _pianoScrollSyncGeneration = 0;
+  double? _lastPianoViewportWidth;
   final Set<int> _forbiddenFlashNotes = <int>{};
   final Map<int, Timer> _forbiddenFlashTimers = <int, Timer>{};
   final Map<String, GlobalKey> _helpAnchors = <String, GlobalKey>{};
@@ -3127,6 +3128,18 @@ class _HomeScreenState extends State<HomeScreen>
     double whiteW,
     List<int> whiteMidi,
   ) {
+    final previousViewportW = _lastPianoViewportWidth;
+    final viewportChanged =
+        previousViewportW != null && (previousViewportW - viewportW).abs() > 1;
+    _lastPianoViewportWidth = viewportW;
+    if (viewportChanged && modeUsesCenteredTheoryPiano(_tabIndex)) {
+      // Los offsets son píxeles del viewport anterior. Tras rotar la tablet o
+      // entrar en un modo cuyo panel lateral cambia el ancho del instrumento,
+      // restaurarlos desplaza Do4 fuera del centro.
+      _pianoScrollMemory.clear();
+      _pendingPianoScrollOffset = null;
+      _needsPianoScrollSync = true;
+    }
     if (!_needsPianoScrollSync) return;
     _needsPianoScrollSync = false;
     final requestedOffset = _pendingPianoScrollOffset;
@@ -5440,9 +5453,15 @@ class _HomeScreenState extends State<HomeScreen>
                 )
               : Column(
                   children: <Widget>[
-                    Expanded(flex: 56, child: staffPanel),
+                    Expanded(
+                      flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 56,
+                      child: staffPanel,
+                    ),
                     const SizedBox(height: 12),
-                    Expanded(flex: 44, child: controlsPanel),
+                    Expanded(
+                      flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 44,
+                      child: controlsPanel,
+                    ),
                   ],
                 );
           return Column(

@@ -512,6 +512,7 @@ class _HomeScreenState extends State<HomeScreen>
   Offset? _dragLastGlobalPos;
   DateTime _dragLastSwitchAt = DateTime.fromMillisecondsSinceEpoch(0);
   final ScrollController _pianoScrollController = ScrollController();
+  final ScrollController _guitarScrollController = ScrollController();
   final ScrollController _scaleControlsScrollController = ScrollController();
   final PianoScrollMemory _pianoScrollMemory = PianoScrollMemory();
   bool _needsPianoScrollSync = false;
@@ -1192,6 +1193,7 @@ class _HomeScreenState extends State<HomeScreen>
     _scaleOutputController.dispose();
     _helpOverlayController.dispose();
     _pianoScrollController.dispose();
+    _guitarScrollController.dispose();
     _scaleControlsScrollController.dispose();
     _midiActivityGuard.dispose();
     super.dispose();
@@ -6361,6 +6363,9 @@ class _HomeScreenState extends State<HomeScreen>
             _updateScaleFingeringsMap();
           }
         });
+        if (instrumentChanging && key == 'guitar') {
+          _scrollGuitarToNut();
+        }
       },
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -6391,9 +6396,12 @@ class _HomeScreenState extends State<HomeScreen>
         side: const BorderSide(color: _border),
         foregroundColor: _text,
       ),
-      onPressed: () => setState(() {
-        _guitarHandedness = _guitarHandedness == 'right' ? 'left' : 'right';
-      }),
+      onPressed: () {
+        setState(() {
+          _guitarHandedness = _guitarHandedness == 'right' ? 'left' : 'right';
+        });
+        _scrollGuitarToNut();
+      },
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
@@ -6404,6 +6412,16 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
+  }
+
+  void _scrollGuitarToNut() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_guitarScrollController.hasClients) return;
+      final position = _guitarScrollController.position;
+      _guitarScrollController.jumpTo(
+        _guitarHandedness == 'left' ? position.maxScrollExtent : 0,
+      );
+    });
   }
 
   /// Misma lógica que `RenderMixin._piano_fingering_for_count` (escritorio).
@@ -7405,6 +7423,7 @@ class _HomeScreenState extends State<HomeScreen>
           border: Border.all(color: const Color(0xFF3A4558)),
         ),
         child: SingleChildScrollView(
+          controller: _guitarScrollController,
           scrollDirection: Axis.horizontal,
           child: SizedBox(
             width: width + 48,

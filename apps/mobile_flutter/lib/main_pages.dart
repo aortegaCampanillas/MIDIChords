@@ -1809,9 +1809,9 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildScaleFingeringRow() {
     const options = <(String, String, String)>[
-      ('none', 'Sin digitación', 'No fingering'),
-      ('left', 'Mano izquierda', 'Left hand'),
-      ('right', 'Mano derecha', 'Right hand'),
+      ('none', 'Sin', 'None'),
+      ('left', 'Izquierda', 'Left'),
+      ('right', 'Derecha', 'Right'),
     ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

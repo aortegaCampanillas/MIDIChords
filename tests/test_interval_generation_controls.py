@@ -295,3 +295,15 @@ def test_desktop_staff_uses_each_chord_notes_diatonic_spelling() -> None:
     assert "def _note_prefers_flat_spelling(note: int)" in desktop
     assert 'if "♭" in str(label)' in desktop
     assert "self._diatonic_index(note, note_prefers_flat)" in desktop
+
+
+def test_desktop_interval_staff_initializes_its_shared_horizontal_origin() -> None:
+    desktop = (
+        PROJECT_ROOT / "midichords" / "mixins" / "render_mixin.py"
+    ).read_text(encoding="utf-8")
+
+    origin = desktop.index("chord_x = margin_x + max(")
+    interval_layout = desktop.index('elif getattr(self, "interval_tab_active", False):', origin)
+    interval_x = desktop.index("x = chord_x + (note_idx * note_rx * 4.6)", interval_layout)
+
+    assert origin < interval_layout < interval_x

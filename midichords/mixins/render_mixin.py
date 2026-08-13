@@ -1793,6 +1793,13 @@ class RenderMixin:
             )
         else:
             _imel = False
+            # Posición base compartida por acordes e intervalos. Debe existir
+            # antes de escoger la rama melódica/armónica; detección de
+            # intervalos también la usa para colocar su primera nota.
+            chord_x = margin_x + max(
+                110,
+                min(w - margin_x - 70, (w - margin_x) * 0.45),
+            )
             scale_staff_entries: list[tuple[int, int, bool]] = []  # (midi_note, degree_index, is_bass_clef)
             if self.scale_tab_active:
                 treble_ordered = [int(n) for n in display_notes_list]
@@ -2000,7 +2007,6 @@ class RenderMixin:
                     ordered = sorted(display_notes)
                 else:
                     ordered = sorted(display_notes)
-                    chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
             generation_single_note: Optional[int] = None
             if self.generation_tab_active and len(self.generated_playing_notes) == 1:
                 generation_single_note = next(iter(self.generated_playing_notes))

@@ -17,6 +17,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Versión
 
+- **1.0.7**: preparadas las compilaciones de distribución para App Store Connect: iOS build 26 y macOS build 24.
 - **1.0.7**: comienza el registro de cambios de la próxima versión.
 - **1.0.5**: preparadas las compilaciones de distribución para App Store Connect: iOS build 19 y macOS build 21.
 - **1.0.2**: versión alineada en **escritorio** (`APP_RELEASE_NAME`), **web** (`/api/meta` → `app_version`, JSON-LD) y **móvil** (`pubspec.yaml` **1.0.2+8**).

@@ -149,7 +149,7 @@ List<int> getFingeringForScale(
   }
   // Fall back to base fingerings
   else if (baseFingerings.containsKey(scaleType) &&
-           baseFingerings[scaleType]!.containsKey(hand)) {
+      baseFingerings[scaleType]!.containsKey(hand)) {
     fingering = baseFingerings[scaleType]![hand];
   }
 

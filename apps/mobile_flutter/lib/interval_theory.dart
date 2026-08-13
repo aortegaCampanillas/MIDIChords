@@ -4,9 +4,26 @@
 // Grado (con alteración respecto a la escala mayor) por semitonos desde la
 // tónica, hasta 24 semitonos (2 octavas) para cubrir 9a/11a/13a.
 const Map<int, String> degreeBySemitone = <int, String>{
-  0: '1', 1: 'b2', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5', 7: '5',
-  8: '#5', 9: '6', 10: 'b7', 11: '7', 12: '8',
-  13: 'b9', 14: '9', 15: '#9', 17: '11', 18: '#11', 20: 'b13', 21: '13',
+  0: '1',
+  1: 'b2',
+  2: '2',
+  3: 'b3',
+  4: '3',
+  5: '4',
+  6: 'b5',
+  7: '5',
+  8: '#5',
+  9: '6',
+  10: 'b7',
+  11: '7',
+  12: '8',
+  13: 'b9',
+  14: '9',
+  15: '#9',
+  17: '11',
+  18: '#11',
+  20: 'b13',
+  21: '13',
 };
 
 // Grado diatónico (1-7) por semitonos desde la tónica, para escalas. A
@@ -14,15 +31,37 @@ const Map<int, String> degreeBySemitone = <int, String>{
 // interpreta como quinta aumentada), aquí cada semitono siempre resuelve a una
 // alteración del grado numérico correspondiente (8 semitonos -> b6, no #5).
 const Map<int, String> scaleDegreeBySemitone = <int, String>{
-  0: '1', 1: 'b2', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5',
-  7: '5', 8: 'b6', 9: '6', 10: 'b7', 11: '7', 12: '8',
+  0: '1',
+  1: 'b2',
+  2: '2',
+  3: 'b3',
+  4: '3',
+  5: '4',
+  6: 'b5',
+  7: '5',
+  8: 'b6',
+  9: '6',
+  10: 'b7',
+  11: '7',
+  12: '8',
 };
 
 // Calidad abreviada de un intervalo (par de notas consecutivas de un acorde)
 // por semitonos, en notación estándar: P=justo, M=mayor, m=menor, TT=tritono.
 const Map<int, String> intervalQualityBySemitone = <int, String>{
-  0: 'P1', 1: 'm2', 2: 'M2', 3: 'm3', 4: 'M3', 5: 'P4', 6: 'TT', 7: 'P5',
-  8: 'm6', 9: 'M6', 10: 'm7', 11: 'M7', 12: 'P8',
+  0: 'P1',
+  1: 'm2',
+  2: 'M2',
+  3: 'm3',
+  4: 'M3',
+  5: 'P4',
+  6: 'TT',
+  7: 'P5',
+  8: 'm6',
+  9: 'M6',
+  10: 'm7',
+  11: 'M7',
+  12: 'P8',
 };
 
 String intervalQualityAbbrev(int semitones) {
@@ -73,10 +112,16 @@ List<int> rootPositionVoicing(int rootPc, List<int> notesMidi) {
 /// Rota una fórmula "1 - 3 - 5" tantas posiciones como indique el índice de
 /// inversión: inversion=1 -> "3 - 5 - 1".
 String rotateDegrees(String formula, int inversion) {
-  final degrees = formula.split(' - ').where((part) => part.isNotEmpty).toList();
+  final degrees = formula
+      .split(' - ')
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (degrees.isEmpty) return formula;
   final idx = inversion.clamp(0, degrees.length - 1);
-  return <String>[...degrees.sublist(idx), ...degrees.sublist(0, idx)].join(' - ');
+  return <String>[
+    ...degrees.sublist(idx),
+    ...degrees.sublist(0, idx),
+  ].join(' - ');
 }
 
 /// Paso entre dos notas consecutivas de una escala en tonos (T) y semitonos
@@ -133,7 +178,9 @@ String _appendInversionDetail(
           .toList(growable: false);
   final label = inversionIndex < names.length
       ? names[inversionIndex]
-      : (lang == 'en' ? 'Inversion $inversionIndex' : 'Inversión $inversionIndex');
+      : (lang == 'en'
+            ? 'Inversion $inversionIndex'
+            : 'Inversión $inversionIndex');
   return '$baseValue (${label.toLowerCase()}: $invertedValue)';
 }
 

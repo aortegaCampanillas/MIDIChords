@@ -1,6 +1,537 @@
 part of 'main.dart';
 
 extension _HomeScreenPages on _HomeScreenState {
+  Widget _buildIntervalPracticePage() {
+    final answered = _intervalPracticeAnswerCorrect != null;
+    final reviewing =
+        !_intervalPracticeRunning && _intervalPracticeHistory.isNotEmpty;
+    final intervalName = answered
+        ? <String>[
+            intervalNames[_language]?[_intervalPracticeSemitones] ?? '-',
+            ...?intervalAltNames[_language]?[_intervalPracticeSemitones],
+          ].join(', ')
+        : '-';
+    return _buildModeScaffold(
+      controls: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                _ui('Practicar Intervalos', 'Interval Practice'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  _helpAnchor(
+                    'interval_practice_start_stop',
+                    FilledButton(
+                      onPressed: _toggleIntervalPractice,
+                      child: Text(
+                        _intervalPracticeRunning
+                            ? _ui('Parar', 'Stop')
+                            : _ui('Iniciar', 'Start'),
+                      ),
+                    ),
+                  ),
+                  _helpAnchor(
+                    'interval_practice_repeat',
+                    IconButton.outlined(
+                      tooltip: answered
+                          ? _ui('Volver a escuchar', 'Listen again')
+                          : _ui('Repetir', 'Repeat'),
+                      onPressed: _intervalPracticeStarted
+                          ? (answered
+                                ? _replayIntervalPracticeResult
+                                : _playIntervalPracticeQuestion)
+                          : null,
+                      icon: const Icon(Icons.replay),
+                    ),
+                  ),
+                  _helpAnchor(
+                    'interval_practice_next',
+                    OutlinedButton(
+                      onPressed:
+                          _intervalPracticeRunning &&
+                              answered &&
+                              _intervalPracticeTotal <
+                                  _intervalPracticeRepetitions
+                          ? _nextIntervalPracticeQuestion
+                          : null,
+                      child: Text(_ui('Siguiente', 'Next')),
+                    ),
+                  ),
+                  _helpAnchor(
+                    'interval_practice_help',
+                    IconButton.outlined(
+                      tooltip: _ui('Ayuda', 'Help'),
+                      onPressed: _showIntervalPracticeHelp,
+                      icon: const Icon(Icons.question_mark),
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 4,
+                    children: <Widget>[
+                      _helpAnchor(
+                        'interval_practice_random_tonic',
+                        _practiceCheckbox(
+                          _ui('Tónica aleatoria', 'Random tonic'),
+                          _intervalPracticeRandomTonic,
+                          (value) => _updateState(
+                            () => _intervalPracticeRandomTonic = value ?? false,
+                          ),
+                        ),
+                      ),
+                      _helpAnchor(
+                        'interval_practice_ascending',
+                        _practiceCheckbox(
+                          _ui('Solo ascendentes', 'Ascending only'),
+                          _intervalPracticeAscendingOnly,
+                          (value) => _updateState(
+                            () =>
+                                _intervalPracticeAscendingOnly = value ?? false,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (reviewing) ...<Widget>[
+                    const SizedBox(width: 8),
+                    Text(_ui('Ver resultados', 'View results')),
+                    _helpAnchor(
+                      'interval_practice_previous_result',
+                      IconButton.outlined(
+                        onPressed: (_intervalPracticeReviewIndex ?? 0) > 0
+                            ? () => _reviewIntervalPractice(-1)
+                            : null,
+                        icon: const Icon(Icons.arrow_left),
+                      ),
+                    ),
+                    _helpAnchor(
+                      'interval_practice_next_result',
+                      IconButton.outlined(
+                        onPressed:
+                            (_intervalPracticeReviewIndex ?? 0) <
+                                _intervalPracticeHistory.length - 1
+                            ? () => _reviewIntervalPractice(1)
+                            : null,
+                        icon: const Icon(Icons.arrow_right),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  _helpAnchor(
+                    'interval_practice_repetitions',
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(_ui('Repeticiones', 'Repetitions')),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 72,
+                          child: TextFormField(
+                            key: ValueKey<int>(_intervalPracticeRepetitions),
+                            initialValue: '$_intervalPracticeRepetitions',
+                            enabled: !_intervalPracticeRunning,
+                            keyboardType: TextInputType.number,
+                            onChanged: (value) {
+                              final parsed = int.tryParse(value);
+                              if (parsed != null) {
+                                _intervalPracticeRepetitions = parsed.clamp(
+                                  1,
+                                  100,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _helpAnchor(
+                    'interval_practice_filter',
+                    OutlinedButton(
+                      onPressed: _intervalPracticeRunning
+                          ? null
+                          : _showIntervalPracticeFilter,
+                      child: Text(_ui('Filtrar', 'Filter')),
+                    ),
+                  ),
+                  _helpAnchor(
+                    'interval_practice_playback_mode',
+                    OutlinedButton(
+                      onPressed: _intervalPracticeRunning
+                          ? null
+                          : () => _updateState(
+                              () => _intervalPracticeHarmonic =
+                                  !_intervalPracticeHarmonic,
+                            ),
+                      child: Text(
+                        _intervalPracticeHarmonic
+                            ? _ui('Armónico', 'Harmonic')
+                            : _ui('Melódico', 'Melodic'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _helpAnchor(
+                'interval_practice_result',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _HomeScreenState._surfaceDark,
+                    border: Border.all(color: _HomeScreenState._border),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        '${_ui('Aciertos', 'Score')}: '
+                        '$_intervalPracticeCorrect/$_intervalPracticeTotal',
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Text(
+                          '${_ui('Intervalo', 'Interval')}: $intervalName',
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _helpAnchor(
+                'interval_practice_table',
+                _buildIntervalPracticeTable(constraints.maxWidth),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _practiceCheckbox(
+    String label,
+    bool value,
+    ValueChanged<bool?> onChanged,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Checkbox(
+          value: value,
+          onChanged: _intervalPracticeRunning ? null : onChanged,
+        ),
+        GestureDetector(
+          onTap: _intervalPracticeRunning ? null : () => onChanged(!value),
+          child: Text(label),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntervalPracticeTable(double availableWidth) {
+    final tableWidth = math.max(650.0, availableWidth);
+    Widget cell(
+      String text, {
+      bool header = false,
+      Color? color,
+      VoidCallback? onTap,
+    }) {
+      final content = Container(
+        height: 34,
+        alignment: Alignment.center,
+        color:
+            color ??
+            (header ? const Color(0xFF17273A) : _HomeScreenState._surfaceDark),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color != null
+                ? const Color(0xFF101010)
+                : onTap == null && !header
+                ? const Color(0xFF607086)
+                : _HomeScreenState._text,
+            fontWeight: header ? FontWeight.w700 : FontWeight.w600,
+            fontSize: header ? 11 : 12,
+          ),
+        ),
+      );
+      return onTap == null ? content : InkWell(onTap: onTap, child: content);
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: tableWidth,
+        child: Table(
+          border: TableBorder.all(color: const Color(0xFF5A6A82)),
+          columnWidths: const <int, TableColumnWidth>{0: FixedColumnWidth(104)},
+          defaultColumnWidth: const FlexColumnWidth(),
+          children: <TableRow>[
+            TableRow(
+              children: <Widget>[
+                cell('', header: true),
+                for (var semitones = 0; semitones <= 12; semitones += 1)
+                  cell('$semitones', header: true),
+              ],
+            ),
+            for (final category in intervalGridCategories)
+              TableRow(
+                children: <Widget>[
+                  cell(category.name(_language), header: true),
+                  for (var semitones = 0; semitones <= 12; semitones += 1)
+                    () {
+                      final matches = category.cells.where(
+                        (item) => item.semitones == semitones,
+                      );
+                      if (matches.isEmpty) return cell('');
+                      final item = matches.first;
+                      final allowed = _intervalPracticeAllowedSemitones
+                          .contains(semitones);
+                      Color? color;
+                      if (_intervalPracticeAnswerCorrect != null &&
+                          semitones == _intervalPracticeSemitones) {
+                        color = const Color(0xFF39C66D);
+                      } else if (_intervalPracticeAnswerCorrect == false &&
+                          (_intervalPracticeAnswerNote! - _intervalPracticeRoot)
+                                  .abs() ==
+                              semitones) {
+                        color = const Color(0xFFE35D67);
+                      }
+                      return cell(
+                        item.label,
+                        color: color,
+                        onTap:
+                            allowed &&
+                                _intervalPracticeRunning &&
+                                _intervalPracticeAnswerCorrect == null
+                            ? () =>
+                                  _answerIntervalPractice(semitones: semitones)
+                            : null,
+                      );
+                    }(),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showIntervalPracticeHelp() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          _ui('Cómo practicar intervalos', 'How to practice intervals'),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            _ui(
+              '1. Pulsa Iniciar para escuchar un intervalo. En el pentagrama y el piano solo se muestra la primera nota.\n\n'
+                  '2. Responde pulsando la segunda nota en el piano o MIDI, o eligiendo el intervalo en la tabla. Si Solo ascendentes está desmarcado, la segunda nota también puede ser más grave que la tónica.\n\n'
+                  '3. La respuesta correcta se muestra en verde. Si fallas, tu nota aparece en rojo y la correcta en verde; el contador Aciertos se actualiza en ambos casos.\n\n'
+                  '4. Durante la corrección o la revisión puedes pulsar las notas mostradas en el pentagrama, el piano o MIDI para escucharlas. Las demás notas se rechazan con el símbolo de prohibido.\n\n'
+                  'Repetir reproduce de nuevo el ejercicio o su corrección. Siguiente genera y reproduce otro intervalo. Ver resultados permite recorrer con ◀ y ▶ los ejercicios contestados.',
+              '1. Press Start to hear an interval. Only the first note is shown on the staff and piano.\n\n'
+                  '2. Answer by pressing the second note on the piano or MIDI, or by choosing the interval in the table. If Ascending only is unchecked, the second note may also be lower than the tonic.\n\n'
+                  '3. A correct answer is shown in green. If you miss, your note appears in red and the correct one in green; the score is updated in both cases.\n\n'
+                  '4. During correction or review, press the displayed notes on the staff, piano, or MIDI to hear them. Other notes are rejected with the forbidden symbol.\n\n'
+                  'Repeat plays the exercise or its correction again. Next creates and plays another interval. View results lets you browse answered exercises with ◀ and ▶.',
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(_ui('Cerrar', 'Close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIntervalPracticeFilter() {
+    final draft = Set<int>.from(_intervalPracticeAllowedSemitones);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_ui('Filtrar intervalos', 'Filter intervals')),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Wrap(
+                  spacing: 8,
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => setDialogState(() {
+                        draft
+                          ..clear()
+                          ..addAll(List<int>.generate(13, (index) => index));
+                      }),
+                      child: Text(_ui('Seleccionar todo', 'Select all')),
+                    ),
+                    TextButton(
+                      onPressed: () => setDialogState(draft.clear),
+                      child: Text(_ui('Eliminar selección', 'Clear selection')),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _ui(
+                    'Selecciona las posibles segundas notas:',
+                    'Select the possible second notes:',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildIntervalFilterKeyboard(
+                  draft,
+                  (semitones) => setDialogState(() {
+                    if (!draft.remove(semitones)) {
+                      draft.add(semitones);
+                    }
+                  }),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(_ui('Cancelar', 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: draft.isEmpty
+                  ? null
+                  : () {
+                      _updateState(() {
+                        _intervalPracticeAllowedSemitones
+                          ..clear()
+                          ..addAll(draft);
+                        _intervalPracticeDeck.reset();
+                      });
+                      Navigator.of(dialogContext).pop();
+                    },
+              child: Text(_ui('Aceptar', 'Accept')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntervalFilterKeyboard(
+    Set<int> selected,
+    ValueChanged<int> onToggle,
+  ) {
+    const whiteNotes = <int>[0, 2, 4, 5, 7, 9, 11, 12];
+    const blackNotes = <int, int>{1: 1, 3: 2, 6: 4, 8: 5, 10: 6};
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final whiteWidth = constraints.maxWidth / whiteNotes.length;
+        final blackWidth = whiteWidth * 0.58;
+        return SizedBox(
+          height: 112,
+          child: Stack(
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  for (final semitones in whiteNotes)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onToggle(semitones),
+                      child: Container(
+                        width: whiteWidth,
+                        height: 112,
+                        alignment: Alignment.bottomCenter,
+                        padding: const EdgeInsets.only(bottom: 7),
+                        decoration: BoxDecoration(
+                          color: selected.contains(semitones)
+                              ? const Color(0xFF8BE3A5)
+                              : const Color(0xFFF5F4EF),
+                          border: Border.all(color: const Color(0xFF718096)),
+                        ),
+                        child: Text(
+                          semitones == 12
+                              ? '${_pcLabel(0)}2'
+                              : _pcLabel(semitones),
+                          style: const TextStyle(
+                            color: Color(0xFF15202C),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              for (final entry in blackNotes.entries)
+                Positioned(
+                  left: entry.value * whiteWidth - blackWidth / 2,
+                  top: 0,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onToggle(entry.key),
+                    child: Container(
+                      width: blackWidth,
+                      height: 68,
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: 5),
+                      decoration: BoxDecoration(
+                        color: selected.contains(entry.key)
+                            ? const Color(0xFF39C66D)
+                            : const Color(0xFF111A25),
+                        border: Border.all(color: const Color(0xFF718096)),
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(5),
+                        ),
+                      ),
+                      child: Text(
+                        _pcLabel(entry.key),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildNoteDetectionPage() {
     final note = _noteDetectionNote;
     return _buildModeScaffold(
@@ -1228,6 +1759,15 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   Widget _buildIntervalDetectionPage() {
+    final intervalAlternativeNames = _getIntervalAltNames();
+    final intervalDisplayName = _intervalNotes.length < 2
+        ? '-'
+        : <String>[
+            _getIntervalName(),
+            if (intervalAlternativeNames.isNotEmpty &&
+                intervalAlternativeNames != '-')
+              intervalAlternativeNames,
+          ].join(', ');
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
@@ -1301,40 +1841,17 @@ extension _HomeScreenPages on _HomeScreenState {
                                     fontSize: 12,
                                   ),
                                 ),
-                                Text(
-                                  _intervalNotes.length >= 2
-                                      ? _getIntervalName()
-                                      : '-',
-                                  style: const TextStyle(
-                                    color: _HomeScreenState._accent,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Interval alternative names
-                          _helpAnchor(
-                            'interval_alt_row',
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: <Widget>[
-                                Text(
-                                  _ui('Alternativos', 'Alternatives'),
-                                  style: const TextStyle(
-                                    color: _HomeScreenState._muted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  _intervalNotes.length >= 2
-                                      ? _getIntervalAltNames()
-                                      : '-',
-                                  style: const TextStyle(
-                                    color: _HomeScreenState._accent,
-                                    fontSize: 14,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    intervalDisplayName,
+                                    textAlign: TextAlign.right,
+                                    softWrap: true,
+                                    style: const TextStyle(
+                                      color: _HomeScreenState._accent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1557,6 +2074,18 @@ extension _HomeScreenPages on _HomeScreenState {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      _helpAnchor(
+                        'interval_generation_playback_mode',
+                        OutlinedButton(
+                          onPressed: _toggleIntervalGenerationPlaybackMode,
+                          child: Text(
+                            _intervalGenHarmonic
+                                ? _ui('Armónico', 'Harmonic')
+                                : _ui('Melódico', 'Melodic'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       _intervalGenerationPlayButton(
                         helpId: 'interval_generation_play_reverse',
                         tooltip: _ui(
@@ -1565,8 +2094,11 @@ extension _HomeScreenPages on _HomeScreenState {
                         ),
                         icon: Icons.arrow_left,
                         selected: _intervalGenLastPlayReversed == true,
-                        onPressed: () =>
-                            _playGeneratedIntervalFromButton(reversed: true),
+                        onPressed: _intervalGenHarmonic
+                            ? null
+                            : () => _playGeneratedIntervalFromButton(
+                                reversed: true,
+                              ),
                       ),
                       const SizedBox(width: 6),
                       _intervalGenerationPlayButton(
@@ -1722,7 +2254,7 @@ extension _HomeScreenPages on _HomeScreenState {
     required String tooltip,
     required IconData icon,
     required bool selected,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return _helpAnchor(
       helpId,

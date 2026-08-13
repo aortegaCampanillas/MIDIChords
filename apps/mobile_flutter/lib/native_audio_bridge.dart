@@ -32,15 +32,12 @@ final class NativeAudioBridge {
     required String instrument,
     required int durationMs,
     required double volume,
-  }) => _invoke(
-    'play${_platformPrefix(platform)}SynthTone',
-    <String, Object>{
-      'midi': midi.clamp(0, 127),
-      'instrument': instrument,
-      'durationMs': durationMs.clamp(platform == 'ios' ? 40 : 80, 2600),
-      'volume': volume.clamp(0.0, 1.0),
-    },
-  );
+  }) => _invoke('play${_platformPrefix(platform)}SynthTone', <String, Object>{
+    'midi': midi.clamp(0, 127),
+    'instrument': instrument,
+    'durationMs': durationMs.clamp(platform == 'ios' ? 40 : 80, 2600),
+    'volume': volume.clamp(0.0, 1.0),
+  });
 
   Future<bool> playChord({
     required String platform,
@@ -50,15 +47,15 @@ final class NativeAudioBridge {
     required double volume,
   }) {
     if (notes.isEmpty) return Future<bool>.value(false);
-    return _invoke(
-      'play${_platformPrefix(platform)}SynthChord',
-      <String, Object>{
-        'notes': notes.map((note) => note.clamp(0, 127)).toList(growable: false),
-        'instrument': instrument,
-        'durationMs': durationMs.clamp(platform == 'ios' ? 40 : 80, 2600),
-        'volume': volume.clamp(0.0, 1.0),
-      },
-    );
+    return _invoke('play${_platformPrefix(platform)}SynthChord', <
+      String,
+      Object
+    >{
+      'notes': notes.map((note) => note.clamp(0, 127)).toList(growable: false),
+      'instrument': instrument,
+      'durationMs': durationMs.clamp(platform == 'ios' ? 40 : 80, 2600),
+      'volume': volume.clamp(0.0, 1.0),
+    });
   }
 
   Future<bool> playMetronomeClick({

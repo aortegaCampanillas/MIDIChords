@@ -84,6 +84,28 @@ void main() {
     expect(find.text('Ocultar'), findsOneWidget);
   });
 
+  testWidgets('interval practice renders a visible staff panel', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{'tabIndex': 9});
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Practicar Intervalos'), findsWidgets);
+    expect(find.text('Pentagrama'), findsOneWidget);
+    final staff = find.byWidgetPredicate(
+      (widget) =>
+          widget is CustomPaint &&
+          widget.painter.runtimeType.toString() == '_MiniStaffPainter',
+    );
+    expect(staff, findsOneWidget);
+    expect(tester.getSize(staff).height, greaterThan(100));
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('interval generation help resolves its scrollable table', (
     WidgetTester tester,
   ) async {

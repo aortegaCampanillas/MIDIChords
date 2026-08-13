@@ -20,6 +20,7 @@ import 'chord_variant_help.dart';
 import 'fingerings.dart';
 import 'help_geometry.dart';
 import 'interval_data.dart';
+import 'interval_practice.dart';
 import 'interval_theory.dart' as interval_theory;
 import 'key_signature_highlight.dart';
 import 'music_catalog.dart';
@@ -424,8 +425,34 @@ class _HomeScreenState extends State<HomeScreen>
   String _intervalGenLabel = '5J';
   int? _intervalGenPlayingIdx;
   bool? _intervalGenLastPlayReversed;
+  bool _intervalGenHarmonic = false;
   Timer? _intervalGenInputHighlightTimer;
   Timer? _intervalGenPlaybackTimer;
+  final IntervalPracticeDeck _intervalPracticeDeck = IntervalPracticeDeck();
+  bool _intervalPracticeStarted = false;
+  bool _intervalPracticeRunning = false;
+  bool _intervalPracticeRandomTonic = false;
+  bool _intervalPracticeAscendingOnly = true;
+  bool _intervalPracticeHarmonic = false;
+  int _intervalPracticeRepetitions = 10;
+  int _intervalPracticeCorrect = 0;
+  int _intervalPracticeTotal = 0;
+  int _intervalPracticeRoot = 60;
+  int _intervalPracticeSemitones = 0;
+  int _intervalPracticeDirection = 1;
+  int? _intervalPracticeAnswerNote;
+  bool? _intervalPracticeAnswerCorrect;
+  final Set<int> _intervalPracticeAllowedSemitones = <int>{
+    for (var semitones = 0; semitones <= 12; semitones += 1) semitones,
+  };
+  final List<Map<String, Object>> _intervalPracticeHistory =
+      <Map<String, Object>>[];
+  int? _intervalPracticeReviewIndex;
+  final Set<int> _intervalPracticePlayingNotes = <int>{};
+  int? _intervalPracticePlayingNote;
+  Timer? _intervalPracticePlaybackTimer;
+  Timer? _intervalPracticeReviewTimer;
+  int _intervalPracticePlaybackGeneration = 0;
   Timer? _scaleLoopTimer;
   Timer? _scaleStaffHighlightTimer;
   int? _scaleCurrentNote;
@@ -499,12 +526,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<int> _enabledModeIndexes() {
     return _kEnableMobileTuner
-        ? const <int>[0, 1, 2, 3, 4, 5, 6, 7, 8]
-        : const <int>[0, 1, 2, 3, 4, 5, 7, 8];
+        ? const <int>[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        : const <int>[0, 1, 2, 3, 4, 5, 7, 8, 9];
   }
 
   /// Same display order as the web mode selector.
-  static const List<int> _kWebModeOrder = <int>[8, 0, 1, 5, 7, 2, 3, 4, 6];
+  static const List<int> _kWebModeOrder = <int>[8, 0, 1, 5, 7, 9, 2, 3, 4, 6];
 
   List<int> _orderedEnabledModes(List<int> enabledModes) {
     final enabledSet = enabledModes.toSet();
@@ -671,6 +698,8 @@ class _HomeScreenState extends State<HomeScreen>
         return _ui('Generación de Intervalos', 'Interval Generation');
       case 8:
         return _ui('Detección de Notas', 'Note Detection');
+      case 9:
+        return _ui('Practicar Intervalos', 'Interval Practice');
       default:
         return _ui('Detección de Acordes', 'Chord Detection');
     }
@@ -1136,6 +1165,8 @@ class _HomeScreenState extends State<HomeScreen>
     _intervalMelodyPlaybackTimer?.cancel();
     _intervalGenPlaybackTimer?.cancel();
     _intervalGenInputHighlightTimer?.cancel();
+    _intervalPracticePlaybackTimer?.cancel();
+    _intervalPracticeReviewTimer?.cancel();
     _helpBannerTimer?.cancel();
     _stopHeldChord();
     _stopHeldInputs();
@@ -1540,6 +1571,13 @@ class _HomeScreenState extends State<HomeScreen>
         continue;
       }
 
+      if (_tabIndex == 9) {
+        unawaited(
+          _handleInstrumentNote(note, pressed: isNoteOn, fromMidi: true),
+        );
+        continue;
+      }
+
       // Metronome mode handling (tabIndex 4): el piano sigue siendo
       // interactivo mientras suena el metrónomo, igual que con ratón/touch.
       if (_tabIndex == 4) {
@@ -1688,6 +1726,7 @@ class _HomeScreenState extends State<HomeScreen>
       return _noteDetectionNote == null ? <int>{} : <int>{_noteDetectionNote!};
     }
     if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
+    if (_tabIndex == 9) return _intervalPracticeDisplayNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
         return _getIntervalMelodyNotes().whereType<int>().toSet();
@@ -1758,6 +1797,7 @@ class _HomeScreenState extends State<HomeScreen>
       return _noteDetectionNote == null ? <int>{} : <int>{_noteDetectionNote!};
     }
     if (_tabIndex == 7) return _intervalGenerationNotes().toSet();
+    if (_tabIndex == 9) return _intervalPracticeDisplayNotes().toSet();
     if (_tabIndex == 5) {
       if (_intervalMelodyMode) {
         return _getIntervalMelodyNotes().whereType<int>().toSet();
@@ -2638,6 +2678,41 @@ class _HomeScreenState extends State<HomeScreen>
     required bool pressed,
     bool fromMidi = false,
   }) async {
+    if (_tabIndex == 9) {
+      if (!pressed) return;
+      if (!_intervalPracticeStarted) return;
+      if (_intervalPracticeAnswerCorrect == null) {
+        _answerIntervalPractice(note: midi);
+        return;
+      }
+      final permitted = _intervalPracticeDisplayNotes().toSet();
+      if (!permitted.contains(midi)) {
+        _showForbiddenOnPiano(midi);
+        return;
+      }
+      if (!fromMidi || _midiInputSoundEnabled) {
+        await playNote(midi, instrument: 'piano');
+      }
+      _intervalGenInputHighlightTimer?.cancel();
+      setState(() {
+        _intervalPracticePlayingNote = midi;
+        _intervalPracticePlayingNotes
+          ..clear()
+          ..add(midi);
+      });
+      _intervalGenInputHighlightTimer = Timer(
+        const Duration(milliseconds: 600),
+        () {
+          if (!mounted) return;
+          setState(() {
+            _intervalPracticePlayingNote = null;
+            _intervalPracticePlayingNotes.clear();
+            _intervalGenInputHighlightTimer = null;
+          });
+        },
+      );
+      return;
+    }
     if (_tabIndex == 8) {
       if (pressed) {
         setState(() => _noteDetectionNote = midi);
@@ -3981,9 +4056,11 @@ class _HomeScreenState extends State<HomeScreen>
       unawaited(_handleInstrumentNote(midi, pressed: false));
       return;
     }
-    if (_tabIndex == 5 || _tabIndex == 7) {
+    if (_tabIndex == 5 || _tabIndex == 7 || _tabIndex == 9) {
       if (_tabIndex == 7) {
         unawaited(_handleInstrumentNote(midi, pressed: false));
+      } else if (_tabIndex == 9) {
+        unawaited(_handleInstrumentNote(midi, pressed: true));
       } else {
         _playStaffPreviewNote(midi);
       }
@@ -4855,6 +4932,7 @@ class _HomeScreenState extends State<HomeScreen>
       _buildTunerPage(),
       _buildIntervalGenerationPage(),
       _buildNoteDetectionPage(),
+      _buildIntervalPracticePage(),
     ];
 
     return Stack(
@@ -4945,6 +5023,7 @@ class _HomeScreenState extends State<HomeScreen>
                           if (value == 0 || value == 8) {
                             _instrumentView = 'piano';
                           }
+                          if (value == 9) _instrumentView = 'piano';
                           _requestPianoScrollForMode(value);
                         });
                         if (value != 3) {
@@ -4963,6 +5042,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _clearGenerationNoteHighlight();
                         _intervalGenPlaybackTimer?.cancel();
                         _intervalGenPlayingIdx = null;
+                        _cancelIntervalPracticePlayback();
                         _detectionPlayPressed = false;
                         _generationPlayPressed = false;
                         if (value != 0) {
@@ -5219,12 +5299,12 @@ class _HomeScreenState extends State<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Expanded(
-                            flex: _tabIndex == 7 ? 8 : 11,
+                            flex: _tabIndex == 7 || _tabIndex == 9 ? 8 : 11,
                             child: staffPanel,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            flex: _tabIndex == 7 ? 12 : 9,
+                            flex: _tabIndex == 7 || _tabIndex == 9 ? 12 : 9,
                             child: controlsPanel,
                           ),
                         ],
@@ -5250,10 +5330,13 @@ class _HomeScreenState extends State<HomeScreen>
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Expanded(flex: _tabIndex == 7 ? 42 : 57, child: staffPanel),
+                    Expanded(
+                      flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 57,
+                      child: staffPanel,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
-                      flex: _tabIndex == 7 ? 58 : 43,
+                      flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 43,
                       child: controlsPanel,
                     ),
                   ],
@@ -5296,7 +5379,10 @@ class _HomeScreenState extends State<HomeScreen>
       Iterable<int> source, {
       bool lowerBass = false,
     }) {
-      final mapped = source.map(staffMidi).toList()..sort();
+      final mapped = source.map(staffMidi).toList();
+      if (_tabIndex != 9) {
+        mapped.sort();
+      }
       if (guitarStaffMode && lowerBass && mapped.isNotEmpty) {
         mapped[0] -= 12;
       }
@@ -5309,7 +5395,10 @@ class _HomeScreenState extends State<HomeScreen>
       notes,
       lowerBass: lowerGuitarBass,
     );
-    final sourceNotes = notes.toList()..sort();
+    final sourceNotes = notes.toList();
+    if (_tabIndex != 9) {
+      sourceNotes.sort();
+    }
     final displayToSourceNote = <int, int>{};
     for (
       var index = 0;
@@ -5577,7 +5666,14 @@ class _HomeScreenState extends State<HomeScreen>
                           }
                           return;
                         }
-                        if (!const <int>{0, 1, 2, 5, 7}.contains(_tabIndex) ||
+                        if (!const <int>{
+                              0,
+                              1,
+                              2,
+                              5,
+                              7,
+                              9,
+                            }.contains(_tabIndex) ||
                             imelMode) {
                           return;
                         }
@@ -5588,7 +5684,9 @@ class _HomeScreenState extends State<HomeScreen>
                           keySignatureCount: staffKeySig.count,
                           preferFlats: staffKeySig.preferFlats,
                           intervalSequenceMode:
-                              _tabIndex == 5 || _tabIndex == 7,
+                              _tabIndex == 5 ||
+                              _tabIndex == 7 ||
+                              _tabIndex == 9,
                         );
                         if (hit != null) {
                           _playGeneralStaffNote(
@@ -5630,9 +5728,34 @@ class _HomeScreenState extends State<HomeScreen>
                               ? _intervalPlayingIdx
                               : (_tabIndex == 7
                                     ? _intervalGenPlayingIdx
-                                    : null),
+                                    : (_tabIndex == 9 &&
+                                              _intervalPracticePlayingNote !=
+                                                  null
+                                          ? displayNotes.indexOf(
+                                              _intervalPracticePlayingNote!,
+                                            )
+                                          : null)),
+                          intervalPlayingNotes: _tabIndex == 9
+                              ? _intervalPracticePlayingNotes
+                              : const <int>{},
                           intervalSequenceMode:
-                              _tabIndex == 5 || _tabIndex == 7,
+                              _tabIndex == 5 ||
+                              _tabIndex == 7 ||
+                              _tabIndex == 9,
+                          intervalQuestion:
+                              _tabIndex == 9 &&
+                              _intervalPracticeStarted &&
+                              _intervalPracticeAnswerCorrect == null,
+                          intervalCorrectNote:
+                              _tabIndex == 9 &&
+                                  _intervalPracticeAnswerCorrect != null
+                              ? _intervalPracticeQuestionNotes().last
+                              : null,
+                          intervalWrongNote:
+                              _tabIndex == 9 &&
+                                  _intervalPracticeAnswerCorrect == false
+                              ? _intervalPracticeAnswerNote
+                              : null,
                           intervalBeatsPerBar: imelBeatsPerBar,
                           intervalAnacrusis: imelAnacrusis,
                         ),
@@ -5904,7 +6027,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
-    final metronomeFixedPiano = _tabIndex == 4 || _tabIndex == 8;
+    final metronomeFixedPiano =
+        _tabIndex == 4 || _tabIndex == 8 || _tabIndex == 9;
     final showRightControls =
         _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3 || _tabIndex == 7;
     final displayInstrumentView = metronomeFixedPiano
@@ -5912,6 +6036,7 @@ class _HomeScreenState extends State<HomeScreen>
         : _instrumentView;
     final pianoHelpId = switch (_tabIndex) {
       8 => 'note_detection_piano',
+      9 => 'interval_practice_piano',
       3 => 'scales_instrument_piano',
       2 => 'circle_instrument_piano_btn',
       7 => 'interval_generation_instrument_piano',
@@ -5940,10 +6065,12 @@ class _HomeScreenState extends State<HomeScreen>
       4 => 'metronome_instrument',
       5 => 'interval_detection_instrument',
       7 => 'interval_generation_instrument',
+      9 => 'interval_practice_piano',
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {
       4 => portrait ? 152.0 : 168.0,
+      9 => compactPhone ? 168.0 : 156.0,
       3 when _scaleMetronomeOnly =>
         compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
       1 || 2 || 3 =>
@@ -6291,6 +6418,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildPianoWithFingeringStrips(Set<int> activeMidi) {
+    // Las tiras de digitación pertenecen exclusivamente a Escalas. El resto
+    // de modos aprovecha toda la altura disponible para el teclado.
+    if (_tabIndex != 3) {
+      return _buildPianoStrip(activeMidi);
+    }
     final showStrips =
         _tabIndex == 3 &&
         _instrumentView == 'piano' &&
@@ -6452,6 +6584,24 @@ class _HomeScreenState extends State<HomeScreen>
     required double left,
   }) {
     final isRoot = midi == rootMidi;
+    final practiceWrong =
+        _tabIndex == 9 &&
+        _intervalPracticeAnswerCorrect == false &&
+        midi == _intervalPracticeAnswerNote;
+    final practiceCorrect =
+        _tabIndex == 9 &&
+        _intervalPracticeAnswerCorrect != null &&
+        midi == _intervalPracticeQuestionNotes().last;
+    final fill = practiceWrong
+        ? const Color(0xFFE35D67)
+        : (practiceCorrect || isRoot
+              ? const Color(0xFF32D74B)
+              : const Color(0xFFF6B60B));
+    final outline = practiceWrong
+        ? const Color(0xFF9E2E38)
+        : (practiceCorrect || isRoot
+              ? const Color(0xFF1E8C38)
+              : const Color(0xFF8D6B00));
     return Positioned(
       top: top,
       left: left,
@@ -6459,12 +6609,9 @@ class _HomeScreenState extends State<HomeScreen>
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: isRoot ? const Color(0xFF32D74B) : const Color(0xFFF6B60B),
+          color: fill,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: isRoot ? const Color(0xFF1E8C38) : const Color(0xFF8D6B00),
-            width: 1.5,
-          ),
+          border: Border.all(color: outline, width: 1.5),
         ),
         alignment: Alignment.center,
         child: FittedBox(
@@ -6490,25 +6637,36 @@ class _HomeScreenState extends State<HomeScreen>
     final whiteMidi = midiRange
         .where((m) => !const <int>{1, 3, 6, 8, 10}.contains(m % 12))
         .toList();
-    final active = _tabIndex == 5 || _tabIndex == 7
+    final active = _tabIndex == 5 || _tabIndex == 7 || _tabIndex == 9
         ? <int>{}
         : activeMidi.toSet();
     final extras = _instrumentExtrasForCurrentTab();
     final scaleRh = (_tabIndex == 3 ? _scaleRhNotes() : <int>[]).toSet();
     final intervalNotes = _tabIndex == 5
         ? List<int>.from(_intervalNotes)
-        : (_tabIndex == 7 ? _intervalGenerationNotes() : const <int>[]);
+        : (_tabIndex == 7
+              ? _intervalGenerationNotes()
+              : (_tabIndex == 9
+                    ? _intervalPracticeDisplayNotes()
+                    : const <int>[]));
     final intervalNoteSet = intervalNotes.toSet();
     final intervalRootMidi = intervalNotes.isEmpty ? null : intervalNotes.first;
     final intervalPlayingIdx = _tabIndex == 5
         ? _intervalPlayingIdx
-        : (_tabIndex == 7 ? _intervalGenPlayingIdx : null);
+        : (_tabIndex == 7
+              ? _intervalGenPlayingIdx
+              : (_tabIndex == 9 && _intervalPracticePlayingNote != null
+                    ? intervalNotes.indexOf(_intervalPracticePlayingNote!)
+                    : null));
     final intervalCurrentMidi =
         intervalPlayingIdx != null &&
             intervalPlayingIdx >= 0 &&
             intervalPlayingIdx < intervalNotes.length
         ? intervalNotes[intervalPlayingIdx]
         : null;
+    final intervalCurrentNotes = _tabIndex == 9
+        ? _intervalPracticePlayingNotes
+        : <int>{?intervalCurrentMidi};
     final chordGenPiano =
         (_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'piano';
     final chordRh = chordGenPiano && _generatedChordJson != null
@@ -6625,8 +6783,8 @@ class _HomeScreenState extends State<HomeScreen>
                           Row(
                             children: whiteMidi.map((midi) {
                               final isActive = active.contains(midi);
-                              final isIntervalCurrent =
-                                  midi == intervalCurrentMidi;
+                              final isIntervalCurrent = intervalCurrentNotes
+                                  .contains(midi);
                               final isExtra = extras.contains(midi);
                               final isScaleCurrent =
                                   _tabIndex == 3 &&
@@ -6835,8 +6993,8 @@ class _HomeScreenState extends State<HomeScreen>
                               )
                               .map((midi) {
                                 final isActive = active.contains(midi);
-                                final isIntervalCurrent =
-                                    midi == intervalCurrentMidi;
+                                final isIntervalCurrent = intervalCurrentNotes
+                                    .contains(midi);
                                 final isExtra = extras.contains(midi);
                                 final isScaleCurrent =
                                     _tabIndex == 3 &&
@@ -7065,15 +7223,33 @@ class _HomeScreenState extends State<HomeScreen>
                                 );
                               }),
                           ..._forbiddenFlashNotes.map((midi) {
+                            final isBlack = const <int>{
+                              1,
+                              3,
+                              6,
+                              8,
+                              10,
+                            }.contains(midi % 12);
+                            final keyCenterX = isBlack
+                                ? xForMidi(midi)
+                                : xForMidi(midi) + whiteW / 2;
+                            const indicatorSize = 22.0;
                             return Positioned(
-                              left: xForMidi(midi),
+                              left: keyCenterX - indicatorSize / 2,
                               top: forbiddenTop,
-                              child: const Text(
-                                '⊘',
-                                style: TextStyle(
-                                  color: Color(0xFFFF5A5A),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
+                              child: const SizedBox(
+                                width: indicatorSize,
+                                height: indicatorSize,
+                                child: Center(
+                                  child: Text(
+                                    '⊘',
+                                    style: TextStyle(
+                                      color: Color(0xFFFF5A5A),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             );
@@ -7581,6 +7757,234 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Interval detection methods
+  List<int> _intervalPracticeQuestionNotes() => <int>[
+    _intervalPracticeRoot,
+    _intervalPracticeRoot +
+        _intervalPracticeDirection * _intervalPracticeSemitones,
+  ];
+
+  List<int> _intervalPracticeDisplayNotes() {
+    if (!_intervalPracticeStarted) return const <int>[];
+    final notes = _intervalPracticeQuestionNotes();
+    if (_intervalPracticeAnswerCorrect == null) return <int>[notes.first];
+    if (_intervalPracticeAnswerCorrect!) return notes;
+    return <int>[notes.first, _intervalPracticeAnswerNote!, notes.last];
+  }
+
+  void _cancelIntervalPracticePlayback() {
+    _intervalPracticePlaybackGeneration += 1;
+    _intervalPracticePlaybackTimer?.cancel();
+    _intervalPracticePlaybackTimer = null;
+    _intervalPracticeReviewTimer?.cancel();
+    _intervalPracticeReviewTimer = null;
+    _intervalGenInputHighlightTimer?.cancel();
+    _intervalGenInputHighlightTimer = null;
+    _intervalPracticePlayingNotes.clear();
+    _intervalPracticePlayingNote = null;
+  }
+
+  void _playIntervalPracticeNotes(List<int> notes, {bool hideSecond = false}) {
+    _cancelIntervalPracticePlayback();
+    final generation = _intervalPracticePlaybackGeneration;
+    if (_intervalPracticeHarmonic) {
+      setState(() {
+        _intervalPracticePlayingNotes
+          ..clear()
+          ..addAll(hideSecond ? <int>[notes.first] : notes);
+        _intervalPracticePlayingNote = hideSecond ? notes.first : null;
+      });
+      for (final note in notes) {
+        unawaited(playNote(note, instrument: 'piano'));
+      }
+      _intervalPracticePlaybackTimer = Timer(
+        const Duration(milliseconds: 600),
+        () {
+          if (!mounted || generation != _intervalPracticePlaybackGeneration) {
+            return;
+          }
+          setState(() {
+            _intervalPracticePlayingNotes.clear();
+            _intervalPracticePlayingNote = null;
+          });
+        },
+      );
+      return;
+    }
+
+    void playAt(int index) {
+      if (!mounted || generation != _intervalPracticePlaybackGeneration) return;
+      if (index >= notes.length) {
+        setState(() {
+          _intervalPracticePlayingNotes.clear();
+          _intervalPracticePlayingNote = null;
+        });
+        return;
+      }
+      setState(() {
+        _intervalPracticePlayingNotes
+          ..clear()
+          ..addAll(
+            hideSecond && index > 0 ? const <int>[] : <int>[notes[index]],
+          );
+        _intervalPracticePlayingNote = hideSecond && index > 0
+            ? null
+            : notes[index];
+      });
+      unawaited(playNote(notes[index], instrument: 'piano'));
+      _intervalPracticePlaybackTimer = Timer(
+        const Duration(milliseconds: 600),
+        () => playAt(index + 1),
+      );
+    }
+
+    playAt(0);
+  }
+
+  void _playIntervalPracticeQuestion() {
+    if (!_intervalPracticeStarted) return;
+    _playIntervalPracticeNotes(
+      _intervalPracticeQuestionNotes(),
+      hideSecond: _intervalPracticeAnswerCorrect == null,
+    );
+  }
+
+  void _nextIntervalPracticeQuestion() {
+    if (!_intervalPracticeRunning ||
+        _intervalPracticeTotal >= _intervalPracticeRepetitions) {
+      return;
+    }
+    final choice = _intervalPracticeDeck.draw(
+      allowedSemitones: _intervalPracticeAllowedSemitones,
+      randomTonic: _intervalPracticeRandomTonic,
+      ascendingOnly: _intervalPracticeAscendingOnly,
+    );
+    if (choice == null) return;
+    _cancelIntervalPracticePlayback();
+    setState(() {
+      _intervalPracticeStarted = true;
+      _intervalPracticeRoot = choice.root;
+      _intervalPracticeSemitones = choice.semitones;
+      _intervalPracticeDirection = choice.direction;
+      _intervalPracticeAnswerNote = null;
+      _intervalPracticeAnswerCorrect = null;
+      _intervalPracticeReviewIndex = null;
+    });
+    _playIntervalPracticeQuestion();
+  }
+
+  void _toggleIntervalPractice() {
+    if (_intervalPracticeRunning) {
+      _stopIntervalPractice();
+      return;
+    }
+    _intervalPracticeDeck.reset();
+    setState(() {
+      _intervalPracticeRunning = true;
+      _intervalPracticeStarted = true;
+      _intervalPracticeCorrect = 0;
+      _intervalPracticeTotal = 0;
+      _intervalPracticeHistory.clear();
+      _intervalPracticeReviewIndex = null;
+      _intervalPracticeAnswerNote = null;
+      _intervalPracticeAnswerCorrect = null;
+    });
+    _nextIntervalPracticeQuestion();
+  }
+
+  void _stopIntervalPractice() {
+    _cancelIntervalPracticePlayback();
+    setState(() {
+      _intervalPracticeRunning = false;
+      if (_intervalPracticeHistory.isNotEmpty) {
+        _intervalPracticeReviewIndex = _intervalPracticeHistory.length - 1;
+        _loadIntervalPracticeHistory(_intervalPracticeReviewIndex!);
+      }
+    });
+  }
+
+  void _answerIntervalPractice({int? note, int? semitones}) {
+    if (!_intervalPracticeRunning || _intervalPracticeAnswerCorrect != null) {
+      return;
+    }
+    final question = _intervalPracticeQuestionNotes();
+    final guessedNote =
+        note ??
+        (_intervalPracticeRoot + _intervalPracticeDirection * (semitones ?? 0));
+    final guessedSemitones = semitones ?? (guessedNote - question.first).abs();
+    final correct = note != null
+        ? guessedNote == question.last
+        : guessedSemitones == _intervalPracticeSemitones;
+    setState(() {
+      _intervalPracticeAnswerNote = guessedNote;
+      _intervalPracticeAnswerCorrect = correct;
+      _intervalPracticeTotal += 1;
+      if (correct) _intervalPracticeCorrect += 1;
+      _intervalPracticeHistory.add(<String, Object>{
+        'root': _intervalPracticeRoot,
+        'semitones': _intervalPracticeSemitones,
+        'direction': _intervalPracticeDirection,
+        'answerNote': guessedNote,
+        'correct': correct,
+        'scoreCorrect': _intervalPracticeCorrect,
+        'scoreTotal': _intervalPracticeTotal,
+      });
+      if (_intervalPracticeTotal >= _intervalPracticeRepetitions) {
+        _intervalPracticeRunning = false;
+        _intervalPracticeReviewIndex = _intervalPracticeHistory.length - 1;
+      }
+    });
+    _playIntervalPracticeNotes(<int>[question.first, guessedNote]);
+  }
+
+  void _loadIntervalPracticeHistory(int index) {
+    final entry = _intervalPracticeHistory[index];
+    _intervalPracticeRoot = entry['root']! as int;
+    _intervalPracticeSemitones = entry['semitones']! as int;
+    _intervalPracticeDirection = entry['direction']! as int;
+    _intervalPracticeAnswerNote = entry['answerNote']! as int;
+    _intervalPracticeAnswerCorrect = entry['correct']! as bool;
+    _intervalPracticeCorrect = entry['scoreCorrect']! as int;
+    _intervalPracticeTotal = entry['scoreTotal']! as int;
+  }
+
+  void _reviewIntervalPractice(int delta) {
+    if (_intervalPracticeHistory.isEmpty) return;
+    final current =
+        _intervalPracticeReviewIndex ?? _intervalPracticeHistory.length - 1;
+    final next = (current + delta).clamp(
+      0,
+      _intervalPracticeHistory.length - 1,
+    );
+    setState(() {
+      _intervalPracticeReviewIndex = next;
+      _loadIntervalPracticeHistory(next);
+    });
+  }
+
+  void _replayIntervalPracticeResult() {
+    if (_intervalPracticeAnswerCorrect == null) {
+      _playIntervalPracticeQuestion();
+      return;
+    }
+    final question = _intervalPracticeQuestionNotes();
+    _playIntervalPracticeNotes(question);
+    if (!_intervalPracticeAnswerCorrect!) {
+      final generation = _intervalPracticePlaybackGeneration;
+      _intervalPracticeReviewTimer = Timer(
+        const Duration(milliseconds: 1150),
+        () {
+          if (!mounted || generation != _intervalPracticePlaybackGeneration) {
+            return;
+          }
+          _playIntervalPracticeNotes(<int>[
+            question.first,
+            _intervalPracticeAnswerNote!,
+          ]);
+        },
+      );
+    }
+  }
+
   List<int> _intervalGenerationNotes() =>
       generateIntervalNotes(_intervalGenRootPc, _intervalGenSemitones);
 
@@ -7601,6 +8005,13 @@ class _HomeScreenState extends State<HomeScreen>
   void _playGeneratedInterval({bool reversed = false}) {
     _intervalGenPlaybackTimer?.cancel();
     final notes = _intervalGenerationNotes();
+    if (_intervalGenHarmonic) {
+      setState(() => _intervalGenPlayingIdx = null);
+      for (final note in notes) {
+        unawaited(playNote(note, instrument: _instrumentView));
+      }
+      return;
+    }
     final ordered = reversed ? notes.reversed.toList() : notes;
     void playAt(int index) {
       if (!mounted || index >= ordered.length) {
@@ -7620,8 +8031,19 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _playGeneratedIntervalFromButton({required bool reversed}) {
+    if (_intervalGenHarmonic && reversed) return;
     setState(() => _intervalGenLastPlayReversed = reversed);
     _playGeneratedInterval(reversed: reversed);
+  }
+
+  void _toggleIntervalGenerationPlaybackMode() {
+    _intervalGenPlaybackTimer?.cancel();
+    setState(() {
+      _intervalGenHarmonic = !_intervalGenHarmonic;
+      _intervalGenLastPlayReversed = _intervalGenHarmonic ? false : null;
+      _intervalGenPlayingIdx = null;
+    });
+    _playGeneratedInterval();
   }
 
   void _addIntervalNote(int midiNote) {

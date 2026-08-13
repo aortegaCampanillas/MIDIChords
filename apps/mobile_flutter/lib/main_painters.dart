@@ -21,7 +21,11 @@ class _MiniStaffPainter extends CustomPainter {
     this.intervalMelodyNotes = const <int?>[],
     this.intervalMelodyDurations = const <String>[],
     this.intervalPlayingIdx,
+    this.intervalPlayingNotes = const <int>{},
     this.intervalSequenceMode = false,
+    this.intervalQuestion = false,
+    this.intervalCorrectNote,
+    this.intervalWrongNote,
     this.intervalBeatsPerBar = 4,
     this.intervalAnacrusis = 0.0,
   });
@@ -83,7 +87,11 @@ class _MiniStaffPainter extends CustomPainter {
   final List<int?> intervalMelodyNotes;
   final List<String> intervalMelodyDurations;
   final int? intervalPlayingIdx;
+  final Set<int> intervalPlayingNotes;
   final bool intervalSequenceMode;
+  final bool intervalQuestion;
+  final int? intervalCorrectNote;
+  final int? intervalWrongNote;
   final int intervalBeatsPerBar;
   final double intervalAnacrusis;
 
@@ -278,7 +286,10 @@ class _MiniStaffPainter extends CustomPainter {
         );
       }
     } else {
-      final list = notes.toList()..sort();
+      final list = notes.toList();
+      if (!intervalSequenceMode) {
+        list.sort();
+      }
       final placedTrebleCols = <int, List<double>>{};
       final placedBassCols = <int, List<double>>{};
       final rhSet = generationRhNotes.toSet();
@@ -321,9 +332,16 @@ class _MiniStaffPainter extends CustomPainter {
         placedCols[col] = ys;
         Color? fillColor;
         noteOutline.strokeWidth = 1.8;
-        if (intervalSequenceMode && intervalPlayingIdx == i) {
+        if (intervalPlayingNotes.contains(midi) ||
+            (intervalSequenceMode && intervalPlayingIdx == i)) {
           fillColor = const Color(0xFF4DA3EA);
           noteOutline.color = const Color(0xFFE9EDF2);
+        } else if (intervalCorrectNote == midi) {
+          fillColor = const Color(0xFF39C66D);
+          noteOutline.color = const Color(0xFFBFF6CE);
+        } else if (intervalWrongNote == midi) {
+          fillColor = const Color(0xFFE35D67);
+          noteOutline.color = const Color(0xFFFFCED2);
         } else if (detectionActiveNotes.contains(midi)) {
           fillColor = const Color(0xFF4DA3EA);
           noteOutline.color = const Color(0xFFE9EDF2);
@@ -393,6 +411,31 @@ class _MiniStaffPainter extends CustomPainter {
             Offset(x - noteW / 2 - tpAcc.width - 2, y - tpAcc.height / 2),
           );
         }
+      }
+      if (intervalQuestion) {
+        final questionPainter = TextPainter(
+          text: const TextSpan(
+            text: '?',
+            style: TextStyle(
+              color: Color(0xFFE9EDF2),
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        questionPainter.paint(
+          canvas,
+          Offset(
+            intervalStaffNoteX(
+                  startX: noteStartX,
+                  index: 1,
+                  compactWidth: compactWidth,
+                ) -
+                questionPainter.width / 2,
+            trebleTop + gap * 1.25,
+          ),
+        );
       }
     }
   }
@@ -1034,7 +1077,13 @@ class _MiniStaffPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniStaffPainter oldDelegate) {
     if (oldDelegate.intervalMelodyMode != intervalMelodyMode) return true;
     if (oldDelegate.intervalPlayingIdx != intervalPlayingIdx) return true;
+    if (!setEquals(oldDelegate.intervalPlayingNotes, intervalPlayingNotes)) {
+      return true;
+    }
     if (oldDelegate.intervalSequenceMode != intervalSequenceMode) return true;
+    if (oldDelegate.intervalQuestion != intervalQuestion) return true;
+    if (oldDelegate.intervalCorrectNote != intervalCorrectNote) return true;
+    if (oldDelegate.intervalWrongNote != intervalWrongNote) return true;
     if (oldDelegate.intervalMelodyNotes.length != intervalMelodyNotes.length) {
       return true;
     }

@@ -15,14 +15,14 @@ extension _HomeScreenHelp on _HomeScreenState {
   List<_HelpStep> _helpStepsForCurrentMode() {
     final modeSelectBodyEs = _kEnableMobileTuner
         ? 'Aqui cambias entre deteccion de notas, deteccion de acordes, deteccion de intervalos, '
-              'generacion, circulo de quintas, escalas, metronomo y afinador.'
+              'generacion, practica de intervalos, circulo de quintas, escalas, metronomo y afinador.'
         : 'Aqui cambias entre deteccion de notas, deteccion de acordes, deteccion de intervalos, '
-              'generacion, circulo de quintas, escalas y metronomo.';
+              'generacion, practica de intervalos, circulo de quintas, escalas y metronomo.';
     final modeSelectBodyEn = _kEnableMobileTuner
         ? 'Switch between note detection, chord detection, interval detection, generation, '
-              'circle of fifths, scales, metronome, and tuner here.'
+              'interval practice, circle of fifths, scales, metronome, and tuner here.'
         : 'Switch between note detection, chord detection, interval detection, generation, '
-              'circle of fifths, scales, and metronome here.';
+              'interval practice, circle of fifths, scales, and metronome here.';
     final common = <_HelpStep>[
       _HelpStep(
         id: 'mode_select',
@@ -76,6 +76,128 @@ extension _HomeScreenHelp on _HomeScreenState {
       ),
     ];
     final modeSpecific = switch (_tabIndex) {
+      9 => <_HelpStep>[
+        _HelpStep(
+          id: 'interval_practice_staff',
+          titleEs: 'Pentagrama del ejercicio',
+          titleEn: 'Exercise staff',
+          bodyEs:
+              'Muestra la primera nota y un interrogante hasta responder; después presenta la corrección con sus colores.',
+          bodyEn:
+              'Shows the first note and a question mark until you answer; afterwards it displays the colour-coded correction.',
+          side: _HelpCalloutSide.top,
+        ),
+        _HelpStep(
+          id: 'interval_practice_start_stop',
+          titleEs: 'Iniciar o parar',
+          titleEn: 'Start or stop',
+          bodyEs: 'Inicia una prueba nueva o termina la prueba actual.',
+          bodyEn: 'Starts a new test or ends the current test.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_repeat',
+          titleEs: 'Repetir',
+          titleEn: 'Repeat',
+          bodyEs:
+              'Vuelve a escuchar el intervalo actual o la corrección de una respuesta.',
+          bodyEn: 'Plays the current interval or an answer correction again.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_next',
+          titleEs: 'Siguiente',
+          titleEn: 'Next',
+          bodyEs: 'Prepara y reproduce el siguiente intervalo del ejercicio.',
+          bodyEn: 'Prepares and plays the next interval in the exercise.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_help',
+          titleEs: 'Ayuda del ejercicio',
+          titleEn: 'Exercise help',
+          bodyEs: 'Abre una explicación general del proceso de práctica.',
+          bodyEn: 'Opens a general explanation of the practice process.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_random_tonic',
+          titleEs: 'Tónica aleatoria',
+          titleEn: 'Random tonic',
+          bodyEs: 'Varía la primera nota entre los ejercicios.',
+          bodyEn: 'Varies the first note between exercises.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_ascending',
+          titleEs: 'Solo ascendentes',
+          titleEn: 'Ascending only',
+          bodyEs:
+              'Limita la práctica a intervalos ascendentes; al quitarlo también pueden aparecer descendentes.',
+          bodyEn:
+              'Limits practice to ascending intervals; clearing it also allows descending intervals.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_repetitions',
+          titleEs: 'Repeticiones',
+          titleEn: 'Repetitions',
+          bodyEs: 'Define el número de ejercicios de la prueba.',
+          bodyEn: 'Sets the number of exercises in the test.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_filter',
+          titleEs: 'Filtrar',
+          titleEn: 'Filter',
+          bodyEs:
+              'Selecciona las notas que pueden aparecer como segunda nota del intervalo.',
+          bodyEn:
+              'Selects the notes that may appear as the interval’s second note.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_playback_mode',
+          titleEs: 'Melódico o armónico',
+          titleEn: 'Melodic or harmonic',
+          bodyEs:
+              'Elige si las dos notas suenan sucesivamente o al mismo tiempo.',
+          bodyEn:
+              'Chooses whether the two notes sound successively or together.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_previous_result',
+          titleEs: 'Resultado anterior',
+          titleEn: 'Previous result',
+          bodyEs: 'Muestra la respuesta anterior de la prueba terminada.',
+          bodyEn: 'Shows the previous answer from the completed test.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_next_result',
+          titleEs: 'Resultado siguiente',
+          titleEn: 'Next result',
+          bodyEs: 'Muestra la respuesta siguiente de la prueba terminada.',
+          bodyEn: 'Shows the next answer from the completed test.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_result',
+          titleEs: 'Resultado',
+          titleEn: 'Result',
+          bodyEs: 'Muestra los aciertos y el nombre completo del intervalo.',
+          bodyEn: 'Shows the score and the interval’s full name.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_table',
+          titleEs: 'Tabla de intervalos',
+          titleEn: 'Interval table',
+          bodyEs:
+              'Selecciona aquí el intervalo que has escuchado. Las opciones excluidas por el filtro se muestran deshabilitadas.',
+          bodyEn:
+              'Select the interval you heard here. Options excluded by the filter appear disabled.',
+        ),
+        _HelpStep(
+          id: 'interval_practice_piano',
+          titleEs: 'Piano',
+          titleEn: 'Piano',
+          bodyEs:
+              'Permite responder con la segunda nota y muestra las notas de la corrección mientras se reproducen.',
+          bodyEn:
+              'Lets you answer with the second note and shows correction notes while they play.',
+          side: _HelpCalloutSide.top,
+        ),
+      ],
       8 => <_HelpStep>[
         _HelpStep(
           id: 'note_detection_staff',
@@ -854,18 +976,10 @@ extension _HomeScreenHelp on _HomeScreenState {
           id: 'interval_name_row',
           titleEs: 'Intervalo',
           titleEn: 'Interval',
-          bodyEs: 'Nombre del intervalo detectado.',
-          bodyEn: 'Name of the detected interval.',
-          side: _HelpCalloutSide.left,
-        ),
-        _HelpStep(
-          id: 'interval_alt_row',
-          titleEs: 'Alternativos',
-          titleEn: 'Alternatives',
           bodyEs:
-              'Otros nombres enarmónicos válidos para el mismo número de semitonos.',
+              'Nombre del intervalo detectado seguido de sus nombres alternativos.',
           bodyEn:
-              'Other valid enharmonic names for the same number of semitones.',
+              'Name of the detected interval followed by its alternative names.',
           side: _HelpCalloutSide.left,
         ),
         _HelpStep(
@@ -980,6 +1094,16 @@ extension _HomeScreenHelp on _HomeScreenState {
           bodyEs:
               'Tónica desde la que se genera el intervalo elegido en la tabla.',
           bodyEn: 'Tonic from which the chosen table interval is generated.',
+          side: _HelpCalloutSide.left,
+        ),
+        _HelpStep(
+          id: 'interval_generation_playback_mode',
+          titleEs: 'Melódico o armónico',
+          titleEn: 'Melodic or harmonic',
+          bodyEs:
+              'Elige si las notas del intervalo suenan una después de otra o simultáneamente.',
+          bodyEn:
+              'Choose whether the interval notes sound one after another or simultaneously.',
           side: _HelpCalloutSide.left,
         ),
         _HelpStep(
@@ -1371,6 +1495,7 @@ extension _HomeScreenHelp on _HomeScreenState {
     5 => 'interval_detection_staff',
     6 => 'tuner_staff',
     7 => 'interval_generation_staff',
+    9 => 'interval_practice_staff',
     8 => 'note_detection_staff',
     _ => 'detection_staff',
   };

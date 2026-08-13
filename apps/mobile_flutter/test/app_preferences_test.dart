@@ -28,7 +28,7 @@ void main() {
     final preferences = AppPreferencesRepository(
       _MemoryPreferences(<String, Object>{
         'scaleFingeringHand': 'middle',
-        'tabIndex': 9,
+        'tabIndex': 10,
       }),
     ).load();
 
@@ -78,6 +78,14 @@ void main() {
     ).load();
 
     expect(preferences.tabIndex, 8);
+  });
+
+  test('load restores the interval practice screen', () {
+    final preferences = AppPreferencesRepository(
+      _MemoryPreferences(<String, Object>{'tabIndex': 9}),
+    ).load();
+
+    expect(preferences.tabIndex, 9);
   });
 
   test('save removes an obsolete fingering selection', () async {

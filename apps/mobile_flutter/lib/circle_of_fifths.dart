@@ -5,7 +5,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 const List<int> kCircleFifthsOrder = <int>[
-  0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5,
+  0,
+  7,
+  2,
+  9,
+  4,
+  11,
+  6,
+  1,
+  8,
+  3,
+  10,
+  5,
 ];
 
 const Map<int, String> kDiatonicDegreeSuffix = <int, String>{
@@ -55,19 +66,14 @@ int circleSliceIndexForPitchClass(int pc) {
 }
 
 int chordRootPcForMajorScaleDegree(int tonicPc, int degree) {
-  const inter = <int, int>{
-    0: 0,
-    2: 2,
-    4: 4,
-    5: 5,
-    7: 7,
-    9: 9,
-    11: 11,
-  };
+  const inter = <int, int>{0: 0, 2: 2, 4: 4, 5: 5, 7: 7, 9: 9, 11: 11};
   return (((tonicPc + (inter[degree] ?? 0)) % 12) + 12) % 12;
 }
 
-({String suffix, int? degree}) diatonicTriadSuffixMajorKey(int tonicPc, int rootPc) {
+({String suffix, int? degree}) diatonicTriadSuffixMajorKey(
+  int tonicPc,
+  int rootPc,
+) {
   final d = (rootPc - tonicPc + 12) % 12;
   if (kDiatonicDegreeSuffix.containsKey(d)) {
     return (suffix: kDiatonicDegreeSuffix[d]!, degree: d);
@@ -75,10 +81,8 @@ int chordRootPcForMajorScaleDegree(int tonicPc, int degree) {
   return (suffix: '', degree: null);
 }
 
-({String suffix, int? interval, String roman}) diatonicTriadSuffixNaturalMinorKey(
-  int minorTonicPc,
-  int rootPc,
-) {
+({String suffix, int? interval, String roman})
+diatonicTriadSuffixNaturalMinorKey(int minorTonicPc, int rootPc) {
   final d = (rootPc - minorTonicPc + 12) % 12;
   const map = <int, String>{
     0: 'm',
@@ -344,7 +348,8 @@ void strokeCircleDiatonicEnvelope(
       final deg = diatonicTriadSuffixMajorKey(tonicPc, pc);
       final mpcRel = relativeMinorPcFromMajorPc(pc);
       final minorDeg = diatonicTriadSuffixMajorKey(tonicPc, mpcRel).degree;
-      if (deg.degree != null && circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
+      if (deg.degree != null &&
+          circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
         cell[s][1] = true;
       }
       if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
@@ -365,12 +370,7 @@ void strokeCircleDiatonicEnvelope(
     final parsed = parseVKey(key);
     final ang = circleSliceAngles(parsed.k).a0;
     final rad = r[parsed.rBand];
-    return (
-      x: math.cos(ang) * rad,
-      y: math.sin(ang) * rad,
-      ang: ang,
-      rad: rad,
-    );
+    return (x: math.cos(ang) * rad, y: math.sin(ang) * rad, ang: ang, rad: rad);
   }
 
   final edgeSet = <String>{};
@@ -444,17 +444,28 @@ void strokeCircleDiatonicEnvelope(
     final ivMajorPc = (minorTonic + 8 + 12) % 12;
     ivIdx = circleSliceIndexForPitchClass(ivMajorPc);
   } else {
-    ivIdx = circleSliceIndexForPitchClass(chordRootPcForMajorScaleDegree(tonicPc, 5));
+    ivIdx = circleSliceIndexForPitchClass(
+      chordRootPcForMajorScaleDegree(tonicPc, 5),
+    );
   }
   final startKey = vKey(ivIdx, 2);
-  if (!adj.containsKey(startKey) || (adj[startKey] ?? const <String>[]).isEmpty) {
+  if (!adj.containsKey(startKey) ||
+      (adj[startKey] ?? const <String>[]).isEmpty) {
     return;
   }
 
   final firstNeighbor = vKey((ivIdx + 1) % 12, 2);
 
-  void circlePathArcShortOnPath(Path path, double rad, double fromAng, double toAng) {
-    var delta = math.atan2(math.sin(toAng - fromAng), math.cos(toAng - fromAng));
+  void circlePathArcShortOnPath(
+    Path path,
+    double rad,
+    double fromAng,
+    double toAng,
+  ) {
+    var delta = math.atan2(
+      math.sin(toAng - fromAng),
+      math.cos(toAng - fromAng),
+    );
     final steps = math.max(
       8,
       math.min(64, (48 * delta.abs() / (math.pi * 2)).ceil()),
@@ -471,7 +482,9 @@ void strokeCircleDiatonicEnvelope(
   String? prev;
   final maxSteps = edgeSet.length * 4 + 24;
   for (int step = 0; step < maxSteps; step += 1) {
-    final neigh = (adj[cur] ?? const <String>[]).where((n) => n != prev).toList();
+    final neigh = (adj[cur] ?? const <String>[])
+        .where((n) => n != prev)
+        .toList();
     if (neigh.isEmpty) break;
     late String next;
     if (prev == null) {
@@ -556,18 +569,24 @@ class CircleOfFifthsPainter extends CustomPainter {
     final rGuideMajMin = rad.rGuideMajMin;
     final rGuideSigMaj = rad.rGuideSigMaj;
 
-    final tonicTheory = circleMajorTonicPcForTheory(circleTonicPc, circleKeyMode);
+    final tonicTheory = circleMajorTonicPcForTheory(
+      circleTonicPc,
+      circleKeyMode,
+    );
     final chordRoot = ((circleChordRootPc % 12) + 12) % 12;
     final viiRootPc = chordRootPcForMajorScaleDegree(tonicTheory, 11);
     final viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
     final minorMode = circleKeyMode == 'minor';
     final minorTonic = minorMode ? (((circleTonicPc % 12) + 12) % 12) : null;
-    final relMajFromMinor =
-        minorMode && minorTonic != null ? (minorTonic + 3 + 12) % 12 : null;
-    final iiDimRootMinor =
-        minorMode && minorTonic != null ? (minorTonic + 2 + 12) % 12 : null;
-    final iiLabelPcMinor =
-        minorMode && iiDimRootMinor != null ? (iiDimRootMinor + 3 + 12) % 12 : null;
+    final relMajFromMinor = minorMode && minorTonic != null
+        ? (minorTonic + 3 + 12) % 12
+        : null;
+    final iiDimRootMinor = minorMode && minorTonic != null
+        ? (minorTonic + 2 + 12) % 12
+        : null;
+    final iiLabelPcMinor = minorMode && iiDimRootMinor != null
+        ? (iiDimRootMinor + 3 + 12) % 12
+        : null;
 
     final fsSig = math.max(10.0, math.min(24.0, 0.026 * w));
     final fsMaj = math.max(14.0, math.min(32.0, 0.036 * w));
@@ -576,10 +595,7 @@ class CircleOfFifthsPainter extends CustomPainter {
     final fsMinR = math.max(11.0, math.min(26.0, 0.028 * w));
 
     final bg = Paint()..color = const Color(0xFF1A2330);
-    canvas.drawRect(
-      Rect.fromLTWH(-cx, -cy, size.width, size.height),
-      bg,
-    );
+    canvas.drawRect(Rect.fromLTWH(-cx, -cy, size.width, size.height), bg);
 
     const sigRingFill = Color(0xFFFFFFFF);
     const sigRingStroke = Color(0xA6C8CDD7);
@@ -605,18 +621,37 @@ class CircleOfFifthsPainter extends CustomPainter {
           lowerFill = dL == 0
               ? circleDiatonicSliceFillColor(0, pc, relMajFromMinor)
               : circleDiatonicSliceFillColor(mk, mpcRel, tonicTheory);
-        } else if (iiLabelPcMinor != null && pc == iiLabelPcMinor && iiDimRootMinor != null) {
-          lowerFill = circleDiatonicSliceFillColor(11, iiDimRootMinor, tonicTheory);
+        } else if (iiLabelPcMinor != null &&
+            pc == iiLabelPcMinor &&
+            iiDimRootMinor != null) {
+          lowerFill = circleDiatonicSliceFillColor(
+            11,
+            iiDimRootMinor,
+            tonicTheory,
+          );
         }
       } else {
         final deg = diatonicTriadSuffixMajorKey(tonicTheory, pc);
-        final minorDeg = diatonicTriadSuffixMajorKey(tonicTheory, mpcRel).degree;
+        final minorDeg = diatonicTriadSuffixMajorKey(
+          tonicTheory,
+          mpcRel,
+        ).degree;
         final diatonic = deg.degree != null;
-        if (diatonic && deg.degree != null && circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
-          upperFill = circleDiatonicSliceFillColor(deg.degree!, pc, tonicTheory);
+        if (diatonic &&
+            deg.degree != null &&
+            circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
+          upperFill = circleDiatonicSliceFillColor(
+            deg.degree!,
+            pc,
+            tonicTheory,
+          );
         }
         if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
-          lowerFill = circleDiatonicSliceFillColor(minorDeg, mpcRel, tonicTheory);
+          lowerFill = circleDiatonicSliceFillColor(
+            minorDeg,
+            mpcRel,
+            tonicTheory,
+          );
         } else if (diatonic && pc == viiLabelSlicePc) {
           lowerFill = circleDiatonicSliceFillColor(11, viiRootPc, tonicTheory);
         }
@@ -763,7 +798,10 @@ class CircleOfFifthsPainter extends CustomPainter {
         ),
       );
 
-      if (minorMode && minorTonic != null && iiDimRootMinor != null && iiLabelPcMinor != null) {
+      if (minorMode &&
+          minorTonic != null &&
+          iiDimRootMinor != null &&
+          iiLabelPcMinor != null) {
         final dU = (pc - minorTonic + 12) % 12;
         final dL = (relativeMinorPcFromMajorPc(pc) - minorTonic + 12) % 12;
         final hasUpperDiat = <int>[3, 8, 10].contains(dU);
@@ -852,9 +890,13 @@ class CircleOfFifthsPainter extends CustomPainter {
         final mpcRel = relativeMinorPcFromMajorPc(pc);
         final deg = diatonicTriadSuffixMajorKey(tonicTheory, pc);
         final diatonic = deg.degree != null;
-        final minorDeg = diatonicTriadSuffixMajorKey(tonicTheory, mpcRel).degree;
+        final minorDeg = diatonicTriadSuffixMajorKey(
+          tonicTheory,
+          mpcRel,
+        ).degree;
         if (diatonic) {
-          if (deg.degree != null && circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
+          if (deg.degree != null &&
+              circleUpperBandIsDiatonicMajorTriad(deg.degree!)) {
             _drawCenteredText(
               canvas,
               majorName,
@@ -913,12 +955,10 @@ class CircleOfFifthsPainter extends CustomPainter {
               canvas,
               kRomanByDegree[11] ?? '',
               Offset(cos * rMinRoman, sin * rMinRoman),
-              TextStyle(
-                color: circleDegreeTextColor(11),
-                fontSize: fsMinR,
-              ),
+              TextStyle(color: circleDegreeTextColor(11), fontSize: fsMinR),
             );
-          } else if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
+          } else if (minorDeg != null &&
+              circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
             _drawCenteredText(
               canvas,
               minorName,
@@ -975,7 +1015,12 @@ class CircleOfFifthsPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawCenteredText(Canvas canvas, String text, Offset o, TextStyle style) {
+  void _drawCenteredText(
+    Canvas canvas,
+    String text,
+    Offset o,
+    TextStyle style,
+  ) {
     if (text.isEmpty) return;
     final tp = TextPainter(
       text: TextSpan(text: text, style: style),
@@ -984,7 +1029,12 @@ class CircleOfFifthsPainter extends CustomPainter {
     tp.paint(canvas, o - Offset(tp.width / 2, tp.height / 2));
   }
 
-  void _drawRomanMaybeFlat(Canvas canvas, String roman, Offset o, double fsRoman) {
+  void _drawRomanMaybeFlat(
+    Canvas canvas,
+    String roman,
+    Offset o,
+    double fsRoman,
+  ) {
     if (roman.isEmpty) return;
     const flat = '♭';
     if (!roman.startsWith(flat)) {
@@ -992,7 +1042,11 @@ class CircleOfFifthsPainter extends CustomPainter {
         canvas,
         roman,
         o,
-        TextStyle(fontSize: fsRoman, fontWeight: FontWeight.w600, color: const Color(0xFF0D0D0D)),
+        TextStyle(
+          fontSize: fsRoman,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF0D0D0D),
+        ),
       );
       return;
     }
@@ -1056,7 +1110,11 @@ class CircleFifthsHit {
     return dist < rad.rGuideMajMin;
   }
 
-  static int? chordRootPcFromClick(Offset local, Size size, {required bool shiftClick}) {
+  static int? chordRootPcFromClick(
+    Offset local,
+    Size size, {
+    required bool shiftClick,
+  }) {
     final cx = size.width / 2;
     final cy = size.height / 2;
     final dx = local.dx - cx;
@@ -1102,17 +1160,27 @@ class CircleFifthsHit {
         return <int>[3, 8, 10].contains(dU);
       }
       final rootMinor = (majorPc + 9 + 12) % 12;
-      return diatonicTriadSuffixNaturalMinorKey(minorTonic, rootMinor).interval != null;
+      return diatonicTriadSuffixNaturalMinorKey(
+            minorTonic,
+            rootMinor,
+          ).interval !=
+          null;
     }
     final viiRootPc = chordRootPcForMajorScaleDegree(tonicPcTheory, 11);
     final viiLabelSlicePc = (viiRootPc + 3 + 12) % 12;
     if (!innerMinorBand) {
       final deg = diatonicTriadSuffixMajorKey(tonicPcTheory, majorPc);
-      return deg.degree != null && circleUpperBandIsDiatonicMajorTriad(deg.degree!);
+      return deg.degree != null &&
+          circleUpperBandIsDiatonicMajorTriad(deg.degree!);
     }
     final rootMinor = (majorPc + 9 + 12) % 12;
-    final minorDeg = diatonicTriadSuffixMajorKey(tonicPcTheory, rootMinor).degree;
-    if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) return true;
+    final minorDeg = diatonicTriadSuffixMajorKey(
+      tonicPcTheory,
+      rootMinor,
+    ).degree;
+    if (minorDeg != null && circleLowerBandIsDiatonicMinorTriad(minorDeg)) {
+      return true;
+    }
     if (minorDeg == 11 && majorPc == viiLabelSlicePc) return true;
     return false;
   }

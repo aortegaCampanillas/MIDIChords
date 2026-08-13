@@ -17,10 +17,8 @@ final class PluginWakeLockPort implements WakeLockPort {
   Future<void> disable() => WakelockPlus.disable();
 }
 
-typedef ActivityTimerFactory = Timer Function(
-  Duration duration,
-  void Function() callback,
-);
+typedef ActivityTimerFactory =
+    Timer Function(Duration duration, void Function() callback);
 
 Timer _defaultTimerFactory(Duration duration, void Function() callback) =>
     Timer(duration, callback);

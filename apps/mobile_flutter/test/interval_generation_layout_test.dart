@@ -30,8 +30,8 @@ void main() {
         intervalPage,
         contains('selected: _intervalGenLastPlayReversed == false'),
       );
-      expect(main, contains('flex: _tabIndex == 7 ? 42 : 57'));
-      expect(main, contains('flex: _tabIndex == 7 ? 58 : 43'));
+      expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 42 : 57'));
+      expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 58 : 43'));
     },
   );
 }

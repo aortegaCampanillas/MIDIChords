@@ -1888,6 +1888,17 @@ class RenderMixin:
                             break
             else:
                 _imel = getattr(self, "interval_melody_mode", False) and getattr(self, "interval_tab_active", False)
+                interval_harmonic_layout = bool(
+                    (
+                        getattr(self, "interval_gen_tab_active", False)
+                        and not getattr(self, "interval_practice_tab_active", False)
+                        and getattr(self, "interval_gen_playback_mode", "melodic") == "harmonic"
+                    )
+                    or (
+                        getattr(self, "interval_practice_tab_active", False)
+                        and getattr(self, "interval_practice_playback_mode", "melodic") == "harmonic"
+                    )
+                )
                 if _imel:
                     _mel_obj = self.get_interval_melody()
                     _mel_raw = self.get_interval_melody_notes()  # may contain None
@@ -1980,6 +1991,13 @@ class RenderMixin:
                         if _mn is not None:
                             _ord_to_mel[len(ordered)] = _mi
                             ordered.append(int(_mn))
+                elif getattr(self, "interval_tab_active", False):
+                    # La detección representa un intervalo melódico: conserva
+                    # el orden de entrada en vez de ordenar/apilar las notas
+                    # como si fueran un acorde.
+                    ordered = [int(note) for note in getattr(self, "interval_notes", [])]
+                elif interval_harmonic_layout:
+                    ordered = sorted(display_notes)
                 else:
                     ordered = sorted(display_notes)
                     chord_x = margin_x + max(110, min(w - margin_x - 70, (w - margin_x) * 0.45))
@@ -2119,17 +2137,16 @@ class RenderMixin:
                 elif _imel:
                     _mi = _ord_to_mel.get(note_idx, note_idx)
                     x = _mel_x_map[_mi]
-                elif getattr(self, "interval_gen_tab_active", False):
-                    # En la corrección de práctica pueden aparecer dos notas
-                    # cromáticas contiguas (p. ej. La y La#). Necesitan más
-                    # separación para que la alteración de la nota errónea no
-                    # invada ninguna de las dos cabezas.
-                    practice_correction = bool(
-                        getattr(self, "interval_practice_tab_active", False)
-                        and getattr(self, "interval_practice_answer", None)
-                    )
-                    note_spacing = 4.6 if practice_correction else 3.2
-                    x = chord_x + (note_idx * note_rx * note_spacing)
+                elif getattr(self, "interval_tab_active", False):
+                    # Dos posiciones temporales independientes, incluida la
+                    # separación necesaria para la alteración de la segunda.
+                    x = chord_x + (note_idx * note_rx * 4.6)
+                elif getattr(self, "interval_gen_tab_active", False) and not interval_harmonic_layout:
+                    # Cada nota ocupa una columna melódica. La separación debe
+                    # reservar también el ancho del sostenido/bemol de la nota
+                    # siguiente; con 3.2 radios el símbolo invadía la cabeza
+                    # anterior en intervalos cercanos (p. ej. Si–Do#).
+                    x = chord_x + (note_idx * note_rx * 4.6)
                 else:
                     while any(abs(y - prev_y) < overlap_threshold for prev_y in placed_cols.get(col, [])):
                         col += 1

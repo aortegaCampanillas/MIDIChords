@@ -315,7 +315,9 @@ class IntervalMixin:
         self.interval_result_canvas = tk.Canvas(
             self.interval_panel,
             bg=bg,
-            height=112,
+            # Qt añade al botón más altura efectiva que la solicitada. Dejamos
+            # espacio para las cuatro filas y sus márgenes sin recortar la última.
+            height=148,
             highlightthickness=0,
             bd=0,
             relief=tk.FLAT,
@@ -334,7 +336,7 @@ class IntervalMixin:
 
         def _redraw_interval_result_block(_event: Optional[tk.Event] = None) -> None:
             w = max(40, int(self.interval_result_canvas.winfo_width()))
-            h = max(112, int(self.interval_result_canvas.winfo_height()))
+            h = max(148, int(self.interval_result_canvas.winfo_height()))
             self.interval_result_canvas.delete("interval_block_bg")
             radius = 15
             self.interval_result_canvas.create_rectangle(

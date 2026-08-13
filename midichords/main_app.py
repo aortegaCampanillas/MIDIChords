@@ -658,8 +658,8 @@ class MidiChordAnalyzerApp(
         # Keep this legacy spacer frame hidden to avoid vertical gaps.
         self.instrument_switch_frame.pack_forget()
         if self.instrument_view == "guitar":
-            self.guitar_handedness_combo.pack_forget()
-            self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
+            self.guitar_handedness_toggle_btn.pack_forget()
+            self.guitar_handedness_toggle_btn.pack(side=tk.TOP, pady=(8, 0))
             self.keyboard_qscroll.pack_forget()
             # En Qt, `expand=False` + sizeHint pequeño puede dejar el canvas
             # sin estirarse (se ve como si ocupara solo la mitad).
@@ -680,7 +680,7 @@ class MidiChordAnalyzerApp(
             else:
                 self.guitar_variations_frame.pack_forget()
         else:
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             # Igual que el caso guitarra: asegurar que el canvas rellene el ancho.
@@ -703,6 +703,9 @@ class MidiChordAnalyzerApp(
         self.redraw_guitar_fretboard()
         if getattr(self, "_help_active", False):
             self._refresh_help_bindings()
+
+    def _toggle_instrument_view(self) -> None:
+        self._set_instrument_view("guitar" if self.instrument_view == "piano" else "piano")
 
 
 
@@ -747,90 +750,21 @@ class MidiChordAnalyzerApp(
         self._refresh_handedness_toggle_styles()
         self.redraw_guitar_fretboard()
 
-    def _on_guitar_handedness_combo_changed(self, _event: tk.Event) -> None:
-        right_label = self.tr("handed_right")
-        left_label = self.tr("handed_left")
-        # En Qt, el orden de señales puede hacer que `guitar_handedness_var`
-        # se actualice después del callback. Usamos el texto actual del combo
-        # para decidir con fiabilidad.
-        try:
-            selected = str(self.guitar_handedness_combo.currentText())
-        except Exception:
-            selected = str(self.guitar_handedness_var.get())
-
-        if selected == left_label:
-            self._set_guitar_handedness("left")
-        else:
-            self._set_guitar_handedness("right")
+    def _toggle_guitar_handedness(self) -> None:
+        self._set_guitar_handedness("left" if self.guitar_handedness == "right" else "right")
 
     def _refresh_instrument_toggle_styles(self) -> None:
-        if self.instrument_buttons_are_images:
-            panel_bg = str(self.instrument_view_switch_side.cget("background"))
-            selected_hl = "#f39c12"
-            normal_hl = panel_bg
-            if self.instrument_view == "piano":
-                self.piano_view_btn.configure(
-                    bg="#8a4f10",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=7,
-                    pady=5,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-                self.guitar_view_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    padx=6,
-                    pady=4,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                )
-            else:
-                self.piano_view_btn.configure(
-                    bg=panel_bg,
-                    relief=tk.FLAT,
-                    bd=2,
-                    padx=6,
-                    pady=4,
-                    highlightbackground=normal_hl,
-                    highlightcolor=normal_hl,
-                    highlightthickness=0,
-                )
-                self.guitar_view_btn.configure(
-                    bg="#8a4f10",
-                    relief=tk.SUNKEN,
-                    bd=3,
-                    padx=7,
-                    pady=5,
-                    highlightbackground=selected_hl,
-                    highlightcolor=selected_hl,
-                    highlightthickness=1,
-                )
-            return
-        self.piano_view_btn.set_selected(self.instrument_view == "piano")
-        self.guitar_view_btn.set_selected(self.instrument_view == "guitar")
+        self.instrument_view_toggle_btn.set_text(
+            self.tr("instrument_guitar") if self.instrument_view == "guitar" else self.tr("instrument_piano")
+        )
+        self.instrument_view_toggle_btn.set_selected(False)
 
     def _refresh_handedness_toggle_styles(self) -> None:
         right_label = self.tr("handed_right")
         left_label = self.tr("handed_left")
-        self.guitar_handedness_combo.configure(values=(right_label, left_label))
         target = left_label if self.guitar_handedness == "left" else right_label
-        if str(self.guitar_handedness_var.get()) != target:
-            self.guitar_handedness_var.set(target)
-            # Mantener sincronizado el combobox visual en Qt.
-            try:
-                self.guitar_handedness_combo.blockSignals(True)
-                self.guitar_handedness_combo.setCurrentText(target)
-            finally:
-                try:
-                    self.guitar_handedness_combo.blockSignals(False)
-                except Exception:
-                    pass
-        self._apply_guitar_handedness_combo_geometry()
+        self.guitar_handedness_toggle_btn.set_text(target)
+        self.guitar_handedness_toggle_btn.set_selected(False)
 
 
 

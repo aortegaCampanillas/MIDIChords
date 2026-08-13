@@ -5748,8 +5748,8 @@ class _HomeScreenState extends State<HomeScreen>
                           notePreferFlats: notePreferFlats,
                           intervalSequenceMode:
                               _tabIndex == 5 ||
-                              _tabIndex == 7 ||
-                              _tabIndex == 9,
+                              (_tabIndex == 7 && !_intervalGenHarmonic) ||
+                              (_tabIndex == 9 && !_intervalPracticeHarmonic),
                         );
                         if (hit != null) {
                           _playGeneralStaffNote(
@@ -5804,8 +5804,8 @@ class _HomeScreenState extends State<HomeScreen>
                               : const <int>{},
                           intervalSequenceMode:
                               _tabIndex == 5 ||
-                              _tabIndex == 7 ||
-                              _tabIndex == 9,
+                              (_tabIndex == 7 && !_intervalGenHarmonic) ||
+                              (_tabIndex == 9 && !_intervalPracticeHarmonic),
                           intervalQuestion:
                               _tabIndex == 9 &&
                               _intervalPracticeStarted &&
@@ -6112,6 +6112,9 @@ class _HomeScreenState extends State<HomeScreen>
       7 => 'interval_generation_instrument_guitar',
       _ => 'generation_instrument_guitar',
     };
+    final instrumentToggleHelpId = _instrumentView == 'guitar'
+        ? guitarHelpId
+        : pianoHelpId;
     final handHelpId = switch (_tabIndex) {
       3 => 'scales_guitar_hand',
       2 => 'circle_guitar_hand',
@@ -6189,15 +6192,8 @@ class _HomeScreenState extends State<HomeScreen>
                           SizedBox(
                             width: 140,
                             child: _helpAnchor(
-                              pianoHelpId,
-                              _instToggle('piano', 'Piano'),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 140,
-                            child: _helpAnchor(
-                              guitarHelpId,
-                              _instToggle('guitar', _ui('Guitarra', 'Guitar')),
+                              instrumentToggleHelpId,
+                              _instrumentToggle(),
                             ),
                           ),
                           if ((_tabIndex == 1 || _tabIndex == 2) &&
@@ -6235,35 +6231,7 @@ class _HomeScreenState extends State<HomeScreen>
                               width: 180,
                               child: _helpAnchor(
                                 handHelpId,
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey<String>(
-                                    'hand_$_guitarHandedness',
-                                  ),
-                                  initialValue: _guitarHandedness,
-                                  dropdownColor: _surfaceDark,
-                                  style: const TextStyle(color: _text),
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    labelText: _ui('Mano', 'Hand'),
-                                  ),
-                                  items: <DropdownMenuItem<String>>[
-                                    DropdownMenuItem<String>(
-                                      value: 'right',
-                                      child: Text(
-                                        _ui('Diestro', 'Right-handed'),
-                                      ),
-                                    ),
-                                    DropdownMenuItem<String>(
-                                      value: 'left',
-                                      child: Text(_ui('Zurdo', 'Left-handed')),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() => _guitarHandedness = value);
-                                    }
-                                  },
-                                ),
+                                _guitarHandednessToggle(),
                               ),
                             ),
                         ],
@@ -6294,54 +6262,14 @@ class _HomeScreenState extends State<HomeScreen>
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
                               _helpAnchor(
-                                pianoHelpId,
-                                _instToggle('piano', 'Piano'),
-                              ),
-                              const SizedBox(height: 8),
-                              _helpAnchor(
-                                guitarHelpId,
-                                _instToggle(
-                                  'guitar',
-                                  _ui('Guitarra', 'Guitar'),
-                                ),
+                                instrumentToggleHelpId,
+                                _instrumentToggle(),
                               ),
                               if (_instrumentView == 'guitar') ...<Widget>[
                                 const SizedBox(height: 8),
                                 _helpAnchor(
                                   handHelpId,
-                                  DropdownButtonFormField<String>(
-                                    key: ValueKey<String>(
-                                      'hand_$_guitarHandedness',
-                                    ),
-                                    initialValue: _guitarHandedness,
-                                    dropdownColor: _surfaceDark,
-                                    style: const TextStyle(color: _text),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      labelText: _ui('Mano', 'Hand'),
-                                    ),
-                                    items: <DropdownMenuItem<String>>[
-                                      DropdownMenuItem<String>(
-                                        value: 'right',
-                                        child: Text(
-                                          _ui('Diestro', 'Right-handed'),
-                                        ),
-                                      ),
-                                      DropdownMenuItem<String>(
-                                        value: 'left',
-                                        child: Text(
-                                          _ui('Zurdo', 'Left-handed'),
-                                        ),
-                                      ),
-                                    ],
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        setState(
-                                          () => _guitarHandedness = value,
-                                        );
-                                      }
-                                    },
-                                  ),
+                                  _guitarHandednessToggle(),
                                 ),
                               ],
                             ],
@@ -6398,7 +6326,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _instToggle(String key, String label) {
-    final active = _instrumentView == key;
     final compactPhone = _isCompactPhone(context);
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
@@ -6406,9 +6333,9 @@ class _HomeScreenState extends State<HomeScreen>
         padding: compactPhone
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
             : const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        backgroundColor: active ? _accent : _surfaceDark,
-        side: BorderSide(color: active ? _accent : _border),
-        foregroundColor: active ? const Color(0xFF1A222D) : _text,
+        backgroundColor: _surfaceDark,
+        side: const BorderSide(color: _border),
+        foregroundColor: _text,
       ),
       onPressed: () {
         final instrumentChanging = _instrumentView != key;
@@ -6442,6 +6369,38 @@ class _HomeScreenState extends State<HomeScreen>
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.visible,
+        ),
+      ),
+    );
+  }
+
+  Widget _instrumentToggle() {
+    final next = _instrumentView == 'piano' ? 'guitar' : 'piano';
+    final label = _instrumentView == 'guitar'
+        ? _ui('Guitarra', 'Guitar')
+        : 'Piano';
+    return _instToggle(next, label);
+  }
+
+  Widget _guitarHandednessToggle() {
+    final compactPhone = _isCompactPhone(context);
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        minimumSize: compactPhone ? const Size(112, 42) : const Size(150, 48),
+        backgroundColor: _surfaceDark,
+        side: const BorderSide(color: _border),
+        foregroundColor: _text,
+      ),
+      onPressed: () => setState(() {
+        _guitarHandedness = _guitarHandedness == 'right' ? 'left' : 'right';
+      }),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          _guitarHandedness == 'right'
+              ? _ui('Diestro', 'Right-handed')
+              : _ui('Zurdo', 'Left-handed'),
+          maxLines: 1,
         ),
       ),
     );

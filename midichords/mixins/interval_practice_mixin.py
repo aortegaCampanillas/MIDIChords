@@ -320,6 +320,7 @@ class IntervalPracticeMixin:
             return
         self.interval_practice_playback_mode = "harmonic" if self.interval_practice_playback_mode == "melodic" else "melodic"
         self._refresh_interval_practice_ui()
+        self.update_music_views()
 
     def _interval_practice_name(self) -> str:
         if not self.interval_practice_answer:

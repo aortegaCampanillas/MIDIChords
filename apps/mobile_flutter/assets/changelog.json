@@ -7,6 +7,13 @@
         "date": "2026-08-13",
         "publish": true,
         "platforms": ["web", "desktop", "mobile"],
+        "es": "Los controles de instrumento y orientación de guitarra se simplifican en botones de alternancia.",
+        "en": "Instrument and guitar orientation controls are simplified into toggle buttons."
+      },
+      {
+        "date": "2026-08-13",
+        "publish": true,
+        "platforms": ["web", "desktop", "mobile"],
         "es": "Generación de acordes permite mostrar la mano izquierda, la derecha o ambas en el piano y el pentagrama.",
         "en": "Chord Generation can show the left hand, right hand, or both on the piano and staff."
       },

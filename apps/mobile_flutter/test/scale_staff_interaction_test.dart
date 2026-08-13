@@ -174,9 +174,11 @@ void main() {
     expect(tapBlock, contains('staffNoteHitAt('));
     expect(
       tapBlock,
-      contains(
-        '_tabIndex == 7 ||\n                              _tabIndex == 9',
-      ),
+      contains('(_tabIndex == 7 && !_intervalGenHarmonic)'),
+    );
+    expect(
+      tapBlock,
+      contains('(_tabIndex == 9 && !_intervalPracticeHarmonic)'),
     );
     expect(handler, contains('if (_tabIndex == 0)'));
     expect(handler, contains('if (_tabIndex == 1 || _tabIndex == 2)'));

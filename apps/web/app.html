@@ -405,12 +405,8 @@
           </aside>
           <section id="instrumentArea" class="instrument-panel">
             <div class="instrument-dock">
-              <button id="instPianoBtn" class="inst-btn active" data-inst="piano">Piano</button>
-              <button id="instGuitarBtn" class="inst-btn" data-inst="guitar">Guitarra</button>
-              <select id="guitarHandedness" class="hidden" title="Orientación de guitarra">
-                <option value="right">Diestro</option>
-                <option value="left">Zurdo</option>
-              </select>
+              <button id="instrumentToggle" class="inst-btn" type="button">Piano</button>
+              <button id="guitarHandednessToggle" class="inst-btn hidden" type="button">Diestro</button>
             </div>
             <div id="fingeringStrip" class="fingering-strip hidden"></div>
             <div id="sharedPiano" class="piano"></div>

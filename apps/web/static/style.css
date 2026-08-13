@@ -779,7 +779,7 @@ a.btn-link:hover {
 }
 
 .instrument-panel.with-inst-dock {
-  padding-right: 108px;
+  padding-right: 154px;
 }
 
 .instrument-panel:not(.with-inst-dock) .instrument-dock {
@@ -801,11 +801,12 @@ a.btn-link:hover {
 }
 
 .instrument-dock .inst-btn {
-  min-width: 86px;
+  width: 130px;
+  min-width: 130px;
 }
 
-.instrument-dock #guitarHandedness {
-  min-width: 86px;
+.instrument-dock #guitarHandednessToggle {
+  min-width: 130px;
   height: 38px;
   border-radius: 10px;
   border: 1px solid #4a6180;

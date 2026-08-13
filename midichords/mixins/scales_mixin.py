@@ -358,12 +358,13 @@ class ScalesMixin:
                         pady=4,
                     )
 
-            style_button(self.scale_mode_piano_btn, self.scale_play_mode == "piano")
-            style_button(self.scale_mode_guitar_btn, self.scale_play_mode == "guitar")
+            style_button(self.scale_instrument_toggle_btn, False)
             style_button(self.scale_mode_metronome_btn, self.scale_metronome_only)
             return
-        self.scale_mode_piano_btn.set_selected(self.scale_play_mode == "piano")
-        self.scale_mode_guitar_btn.set_selected(self.scale_play_mode == "guitar")
+        self.scale_instrument_toggle_btn.set_text(
+            self.tr("instrument_guitar") if self.scale_play_mode == "guitar" else self.tr("instrument_piano")
+        )
+        self.scale_instrument_toggle_btn.set_selected(False)
         self.scale_mode_metronome_btn.set_selected(self.scale_metronome_only)
     def _refresh_scale_metronome_volume_visibility(self) -> None:
         if not hasattr(self, "scale_metronome_volume_slider"):
@@ -380,9 +381,9 @@ class ScalesMixin:
         if not self.scale_transport_buttons_are_images:
             return
         if mode == "piano":
-            widget = self.scale_mode_piano_btn
+            widget = self.scale_instrument_toggle_btn
         elif mode == "guitar":
-            widget = self.scale_mode_guitar_btn
+            widget = self.scale_instrument_toggle_btn
         else:
             widget = self.scale_mode_metronome_btn
         if pressed:
@@ -403,7 +404,7 @@ class ScalesMixin:
         if not self.scale_tab_active:
             return
         self.guitar_variations_frame.pack_forget()
-        self.guitar_handedness_combo.pack_forget()
+        self.guitar_handedness_toggle_btn.pack_forget()
         if self.scale_play_mode == "guitar":
             self.keyboard_qscroll.pack_forget()
             try:
@@ -412,7 +413,7 @@ class ScalesMixin:
             except Exception:
                 pass
             self.guitar_canvas.pack(fill=tk.X, expand=False)
-            self.guitar_handedness_combo.pack(side=tk.TOP, pady=(8, 0), fill=tk.X)
+            self.guitar_handedness_toggle_btn.pack(side=tk.TOP, pady=(8, 0))
             self._fit_instrument_panel_height()
             self.redraw_guitar_fretboard()
         else:

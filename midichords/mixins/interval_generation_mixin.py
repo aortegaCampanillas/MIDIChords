@@ -175,6 +175,7 @@ class IntervalGenerationMixin:
             self.interval_gen_reverse = False
             self.interval_gen_last_play_reverse = False
         self._refresh_interval_gen_buttons_state()
+        self.update_music_views()
 
     def _play_interval_gen_reverse(self) -> None:
         self.interval_gen_reverse = True

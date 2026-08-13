@@ -1794,8 +1794,6 @@ function applyTranslations() {
   setText("labelTunerInput", "label_tuner_input");
   setText("labelTunerGain", "label_tuner_gain");
   setText("labelTunerSpectrumRange", "label_tuner_spectrum_range");
-  setText("instPianoBtn", "inst_piano");
-  setText("instGuitarBtn", "inst_guitar");
   setText("donationTitle", "donation_title");
   setText("donationText", "donation_text");
   setText("donateBtn", "donation_button");
@@ -1846,12 +1844,7 @@ function applyTranslations() {
   const donateBtn = el("donateBtn");
   if (donateBtn) donateBtn.setAttribute("href", DONATE_URL);
 
-  const right = el("guitarHandedness")?.querySelector('option[value="right"]');
-  const left = el("guitarHandedness")?.querySelector('option[value="left"]');
-  if (right) right.textContent = tr("guitar_right");
-  if (left) left.textContent = tr("guitar_left");
-  const handedness = el("guitarHandedness");
-  if (handedness) handedness.setAttribute("title", `${tr("inst_guitar")} (${tr("guitar_right")}/${tr("guitar_left")})`);
+  refreshInstrumentToggleLabels();
 
   const detectPlay = el("detectPlay");
   const intervalPlay = el("intervalPlay");
@@ -2153,8 +2146,8 @@ function setMode(mode) {
     }
   }
   const showInstrumentToggle = mode === "generation" || mode === "circle_fifths" || mode === "scales" || mode === "interval_generation";
-  document.querySelectorAll(".inst-btn").forEach((btn) => btn.classList.toggle("hidden", !showInstrumentToggle));
-  el("guitarHandedness").classList.toggle("hidden", !showInstrumentToggle || state.instrument !== "guitar");
+  el("instrumentToggle")?.classList.toggle("hidden", !showInstrumentToggle);
+  el("guitarHandednessToggle")?.classList.toggle("hidden", !showInstrumentToggle || state.instrument !== "guitar");
   const guitarVariationBar = el("guitarVariationBar");
   if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !((mode === "generation" || mode === "circle_fifths") && state.instrument === "guitar"));
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
@@ -2221,14 +2214,12 @@ function setInstrument(inst) {
     el("sharedGuitarCanvas").classList.add("hidden");
     const tunerSpectrumCanvasOnly = el("tunerSpectrumCanvas");
     if (tunerSpectrumCanvasOnly) tunerSpectrumCanvasOnly.classList.remove("hidden");
-    el("guitarHandedness").classList.add("hidden");
+    el("guitarHandednessToggle")?.classList.add("hidden");
     const guitarVariationBarOnly = el("guitarVariationBar");
     if (guitarVariationBarOnly) guitarVariationBarOnly.classList.add("hidden");
     return;
   }
-  document.querySelectorAll(".inst-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.inst === inst);
-  });
+  refreshInstrumentToggleLabels();
   el("instrumentArea").classList.toggle("guitar-active", inst === "guitar");
   el("sharedPiano").classList.toggle("hidden", inst !== "piano");
   const fingeringStripEl = el("fingeringStrip");
@@ -2238,7 +2229,7 @@ function setInstrument(inst) {
   el("sharedGuitarCanvas").classList.toggle("hidden", inst !== "guitar");
   const tunerSpectrumCanvas = el("tunerSpectrumCanvas");
   if (tunerSpectrumCanvas) tunerSpectrumCanvas.classList.add("hidden");
-  el("guitarHandedness").classList.toggle("hidden", inst !== "guitar");
+  el("guitarHandednessToggle")?.classList.toggle("hidden", inst !== "guitar");
   const guitarVariationBar = el("guitarVariationBar");
   if (guitarVariationBar) guitarVariationBar.classList.toggle("hidden", !((state.mode === "generation" || state.mode === "circle_fifths") && inst === "guitar"));
   if ((state.mode === "generation" || state.mode === "circle_fifths") && inst === "guitar" && state.generatedChord && !state.guitarVariations.length) {
@@ -2257,6 +2248,13 @@ function setInstrument(inst) {
       renderStaff();
     }
   }
+}
+
+function refreshInstrumentToggleLabels() {
+  const instrument = el("instrumentToggle");
+  if (instrument) instrument.textContent = tr(state.instrument === "guitar" ? "inst_guitar" : "inst_piano");
+  const handedness = el("guitarHandednessToggle");
+  if (handedness) handedness.textContent = tr(state.guitarHandedness === "left" ? "guitar_left" : "guitar_right");
 }
 
 function renderGuitarVariationButtons() {
@@ -5296,6 +5294,8 @@ function renderStaff() {
   const noteDetectionStaff = state.mode === "note_detection";
   const detectionStaff = state.mode === "detection";
   const intervalDetectionStaff = state.mode === "interval_detection" || state.mode === "interval_generation" || state.mode === "interval_practice";
+  const intervalHarmonicStaff = (state.mode === "interval_generation" && state.intervalGenPlaybackMode === "harmonic")
+    || (state.mode === "interval_practice" && state.intervalPracticePlaybackMode === "harmonic");
   const intervalMelodyStaff = state.mode === "interval_detection" && !!state.intervalMelodyActive;
   const generationStaff = isChordGenerationLikeMode();
   const scaleStaff = state.mode === "scales";
@@ -5476,7 +5476,7 @@ function renderStaff() {
     const overlapThreshold = Math.max(1, gap - 1);
     const detectionBaseX = startX + 62;
     let x;
-    if (compactChordStaff) {
+    if (compactChordStaff || intervalHarmonicStaff) {
       const placedCols = useTreble ? placedTrebleCols : placedBassCols;
       let c = 0;
       while (true) {
@@ -7616,12 +7616,7 @@ function bindEvents() {
   if (modeSelect) {
     listen(modeSelect, "change", (e) => setMode(e.target.value));
   }
-  document.querySelectorAll(".inst-btn").forEach((btn) => {
-    listen(btn, "click", () => {
-      setInstrument(btn.dataset.inst);
-      renderInstrument();
-    });
-  });
+  listen(el("instrumentToggle"), "click", () => setInstrument(state.instrument === "piano" ? "guitar" : "piano"));
 
   listen(el("midiToggle"), "click", toggleMidi);
   const helpToggle = el("helpToggle");
@@ -7641,6 +7636,7 @@ function bindEvents() {
     if (state.intervalPracticeRunning) return;
     state.intervalPracticePlaybackMode = state.intervalPracticePlaybackMode === "melodic" ? "harmonic" : "melodic";
     applyTranslations();
+    renderStaff();
   });
   listen(el("intervalPracticeFilterSelectAll"), "click", () => {
     state.intervalPracticeFilterDraft = new Set(Array.from({ length: 13 }, (_, semitones) => semitones));
@@ -7705,8 +7701,9 @@ function bindEvents() {
     onOpen: showDownloadsModal,
     onClose: hideDownloadsModal,
   });
-  listen(el("guitarHandedness"), "change", (e) => {
-    state.guitarHandedness = e.target.value;
+  listen(el("guitarHandednessToggle"), "click", () => {
+    state.guitarHandedness = state.guitarHandedness === "right" ? "left" : "right";
+    refreshInstrumentToggleLabels();
     if (state.instrument === "guitar") renderInstrument();
   });
   listen(el("language"), "change", async (e) => {
@@ -7942,6 +7939,7 @@ function bindEvents() {
     }
     applyTranslations();
     refreshIntervalGenButtonsState();
+    renderStaff();
   });
 
   listen(el("intervalPracticeStart"), "click", toggleIntervalPractice);

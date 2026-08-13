@@ -272,23 +272,22 @@ class UiMixin:
     def _show_generation_instrument_buttons(self) -> None:
         if not hasattr(self, "instrument_view_switch_side"):
             return
-        self.scale_mode_piano_btn.pack_forget()
-        self.scale_mode_guitar_btn.pack_forget()
-        self.piano_view_btn.pack_forget()
-        self.guitar_view_btn.pack_forget()
-        self.piano_view_btn.pack(side=tk.TOP, pady=(0, 8))
-        self.guitar_view_btn.pack(side=tk.TOP)
+        self.scale_instrument_toggle_btn.pack_forget()
+        self.instrument_view_toggle_btn.pack_forget()
+        self.guitar_handedness_toggle_btn.pack_forget()
+        self.instrument_view_toggle_btn.pack(side=tk.TOP)
+        if self.instrument_view == "guitar":
+            self.guitar_handedness_toggle_btn.pack(side=tk.TOP, pady=(8, 0))
 
     def _show_scale_mode_buttons(self) -> None:
         if not hasattr(self, "instrument_view_switch_side"):
             return
-        self.piano_view_btn.pack_forget()
-        self.guitar_view_btn.pack_forget()
-        self.guitar_handedness_combo.pack_forget()
-        self.scale_mode_piano_btn.pack_forget()
-        self.scale_mode_guitar_btn.pack_forget()
-        self.scale_mode_piano_btn.pack(side=tk.TOP, pady=(0, 8))
-        self.scale_mode_guitar_btn.pack(side=tk.TOP)
+        self.instrument_view_toggle_btn.pack_forget()
+        self.guitar_handedness_toggle_btn.pack_forget()
+        self.scale_instrument_toggle_btn.pack_forget()
+        self.scale_instrument_toggle_btn.pack(side=tk.TOP)
+        if self.scale_play_mode == "guitar":
+            self.guitar_handedness_toggle_btn.pack(side=tk.TOP, pady=(8, 0))
 
     def _pick_font_family(self, preferred: list[str], fallback: str) -> str:
         try:
@@ -407,97 +406,6 @@ class UiMixin:
             }}
             """
         )
-
-    def _qt_apply_guitar_handedness_combo_style(self, w: Any) -> None:
-        """Mismo criterio visual que la web: `style.css` → `#guitarHandedness` (select)."""
-        if not hasattr(w, "setStyleSheet"):
-            return
-        # Flecha: `HandednessComboBox` la pinta en `paintEvent` (QSS `image:` en ::down-arrow no es fiable en macOS).
-        # Ocultamos el subcontrol nativo para no duplicar ni mostrar rectángulos vacíos.
-        # apps/web/static/style.css — .instrument-dock #guitarHandedness
-        web_bg = "#17273a"
-        web_border = "#4a6180"
-        web_fg = "#e8effa"
-        web_border_hover = "#5a7194"
-        web_popup_bg = "#17273a"
-        web_popup_sel = "#243a52"
-        combo_h = 38
-        w.setStyleSheet(
-            f"""
-            QComboBox {{
-                background-color: {web_bg};
-                color: {web_fg};
-                border: 1px solid {web_border};
-                border-radius: 10px;
-                padding: 0 28px 0 8px;
-                min-height: 22px;
-                max-height: {combo_h}px;
-                font-weight: bold;
-            }}
-            QComboBox:hover {{
-                border: 1px solid {web_border_hover};
-            }}
-            QComboBox:focus {{
-                border: 1px solid {web_border_hover};
-            }}
-            QComboBox::drop-down {{
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 26px;
-                border: none;
-                border-left: 1px solid {web_border};
-                border-top-right-radius: 9px;
-                border-bottom-right-radius: 9px;
-                background: transparent;
-            }}
-            QComboBox::down-arrow {{
-                width: 0px;
-                height: 0px;
-                border: none;
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: {web_popup_bg};
-                color: {web_fg};
-                selection-background-color: {web_popup_sel};
-                selection-color: {web_fg};
-                border: 1px solid {web_border};
-                outline: 0;
-                border-radius: 8px;
-                padding: 2px;
-            }}
-            """
-        )
-        try:
-            from PySide6.QtGui import QFont
-
-            f = w.font()
-            f.setBold(True)
-            w.setFont(f)
-        except Exception:
-            pass
-        self._apply_guitar_handedness_combo_geometry(w)
-
-    def _apply_guitar_handedness_combo_geometry(self, w: Any | None = None) -> None:
-        """Tras `pack(fill=X)` el QComboBox recupera política vertical; altura como el `<select>` web (38px)."""
-        combo = w if w is not None else getattr(self, "guitar_handedness_combo", None)
-        if combo is None or not hasattr(combo, "setFixedHeight"):
-            return
-        try:
-            # El texto inglés "Right-handed" necesita más espacio que los
-            # botones Piano/Guitarra una vez reservada la zona de la flecha.
-            combo.setMinimumWidth(148)
-        except Exception:
-            pass
-        try:
-            combo.setFixedHeight(38)
-        except Exception:
-            pass
-        try:
-            from PySide6.QtWidgets import QSizePolicy
-
-            combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        except Exception:
-            pass
 
     def _build_ui(self) -> None:
         self._setup_typography()
@@ -2224,10 +2132,10 @@ class UiMixin:
         self.guitar_variations_frame.setVisible(False)
 
         self.instrument_buttons_are_images = False
-        self.piano_view_btn = GrayRoundedButton(
+        self.instrument_view_toggle_btn = GrayRoundedButton(
             self.instrument_view_switch_side,
             text="Piano",
-            command=lambda: self._set_instrument_view("piano"),
+            command=self._toggle_instrument_view,
             font_family=self.ui_font_family,
             width=124,
             height=42,
@@ -2239,12 +2147,12 @@ class UiMixin:
             selected_outline_color="#c9961f",
             selected_border_width=2.0,
         )
-        self.piano_view_btn.pack(side=tk.TOP, pady=(0, 8))
+        self.instrument_view_toggle_btn.pack(side=tk.TOP)
 
-        self.guitar_view_btn = GrayRoundedButton(
+        self.guitar_handedness_toggle_btn = GrayRoundedButton(
             self.instrument_view_switch_side,
-            text="Guitarra",
-            command=lambda: self._set_instrument_view("guitar"),
+            text="Diestro",
+            command=self._toggle_guitar_handedness,
             font_family=self.ui_font_family,
             width=124,
             height=42,
@@ -2253,19 +2161,6 @@ class UiMixin:
             text_color="#e6edf7",
             selected_text_color="#1a222d",
         )
-        self.guitar_view_btn.pack(side=tk.TOP)
-
-        self.handedness_buttons_are_images = False
-        self.guitar_handedness_var = tk.StringVar(value="")
-        self.guitar_handedness_combo = ttk.HandednessComboBox(
-            self.instrument_view_switch_side,
-            textvariable=self.guitar_handedness_var,
-            state="readonly",
-            width=10,
-            font=(self.ui_font_family, 14),
-        )
-        self.guitar_handedness_combo.bind("<<ComboboxSelected>>", self._on_guitar_handedness_combo_changed)
-        self._qt_apply_guitar_handedness_combo_style(self.guitar_handedness_combo)
 
         self.scale_transport_frame = tk.Frame(container, bg=self.cget("background"))
         self.scale_transport_frame.configure(height=self.instrument_toolbar_height)
@@ -2298,25 +2193,10 @@ class UiMixin:
         self.scale_transport_bpm_frame.place(relx=1.0, rely=0.5, anchor="e", x=-6)
 
         self.scale_transport_buttons_are_images = False
-        self.scale_mode_piano_btn = GrayRoundedButton(
+        self.scale_instrument_toggle_btn = GrayRoundedButton(
             self.instrument_view_switch_side,
             text="Piano",
-            command=lambda: self._set_scale_play_mode("piano"),
-            font_family=self.ui_font_family,
-            width=124,
-            height=42,
-            radius=20,
-            font_size=13,
-            text_color="#e6edf7",
-            selected_text_color="#1a222d",
-            selected_fill_color="#f3bf2f",
-            selected_outline_color="#c9961f",
-            selected_border_width=2.0,
-        )
-        self.scale_mode_guitar_btn = GrayRoundedButton(
-            self.instrument_view_switch_side,
-            text="Guitarra",
-            command=lambda: self._set_scale_play_mode("guitar"),
+            command=lambda: self._set_scale_play_mode("guitar" if self.scale_play_mode == "piano" else "piano"),
             font_family=self.ui_font_family,
             width=124,
             height=42,
@@ -2613,15 +2493,15 @@ class UiMixin:
         if hasattr(self, "help_icon_btn"):
             self.help_icon_btn.configure(text="?")
         if not self.instrument_buttons_are_images:
-            self.piano_view_btn.set_text(self.tr("instrument_piano"))
-            self.guitar_view_btn.set_text(self.tr("instrument_guitar"))
-        if hasattr(self, "guitar_handedness_combo"):
+            self._refresh_instrument_toggle_styles()
+        if hasattr(self, "guitar_handedness_toggle_btn"):
             self._refresh_handedness_toggle_styles()
         if hasattr(self, "guitar_variations_label"):
             self.guitar_variations_label.configure(text=self.tr("label_guitar_variations"))
         if not self.scale_transport_buttons_are_images:
-            self.scale_mode_piano_btn.set_text(self.tr("instrument_piano"))
-            self.scale_mode_guitar_btn.set_text(self.tr("instrument_guitar"))
+            self.scale_instrument_toggle_btn.set_text(
+                self.tr("instrument_guitar") if self.scale_play_mode == "guitar" else self.tr("instrument_piano")
+            )
             self.scale_mode_metronome_btn.set_text("⏱")
         self.scale_bpm_value_label.configure(text=f"{int(self.config_data.get('metronome_bpm', 120))} {self.tr('scale_bpm_short')}")
         self.mode_var.set(self._mode_label(self.current_mode))
@@ -3623,6 +3503,7 @@ class UiMixin:
         self._close_mode_selector_overlay()
         self._schedule_mode_change()
     def _on_mode_combo_changed(self, _event: tk.Event) -> None:
+        previous_mode = getattr(self, "current_mode", "detection")
         self._close_mode_selector_overlay()
         self._close_scale_tonic_overlay()
         self._close_scale_type_overlay()
@@ -3651,6 +3532,14 @@ class UiMixin:
             self.current_mode = "interval_practice"
         else:
             self.current_mode = "detection"
+        if previous_mode in ("generation", "circle_fifths") and self.current_mode not in (
+            "generation",
+            "circle_fifths",
+        ):
+            # Cancela callbacks y resaltados del acorde antes de cambiar las
+            # banderas de modo; de otro modo podían repintar el teclado del
+            # modo de práctica después de haberlo limpiado.
+            self._stop_generated_playback()
         if self.current_mode != "detection":
             try:
                 from midichords.core.midi_idle_inhibit import cancel_midi_idle_inhibit
@@ -3725,7 +3614,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
@@ -3776,7 +3665,7 @@ class UiMixin:
             self.instrument_view_switch_side.pack(side=tk.RIGHT, anchor="n", padx=(10, 0))
             self._show_scale_mode_buttons()
             self._refresh_scale_transport_styles()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self._refresh_scale_instrument_view()
             self._clear_live_input_state()
@@ -3793,7 +3682,7 @@ class UiMixin:
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
             self.instrument_view_switch_side.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
@@ -3810,7 +3699,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack_forget()
@@ -3828,7 +3717,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
@@ -3855,7 +3744,7 @@ class UiMixin:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.instrument_switch_frame.pack_forget()
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
@@ -3888,7 +3777,7 @@ class UiMixin:
         else:
             self.instrument_panel.pack(fill=tk.X, expand=False)
             self.scale_transport_frame.pack_forget()
-            self.guitar_handedness_combo.pack_forget()
+            self.guitar_handedness_toggle_btn.pack_forget()
             self.guitar_variations_frame.pack_forget()
             self.guitar_canvas.pack_forget()
             self.keyboard_qscroll.pack(fill=tk.X, expand=False)
@@ -4006,8 +3895,7 @@ class UiMixin:
                 "interval_gen_name_row:help_interval_gen_name",
                 "interval_gen_semitones_row:help_interval_gen_semitones",
                 "interval_gen_table_frame:help_interval_gen_table",
-                "piano_view_btn:help_inst_piano_btn",
-                "guitar_view_btn:help_inst_guitar_btn",
+                "instrument_view_toggle_btn:help_inst_piano_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w(
@@ -4016,7 +3904,7 @@ class UiMixin:
             else:
                 specific += _w(
                     "guitar_canvas:help_interval_gen_instrument",
-                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_handedness_toggle_btn:help_guitar_handedness",
                 )
 
         elif mode == "interval_practice":
@@ -4052,15 +3940,14 @@ class UiMixin:
                 "gen_result_construction_row:help_gen_result_construction",
                 # Selector piano/guitarra: solo vive en el panel inferior en
                 # generación y círculo de quintas (_show_generation_instrument_buttons).
-                "piano_view_btn:help_inst_piano_btn",
-                "guitar_view_btn:help_inst_guitar_btn",
+                "instrument_view_toggle_btn:help_inst_piano_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_gen_instrument_piano")
             else:
                 specific += _w(
                     "guitar_canvas:help_gen_instrument_guitar",
-                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_handedness_toggle_btn:help_guitar_handedness",
                     "guitar_variations_frame:help_guitar_variations",
                 )
 
@@ -4069,15 +3956,14 @@ class UiMixin:
                 "staff_canvas:help_staff_circle",
                 "circle_play_btn:help_circle_play",
                 "circle_canvas:help_circle_canvas",
-                "piano_view_btn:help_inst_piano_btn",
-                "guitar_view_btn:help_inst_guitar_btn",
+                "instrument_view_toggle_btn:help_inst_piano_btn",
             )
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_circle_instrument_piano")
             else:
                 specific += _w(
                     "guitar_canvas:help_circle_instrument_guitar",
-                    "guitar_handedness_combo:help_guitar_handedness",
+                    "guitar_handedness_toggle_btn:help_guitar_handedness",
                     "guitar_variations_frame:help_guitar_variations",
                 )
 
@@ -4097,9 +3983,7 @@ class UiMixin:
                 "scale_result_formula_row:help_scale_result_formula",
                 "scale_result_pattern_row:help_scale_result_pattern",
                 # Selector piano/guitarra propio de Escalas (distinto de
-                # piano_view_btn/guitar_view_btn, que aquí están ocultos).
-                "scale_mode_piano_btn:help_inst_piano_btn",
-                "scale_mode_guitar_btn:help_inst_guitar_btn",
+                "scale_instrument_toggle_btn:help_inst_piano_btn",
             )
             if getattr(self, "scale_metronome_only", False):
                 specific += _w(
@@ -4109,7 +3993,7 @@ class UiMixin:
             if getattr(self, "scale_play_mode", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_scale_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_scale_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w("guitar_canvas:help_scale_instrument_guitar", "guitar_handedness_toggle_btn:help_guitar_handedness")
 
         elif mode == "metronome":
             specific = _w(
@@ -4125,7 +4009,7 @@ class UiMixin:
             if getattr(self, "instrument_view", "piano") == "piano":
                 specific += _w("keyboard_qscroll:help_metro_instrument_piano")
             else:
-                specific += _w("guitar_canvas:help_metro_instrument_guitar", "guitar_handedness_combo:help_guitar_handedness")
+                specific += _w("guitar_canvas:help_metro_instrument_guitar", "guitar_handedness_toggle_btn:help_guitar_handedness")
 
         elif mode == "tuner":
             specific = _w("tab_tuner_frame:help_tuner_panel")

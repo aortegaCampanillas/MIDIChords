@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Audio**: aumentado el nivel general del escritorio manteniendo margen seguro para acordes.
 - **Práctica de intervalos**: el resaltado de la primera nota ya no puede desaparecer por temporizadores pendientes al cambiar de modo o avanzar rápidamente.
 - **Presentación**: renovadas las capturas bilingües de la portada y corregidos varios ajustes visuales del escritorio.
 - **Web / escritorio (práctica de intervalos)**: nuevo modo de entrenamiento auditivo con respuestas desde piano, MIDI o tabla, configuración del ejercicio, corrección visual, puntuación y revisión de resultados.

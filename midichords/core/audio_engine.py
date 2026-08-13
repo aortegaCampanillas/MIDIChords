@@ -77,7 +77,11 @@ class PianoAudioEngine:
     def __init__(self, sample_rate: int = 48000) -> None:
         self.sample_rate = sample_rate
         self.channels = 2
-        self.master_gain = 0.14
+        # Nivel nominal común para escritorio. 0.14 dejaba una nota normal
+        # alrededor de -25 dBFS RMS, sensiblemente por debajo de los motores
+        # web/móvil y especialmente perceptible en el mezclador de Windows.
+        # 0.28 aporta +6 dB y conserva margen en acordes gracias al soft-clip.
+        self.master_gain = 0.28
         self.preset = "acoustic"
         self.guitar_preset = "steel_clean"
         self.output_device: Optional[int] = None

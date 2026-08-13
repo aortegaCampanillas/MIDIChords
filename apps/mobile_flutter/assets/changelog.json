@@ -5,6 +5,13 @@
     "items": [
       {
         "date": "2026-08-13",
+        "publish": true,
+        "platforms": ["desktop"],
+        "es": "Nivel general de audio aumentado manteniendo margen seguro para acordes.",
+        "en": "Higher overall audio level while preserving safe headroom for chords."
+      },
+      {
+        "date": "2026-08-13",
         "publish": false,
         "platforms": ["web", "desktop"],
         "es": "Práctica de intervalos mantiene visible la primera nota al cambiar de modo o avanzar rápidamente.",

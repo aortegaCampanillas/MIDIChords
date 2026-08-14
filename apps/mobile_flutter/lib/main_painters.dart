@@ -1162,11 +1162,15 @@ class _MiniMetronomePainter extends CustomPainter {
     canvas.drawRect(Offset.zero & size, bg);
     final count = math.max(1, beatsPerBar);
     final clicks = math.max(1, clicksPerBeat);
+    final compactLayout = size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
+    final yTop = compactLayout
+        ? size.height * 0.125
+        : math.max(44.0, size.height * 0.30);
+    final axisY = compactLayout
+        ? size.height * 0.375
+        : math.min(size.height - 56.0, yTop + 74.0) + 18.0;
     final spacing = count == 1 ? (right - left) : (right - left) / (count - 1);
     final xs = count == 1
         ? <double>[(left + right) * 0.5]
@@ -1249,19 +1253,18 @@ class _MiniMetronomePainter extends CustomPainter {
           text: '$mm:$ss',
           style: TextStyle(
             color: const Color(0xFFFFB17A),
-            fontSize: math.min(44.0, size.height * 0.24),
+            fontSize: compactLayout
+                ? math.min(22.0, size.height * 0.13)
+                : math.min(44.0, size.height * 0.24),
             fontWeight: FontWeight.w800,
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: size.width - 24);
-      tp.paint(
-        canvas,
-        Offset(
-          (size.width - tp.width) / 2,
-          axisY + ((size.height - axisY) * 0.5) - (tp.height / 2),
-        ),
-      );
+      final timerTop = compactLayout
+          ? (size.height * 0.875) - (tp.height / 2)
+          : axisY + ((size.height - axisY) * 0.5) - (tp.height / 2);
+      tp.paint(canvas, Offset((size.width - tp.width) / 2, timerTop));
     } else if (!running) {
       final idle = TextPainter(
         text: TextSpan(

@@ -1413,10 +1413,13 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeBeatRowRect(Size size) {
+    final compact = size.height < 340;
     final count = math.max(1, _metroBeatsPerBar);
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
+    final yTop = compact
+        ? size.height * 0.125
+        : math.max(44.0, size.height * 0.30);
     final spacing = count == 1 ? (right - left) : (right - left) / (count - 1);
     final baseR = (30 - (count * 0.75)).clamp(7.0, 24.0);
     final maxRBySpacing = (spacing * 0.42 - 2).clamp(6.0, 1000.0);
@@ -1431,52 +1434,53 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeMotionAxisRect(Size size) {
+    final compact = size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
+    final axisY = compact
+        ? size.height * 0.375
+        : _metronomeBeatRowRect(size).center.dy +
+              math.min(size.height - 56.0, 74.0) +
+              18.0;
     return Rect.fromLTRB(left - 12, axisY - 16, right + 12, axisY + 16);
   }
 
-  Rect _metronomeTimerRect(Size size) {
+  Rect _metronomeCenterButtonRect(Size size) {
+    final compact = size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
-    final yTop = math.max(44.0, size.height * 0.30);
-    final yBot = math.min(size.height - 56.0, yTop + 74.0);
-    final axisY = yBot + 18.0;
-    final fontSize = math.min(44.0, size.height * 0.24);
-    final centerY = axisY + ((size.height - axisY) * 0.5);
-    final rectHeight = math.max(52.0, fontSize + 10.0);
-    final rawTop = centerY - (rectHeight / 2);
-    final minTop = axisY + 56.0;
-    final maxTop = size.height - rectHeight - 16.0;
-    // En algunos dispositivos/tamaños (Android 14) el rango puede invertirse
-    // y `clamp` lanza ArgumentError si min > max.
-    final top = maxTop >= minTop
-        ? rawTop.clamp(minTop, maxTop)
-        : math.max(0.0, math.min(rawTop, maxTop));
+    final buttonHeight = compact ? 32.0 : 46.0;
+    final buttonWidth = math.min(286.0, math.max(210.0, size.width * 0.34));
+    final centerY = compact
+        ? size.height * 0.625
+        : _metronomeMotionAxisRect(size).bottom + 6.0 + (buttonHeight / 2);
+    final top = centerY - (buttonHeight / 2);
+    final leftPos = ((left + right) / 2) - (buttonWidth / 2);
+    return Rect.fromLTWH(leftPos, top, buttonWidth, buttonHeight);
+  }
+
+  Rect _metronomeTimerRect(Size size) {
+    final compact = size.height < 340;
+    final left = 34.0;
+    final right = math.max(left + 1.0, size.width - 34.0);
+    final fontSize = compact
+        ? math.min(22.0, size.height * 0.13)
+        : math.min(44.0, size.height * 0.24);
+    final rectHeight = math.max(compact ? 26.0 : 52.0, fontSize + 10.0);
+    final centerY = compact
+        ? size.height * 0.875
+        : _metronomeCenterButtonRect(size).bottom +
+              12.0 +
+              (rectHeight / 2);
+    final top = compact
+        ? (centerY - (rectHeight / 2)).clamp(
+            0.0,
+            size.height - rectHeight - 6.0,
+          )
+        : centerY - (rectHeight / 2);
     final rectWidth = math.min(220.0, math.max(160.0, size.width * 0.26));
     final centerX = (left + right) / 2;
     return Rect.fromLTWH(centerX - (rectWidth / 2), top, rectWidth, rectHeight);
-  }
-
-  Rect _metronomeCenterButtonRect(Size size) {
-    final left = 34.0;
-    final right = math.max(left + 1.0, size.width - 34.0);
-    final axisRect = _metronomeMotionAxisRect(size);
-    final timerRect = _metronomeTimerRect(size);
-    final buttonHeight = 46.0;
-    final buttonWidth = math.min(286.0, math.max(210.0, size.width * 0.34));
-    final centerY = (axisRect.bottom + timerRect.top) / 2;
-    final minTop = axisRect.bottom + 6.0;
-    final maxTop = timerRect.top - buttonHeight - 6.0;
-    final idealTop = centerY - (buttonHeight / 2);
-    final top = maxTop >= minTop
-        ? idealTop.clamp(minTop, maxTop)
-        : math.max(axisRect.bottom + 2.0, idealTop);
-    final leftPos = ((left + right) / 2) - (buttonWidth / 2);
-    return Rect.fromLTWH(leftPos, top, buttonWidth, buttonHeight);
   }
 
   String _staffHelpIdForCurrentMode() => switch (_tabIndex) {

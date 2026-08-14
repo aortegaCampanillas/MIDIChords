@@ -3090,17 +3090,18 @@ extension _HomeScreenPages on _HomeScreenState {
                   _helpAnchor(
                     'metronome_volume',
                     Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
+                      spacing: iphoneCompact ? 8 : 12,
+                      runSpacing: iphoneCompact ? 4 : 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: <Widget>[
                         SizedBox(
                           width: compact ? constraints.maxWidth : 84,
                           child: Text(
                             _ui('Volumen', 'Volume'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: _HomeScreenState._muted,
+                              fontSize: iphoneCompact ? 12 : null,
                             ),
                           ),
                         ),
@@ -3109,23 +3110,29 @@ extension _HomeScreenPages on _HomeScreenState {
                           child: Row(
                             children: <Widget>[
                               Expanded(
-                                child: Slider(
-                                  min: 0,
-                                  max: 100,
-                                  divisions: 100,
-                                  value: _metroVolume.toDouble(),
-                                  onChanged: (value) {
-                                    _updateState(
-                                      () => _metroVolume = value.round(),
-                                    );
-                                  },
+                                child: SizedBox(
+                                  height: iphoneCompact ? 28 : null,
+                                  child: Slider(
+                                    min: 0,
+                                    max: 100,
+                                    divisions: 100,
+                                    value: _metroVolume.toDouble(),
+                                    onChanged: (value) {
+                                      _updateState(
+                                        () => _metroVolume = value.round(),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                               SizedBox(
-                                width: 72,
+                                width: iphoneCompact ? 48 : 72,
                                 child: Text(
                                   '$_metroVolume%',
                                   textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: iphoneCompact ? 11 : null,
+                                  ),
                                 ),
                               ),
                             ],
@@ -3134,7 +3141,7 @@ extension _HomeScreenPages on _HomeScreenState {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: iphoneCompact ? 2 : 8),
                   _helpAnchor(
                     'metronome_tempo',
                     Column(
@@ -3142,14 +3149,25 @@ extension _HomeScreenPages on _HomeScreenState {
                       children: <Widget>[
                         Text(
                           _ui('Tempo (BPM)', 'Tempo (BPM)'),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: _HomeScreenState._muted,
+                            fontSize: iphoneCompact ? 12 : null,
                           ),
                         ),
                         Row(
                           children: <Widget>[
                             IconButton(
+                              visualDensity: iphoneCompact
+                                  ? VisualDensity.compact
+                                  : null,
+                              padding: iphoneCompact
+                                  ? EdgeInsets.zero
+                                  : null,
+                              constraints: iphoneCompact
+                                  ? const BoxConstraints()
+                                  : null,
+                              iconSize: iphoneCompact ? 18 : null,
                               onPressed: () {
                                 _updateState(
                                   () => _metroBpm = (_metroBpm - 1).clamp(
@@ -3162,20 +3180,35 @@ extension _HomeScreenPages on _HomeScreenState {
                               icon: const Icon(Icons.remove),
                             ),
                             Expanded(
-                              child: Slider(
-                                min: 40,
-                                max: 220,
-                                divisions: 180,
-                                value: _metroBpm.toDouble(),
-                                onChanged: (value) {
-                                  _updateState(() => _metroBpm = value.round());
-                                  if (_metroRunning) {
-                                    _startMetronome();
-                                  }
-                                },
+                              child: SizedBox(
+                                height: iphoneCompact ? 28 : null,
+                                child: Slider(
+                                  min: 40,
+                                  max: 220,
+                                  divisions: 180,
+                                  value: _metroBpm.toDouble(),
+                                  onChanged: (value) {
+                                    _updateState(
+                                      () => _metroBpm = value.round(),
+                                    );
+                                    if (_metroRunning) {
+                                      _startMetronome();
+                                    }
+                                  },
+                                ),
                               ),
                             ),
                             IconButton(
+                              visualDensity: iphoneCompact
+                                  ? VisualDensity.compact
+                                  : null,
+                              padding: iphoneCompact
+                                  ? EdgeInsets.zero
+                                  : null,
+                              constraints: iphoneCompact
+                                  ? const BoxConstraints()
+                                  : null,
+                              iconSize: iphoneCompact ? 18 : null,
                               onPressed: () {
                                 _updateState(
                                   () => _metroBpm = (_metroBpm + 1).clamp(
@@ -3188,10 +3221,13 @@ extension _HomeScreenPages on _HomeScreenState {
                               icon: const Icon(Icons.add),
                             ),
                             SizedBox(
-                              width: 72,
+                              width: iphoneCompact ? 48 : 72,
                               child: Text(
                                 '$_metroBpm',
                                 textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: iphoneCompact ? 11 : null,
+                                ),
                               ),
                             ),
                           ],
@@ -3199,15 +3235,20 @@ extension _HomeScreenPages on _HomeScreenState {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: iphoneCompact ? 2 : 8),
                   _helpAnchor(
                     'metronome_beats',
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
+                      spacing: iphoneCompact ? 6 : 10,
+                      runSpacing: iphoneCompact ? 4 : 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: <Widget>[
-                        Text(_ui('Pulsos por compás:', 'Beats per bar:')),
+                        Text(
+                          _ui('Pulsos por compás:', 'Beats per bar:'),
+                          style: TextStyle(
+                            fontSize: iphoneCompact ? 12 : null,
+                          ),
+                        ),
                         if (!iphoneCompact)
                           IconButton(
                             onPressed: () {
@@ -3221,10 +3262,15 @@ extension _HomeScreenPages on _HomeScreenState {
                             icon: const Icon(Icons.remove),
                           ),
                         SizedBox(
-                          width: 72,
+                          width: iphoneCompact ? 56 : 72,
+                          height: iphoneCompact ? 28 : null,
                           child: DropdownButton<int>(
                             isExpanded: true,
                             value: _metroBeatsPerBar,
+                            style: TextStyle(
+                              fontSize: iphoneCompact ? 12 : null,
+                              color: _HomeScreenState._text,
+                            ),
                             items: List<DropdownMenuItem<int>>.generate(
                               16,
                               (i) => DropdownMenuItem<int>(
@@ -3261,14 +3307,16 @@ extension _HomeScreenPages on _HomeScreenState {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: iphoneCompact ? 2 : 8),
                   _helpAnchor(
                     'metronome_subdivision',
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: <Widget>[
-                        Text(_ui('Subdivisión:', 'Subdivision:')),
-                        const SizedBox(width: 10),
+                        if (!iphoneCompact) ...<Widget>[
+                          Text(_ui('Subdivisión:', 'Subdivision:')),
+                          const SizedBox(width: 10),
+                        ],
                         Expanded(
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -3277,7 +3325,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                 ...<int>[1, 2, 3, 4, 6].map((n) {
                                   final active = _metroClicksPerBeat == n;
                                   return Padding(
-                                    padding: const EdgeInsets.only(right: 8),
+                                    padding: EdgeInsets.only(
+                                      right: iphoneCompact ? 5 : 8,
+                                    ),
                                     child: ChoiceChip(
                                       selected: active,
                                       label: _metronomeSubdivisionFigure(
@@ -3306,9 +3356,9 @@ extension _HomeScreenPages on _HomeScreenState {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: iphoneCompact ? 2 : 8),
                   _helpAnchor(
-                    'metronome_HomeScreenState._accent',
+                    'metronome_accent',
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
@@ -3322,7 +3372,12 @@ extension _HomeScreenPages on _HomeScreenState {
                           },
                         ),
                         Flexible(
-                          child: Text(_ui('Acento de compás', 'Bar accent')),
+                          child: Text(
+                            _ui('Acento de compás', 'Bar accent'),
+                            style: TextStyle(
+                              fontSize: iphoneCompact ? 12 : null,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -3330,8 +3385,8 @@ extension _HomeScreenPages on _HomeScreenState {
                   _helpAnchor(
                     'metronome_timer',
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: iphoneCompact ? 6 : 8,
+                      runSpacing: iphoneCompact ? 4 : 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: <Widget>[
                         Row(
@@ -3352,14 +3407,22 @@ extension _HomeScreenPages on _HomeScreenState {
                               _isCompactPhone(context)
                                   ? _ui('Timer', 'Timer')
                                   : _ui('Temporizador', 'Timer'),
+                              style: TextStyle(
+                                fontSize: iphoneCompact ? 12 : null,
+                              ),
                             ),
                           ],
                         ),
                         SizedBox(
-                          width: 78,
+                          width: iphoneCompact ? 58 : 78,
+                          height: iphoneCompact ? 28 : null,
                           child: DropdownButton<int>(
                             isExpanded: true,
                             value: _metroTimerMinutes.clamp(0, 99),
+                            style: TextStyle(
+                              fontSize: iphoneCompact ? 12 : null,
+                              color: _HomeScreenState._text,
+                            ),
                             items: List<DropdownMenuItem<int>>.generate(
                               100,
                               (i) => DropdownMenuItem<int>(
@@ -3374,12 +3437,22 @@ extension _HomeScreenPages on _HomeScreenState {
                             },
                           ),
                         ),
-                        const Text(':'),
+                        Text(
+                          ':',
+                          style: TextStyle(
+                            fontSize: iphoneCompact ? 12 : null,
+                          ),
+                        ),
                         SizedBox(
-                          width: 78,
+                          width: iphoneCompact ? 58 : 78,
+                          height: iphoneCompact ? 28 : null,
                           child: DropdownButton<int>(
                             isExpanded: true,
                             value: _metroTimerSeconds.clamp(0, 59),
+                            style: TextStyle(
+                              fontSize: iphoneCompact ? 12 : null,
+                              color: _HomeScreenState._text,
+                            ),
                             items: List<DropdownMenuItem<int>>.generate(
                               60,
                               (i) => DropdownMenuItem<int>(

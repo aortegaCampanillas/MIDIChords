@@ -1144,6 +1144,7 @@ class _MiniMetronomePainter extends CustomPainter {
     required this.timerEnabled,
     required this.timerRemaining,
     required this.idleLabel,
+    required this.isCompactPhone,
   });
 
   final int beatsPerBar;
@@ -1155,6 +1156,7 @@ class _MiniMetronomePainter extends CustomPainter {
   final bool timerEnabled;
   final Duration timerRemaining;
   final String idleLabel;
+  final bool isCompactPhone;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1162,7 +1164,7 @@ class _MiniMetronomePainter extends CustomPainter {
     canvas.drawRect(Offset.zero & size, bg);
     final count = math.max(1, beatsPerBar);
     final clicks = math.max(1, clicksPerBeat);
-    final compactLayout = size.height < 340;
+    final compactLayout = isCompactPhone && size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
     final yTop = compactLayout
@@ -1291,6 +1293,7 @@ class _MiniMetronomePainter extends CustomPainter {
         oldDelegate.timerEnabled != timerEnabled ||
         oldDelegate.timerRemaining.inSeconds != timerRemaining.inSeconds ||
         oldDelegate.idleLabel != idleLabel ||
+        oldDelegate.isCompactPhone != isCompactPhone ||
         (oldDelegate.motionProgress - motionProgress).abs() > 0.001;
   }
 }

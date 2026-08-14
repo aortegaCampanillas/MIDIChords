@@ -348,6 +348,8 @@ extension _HomeScreenPages on _HomeScreenState {
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Text(
           text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: color != null
                 ? const Color(0xFF101010)
@@ -368,7 +370,7 @@ extension _HomeScreenPages on _HomeScreenState {
         width: tableWidth,
         child: Table(
           border: TableBorder.all(color: const Color(0xFF5A6A82)),
-          columnWidths: const <int, TableColumnWidth>{0: FixedColumnWidth(104)},
+          columnWidths: const <int, TableColumnWidth>{0: FixedColumnWidth(130)},
           defaultColumnWidth: const FlexColumnWidth(),
           children: <TableRow>[
             TableRow(
@@ -674,7 +676,7 @@ extension _HomeScreenPages on _HomeScreenState {
         builder: (context, constraints) {
           final compactLandscape =
               constraints.maxWidth > constraints.maxHeight &&
-              (_isCompactPhone(context) || constraints.maxHeight < 300);
+              _isCompactPhone(context);
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -857,8 +859,7 @@ extension _HomeScreenPages on _HomeScreenState {
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
           final compactLandscape =
-              constraints.maxWidth > constraints.maxHeight &&
-              (compactPhone || constraints.maxHeight < 300);
+              constraints.maxWidth > constraints.maxHeight && compactPhone;
           final resultHeight = compactLandscape
               ? math.max(120.0, constraints.maxHeight - 78.0)
               : _compactResultHeight(constraints, minHeight: 140);
@@ -1449,7 +1450,7 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildCircleOfFifthsPage() {
     return _buildModeScaffold(
-      showInstrument: false,
+      showInstrument: !_isCompactPhone(context),
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
@@ -2554,34 +2555,47 @@ extension _HomeScreenPages on _HomeScreenState {
                       runSpacing: 8,
                       children: <Widget>[
                         _helpAnchor(
-                          'interval_play_btn',
-                          ElevatedButton.icon(
-                            onPressed: _intervalNotes.length >= 2
-                                ? () => _playIntervalMelody()
-                                : null,
-                            icon: const Icon(Icons.play_arrow),
-                            label: Text(_ui('Reproducir', 'Play')),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _HomeScreenState._accent,
-                              foregroundColor: Colors.black,
-                              disabledBackgroundColor: _HomeScreenState._panelA,
+                          'interval_play_reverse_btn',
+                          SizedBox(
+                            width: 42,
+                            height: 34,
+                            child: ElevatedButton(
+                              onPressed:
+                                  _intervalNotes.length >= 2 &&
+                                      !_intervalMelodyMode
+                                  ? () => _playIntervalMelody(reversed: true)
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _HomeScreenState._accent,
+                                foregroundColor: Colors.black,
+                                disabledBackgroundColor:
+                                    _HomeScreenState._panelA,
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Transform.flip(
+                                flipX: true,
+                                child: const Icon(Icons.play_arrow, size: 20),
+                              ),
                             ),
                           ),
                         ),
                         _helpAnchor(
-                          'interval_play_reverse_btn',
-                          ElevatedButton.icon(
-                            onPressed:
-                                _intervalNotes.length >= 2 &&
-                                    !_intervalMelodyMode
-                                ? () => _playIntervalMelody(reversed: true)
-                                : null,
-                            icon: const Icon(Icons.play_arrow),
-                            label: Text(_ui('Desc.', 'Rev.')),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _HomeScreenState._accent,
-                              foregroundColor: Colors.black,
-                              disabledBackgroundColor: _HomeScreenState._panelA,
+                          'interval_play_btn',
+                          SizedBox(
+                            width: 42,
+                            height: 34,
+                            child: ElevatedButton(
+                              onPressed: _intervalNotes.length >= 2
+                                  ? () => _playIntervalMelody()
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _HomeScreenState._accent,
+                                foregroundColor: Colors.black,
+                                disabledBackgroundColor:
+                                    _HomeScreenState._panelA,
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: const Icon(Icons.play_arrow, size: 20),
                             ),
                           ),
                         ),
@@ -2591,7 +2605,16 @@ extension _HomeScreenPages on _HomeScreenState {
                             onPressed: _intervalNotes.isEmpty
                                 ? null
                                 : _clearIntervalNotes,
-                            child: Text(_ui('Limpiar', 'Clear')),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                            ),
+                            child: Text(
+                              _ui('Limpiar', 'Clear'),
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ),
                         ),
                         _helpAnchor(
@@ -2601,11 +2624,12 @@ extension _HomeScreenPages on _HomeScreenState {
                               () => _intervalDetailsVisible =
                                   !_intervalDetailsVisible,
                             ),
-                            icon: const Icon(Icons.visibility),
+                            icon: const Icon(Icons.visibility, size: 18),
                             label: Text(
                               _intervalDetailsVisible
                                   ? _ui('Ocultar', 'Hide')
                                   : _ui('Mostrar', 'Show'),
+                              style: const TextStyle(fontSize: 13),
                             ),
                             style: OutlinedButton.styleFrom(
                               backgroundColor: _intervalDetailsVisible
@@ -2614,6 +2638,10 @@ extension _HomeScreenPages on _HomeScreenState {
                               foregroundColor: _intervalDetailsVisible
                                   ? null
                                   : _HomeScreenState._surfaceDark,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
                             ),
                           ),
                         ),
@@ -2717,7 +2745,7 @@ extension _HomeScreenPages on _HomeScreenState {
           ).join(', ')
         : '-';
     return _buildModeScaffold(
-      showInstrument: false,
+      showInstrument: !_isCompactPhone(context),
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
@@ -2900,7 +2928,7 @@ extension _HomeScreenPages on _HomeScreenState {
         : math.max(650.0, availableWidth);
     final cellHeight = compactPhone ? 28.0 : 34.0;
     final cellHorizontalPadding = compactPhone ? 0.0 : 3.0;
-    final categoryColumnWidth = compactPhone ? 76.0 : 104.0;
+    final categoryColumnWidth = compactPhone ? 76.0 : 130.0;
     Widget tableCell(
       String text, {
       bool header = false,

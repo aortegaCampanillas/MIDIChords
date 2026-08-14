@@ -1413,7 +1413,7 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeBeatRowRect(Size size) {
-    final compact = size.height < 340;
+    final compact = _isCompactPhone(context) && size.height < 340;
     final count = math.max(1, _metroBeatsPerBar);
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
@@ -1434,7 +1434,7 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeMotionAxisRect(Size size) {
-    final compact = size.height < 340;
+    final compact = _isCompactPhone(context) && size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
     final axisY = compact
@@ -1446,7 +1446,7 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeCenterButtonRect(Size size) {
-    final compact = size.height < 340;
+    final compact = _isCompactPhone(context) && size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
     final buttonHeight = compact ? 32.0 : 46.0;
@@ -1460,7 +1460,7 @@ extension _HomeScreenHelp on _HomeScreenState {
   }
 
   Rect _metronomeTimerRect(Size size) {
-    final compact = size.height < 340;
+    final compact = _isCompactPhone(context) && size.height < 340;
     final left = 34.0;
     final right = math.max(left + 1.0, size.width - 34.0);
     final fontSize = compact

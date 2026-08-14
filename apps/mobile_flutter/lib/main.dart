@@ -304,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen>
     BoxConstraints constraints,
   ) =>
       constraints.maxWidth > constraints.maxHeight &&
-      (_isCompactPhone(context) || constraints.maxHeight < 500);
+      _isCompactPhone(context);
   final TextEditingController _detectionOutputController =
       TextEditingController(text: 'No results');
   final TextEditingController _chordOutputController = TextEditingController(
@@ -5435,10 +5435,7 @@ class _HomeScreenState extends State<HomeScreen>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
-          final compactLayout =
-              compactPhone ||
-              (constraints.maxWidth > constraints.maxHeight &&
-                  constraints.maxHeight < 500);
+          final compactLayout = compactPhone;
           final wide = constraints.maxWidth >= 900;
           if (compactLayout) {
             final staffHeight = math.min(
@@ -5515,12 +5512,20 @@ class _HomeScreenState extends State<HomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
-                      flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 57,
+                      flex: _tabIndex == 9
+                          ? 32
+                          : _tabIndex == 7
+                          ? 42
+                          : 57,
                       child: staffPanel,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 43,
+                      flex: _tabIndex == 9
+                          ? 68
+                          : _tabIndex == 7
+                          ? 58
+                          : 43,
                       child: controlsPanel,
                     ),
                   ],
@@ -5528,12 +5533,20 @@ class _HomeScreenState extends State<HomeScreen>
               : Column(
                   children: <Widget>[
                     Expanded(
-                      flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 56,
+                      flex: _tabIndex == 9
+                          ? 32
+                          : _tabIndex == 7
+                          ? 42
+                          : 56,
                       child: staffPanel,
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 44,
+                      flex: _tabIndex == 9
+                          ? 68
+                          : _tabIndex == 7
+                          ? 58
+                          : 44,
                       child: controlsPanel,
                     ),
                   ],
@@ -5756,6 +5769,7 @@ class _HomeScreenState extends State<HomeScreen>
                               'Pulsa Play para iniciar',
                               'Press Play to start',
                             ),
+                            isCompactPhone: _isCompactPhone(context),
                           ),
                           child: const SizedBox.expand(),
                         ),

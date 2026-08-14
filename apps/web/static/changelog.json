@@ -54,7 +54,7 @@
       },
       {
         "date": "2026-08-14",
-        "publish": false,
+        "publish": true,
         "platforms": ["mobile"],
         "es": "Los controles de Escalas y Metrónomo se adaptan al tamaño de pantalla del teléfono para aprovechar mejor el espacio.",
         "en": "Scales and Metronome controls adapt to the phone's screen size to make better use of the available space."

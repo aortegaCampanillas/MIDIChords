@@ -4,6 +4,10 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Práctica de intervalos**: durante la corrección, las columnas correcta e incorrecta se pueden pulsar para escucharlas aunque estén excluidas por el filtro, en web, escritorio y móvil.
+- **Escritorio / práctica de intervalos**: las respuestas incorrectas marcan en rojo su columna de semitonos y muestran en verde la esperada, incluso al contestar la nota en otra octava.
+- **Web / generación de acordes**: al cambiar de acorde o inversión se selecciona automáticamente la primera variante de guitarra.
+- **Escritorio / generación de acordes**: las posiciones abiertas de Re mayor, Sol mayor y La mayor conservan sus digitaciones habituales; Sol ya no se representa erróneamente con una cejilla.
 - **Distribución iOS**: actualizado el requisito mínimo a iOS 15 para cumplir las nuevas condiciones de App Store Connect.
 - **Audio**: aumentado el nivel general del escritorio manteniendo margen seguro para acordes.
 - **Práctica de intervalos**: el resaltado de la primera nota ya no puede desaparecer por temporizadores pendientes al cambiar de modo o avanzar rápidamente.

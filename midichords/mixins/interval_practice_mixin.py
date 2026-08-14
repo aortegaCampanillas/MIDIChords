@@ -217,10 +217,20 @@ class IntervalPracticeMixin:
         elif self.interval_practice_running:
             self._play_interval_practice_question()
 
-    def _answer_interval_practice(self, *, note: int | None = None, semitones: int | None = None) -> bool:
+    def _answer_interval_practice(
+        self,
+        *,
+        note: int | None = None,
+        semitones: int | None = None,
+        column_key: str | None = None,
+    ) -> bool:
         if self.interval_practice_answer and semitones is not None:
             selected = int(semitones)
-            answer_distance = int(self.interval_practice_answer["semitones"])
+            answer_distance = int(
+                self.interval_practice_answer.get(
+                    "table_semitones", self.interval_practice_answer["semitones"]
+                )
+            )
             if selected not in {int(self.interval_practice_semitones), answer_distance}:
                 return False
             root = int(self.interval_practice_root)
@@ -234,12 +244,19 @@ class IntervalPracticeMixin:
         root, correct_note = self.interval_practice_question_notes()
         guessed_note = int(note) if note is not None else root + self.interval_practice_direction * int(semitones)
         guessed_semitones = abs(guessed_note - root) if semitones is None else int(semitones)
+        table_semitones = guessed_semitones
+        if semitones is None and guessed_semitones > 12:
+            table_semitones = guessed_semitones % 12
+            if table_semitones == 0:
+                table_semitones = 12
         correct = guessed_note == correct_note if note is not None else guessed_semitones == self.interval_practice_semitones
         self.interval_practice_total += 1
         self.interval_practice_correct += int(correct)
         self.interval_practice_answer = {
             "note": guessed_note,
             "semitones": guessed_semitones,
+            "table_semitones": table_semitones,
+            "column_key": column_key,
             "correct": correct,
         }
         self.interval_practice_history.append({
@@ -547,8 +564,18 @@ class IntervalPracticeMixin:
                 label = tk.Label(cell_frame, text=cell["short"] if cell else "", bg=cell_bg, fg=self.color_text, font=(self.ui_font_family, 12), anchor="center")
                 label.pack(anchor="center", pady=2)
                 if cell:
-                    cell_frame.bind("<Button-1>", lambda _e, s=semitones: self._answer_interval_practice(semitones=s))
-                    label.bind("<Button-1>", lambda _e, s=semitones: self._answer_interval_practice(semitones=s))
+                    cell_frame.bind(
+                        "<Button-1>",
+                        lambda _e, s=semitones, c=column["key"]: self._answer_interval_practice(
+                            semitones=s, column_key=c
+                        ),
+                    )
+                    label.bind(
+                        "<Button-1>",
+                        lambda _e, s=semitones, c=column["key"]: self._answer_interval_practice(
+                            semitones=s, column_key=c
+                        ),
+                    )
                     cell_frame.configure(cursor="pointinghand")
                     label.configure(cursor="pointinghand")
                 self.interval_practice_cells[(column["key"], semitones)] = (cell_frame, label, bool(cell))
@@ -558,6 +585,19 @@ class IntervalPracticeMixin:
             label.configure(text=self._interval_practice_text(key))
         for column, _title_cell, label in getattr(self, "interval_practice_row_titles", []):
             label.configure(text=column["title"].get(self._interval_gen_language(), column["title"]["es"]))
+
+    def _interval_practice_cell_feedback(self, column_key: str, semitones: int) -> str | None:
+        answer = self.interval_practice_answer
+        if not answer:
+            return None
+        if int(semitones) == int(self.interval_practice_semitones):
+            return "correct"
+        if answer.get("correct"):
+            return None
+        answer_semitones = int(answer.get("table_semitones", answer["semitones"]))
+        if int(semitones) == answer_semitones:
+            return "wrong"
+        return None
 
     def _refresh_interval_practice_ui(self) -> None:
         if not hasattr(self, "_interval_practice_panel_created"):
@@ -604,15 +644,20 @@ class IntervalPracticeMixin:
         for (column_key, semitones), (cell_frame, label, exists) in self.interval_practice_cells.items():
             allowed = semitones in self.interval_practice_allowed_semitones
             bg, fg = "#0f1c2c", self.color_text if allowed else self.color_muted
-            if answered and semitones == self.interval_practice_semitones:
+            feedback = self._interval_practice_cell_feedback(column_key, semitones)
+            if feedback == "correct":
                 bg, fg = "#39c66d", "#17273a"
-            elif answered and not self.interval_practice_answer["correct"] and semitones == self.interval_practice_answer["semitones"]:
+            elif feedback == "wrong":
                 bg, fg = "#e35d67", "#ffffff"
             playable_answer = answered and semitones in {
                 int(self.interval_practice_semitones),
                 int(self.interval_practice_answer["semitones"]),
             }
-            cursor = "pointinghand" if exists and allowed and (not answered or playable_answer) else ""
+            cursor = (
+                "pointinghand"
+                if exists and ((not answered and allowed) or playable_answer)
+                else ""
+            )
             cell_frame.configure(bg=bg, cursor=cursor)
             label.configure(bg=bg, fg=fg, cursor=cursor)
         for semitones, header in self.interval_practice_headers.items():

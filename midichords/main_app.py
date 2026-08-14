@@ -820,12 +820,12 @@ class MidiChordAnalyzerApp(
                     open_count = sum(1 for f in frets if f == 0)
                     if fretted and (max(fretted) - min(fretted) > 4):
                         continue
-                    # Las formas "cerradas" (posición > 0) a veces se muestran con notas
+                    # Las formas cerradas desplazadas (posición >= 5) a veces se muestran con notas
                     # "por delante" si conservan cuerdas abiertas, especialmente en cejillas.
                     # En vez de descartar cualquier forma con min(fretted) > 0 y open_count > 0,
                     # lo refinamos: solo descartamos cuando la menor posición (min fret)
                     # aparece en 2+ cuerdas (heurística de barre).
-                    if fretted and min(fretted) > 0 and open_count > 0:
+                    if fretted and min(fretted) >= 5 and open_count > 0:
                         min_fret = min(fretted)
                         min_fret_count = sum(1 for f in fretted if f == min_fret)
                         if min_fret_count >= 2:
@@ -909,7 +909,7 @@ class MidiChordAnalyzerApp(
     def _postprocess_cached_guitar_variations(self, cached: list[dict], root_pc: int, pattern: ChordPattern) -> list[dict]:
         """
         Filtra y reordena variaciones cacheadas para alinearlas con el algoritmo de generación.
-        En particular, evita formas cerradas (min fretted > 0) que conservan cuerdas abiertas
+        En particular, evita formas cerradas desplazadas (min fretted >= 5) que conservan cuerdas abiertas
         (fret==0), porque se ve una cejilla pero aparecen notas por delante de ella.
         """
         tuning = [40, 45, 50, 55, 59, 64]  # E2 A2 D3 G3 B3 E4 (6->1)
@@ -940,7 +940,7 @@ class MidiChordAnalyzerApp(
                 continue
             # Mismo refinamiento que en `_compute_guitar_variations`: descartar solo
             # cuando la menor posición (min fret) actúa como barre (2+ cuerdas).
-            if fretted and min(fretted) > 0 and open_count > 0:
+            if fretted and min(fretted) >= 5 and open_count > 0:
                 min_fret = min(fretted)
                 min_fret_count = sum(1 for f in fretted if f == min_fret)
                 if min_fret_count >= 2:
@@ -972,7 +972,15 @@ class MidiChordAnalyzerApp(
                 -len(note_pcs),
             )
 
-            fingers = self._assign_guitar_fingers(frets)
+            cached_fingers = entry.get("fingers")
+            if (
+                isinstance(cached_fingers, list)
+                and len(cached_fingers) >= 6
+                and all(isinstance(finger, int) and 0 <= finger <= 4 for finger in cached_fingers[:6])
+            ):
+                fingers = [int(finger) for finger in cached_fingers[:6]]
+            else:
+                fingers = self._assign_guitar_fingers(frets)
             string_notes = [(tuning[i] + frets[i]) if frets[i] >= 0 else None for i in range(6)]
             candidate_shapes.append(
                 (

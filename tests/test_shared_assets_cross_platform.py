@@ -41,6 +41,14 @@ class SharedAssetsCrossPlatformTests(unittest.TestCase):
                 with self.subTest(key=key):
                     self.assertTrue(cache.get(key), f"Faltan digitaciones para {key}")
 
+    def test_standard_open_g_major_keeps_the_b_string_open(self):
+        cache = json.loads(
+            (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")
+        )["by_app_key"]
+
+        self.assertEqual([3, 2, 0, 0, 0, 3], cache["7|"][0]["frets"])
+        self.assertEqual([2, 1, 0, 0, 0, 3], cache["7|"][0]["fingers"])
+
     def test_added_note_voicings_show_one_playable_shape(self):
         cache = json.loads(
             (DESKTOP_ASSETS / "guitar_chord_cache.json").read_text(encoding="utf-8")

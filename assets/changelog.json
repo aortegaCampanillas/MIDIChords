@@ -6,6 +6,34 @@
       {
         "date": "2026-08-14",
         "publish": false,
+        "platforms": ["web", "desktop", "mobile"],
+        "es": "Durante la corrección de Práctica de intervalos se pueden pulsar y escuchar las columnas correcta e incorrecta aunque estén fuera del filtro activo.",
+        "en": "During Interval Practice correction, the correct and incorrect columns can be pressed and heard even when excluded by the active filter."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["desktop"],
+        "es": "Práctica de intervalos marca en rojo la columna de la respuesta incorrecta, incluso si la nota se contestó en otra octava.",
+        "en": "Interval Practice marks the incorrect answer column in red, even when the answered note was played in another octave."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["web"],
+        "es": "Generación de acordes selecciona automáticamente la primera digitación de guitarra al cambiar de acorde o inversión.",
+        "en": "Chord Generation automatically selects the first guitar fingering when changing the chord or inversion."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["desktop"],
+        "es": "Generación de acordes conserva las digitaciones habituales de las posiciones abiertas de Re mayor, Sol mayor y La mayor; Sol ya no se representa con una cejilla incorrecta.",
+        "en": "Chord Generation preserves the standard fingerings for the open D major, G major, and A major shapes; G is no longer shown with an incorrect barre."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
         "platforms": ["mobile"],
         "es": "Generación y Práctica de intervalos reducen la altura del pentagrama en tablet para mostrar más contenido de sus paneles.",
         "en": "Interval Generation and Interval Practice reduce the staff height on tablets to show more content in their panels."

@@ -335,17 +335,13 @@ extension _HomeScreenPages on _HomeScreenState {
                         item.label,
                         color: color,
                         onTap:
-                            allowed &&
-                                ((_intervalPracticeRunning &&
-                                        _intervalPracticeAnswerCorrect ==
-                                            null) ||
-                                    (_intervalPracticeAnswerCorrect != null &&
-                                        (semitones ==
-                                                _intervalPracticeSemitones ||
-                                            semitones ==
-                                                (_intervalPracticeAnswerNote! -
-                                                        _intervalPracticeRoot)
-                                                    .abs())))
+                            (_intervalPracticeAnswerCorrect == null
+                                ? allowed && _intervalPracticeRunning
+                                : semitones == _intervalPracticeSemitones ||
+                                      semitones ==
+                                          (_intervalPracticeAnswerNote! -
+                                                  _intervalPracticeRoot)
+                                              .abs())
                             ? () => _selectIntervalPracticeTableCell(semitones)
                             : null,
                       );

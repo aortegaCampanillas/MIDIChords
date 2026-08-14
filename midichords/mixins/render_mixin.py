@@ -11,6 +11,56 @@ from midichords.core.tomplay_fingerings import get_fingering_for_scale
 
 
 class RenderMixin:
+    @staticmethod
+    def _guitar_barre_segments(
+        frets: list[int], fingers: list[int]
+    ) -> tuple[list[tuple[int, int, int, int, set[int]]], set[int]]:
+        """Detect cejillas only across strings assigned to the same finger."""
+        segments: list[tuple[int, int, int, int, set[int]]] = []
+        covered_strings: set[int] = set()
+        sounded = [index for index, fret in enumerate(frets) if fret >= 0]
+        min_sounded = min(sounded) if sounded else 0
+        max_sounded = max(sounded) if sounded else 0
+
+        pairs = sorted(
+            {
+                (fret, fingers[index])
+                for index, fret in enumerate(frets)
+                if fret > 0 and fingers[index] > 0
+            }
+        )
+        for fret, finger in pairs:
+            indexes = [
+                index
+                for index, value in enumerate(frets)
+                if value == fret and fingers[index] == finger
+            ]
+            if len(indexes) < 2:
+                continue
+            if indexes[0] == min_sounded and indexes[-1] == max_sounded:
+                covered = set(indexes)
+                segments.append((fret, finger, indexes[0], indexes[-1], covered))
+                covered_strings.update(covered)
+                continue
+            run_start = indexes[0]
+            run_previous = indexes[0]
+            for index in indexes[1:]:
+                if index == run_previous + 1:
+                    run_previous = index
+                    continue
+                if run_previous > run_start:
+                    covered = set(range(run_start, run_previous + 1))
+                    segments.append((fret, finger, run_start, run_previous, covered))
+                    covered_strings.update(covered)
+                run_start = index
+                run_previous = index
+            if run_previous > run_start:
+                covered = set(range(run_start, run_previous + 1))
+                segments.append((fret, finger, run_start, run_previous, covered))
+                covered_strings.update(covered)
+
+        return segments, covered_strings
+
     def _keyboard_note_label(self, note: int) -> str:
         """Show the octave on C keys so the keyboard range is unambiguous."""
         return self.note_name(
@@ -664,40 +714,9 @@ class RenderMixin:
         # Detect barre segments on displayed order (high E -> low E).
         disp_frets = [frets_selected[5 - i] for i in range(6)]
         disp_fingers = [fingers_selected[5 - i] for i in range(6)]
-        barre_segments: list[tuple[int, int, int, int, set[int]]] = []  # (fret, finger, start_string, end_string, covered_strings)
-        barre_covered: set[int] = set()
-        sounded_idxs = [i for i, f in enumerate(disp_frets) if f >= 0]
-        min_sounded = min(sounded_idxs) if sounded_idxs else 0
-        max_sounded = max(sounded_idxs) if sounded_idxs else 0
-        for fret in sorted({f for f in disp_frets if f > 0}):
-            idxs = [i for i, f in enumerate(disp_frets) if f == fret and disp_fingers[i] > 0]
-            if len(idxs) < 2:
-                continue
-            # Full barre: same fret on first and last sounding string (e.g., F major at fret 1).
-            if idxs[0] == min_sounded and idxs[-1] == max_sounded:
-                finger = disp_fingers[idxs[0]]
-                covered = set(idxs)
-                barre_segments.append((fret, finger, idxs[0], idxs[-1], covered))
-                barre_covered.update(covered)
-                continue
-            run_start = idxs[0]
-            run_prev = idxs[0]
-            for idx in idxs[1:]:
-                if idx == run_prev + 1:
-                    run_prev = idx
-                else:
-                    if run_prev - run_start + 1 >= 2:
-                        finger = disp_fingers[run_start]
-                        covered = set(range(run_start, run_prev + 1))
-                        barre_segments.append((fret, finger, run_start, run_prev, covered))
-                        barre_covered.update(covered)
-                    run_start = idx
-                    run_prev = idx
-            if run_prev - run_start + 1 >= 2:
-                finger = disp_fingers[run_start]
-                covered = set(range(run_start, run_prev + 1))
-                barre_segments.append((fret, finger, run_start, run_prev, covered))
-                barre_covered.update(covered)
+        barre_segments, barre_covered = self._guitar_barre_segments(
+            disp_frets, disp_fingers
+        )
 
         for fret, finger, start_s, end_s, covered in barre_segments:
             x = fret_center_x(fret)

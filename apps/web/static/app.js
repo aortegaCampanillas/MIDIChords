@@ -933,7 +933,9 @@ async function runGenerateChordCircle(playChordAfter = false) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  const chordChanged = guitarVariationChordKey(state.generatedChord) !== guitarVariationChordKey(out);
   state.generatedChord = out;
+  if (chordChanged) state.guitarSelectedVariationIdx = 0;
   const nameEl = el("circleChordName");
   if (nameEl) nameEl.textContent = out.name || "-";
   await loadGuitarVariations();
@@ -2304,6 +2306,11 @@ function variationBassPc(variation) {
   return null;
 }
 
+function guitarVariationChordKey(chord) {
+  if (!chord) return null;
+  return `${Number(chord.root_pc) % 12}|${String(chord.suffix || "")}|${Number(chord.inversion || 0)}`;
+}
+
 async function getVariationsFromClientCache(rootPc, suffix, inversion) {
   if (!state.guitarChordCache) {
     const cache = await fetchJson("/static/guitar_chord_cache.json");
@@ -2978,9 +2985,14 @@ function refreshIntervalPracticeUi() {
     table.querySelectorAll(".interval-gen-cell").forEach((button) => {
       button.classList.remove("selected", "practice-wrong");
       const hasInterval = button.textContent.trim() !== "";
-      const allowed = state.intervalPracticeAllowedSemitones.has(Number(button.dataset.semitones));
-      button.disabled = !hasInterval || !allowed;
-      button.classList.toggle("filter-disabled", hasInterval && !allowed);
+      const semitones = Number(button.dataset.semitones);
+      const allowed = state.intervalPracticeAllowedSemitones.has(semitones);
+      const correctionPlayable = Boolean(state.intervalPracticeAnswer) && (
+        semitones === Number(state.intervalPracticeSemitones)
+        || semitones === Number(state.intervalPracticeAnswer.semitones)
+      );
+      button.disabled = !hasInterval || (state.intervalPracticeAnswer ? !correctionPlayable : !allowed);
+      button.classList.toggle("filter-disabled", hasInterval && !allowed && !correctionPlayable);
       button.tabIndex = button.disabled ? -1 : 0;
       if (!state.intervalPracticeAnswer) return;
       if (Number(button.dataset.semitones) === Number(state.intervalPracticeSemitones)) button.classList.add("selected");
@@ -6293,7 +6305,9 @@ async function runGenerateChord({ play = false } = {}) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  const chordChanged = guitarVariationChordKey(state.generatedChord) !== guitarVariationChordKey(out);
   state.generatedChord = out;
+  if (chordChanged) state.guitarSelectedVariationIdx = 0;
   el("genChordName").textContent = out.name || "-";
   const genDescEl = el("genChordDesc");
   if (genDescEl) genDescEl.textContent = out.description ? `(${out.description})` : "";

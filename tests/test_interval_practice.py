@@ -83,3 +83,58 @@ def test_answered_table_cell_replays_selected_descending_interval():
     assert app._answer_interval_practice(semitones=3)
     assert not app._answer_interval_practice(semitones=5)
     assert app.played == [[60, 53], [60, 57]]
+
+
+def test_table_feedback_marks_the_correct_and_wrong_semitone_columns():
+    app = _PracticeHarness()
+    app.interval_practice_column_key = "augmented"
+    app.interval_practice_semitones = 1
+    app.interval_practice_answer = {
+        "note": 62,
+        "semitones": 2,
+        "column_key": "major",
+        "correct": False,
+    }
+
+    assert app._interval_practice_cell_feedback("augmented", 1) == "correct"
+    assert app._interval_practice_cell_feedback("major", 2) == "wrong"
+    assert app._interval_practice_cell_feedback("diminished", 2) == "wrong"
+    assert app._interval_practice_cell_feedback("minor", 1) == "correct"
+
+
+def test_piano_answer_marks_every_matching_spelling_when_row_is_unknown():
+    app = _PracticeHarness()
+    app.interval_practice_column_key = "perfect"
+    app.interval_practice_semitones = 7
+    app.interval_practice_answer = {
+        "note": 68,
+        "semitones": 8,
+        "column_key": None,
+        "correct": False,
+    }
+
+    assert app._interval_practice_cell_feedback("minor", 8) == "wrong"
+    assert app._interval_practice_cell_feedback("augmented", 8) == "wrong"
+    assert app._interval_practice_cell_feedback("perfect", 7) == "correct"
+
+
+def test_piano_answer_normalizes_compound_distance_to_the_table_column():
+    app = _PracticeHarness()
+    app.interval_practice_started = True
+    app.interval_practice_running = True
+    app.interval_practice_root = 57
+    app.interval_practice_direction = 1
+    app.interval_practice_semitones = 1
+    app.interval_practice_column_key = "minor"
+    app.interval_practice_total = 0
+    app.interval_practice_correct = 0
+    app.interval_practice_repetitions = 3
+    app.interval_practice_answer = None
+    app.interval_practice_history = []
+    app._play_interval_practice_notes = lambda _notes: None
+    app._refresh_interval_practice_ui = lambda: None
+
+    assert app._answer_interval_practice(note=71)
+    assert app.interval_practice_answer["semitones"] == 14
+    assert app.interval_practice_answer["table_semitones"] == 2
+    assert app._interval_practice_cell_feedback("major", 2) == "wrong"

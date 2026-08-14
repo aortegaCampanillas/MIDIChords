@@ -2,7 +2,56 @@
   {
     "version": "v1.0.7",
     "date": "2026-08-10",
-    "items": [
+      "items": [
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["web", "desktop", "mobile"],
+        "es": "Las digitaciones de guitarra identifican las cuerdas al aire con 0 y las cuerdas silenciadas con X a la misma altura.",
+        "en": "Guitar fingerings identify open strings with 0 and muted strings with X at the same height."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Generación de intervalos elimina el panel inferior de piano para ampliar el espacio dedicado al ejercicio.",
+        "en": "Interval Generation removes the lower piano panel to enlarge the space dedicated to the exercise."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "El Círculo de quintas prescinde del panel de instrumento para dedicar toda la pantalla al círculo.",
+        "en": "The Circle of Fifths removes the instrument panel to dedicate the full screen to the circle."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Los modos compactan la barra principal, eliminan títulos redundantes y reducen paneles, botones, textos y teclado en teléfonos en horizontal; Generación de acordes distribuye pentagrama, controles e información en tres columnas.",
+        "en": "Modes compact the main bar, remove redundant headings, and reduce panels, buttons, text, and keyboard on phones in landscape; Chord Generation distributes the staff, controls, and information across three columns."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "El diálogo de novedades adapta su lista al alto disponible y evita desbordamientos en iPhone en horizontal.",
+        "en": "The What's New dialog adapts its list to the available height and avoids overflow on iPhone in landscape."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Las posiciones de acordes sobre el mástil muestran el número de dedo de la digitación en lugar del nombre de la nota.",
+        "en": "Chord positions on the fretboard show fingering numbers instead of note names."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
+        "platforms": ["mobile"],
+        "es": "Generación de intervalos se abre sin un intervalo precargado y espera a que se seleccione una celda de la tabla.",
+        "en": "Interval Generation opens without a preloaded interval and waits for a table cell to be selected."
+      },
       {
         "date": "2026-08-14",
         "publish": false,

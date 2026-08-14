@@ -302,7 +302,9 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isCompactLandscapePhoneForConstraints(
     BuildContext context,
     BoxConstraints constraints,
-  ) => _isCompactPhone(context) && constraints.maxWidth > constraints.maxHeight;
+  ) =>
+      constraints.maxWidth > constraints.maxHeight &&
+      (_isCompactPhone(context) || constraints.maxHeight < 500);
   final TextEditingController _detectionOutputController =
       TextEditingController(text: 'No results');
   final TextEditingController _chordOutputController = TextEditingController(
@@ -427,6 +429,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _intervalGenSemitones = 7;
   String _intervalGenCategoryKey = 'perfect';
   String _intervalGenLabel = '5J';
+  bool _intervalGenSelected = false;
   int? _intervalGenPlayingIdx;
   bool? _intervalGenLastPlayReversed;
   bool _intervalGenHarmonic = false;
@@ -561,6 +564,7 @@ class _HomeScreenState extends State<HomeScreen>
     String? suffix,
     int? inversion,
     bool enabled = true,
+    bool compact = false,
   }) {
     final selectedSuffix = suffix ?? _chordSuffix;
     final selectedInversion = inversion ?? _chordInversion;
@@ -569,8 +573,8 @@ class _HomeScreenState extends State<HomeScreen>
       Tooltip(
         message: _ui('Ayuda de la variante', 'Variant help'),
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: compact ? 34 : 40,
+          height: compact ? 34 : 40,
           child: OutlinedButton(
             onPressed: enabled
                 ? () => unawaited(
@@ -1023,92 +1027,82 @@ class _HomeScreenState extends State<HomeScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  ConstrainedBox(
-                    // Deja sitio para el título del diálogo, el checkbox
-                    // "No volver a mostrar" y los botones de acción, que
-                    // viven fuera de este ConstrainedBox pero comparten el
-                    // mismo alto disponible dentro del AlertDialog. Restamos
-                    // una reserva fija (título + padding + checkbox +
-                    // acciones) del alto de pantalla en vez de un simple
-                    // porcentaje, para que quepa también en landscape de
-                    // iPhone (pantallas de ~400-430pt de alto).
-                    constraints: BoxConstraints(
-                      maxHeight: math.max(
-                        120.0,
-                        math.min(
-                          380.0,
-                          MediaQuery.of(context).size.height - 260.0,
-                        ),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: sections
-                            .map(
-                              (s) => Padding(
-                                padding: const EdgeInsets.only(bottom: 14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Row(
-                                      children: <Widget>[
-                                        Text(
-                                          s.version,
-                                          style: const TextStyle(
-                                            color: _accent,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        if (s.date.isNotEmpty) ...<Widget>[
-                                          const SizedBox(width: 8),
+                  Flexible(
+                    // El AlertDialog ya limita el alto disponible. La lista
+                    // ocupa solo el espacio que queda tras reservar el
+                    // checkbox, evitando desbordamientos en iPhone landscape.
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 380),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: sections
+                              .map(
+                                (s) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Row(
+                                        children: <Widget>[
                                           Text(
-                                            s.date,
+                                            s.version,
                                             style: const TextStyle(
-                                              color: _muted,
-                                              fontSize: 11,
+                                              color: _accent,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
                                             ),
                                           ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    ...s.items.map(
-                                      (text) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 6,
-                                        ),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            const Text(
-                                              '• ',
-                                              style: TextStyle(
+                                          if (s.date.isNotEmpty) ...<Widget>[
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              s.date,
+                                              style: const TextStyle(
                                                 color: _muted,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                text,
-                                                style: const TextStyle(
-                                                  color: _text,
-                                                  height: 1.4,
-                                                  fontSize: 13,
-                                                ),
+                                                fontSize: 11,
                                               ),
                                             ),
                                           ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...s.items.map(
+                                        (text) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 6,
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              const Text(
+                                                '• ',
+                                                style: TextStyle(
+                                                  color: _muted,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  text,
+                                                  style: const TextStyle(
+                                                    color: _text,
+                                                    height: 1.4,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            )
-                            .toList(),
+                              )
+                              .toList(),
+                        ),
                       ),
                     ),
                   ),
@@ -3496,29 +3490,30 @@ class _HomeScreenState extends State<HomeScreen>
     required String labelEs,
     required String labelEn,
     required String value,
+    bool compact = false,
   }) {
     return _helpAnchor(
       helpId,
       Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: EdgeInsets.only(bottom: compact ? 2 : 4),
         child: RichText(
           text: TextSpan(
             children: <InlineSpan>[
               TextSpan(
                 text: '${_ui(labelEs, labelEn)}: ',
-                style: const TextStyle(
+                style: TextStyle(
                   color: _muted,
                   fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  height: 1.35,
+                  fontSize: compact ? 12 : 16,
+                  height: compact ? 1.2 : 1.35,
                 ),
               ),
               TextSpan(
                 text: value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _text,
-                  fontSize: 16,
-                  height: 1.35,
+                  fontSize: compact ? 12 : 16,
+                  height: compact ? 1.2 : 1.35,
                 ),
               ),
             ],
@@ -3568,11 +3563,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Widget _buildChordResultBlock() {
+  Widget _buildChordResultBlock({bool compact = false}) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
         color: const Color(0xFF17273A),
         borderRadius: BorderRadius.circular(10),
@@ -3586,34 +3581,34 @@ class _HomeScreenState extends State<HomeScreen>
             _helpAnchor(
               'generation_result_chord',
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: compact ? 2 : 4),
                 child: RichText(
                   text: TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
                         text: '${_ui('Acorde', 'Chord')}: ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _muted,
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          height: 1.35,
+                          fontSize: compact ? 12 : 16,
+                          height: compact ? 1.2 : 1.35,
                         ),
                       ),
                       TextSpan(
                         text: _chordResultValue('name'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _text,
-                          fontSize: 16,
-                          height: 1.35,
+                          fontSize: compact ? 12 : 16,
+                          height: compact ? 1.2 : 1.35,
                         ),
                       ),
                       if (_chordResultValue('description').isNotEmpty)
                         TextSpan(
                           text: '  (${_chordResultValue('description')})',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _muted,
-                            fontSize: 13,
-                            height: 1.35,
+                            fontSize: compact ? 10 : 13,
+                            height: compact ? 1.2 : 1.35,
                           ),
                         ),
                     ],
@@ -3626,18 +3621,21 @@ class _HomeScreenState extends State<HomeScreen>
               labelEs: 'Notas',
               labelEn: 'Notes',
               value: _chordResultValue('notes'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'generation_result_formula',
               labelEs: 'Fórmula',
               labelEn: 'Formula',
               value: _chordResultValue('formula'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'generation_result_construction',
               labelEs: 'Construcción',
               labelEn: 'Construction',
               value: _chordResultValue('construction'),
+              compact: compact,
             ),
           ],
         ),
@@ -3724,11 +3722,11 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildDetectionResultBlock() {
+  Widget _buildDetectionResultBlock({bool compact = false}) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compact ? 7 : 10),
       decoration: BoxDecoration(
         color: const Color(0xFF17273A),
         borderRadius: BorderRadius.circular(10),
@@ -3742,34 +3740,34 @@ class _HomeScreenState extends State<HomeScreen>
             _helpAnchor(
               'detection_result_chord',
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: compact ? 2 : 4),
                 child: RichText(
                   text: TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
                         text: '${_ui('Acorde', 'Chord')}: ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _muted,
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          height: 1.35,
+                          fontSize: compact ? 12 : 16,
+                          height: compact ? 1.2 : 1.35,
                         ),
                       ),
                       TextSpan(
                         text: _detectionResultValue('name'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _text,
-                          fontSize: 16,
-                          height: 1.35,
+                          fontSize: compact ? 12 : 16,
+                          height: compact ? 1.2 : 1.35,
                         ),
                       ),
                       if (_detectionResultValue('description').isNotEmpty)
                         TextSpan(
                           text: '  (${_detectionResultValue('description')})',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _muted,
-                            fontSize: 13,
-                            height: 1.35,
+                            fontSize: compact ? 10 : 13,
+                            height: compact ? 1.2 : 1.35,
                           ),
                         ),
                     ],
@@ -3782,24 +3780,28 @@ class _HomeScreenState extends State<HomeScreen>
               labelEs: 'Notas',
               labelEn: 'Notes',
               value: _detectionResultValue('notes'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'detection_result_extras',
               labelEs: 'Sobrantes',
               labelEn: 'Extras',
               value: _detectionResultValue('extras'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'detection_result_formula',
               labelEs: 'Fórmula',
               labelEn: 'Formula',
               value: _detectionResultValue('formula'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'detection_result_construction',
               labelEs: 'Construcción',
               labelEn: 'Construction',
               value: _detectionResultValue('construction'),
+              compact: compact,
             ),
           ],
         ),
@@ -4380,6 +4382,8 @@ class _HomeScreenState extends State<HomeScreen>
     String? letterHelpId,
     String? accidentalHelpId,
     double helpAnchorHeight = 56,
+    bool compact = false,
+    bool hideLabel = false,
   }) {
     int letterPc;
     String accidental;
@@ -4410,13 +4414,13 @@ class _HomeScreenState extends State<HomeScreen>
               initialValue: letterPc,
               isExpanded: true,
               dropdownColor: _surfaceDark,
-              style: const TextStyle(color: _text),
+              style: TextStyle(color: _text, fontSize: compact ? 11 : null),
               decoration: InputDecoration(
-                labelText: _ui('Tónica', 'Tonic'),
+                labelText: hideLabel ? null : _ui('Tónica', 'Tonic'),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 8,
-                  vertical: 12,
+                  vertical: compact ? 8 : 12,
                 ),
               ),
               items: _kRootLetterPcs
@@ -4454,13 +4458,13 @@ class _HomeScreenState extends State<HomeScreen>
               initialValue: safeAccidental,
               isExpanded: true,
               dropdownColor: _surfaceDark,
-              style: const TextStyle(color: _text),
-              decoration: const InputDecoration(
+              style: TextStyle(color: _text, fontSize: compact ? 11 : null),
+              decoration: InputDecoration(
                 labelText: '',
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 8,
-                  vertical: 12,
+                  vertical: compact ? 8 : 12,
                 ),
               ),
               items: accidentals
@@ -4971,6 +4975,7 @@ class _HomeScreenState extends State<HomeScreen>
     final media = MediaQuery.of(context);
     final portrait = media.orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
+    final compactLandscape = compactPhone && !portrait;
     final tabletPortrait = !compactPhone && portrait;
     final enabledModes = _enabledModeIndexes();
     final currentTab = enabledModes.contains(_tabIndex) ? _tabIndex : 0;
@@ -5004,15 +5009,17 @@ class _HomeScreenState extends State<HomeScreen>
         Scaffold(
           appBar: AppBar(
             toolbarHeight: compactPhone
-                ? (portrait ? 60 : 64)
+                ? (portrait ? 60 : 50)
                 : (portrait ? 64 : 74),
             automaticallyImplyLeading: false,
             leadingWidth: compactPhone
-                ? 196.0
+                ? (compactLandscape ? 170.0 : 196.0)
                 : (tabletPortrait ? 220.0 : 340.0),
             leading: Padding(
               padding: EdgeInsets.only(
-                left: compactPhone ? 8.0 : (tabletPortrait ? 10.0 : 16.0),
+                left: compactLandscape
+                    ? 6.0
+                    : (compactPhone ? 8.0 : (tabletPortrait ? 10.0 : 16.0)),
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -5020,7 +5027,7 @@ class _HomeScreenState extends State<HomeScreen>
                   'MIDI Piano & Guitar Chords',
                   style: TextStyle(
                     fontSize: compactPhone
-                        ? (portrait ? 15 : 18)
+                        ? (portrait ? 15 : 14)
                         : (tabletPortrait ? 14 : 24),
                     color: _text,
                     fontWeight: FontWeight.w500,
@@ -5040,14 +5047,14 @@ class _HomeScreenState extends State<HomeScreen>
                 // a los botones vecinos de `actions`.
                 final safetyMargin = tabletPortrait
                     ? 8.0
-                    : (compactPhone ? 16.0 : 20.0);
+                    : (compactPhone ? 10.0 : 20.0);
                 final availableForTitle = math.max(
                   80.0,
                   titleConstraints.maxWidth - safetyMargin,
                 );
                 final dropdownW = math.min(
                   compactPhone
-                      ? (portrait ? 260.0 : 300.0)
+                      ? (portrait ? 260.0 : 230.0)
                       : (tabletPortrait ? 220.0 : 340.0),
                   availableForTitle,
                 );
@@ -5064,15 +5071,21 @@ class _HomeScreenState extends State<HomeScreen>
                       dropdownColor: _surfaceDark,
                       style: TextStyle(
                         color: _text,
-                        fontSize: tabletPortrait ? 14 : null,
+                        fontSize: compactLandscape
+                            ? 12
+                            : (tabletPortrait ? 14 : null),
                       ),
                       decoration: InputDecoration(
                         hintText: _ui('Modo', 'Mode'),
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: tabletPortrait
+                          horizontal: compactLandscape
+                              ? 8
+                              : tabletPortrait
                               ? 8
                               : (compactPhone ? 10 : 12),
-                          vertical: tabletPortrait
+                          vertical: compactLandscape
+                              ? 4
+                              : tabletPortrait
                               ? 6
                               : (compactPhone ? 6 : 10),
                         ),
@@ -5160,30 +5173,45 @@ class _HomeScreenState extends State<HomeScreen>
                   padding: EdgeInsets.only(
                     right: tabletPortrait ? 4 : (compactPhone ? 6 : 8),
                   ),
-                  child: OutlinedButton(
-                    onPressed: _toggleMidiInput,
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                        color: _midiInputEnabled ? _accent : _border,
-                        width: _midiInputEnabled ? 2 : 1,
+                  child: SizedBox(
+                    height: compactLandscape ? 34 : null,
+                    child: OutlinedButton(
+                      onPressed: _toggleMidiInput,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: compactLandscape
+                            ? const Size(0, 34)
+                            : null,
+                        tapTargetSize: compactLandscape
+                            ? MaterialTapTargetSize.shrinkWrap
+                            : null,
+                        side: BorderSide(
+                          color: _midiInputEnabled ? _accent : _border,
+                          width: _midiInputEnabled ? 2 : 1,
+                        ),
+                        foregroundColor: _midiInputEnabled
+                            ? const Color(0xFF1A222D)
+                            : _text,
+                        backgroundColor: _midiInputEnabled
+                            ? _accent
+                            : _surfaceDark,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compactLandscape
+                              ? 7
+                              : tabletPortrait
+                              ? 8
+                              : (compactPhone ? 10 : 14),
+                          vertical: compactLandscape
+                              ? 4
+                              : (tabletPortrait ? 6 : (compactPhone ? 6 : 8)),
+                        ),
+                        textStyle: TextStyle(
+                          fontSize: compactLandscape
+                              ? 11
+                              : (tabletPortrait ? 14 : null),
+                        ),
                       ),
-                      foregroundColor: _midiInputEnabled
-                          ? const Color(0xFF1A222D)
-                          : _text,
-                      backgroundColor: _midiInputEnabled
-                          ? _accent
-                          : _surfaceDark,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: tabletPortrait
-                            ? 8
-                            : (compactPhone ? 10 : 14),
-                        vertical: tabletPortrait ? 6 : (compactPhone ? 6 : 8),
-                      ),
-                      textStyle: TextStyle(
-                        fontSize: tabletPortrait ? 14 : null,
-                      ),
+                      child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
                     ),
-                    child: Text(_midiInputEnabled ? 'MIDI: On' : 'MIDI: Off'),
                   ),
                 ),
               ),
@@ -5236,14 +5264,19 @@ class _HomeScreenState extends State<HomeScreen>
               _helpAnchor(
                 'accidental',
                 Container(
+                  height: compactLandscape ? 34 : null,
                   constraints: BoxConstraints(
-                    minWidth: tabletPortrait ? 54 : (compactPhone ? 64 : 76),
+                    minWidth: compactLandscape
+                        ? 44
+                        : (tabletPortrait ? 54 : (compactPhone ? 64 : 76)),
                   ),
                   margin: EdgeInsets.only(
                     right: tabletPortrait ? 4 : (compactPhone ? 6 : 8),
                   ),
                   padding: EdgeInsets.symmetric(
-                    horizontal: tabletPortrait ? 6 : (compactPhone ? 6 : 8),
+                    horizontal: compactLandscape
+                        ? 4
+                        : (tabletPortrait ? 6 : (compactPhone ? 6 : 8)),
                   ),
                   decoration: BoxDecoration(
                     color: _surfaceDark,
@@ -5253,10 +5286,13 @@ class _HomeScreenState extends State<HomeScreen>
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: _accidental,
+                      isDense: compactLandscape,
                       dropdownColor: _surfaceDark,
                       style: TextStyle(
                         color: _text,
-                        fontSize: tabletPortrait ? 14 : null,
+                        fontSize: compactLandscape
+                            ? 12
+                            : (tabletPortrait ? 14 : null),
                       ),
                       iconEnabledColor: _muted,
                       items: const <DropdownMenuItem<String>>[
@@ -5299,15 +5335,17 @@ class _HomeScreenState extends State<HomeScreen>
                 'help_toggle',
                 IconButton(
                   tooltip: _ui('Ayuda', 'Help'),
-                  visualDensity: tabletPortrait ? VisualDensity.compact : null,
-                  padding: tabletPortrait
+                  visualDensity: tabletPortrait || compactLandscape
+                      ? VisualDensity.compact
+                      : null,
+                  padding: tabletPortrait || compactLandscape
                       ? const EdgeInsets.all(6)
                       : const EdgeInsets.all(8),
                   onPressed: _toggleHelpMode,
                   icon: Icon(
                     _helpActive ? Icons.help_center : Icons.help_outline,
                     color: _helpActive ? _accent : null,
-                    size: tabletPortrait ? 22 : null,
+                    size: compactLandscape ? 20 : (tabletPortrait ? 22 : null),
                   ),
                 ),
               ),
@@ -5315,12 +5353,17 @@ class _HomeScreenState extends State<HomeScreen>
                 'settings',
                 IconButton(
                   tooltip: _ui('Configuración', 'Settings'),
-                  visualDensity: tabletPortrait ? VisualDensity.compact : null,
-                  padding: tabletPortrait
+                  visualDensity: tabletPortrait || compactLandscape
+                      ? VisualDensity.compact
+                      : null,
+                  padding: tabletPortrait || compactLandscape
                       ? const EdgeInsets.all(6)
                       : const EdgeInsets.all(8),
                   onPressed: _openSettingsPanel,
-                  icon: Icon(Icons.settings, size: tabletPortrait ? 22 : null),
+                  icon: Icon(
+                    Icons.settings,
+                    size: compactLandscape ? 20 : (tabletPortrait ? 22 : null),
+                  ),
                 ),
               ),
               SizedBox(width: tabletPortrait ? 2 : (compactPhone ? 4 : 8)),
@@ -5370,6 +5413,7 @@ class _HomeScreenState extends State<HomeScreen>
     required Widget controls,
     bool showInstrument = true,
     Widget? bottomPanel,
+    Widget? compactRightPanel,
   }) {
     final staffNotes = _staffNotesForCurrentTab();
     final staffExtras = _staffExtrasForCurrentTab();
@@ -5386,8 +5430,12 @@ class _HomeScreenState extends State<HomeScreen>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
+          final compactLayout =
+              compactPhone ||
+              (constraints.maxWidth > constraints.maxHeight &&
+                  constraints.maxHeight < 500);
           final wide = constraints.maxWidth >= 900;
-          if (compactPhone) {
+          if (compactLayout) {
             final staffHeight = math.min(
               280.0,
               math.max(180.0, constraints.maxHeight * 0.28),
@@ -5395,9 +5443,19 @@ class _HomeScreenState extends State<HomeScreen>
             final compactLandscape =
                 constraints.maxWidth > constraints.maxHeight;
             final compactTopHeight = compactLandscape
-                ? (_tabIndex == 4
+                ? (!showInstrument && bottomPanel == null
+                      ? constraints.maxHeight
+                      : _tabIndex == 4
                       ? math.max(300.0, constraints.maxHeight * 0.58)
-                      : math.max(240.0, constraints.maxHeight * 0.42))
+                      : (_instrumentView == 'guitar' &&
+                                (_tabIndex == 1 ||
+                                    _tabIndex == 2 ||
+                                    _tabIndex == 3 ||
+                                    _tabIndex == 7)
+                            ? math.max(164.0, constraints.maxHeight * 0.46)
+                            : compactRightPanel != null
+                            ? math.max(150.0, constraints.maxHeight * 0.42)
+                            : math.max(188.0, constraints.maxHeight * 0.52)))
                 : staffHeight;
             return SingleChildScrollView(
               child: Column(
@@ -5409,14 +5467,25 @@ class _HomeScreenState extends State<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Expanded(
-                            flex: _tabIndex == 7 || _tabIndex == 9 ? 8 : 11,
+                            flex: compactRightPanel != null
+                                ? 7
+                                : (_tabIndex == 7 || _tabIndex == 9 ? 8 : 11),
                             child: staffPanel,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            flex: _tabIndex == 7 || _tabIndex == 9 ? 12 : 9,
+                            flex: compactRightPanel != null
+                                ? 8
+                                : (_tabIndex == 7 || _tabIndex == 9 ? 12 : 9),
                             child: controlsPanel,
                           ),
+                          if (compactRightPanel != null) ...<Widget>[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 7,
+                              child: _panel(child: compactRightPanel),
+                            ),
+                          ],
                         ],
                       ),
                     )
@@ -5482,6 +5551,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildStaffPanel(Set<int> notes, Set<int> extras) {
+    final compactLandscape =
+        _isCompactPhone(context) &&
+        MediaQuery.of(context).orientation == Orientation.landscape;
     final title = switch (_tabIndex) {
       4 => _ui('Metrónomo', 'Metronome'),
       6 => _ui('Afinador', 'Tuner'),
@@ -5617,11 +5689,13 @@ class _HomeScreenState extends State<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            title,
-            style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
+          if (!compactLandscape) ...<Widget>[
+            Text(
+              title,
+              style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (_tabIndex == 2) ...<Widget>[
             RichText(
               text: TextSpan(
@@ -6156,6 +6230,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInstrumentPanel(Set<int> activeMidi) {
     final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
     final compactPhone = _isCompactPhone(context);
+    final compactLandscape = compactPhone && !portrait;
     final tabletPortrait = !compactPhone && portrait;
     final metronomeFixedPiano =
         _tabIndex == 4 || _tabIndex == 5 || _tabIndex == 8 || _tabIndex == 9;
@@ -6202,17 +6277,20 @@ class _HomeScreenState extends State<HomeScreen>
       _ => 'generation_instrument',
     };
     final panelHeight = switch (_tabIndex) {
-      4 => portrait ? 152.0 : 168.0,
-      7 => compactPhone ? 220.0 : (_instrumentView == 'guitar' ? 188.0 : 148.0),
-      9 => compactPhone ? 156.0 : 132.0,
+      4 => compactLandscape ? 104.0 : (portrait ? 152.0 : 168.0),
+      7 =>
+        compactPhone
+            ? (portrait ? 220.0 : 104.0)
+            : (_instrumentView == 'guitar' ? 188.0 : 148.0),
+      9 => compactPhone ? (portrait ? 156.0 : 104.0) : 132.0,
       3 when _scaleMetronomeOnly =>
-        compactPhone ? (portrait ? 188.0 : 212.0) : (portrait ? 168.0 : 184.0),
-      3 => compactPhone ? (portrait ? 204.0 : 232.0) : 188.0,
+        compactPhone ? (portrait ? 188.0 : 104.0) : (portrait ? 168.0 : 184.0),
+      3 => compactPhone ? (portrait ? 204.0 : 104.0) : 188.0,
       1 || 2 =>
         compactPhone
-            ? (portrait ? 204.0 : 232.0)
+            ? (portrait ? 204.0 : (_instrumentView == 'guitar' ? 132.0 : 104.0))
             : (_instrumentView == 'guitar' ? 188.0 : 148.0),
-      _ => 220.0,
+      _ => compactLandscape ? 104.0 : 220.0,
     };
     final chordVariations =
         ((_tabIndex == 1 || _tabIndex == 2) && _instrumentView == 'guitar')
@@ -6233,7 +6311,7 @@ class _HomeScreenState extends State<HomeScreen>
         children: <Widget>[
           SizedBox(
             height: panelHeight,
-            child: compactPhone && showRightControls
+            child: compactPhone && portrait && showRightControls
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
@@ -7453,7 +7531,14 @@ class _HomeScreenState extends State<HomeScreen>
     const fretCount = 16; // cuerda al aire (0) + trastes 1..15
     const fretW = 78.0;
     const openFretW = fretW / 2;
-    const stringGap = 25.0;
+    final compactLandscape =
+        _isCompactPhone(context) &&
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final compactChordGuitar =
+        compactLandscape && (_tabIndex == 1 || _tabIndex == 2);
+    final stringGap = compactLandscape
+        ? (compactChordGuitar ? 15.0 : 11.0)
+        : 25.0;
     final detectionMode = _tabIndex == 0;
     final chordMode = _tabIndex == 1 || _tabIndex == 2;
     final selectedVariation = chordVariations.isEmpty
@@ -7467,7 +7552,15 @@ class _HomeScreenState extends State<HomeScreen>
             .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
             .whereType<int>()
             .toList();
+    final rawFingers =
+        (selectedVariation?['fingers'] as List<dynamic>? ?? const <dynamic>[])
+            .map((v) => v is num ? v.toInt() : int.tryParse('$v'))
+            .whereType<int>()
+            .toList();
     final selectedFrets = !leftHanded ? rawFrets.reversed.toList() : rawFrets;
+    final selectedFingers = !leftHanded
+        ? rawFingers.reversed.toList()
+        : rawFingers;
     final useFrets = selectedFrets.length >= 6;
     const openLeft = 40.0;
     final openRight = openLeft + openFretW;
@@ -7498,7 +7591,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return SizedBox(
-      height: 186,
+      height: compactLandscape ? (compactChordGuitar ? 132 : 104) : 186,
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF0F1621),
@@ -7602,6 +7695,33 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
                 }),
+                if (chordMode && useFrets)
+                  ...List<Widget>.generate(6, (s) {
+                    final selectedFret = s < selectedFrets.length
+                        ? selectedFrets[s]
+                        : -999;
+                    if (selectedFret >= 0) return const SizedBox.shrink();
+                    final y = 32.0 + (s * stringGap) - 10;
+                    final x = noteCenterX(0) - 11;
+                    return Positioned(
+                      left: x,
+                      top: y,
+                      child: const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: Center(
+                          child: Text(
+                            'X',
+                            style: TextStyle(
+                              color: Color(0xFFFF5A5A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ...List<int>.generate(6, (s) => s).expand((s) {
                   return List<Widget>.generate(fretCount, (f) {
                     final note = tuning[s] + f;
@@ -7610,6 +7730,9 @@ class _HomeScreenState extends State<HomeScreen>
                     final selectedFret = s < selectedFrets.length
                         ? selectedFrets[s]
                         : -999;
+                    final selectedFinger = s < selectedFingers.length
+                        ? selectedFingers[s]
+                        : 0;
                     final active = chordMode
                         ? (useFrets
                               ? (selectedFret >= 0 && f == selectedFret)
@@ -7748,7 +7871,9 @@ class _HomeScreenState extends State<HomeScreen>
                                           fit: BoxFit.scaleDown,
                                           child: Text(
                                             active
-                                                ? _pcLabel(note % 12)
+                                                ? (chordMode && useFrets
+                                                      ? '${f == 0 ? 0 : (selectedFinger > 0 ? selectedFinger : 1)}'
+                                                      : _pcLabel(note % 12))
                                                 : (detectionMode ? '•' : ''),
                                             maxLines: 1,
                                             softWrap: false,
@@ -8139,8 +8264,9 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  List<int> _intervalGenerationNotes() =>
-      generateIntervalNotes(_intervalGenRootPc, _intervalGenSemitones);
+  List<int> _intervalGenerationNotes() => _intervalGenSelected
+      ? generateIntervalNotes(_intervalGenRootPc, _intervalGenSemitones)
+      : const <int>[];
 
   void _selectGeneratedInterval(
     IntervalGridCategory category,
@@ -8148,6 +8274,7 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     _intervalGenPlaybackTimer?.cancel();
     setState(() {
+      _intervalGenSelected = true;
       _intervalGenCategoryKey = category.key;
       _intervalGenSemitones = cell.semitones;
       _intervalGenLabel = cell.label;
@@ -8159,6 +8286,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _playGeneratedInterval({bool reversed = false}) {
     _intervalGenPlaybackTimer?.cancel();
     final notes = _intervalGenerationNotes();
+    if (notes.length != 2) return;
     if (_intervalGenHarmonic) {
       setState(() => _intervalGenPlayingIdx = null);
       for (final note in notes) {

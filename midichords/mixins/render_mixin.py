@@ -773,8 +773,8 @@ class RenderMixin:
                 fill = "#b35f00" if is_tonic else "#f4a742"
                 text_color = "#ffffff" if is_tonic else "#1f1200"
             canvas.create_oval(cx - r, y - r, cx + r, y + r, fill=fill, outline="#f1c27d", width=1)
-            if pos_fret > 0:
-                canvas.create_text(cx, y, text=str(finger if finger > 0 else 1), fill=text_color, font=("Helvetica", 9, "bold"))
+            shown_finger = 0 if pos_fret == 0 else (finger if finger > 0 else 1)
+            canvas.create_text(cx, y, text=str(shown_finger), fill=text_color, font=("Helvetica", 9, "bold"))
             self.guitar_generation_note_regions.append((note, cx - r, y - r, cx + r, y + r))
     def redraw_keyboard(self) -> None:
         if self.scale_tab_active and self.scale_play_mode == "guitar":

@@ -13,231 +13,295 @@ extension _HomeScreenPages on _HomeScreenState {
         : '-';
     return _buildModeScaffold(
       controls: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                _ui('Practicar Intervalos', 'Interval Practice'),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: <Widget>[
-                  _helpAnchor(
-                    'interval_practice_start_stop',
-                    FilledButton(
-                      onPressed: _toggleIntervalPractice,
-                      child: Text(
-                        _intervalPracticeRunning
-                            ? _ui('Parar', 'Stop')
-                            : _ui('Iniciar', 'Start'),
+        builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (!compactLandscape) ...<Widget>[
+                  Text(
+                    _ui('Practicar Intervalos', 'Interval Practice'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                Wrap(
+                  spacing: compactPhone ? 4 : 8,
+                  runSpacing: compactPhone ? 4 : 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    _helpAnchor(
+                      'interval_practice_start_stop',
+                      FilledButton(
+                        onPressed: _toggleIntervalPractice,
+                        style: compactPhone
+                            ? FilledButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        child: Text(
+                          _intervalPracticeRunning
+                              ? _ui('Parar', 'Stop')
+                              : _ui('Iniciar', 'Start'),
+                        ),
                       ),
                     ),
-                  ),
-                  _helpAnchor(
-                    'interval_practice_repeat',
-                    IconButton.outlined(
-                      tooltip: answered
-                          ? _ui('Volver a escuchar', 'Listen again')
-                          : _ui('Repetir', 'Repeat'),
-                      onPressed: _intervalPracticeStarted
-                          ? (answered
-                                ? _replayIntervalPracticeResult
-                                : _playIntervalPracticeQuestion)
-                          : null,
-                      icon: const Icon(Icons.replay),
+                    _helpAnchor(
+                      'interval_practice_repeat',
+                      IconButton.outlined(
+                        tooltip: answered
+                            ? _ui('Volver a escuchar', 'Listen again')
+                            : _ui('Repetir', 'Repeat'),
+                        onPressed: _intervalPracticeStarted
+                            ? (answered
+                                  ? _replayIntervalPracticeResult
+                                  : _playIntervalPracticeQuestion)
+                            : null,
+                        style: compactPhone
+                            ? IconButton.styleFrom(
+                                minimumSize: const Size(36, 36),
+                                padding: const EdgeInsets.all(6),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        icon: const Icon(Icons.replay),
+                      ),
                     ),
-                  ),
-                  _helpAnchor(
-                    'interval_practice_next',
-                    OutlinedButton(
-                      onPressed:
-                          _intervalPracticeRunning &&
-                              answered &&
-                              _intervalPracticeTotal <
-                                  _intervalPracticeRepetitions
-                          ? _nextIntervalPracticeQuestion
-                          : null,
-                      child: Text(_ui('Siguiente', 'Next')),
+                    _helpAnchor(
+                      'interval_practice_next',
+                      OutlinedButton(
+                        onPressed:
+                            _intervalPracticeRunning &&
+                                answered &&
+                                _intervalPracticeTotal <
+                                    _intervalPracticeRepetitions
+                            ? _nextIntervalPracticeQuestion
+                            : null,
+                        style: compactPhone
+                            ? OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        child: Text(_ui('Siguiente', 'Next')),
+                      ),
                     ),
-                  ),
-                  _helpAnchor(
-                    'interval_practice_help',
-                    IconButton.outlined(
-                      tooltip: _ui('Ayuda', 'Help'),
-                      onPressed: _showIntervalPracticeHelp,
-                      icon: const Icon(Icons.question_mark),
+                    _helpAnchor(
+                      'interval_practice_help',
+                      IconButton.outlined(
+                        tooltip: _ui('Ayuda', 'Help'),
+                        onPressed: _showIntervalPracticeHelp,
+                        style: compactPhone
+                            ? IconButton.styleFrom(
+                                minimumSize: const Size(36, 36),
+                                padding: const EdgeInsets.all(6),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        icon: const Icon(Icons.question_mark),
+                      ),
                     ),
-                  ),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 4,
-                    children: <Widget>[
-                      _helpAnchor(
-                        'interval_practice_random_tonic',
-                        _practiceCheckbox(
-                          _ui('Tónica aleatoria', 'Random tonic'),
-                          _intervalPracticeRandomTonic,
-                          (value) => _updateState(
-                            () => _intervalPracticeRandomTonic = value ?? false,
+                    Wrap(
+                      spacing: compactPhone ? 6 : 16,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        _helpAnchor(
+                          'interval_practice_random_tonic',
+                          _practiceCheckbox(
+                            _ui('Tónica aleatoria', 'Random tonic'),
+                            _intervalPracticeRandomTonic,
+                            (value) => _updateState(
+                              () =>
+                                  _intervalPracticeRandomTonic = value ?? false,
+                            ),
+                            compact: compactPhone,
                           ),
+                        ),
+                        _helpAnchor(
+                          'interval_practice_ascending',
+                          _practiceCheckbox(
+                            _ui('Solo ascendentes', 'Ascending only'),
+                            _intervalPracticeAscendingOnly,
+                            (value) => _updateState(
+                              () => _intervalPracticeAscendingOnly =
+                                  value ?? false,
+                            ),
+                            compact: compactPhone,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (reviewing) ...<Widget>[
+                      const SizedBox(width: 8),
+                      Text(_ui('Ver resultados', 'View results')),
+                      _helpAnchor(
+                        'interval_practice_previous_result',
+                        IconButton.outlined(
+                          onPressed: (_intervalPracticeReviewIndex ?? 0) > 0
+                              ? () => _reviewIntervalPractice(-1)
+                              : null,
+                          icon: const Icon(Icons.arrow_left),
                         ),
                       ),
                       _helpAnchor(
-                        'interval_practice_ascending',
-                        _practiceCheckbox(
-                          _ui('Solo ascendentes', 'Ascending only'),
-                          _intervalPracticeAscendingOnly,
-                          (value) => _updateState(
-                            () =>
-                                _intervalPracticeAscendingOnly = value ?? false,
-                          ),
+                        'interval_practice_next_result',
+                        IconButton.outlined(
+                          onPressed:
+                              (_intervalPracticeReviewIndex ?? 0) <
+                                  _intervalPracticeHistory.length - 1
+                              ? () => _reviewIntervalPractice(1)
+                              : null,
+                          icon: const Icon(Icons.arrow_right),
                         ),
                       ),
                     ],
-                  ),
-                  if (reviewing) ...<Widget>[
-                    const SizedBox(width: 8),
-                    Text(_ui('Ver resultados', 'View results')),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Wrap(
+                  spacing: compactPhone ? 4 : 8,
+                  runSpacing: compactPhone ? 4 : 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
                     _helpAnchor(
-                      'interval_practice_previous_result',
-                      IconButton.outlined(
-                        onPressed: (_intervalPracticeReviewIndex ?? 0) > 0
-                            ? () => _reviewIntervalPractice(-1)
-                            : null,
-                        icon: const Icon(Icons.arrow_left),
+                      'interval_practice_repetitions',
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(_ui('Repeticiones', 'Repetitions')),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: compactPhone ? 54 : 64,
+                            height: compactPhone ? 36 : 40,
+                            child: TextFormField(
+                              key: ValueKey<int>(_intervalPracticeRepetitions),
+                              initialValue: '$_intervalPracticeRepetitions',
+                              enabled: !_intervalPracticeRunning,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              textAlignVertical: TextAlignVertical.center,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 9,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                final parsed = int.tryParse(value);
+                                if (parsed != null) {
+                                  _intervalPracticeRepetitions = parsed.clamp(
+                                    1,
+                                    100,
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     _helpAnchor(
-                      'interval_practice_next_result',
-                      IconButton.outlined(
-                        onPressed:
-                            (_intervalPracticeReviewIndex ?? 0) <
-                                _intervalPracticeHistory.length - 1
-                            ? () => _reviewIntervalPractice(1)
+                      'interval_practice_filter',
+                      OutlinedButton(
+                        onPressed: _intervalPracticeRunning
+                            ? null
+                            : _showIntervalPracticeFilter,
+                        style: compactPhone
+                            ? OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
                             : null,
-                        icon: const Icon(Icons.arrow_right),
+                        child: Text(_ui('Filtrar', 'Filter')),
+                      ),
+                    ),
+                    _helpAnchor(
+                      'interval_practice_playback_mode',
+                      OutlinedButton(
+                        onPressed: _intervalPracticeRunning
+                            ? null
+                            : () => _updateState(
+                                () => _intervalPracticeHarmonic =
+                                    !_intervalPracticeHarmonic,
+                              ),
+                        style: compactPhone
+                            ? OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        child: Text(
+                          _intervalPracticeHarmonic
+                              ? _ui('Armónico', 'Harmonic')
+                              : _ui('Melódico', 'Melodic'),
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 2),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: <Widget>[
-                  _helpAnchor(
-                    'interval_practice_repetitions',
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                ),
+                const SizedBox(height: 4),
+                _helpAnchor(
+                  'interval_practice_result',
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(compactPhone ? 6 : 10),
+                    decoration: BoxDecoration(
+                      color: _HomeScreenState._surfaceDark,
+                      border: Border.all(color: _HomeScreenState._border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
                       children: <Widget>[
-                        Text(_ui('Repeticiones', 'Repetitions')),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 64,
-                          height: 40,
-                          child: TextFormField(
-                            key: ValueKey<int>(_intervalPracticeRepetitions),
-                            initialValue: '$_intervalPracticeRepetitions',
-                            enabled: !_intervalPracticeRunning,
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.center,
-                            textAlignVertical: TextAlignVertical.center,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 9,
-                              ),
-                            ),
-                            onChanged: (value) {
-                              final parsed = int.tryParse(value);
-                              if (parsed != null) {
-                                _intervalPracticeRepetitions = parsed.clamp(
-                                  1,
-                                  100,
-                                );
-                              }
-                            },
+                        Text(
+                          '${_ui('Aciertos', 'Score')}: '
+                          '$_intervalPracticeCorrect/$_intervalPracticeTotal',
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Text(
+                            '${_ui('Intervalo', 'Interval')}: $intervalName',
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
+                ),
+                if (!compactPhone) ...<Widget>[
+                  const SizedBox(height: 6),
                   _helpAnchor(
-                    'interval_practice_filter',
-                    OutlinedButton(
-                      onPressed: _intervalPracticeRunning
-                          ? null
-                          : _showIntervalPracticeFilter,
-                      child: Text(_ui('Filtrar', 'Filter')),
-                    ),
-                  ),
-                  _helpAnchor(
-                    'interval_practice_playback_mode',
-                    OutlinedButton(
-                      onPressed: _intervalPracticeRunning
-                          ? null
-                          : () => _updateState(
-                              () => _intervalPracticeHarmonic =
-                                  !_intervalPracticeHarmonic,
-                            ),
-                      child: Text(
-                        _intervalPracticeHarmonic
-                            ? _ui('Armónico', 'Harmonic')
-                            : _ui('Melódico', 'Melodic'),
-                      ),
-                    ),
+                    'interval_practice_table',
+                    _buildIntervalPracticeTable(constraints.maxWidth),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              _helpAnchor(
-                'interval_practice_result',
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _HomeScreenState._surfaceDark,
-                    border: Border.all(color: _HomeScreenState._border),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Text(
-                        '${_ui('Aciertos', 'Score')}: '
-                        '$_intervalPracticeCorrect/$_intervalPracticeTotal',
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Text(
-                          '${_ui('Intervalo', 'Interval')}: $intervalName',
-                          textAlign: TextAlign.right,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _helpAnchor(
-                'interval_practice_table',
-                _buildIntervalPracticeTable(constraints.maxWidth),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -245,14 +309,19 @@ extension _HomeScreenPages on _HomeScreenState {
   Widget _practiceCheckbox(
     String label,
     bool value,
-    ValueChanged<bool?> onChanged,
-  ) {
+    ValueChanged<bool?> onChanged, {
+    bool compact = false,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Checkbox(
           value: value,
           onChanged: _intervalPracticeRunning ? null : onChanged,
+          visualDensity: compact ? VisualDensity.compact : null,
+          materialTapTargetSize: compact
+              ? MaterialTapTargetSize.shrinkWrap
+              : null,
         ),
         GestureDetector(
           onTap: _intervalPracticeRunning ? null : () => onChanged(!value),
@@ -276,6 +345,7 @@ extension _HomeScreenPages on _HomeScreenState {
         color:
             color ??
             (header ? const Color(0xFF17273A) : _HomeScreenState._surfaceDark),
+        padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Text(
           text,
           style: TextStyle(
@@ -355,6 +425,7 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   void _showIntervalPracticeHelp() {
+    final compactPhone = _isCompactPhone(context);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -365,12 +436,12 @@ extension _HomeScreenPages on _HomeScreenState {
           child: Text(
             _ui(
               '1. Pulsa Iniciar para escuchar un intervalo. En el pentagrama y el piano solo se muestra la primera nota.\n\n'
-                  '2. Responde pulsando la segunda nota en el piano o MIDI, o eligiendo el intervalo en la tabla. Si Solo ascendentes está desmarcado, la segunda nota también puede ser más grave que la tónica.\n\n'
+                  '2. ${compactPhone ? 'Responde pulsando la segunda nota en el piano o MIDI.' : 'Responde pulsando la segunda nota en el piano o MIDI, o eligiendo el intervalo en la tabla.'} Si Solo ascendentes está desmarcado, la segunda nota también puede ser más grave que la tónica.\n\n'
                   '3. La respuesta correcta se muestra en verde. Si fallas, tu nota aparece en rojo y la correcta en verde; el contador Aciertos se actualiza en ambos casos.\n\n'
                   '4. Durante la corrección o la revisión puedes pulsar las notas mostradas en el pentagrama, el piano o MIDI para escucharlas. Las demás notas se rechazan con el símbolo de prohibido.\n\n'
                   'Repetir reproduce de nuevo el ejercicio o su corrección. Siguiente genera y reproduce otro intervalo. Ver resultados permite recorrer con ◀ y ▶ los ejercicios contestados.',
               '1. Press Start to hear an interval. Only the first note is shown on the staff and piano.\n\n'
-                  '2. Answer by pressing the second note on the piano or MIDI, or by choosing the interval in the table. If Ascending only is unchecked, the second note may also be lower than the tonic.\n\n'
+                  '2. ${compactPhone ? 'Answer by pressing the second note on the piano or MIDI.' : 'Answer by pressing the second note on the piano or MIDI, or by choosing the interval in the table.'} If Ascending only is unchecked, the second note may also be lower than the tonic.\n\n'
                   '3. A correct answer is shown in green. If you miss, your note appears in red and the correct one in green; the score is updated in both cases.\n\n'
                   '4. During correction or review, press the displayed notes on the staff, piano, or MIDI to hear them. Other notes are rejected with the forbidden symbol.\n\n'
                   'Repeat plays the exercise or its correction again. Next creates and plays another interval. View results lets you browse answered exercises with ◀ and ▶.',
@@ -388,57 +459,101 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   void _showIntervalPracticeFilter() {
+    final compactPhone = _isCompactPhone(context);
     final draft = Set<int>.from(_intervalPracticeAllowedSemitones);
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(_ui('Filtrar intervalos', 'Filter intervals')),
+          titlePadding: compactPhone
+              ? const EdgeInsets.fromLTRB(16, 12, 16, 4)
+              : null,
+          contentPadding: compactPhone
+              ? const EdgeInsets.symmetric(horizontal: 16, vertical: 4)
+              : null,
+          actionsPadding: compactPhone
+              ? const EdgeInsets.fromLTRB(8, 0, 8, 6)
+              : null,
+          title: Text(
+            _ui('Filtrar intervalos', 'Filter intervals'),
+            style: compactPhone
+                ? const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)
+                : null,
+          ),
           content: SizedBox(
             width: 520,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Wrap(
-                  spacing: 8,
-                  children: <Widget>[
-                    TextButton(
-                      onPressed: () => setDialogState(() {
-                        draft
-                          ..clear()
-                          ..addAll(List<int>.generate(13, (index) => index));
-                      }),
-                      child: Text(_ui('Seleccionar todo', 'Select all')),
-                    ),
-                    TextButton(
-                      onPressed: () => setDialogState(draft.clear),
-                      child: Text(_ui('Eliminar selección', 'Clear selection')),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _ui(
-                    'Selecciona las posibles segundas notas:',
-                    'Select the possible second notes:',
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Wrap(
+                    spacing: 8,
+                    children: <Widget>[
+                      TextButton(
+                        onPressed: () => setDialogState(() {
+                          draft
+                            ..clear()
+                            ..addAll(List<int>.generate(13, (index) => index));
+                        }),
+                        style: compactPhone
+                            ? TextButton.styleFrom(
+                                minimumSize: const Size(0, 32),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        child: Text(_ui('Seleccionar todo', 'Select all')),
+                      ),
+                      TextButton(
+                        onPressed: () => setDialogState(draft.clear),
+                        style: compactPhone
+                            ? TextButton.styleFrom(
+                                minimumSize: const Size(0, 32),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              )
+                            : null,
+                        child: Text(
+                          _ui('Eliminar selección', 'Clear selection'),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                _buildIntervalFilterKeyboard(
-                  draft,
-                  (semitones) => setDialogState(() {
-                    if (!draft.remove(semitones)) {
-                      draft.add(semitones);
-                    }
-                  }),
-                ),
-              ],
+                  SizedBox(height: compactPhone ? 2 : 12),
+                  Text(
+                    _ui(
+                      'Selecciona las posibles segundas notas:',
+                      'Select the possible second notes:',
+                    ),
+                    style: compactPhone ? const TextStyle(fontSize: 13) : null,
+                  ),
+                  SizedBox(height: compactPhone ? 2 : 8),
+                  _buildIntervalFilterKeyboard(
+                    draft,
+                    (semitones) => setDialogState(() {
+                      if (!draft.remove(semitones)) {
+                        draft.add(semitones);
+                      }
+                    }),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
+              style: compactPhone
+                  ? TextButton.styleFrom(
+                      minimumSize: const Size(0, 32),
+                      visualDensity: VisualDensity.compact,
+                    )
+                  : null,
               child: Text(_ui('Cancelar', 'Cancel')),
             ),
             FilledButton(
@@ -453,6 +568,12 @@ extension _HomeScreenPages on _HomeScreenState {
                       });
                       Navigator.of(dialogContext).pop();
                     },
+              style: compactPhone
+                  ? FilledButton.styleFrom(
+                      minimumSize: const Size(0, 32),
+                      visualDensity: VisualDensity.compact,
+                    )
+                  : null,
               child: Text(_ui('Aceptar', 'Accept')),
             ),
           ],
@@ -465,6 +586,9 @@ extension _HomeScreenPages on _HomeScreenState {
     Set<int> selected,
     ValueChanged<int> onToggle,
   ) {
+    final compactPhone = _isCompactPhone(context);
+    final whiteKeyHeight = compactPhone ? 96.0 : 112.0;
+    final blackKeyHeight = compactPhone ? 58.0 : 68.0;
     const whiteNotes = <int>[0, 2, 4, 5, 7, 9, 11, 12];
     const blackNotes = <int, int>{1: 1, 3: 2, 6: 4, 8: 5, 10: 6};
     return LayoutBuilder(
@@ -472,7 +596,7 @@ extension _HomeScreenPages on _HomeScreenState {
         final whiteWidth = constraints.maxWidth / whiteNotes.length;
         final blackWidth = whiteWidth * 0.58;
         return SizedBox(
-          height: 112,
+          height: whiteKeyHeight,
           child: Stack(
             children: <Widget>[
               Row(
@@ -483,9 +607,9 @@ extension _HomeScreenPages on _HomeScreenState {
                       onTap: () => onToggle(semitones),
                       child: Container(
                         width: whiteWidth,
-                        height: 112,
+                        height: whiteKeyHeight,
                         alignment: Alignment.bottomCenter,
-                        padding: const EdgeInsets.only(bottom: 7),
+                        padding: EdgeInsets.only(bottom: compactPhone ? 3 : 7),
                         decoration: BoxDecoration(
                           color: selected.contains(semitones)
                               ? const Color(0xFF8BE3A5)
@@ -513,9 +637,9 @@ extension _HomeScreenPages on _HomeScreenState {
                     onTap: () => onToggle(entry.key),
                     child: Container(
                       width: blackWidth,
-                      height: 68,
+                      height: blackKeyHeight,
                       alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.only(bottom: 5),
+                      padding: EdgeInsets.only(bottom: compactPhone ? 3 : 5),
                       decoration: BoxDecoration(
                         color: selected.contains(entry.key)
                             ? const Color(0xFF39C66D)
@@ -546,129 +670,177 @@ extension _HomeScreenPages on _HomeScreenState {
   Widget _buildNoteDetectionPage() {
     final note = _noteDetectionNote;
     return _buildModeScaffold(
-      controls: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            _ui('Detección de Notas', 'Note Detection'),
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: <Widget>[
-              _helpAnchor(
-                'note_detection_play_button',
-                _holdPlayButton(
-                  enabled: note != null,
-                  active: _noteDetectionPlayPressed,
-                  label: null,
-                  onDown: () async {
-                    if (note == null) return;
-                    _updateState(() => _noteDetectionPlayPressed = true);
-                    await _startHeldChord(<int>[note], instrument: 'piano');
-                  },
-                  onUp: () {
-                    _stopHeldChord();
-                    if (mounted) {
-                      _updateState(() => _noteDetectionPlayPressed = false);
-                    }
-                  },
-                ),
-              ),
-              _helpAnchor(
-                'note_detection_clear_button',
-                OutlinedButton.icon(
-                  onPressed: note == null
-                      ? null
-                      : () {
-                          _stopHeldChord();
-                          _stopHeldMidiInputs();
-                          _updateState(() {
-                            _noteDetectionNote = null;
-                            _noteDetectionPlayPressed = false;
-                          });
+      controls: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactLandscape =
+              constraints.maxWidth > constraints.maxHeight &&
+              (_isCompactPhone(context) || constraints.maxHeight < 300);
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (!compactLandscape) ...<Widget>[
+                  Text(
+                    _ui('Detección de Notas', 'Note Detection'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Wrap(
+                  spacing: compactLandscape ? 4 : 8,
+                  runSpacing: compactLandscape ? 4 : 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    _helpAnchor(
+                      'note_detection_play_button',
+                      _holdPlayButton(
+                        enabled: note != null,
+                        active: _noteDetectionPlayPressed,
+                        label: null,
+                        compact: compactLandscape,
+                        onDown: () async {
+                          if (note == null) return;
+                          _updateState(() => _noteDetectionPlayPressed = true);
+                          await _startHeldChord(<int>[
+                            note,
+                          ], instrument: 'piano');
                         },
-                  icon: const Icon(Icons.clear_all),
-                  label: Text(_ui('Limpiar', 'Clear')),
-                ),
-              ),
-              _helpAnchor(
-                'note_detection_details_toggle',
-                OutlinedButton.icon(
-                  onPressed: () => _updateState(
-                    () => _noteDetectionDetailsVisible =
-                        !_noteDetectionDetailsVisible,
-                  ),
-                  icon: Icon(
-                    _noteDetectionDetailsVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  label: Text(
-                    _noteDetectionDetailsVisible
-                        ? _ui('Ocultar', 'Hide')
-                        : _ui('Mostrar', 'Show'),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: _noteDetectionDetailsVisible
-                        ? null
-                        : _HomeScreenState._accent,
-                    foregroundColor: _noteDetectionDetailsVisible
-                        ? null
-                        : _HomeScreenState._surfaceDark,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_noteDetectionDetailsVisible)
-            _helpAnchor(
-              'note_detection_result',
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _HomeScreenState._surfaceDark,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _HomeScreenState._border),
-                ),
-                child: RichText(
-                  text: TextSpan(
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: '${_ui('Nota', 'Note')}: ',
-                        style: const TextStyle(
-                          color: _HomeScreenState._muted,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          height: 1.35,
+                        onUp: () {
+                          _stopHeldChord();
+                          if (mounted) {
+                            _updateState(
+                              () => _noteDetectionPlayPressed = false,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    _helpAnchor(
+                      'note_detection_clear_button',
+                      OutlinedButton.icon(
+                        onPressed: note == null
+                            ? null
+                            : () {
+                                _stopHeldChord();
+                                _stopHeldMidiInputs();
+                                _updateState(() {
+                                  _noteDetectionNote = null;
+                                  _noteDetectionPlayPressed = false;
+                                });
+                              },
+                        icon: Icon(
+                          Icons.clear_all,
+                          size: compactLandscape ? 16 : 24,
+                        ),
+                        label: Text(
+                          _ui('Limpiar', 'Clear'),
+                          style: TextStyle(
+                            fontSize: compactLandscape ? 11 : 14,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: Size(0, compactLandscape ? 34 : 40),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compactLandscape ? 8 : 12,
+                          ),
+                          visualDensity: compactLandscape
+                              ? VisualDensity.compact
+                              : null,
                         ),
                       ),
-                      TextSpan(
-                        text: note == null
-                            ? '-'
-                            : noteNameLocal(
-                                note,
-                                language: _language,
-                                preferFlat: _accidental == 'flat',
-                                withOctave: false,
+                    ),
+                    _helpAnchor(
+                      'note_detection_details_toggle',
+                      OutlinedButton.icon(
+                        onPressed: () => _updateState(
+                          () => _noteDetectionDetailsVisible =
+                              !_noteDetectionDetailsVisible,
+                        ),
+                        icon: Icon(
+                          _noteDetectionDetailsVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: compactLandscape ? 16 : 24,
+                        ),
+                        label: Text(
+                          _noteDetectionDetailsVisible
+                              ? _ui('Ocultar', 'Hide')
+                              : _ui('Mostrar', 'Show'),
+                          style: TextStyle(
+                            fontSize: compactLandscape ? 11 : 14,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: Size(0, compactLandscape ? 34 : 40),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compactLandscape ? 8 : 12,
+                          ),
+                          visualDensity: compactLandscape
+                              ? VisualDensity.compact
+                              : null,
+                          backgroundColor: _noteDetectionDetailsVisible
+                              ? null
+                              : _HomeScreenState._accent,
+                          foregroundColor: _noteDetectionDetailsVisible
+                              ? null
+                              : _HomeScreenState._surfaceDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: compactLandscape ? 6 : 12),
+                if (_noteDetectionDetailsVisible)
+                  _helpAnchor(
+                    'note_detection_result',
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(compactLandscape ? 8 : 16),
+                      decoration: BoxDecoration(
+                        color: _HomeScreenState._surfaceDark,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _HomeScreenState._border),
+                      ),
+                      child: RichText(
+                        text: TextSpan(
+                          children: <InlineSpan>[
+                            TextSpan(
+                              text: '${_ui('Nota', 'Note')}: ',
+                              style: TextStyle(
+                                color: _HomeScreenState._muted,
+                                fontWeight: FontWeight.w800,
+                                fontSize: compactLandscape ? 12 : 16,
+                                height: 1.25,
                               ),
-                        style: const TextStyle(
-                          color: _HomeScreenState._accent,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          height: 1.35,
+                            ),
+                            TextSpan(
+                              text: note == null
+                                  ? '-'
+                                  : noteNameLocal(
+                                      note,
+                                      language: _language,
+                                      preferFlat: _accidental == 'flat',
+                                      withOctave: false,
+                                    ),
+                              style: TextStyle(
+                                color: _HomeScreenState._accent,
+                                fontWeight: FontWeight.w800,
+                                fontSize: compactLandscape ? 14 : 18,
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -684,26 +856,29 @@ extension _HomeScreenPages on _HomeScreenState {
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
-          final compactLandscape = _isCompactLandscapePhoneForConstraints(
-            context,
-            constraints,
-          );
+          final compactLandscape =
+              constraints.maxWidth > constraints.maxHeight &&
+              (compactPhone || constraints.maxHeight < 300);
           final resultHeight = compactLandscape
-              ? math.max(132.0, constraints.maxHeight - 116.0)
+              ? math.max(120.0, constraints.maxHeight - 78.0)
               : _compactResultHeight(constraints, minHeight: 140);
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                _ui('Detección de Acordes', 'Chord Detection'),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
+              if (!compactLandscape) ...<Widget>[
+                Text(
+                  _ui('Detección de Acordes', 'Chord Detection'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+              ],
               Wrap(
-                spacing: 8,
+                spacing: compactLandscape ? 4 : 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
                   _helpAnchor(
                     'detection_play_button',
@@ -731,6 +906,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           });
                         }
                       },
+                      compact: compactLandscape,
                     ),
                   ),
                   _buildChordVariantTheoryButton(
@@ -738,6 +914,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     suffix: detectedSuffix is String ? detectedSuffix : '',
                     inversion: detectedInversion,
                     enabled: hasDetectedChord,
+                    compact: compactLandscape,
                   ),
                   _helpAnchor(
                     'detection_clear_button',
@@ -754,8 +931,23 @@ extension _HomeScreenPages on _HomeScreenState {
                                 unawaited(_callDetect());
                               }
                             },
-                      icon: const Icon(Icons.clear_all),
-                      label: Text(_ui('Limpiar', 'Clear')),
+                      icon: Icon(
+                        Icons.clear_all,
+                        size: compactLandscape ? 16 : 24,
+                      ),
+                      label: Text(
+                        _ui('Limpiar', 'Clear'),
+                        style: TextStyle(fontSize: compactLandscape ? 11 : 14),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: Size(0, compactLandscape ? 34 : 40),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compactLandscape ? 8 : 12,
+                        ),
+                        visualDensity: compactLandscape
+                            ? VisualDensity.compact
+                            : null,
+                      ),
                     ),
                   ),
                   _helpAnchor(
@@ -765,13 +957,24 @@ extension _HomeScreenPages on _HomeScreenState {
                         () => _detectionDetailsVisible =
                             !_detectionDetailsVisible,
                       ),
-                      icon: const Icon(Icons.visibility),
+                      icon: Icon(
+                        Icons.visibility,
+                        size: compactLandscape ? 16 : 24,
+                      ),
                       label: Text(
                         _detectionDetailsVisible
                             ? _ui('Ocultar', 'Hide')
                             : _ui('Mostrar', 'Show'),
+                        style: TextStyle(fontSize: compactLandscape ? 11 : 14),
                       ),
                       style: OutlinedButton.styleFrom(
+                        minimumSize: Size(0, compactLandscape ? 34 : 40),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compactLandscape ? 8 : 12,
+                        ),
+                        visualDensity: compactLandscape
+                            ? VisualDensity.compact
+                            : null,
                         backgroundColor: _detectionDetailsVisible
                             ? null
                             : _HomeScreenState._accent,
@@ -783,12 +986,14 @@ extension _HomeScreenPages on _HomeScreenState {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: compactLandscape ? 6 : 12),
               if (_detectionDetailsVisible)
-                if (compactPhone)
+                if (compactPhone || compactLandscape)
                   SizedBox(
                     height: resultHeight,
-                    child: _buildDetectionResultBlock(),
+                    child: _buildDetectionResultBlock(
+                      compact: compactLandscape,
+                    ),
                   )
                 else
                   Expanded(child: _buildDetectionResultBlock()),
@@ -810,6 +1015,7 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildChordGenerationPage() {
     return _buildModeScaffold(
+      compactRightPanel: _buildChordResultBlock(compact: true),
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
@@ -821,20 +1027,22 @@ extension _HomeScreenPages on _HomeScreenState {
               ? math.max(84.0, constraints.maxHeight - 156.0)
               : _compactResultHeight(constraints);
           final compactGenerationLayout =
-              compactPhone && constraints.maxWidth < 700;
+              compactLandscape || (compactPhone && constraints.maxWidth < 700);
           final content = Column(
             children: <Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _ui('Generación de acordes', 'Chord generation'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
+              if (!compactLandscape) ...<Widget>[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _ui('Generación de acordes', 'Chord generation'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+              ],
               if (compactGenerationLayout)
                 Column(
                   children: <Widget>[
@@ -850,6 +1058,7 @@ extension _HomeScreenPages on _HomeScreenState {
                                 ]).isNotEmpty,
                             active: _generationPlayPressed,
                             label: null,
+                            compact: compactLandscape,
                             onDown: () async {
                               final notes = _generationPlaybackNotes();
                               if (notes.isEmpty) return;
@@ -871,9 +1080,11 @@ extension _HomeScreenPages on _HomeScreenState {
                             },
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        _buildChordVariantTheoryButton(),
-                        const SizedBox(width: 8),
+                        SizedBox(width: compactLandscape ? 4 : 8),
+                        _buildChordVariantTheoryButton(
+                          compact: compactLandscape,
+                        ),
+                        SizedBox(width: compactLandscape ? 4 : 8),
                         Expanded(
                           child: _helpAnchor(
                             'generation_tonic',
@@ -893,12 +1104,14 @@ extension _HomeScreenPages on _HomeScreenState {
                                   );
                                 }
                               },
+                              compact: compactLandscape,
+                              hideLabel: compactLandscape,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: compactLandscape ? 4 : 8),
                     Row(
                       children: <Widget>[
                         Expanded(
@@ -910,11 +1123,21 @@ extension _HomeScreenPages on _HomeScreenState {
                               initialValue: _chordSuffix,
                               isExpanded: true,
                               dropdownColor: _HomeScreenState._surfaceDark,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: _HomeScreenState._text,
+                                fontSize: compactLandscape ? 11 : null,
                               ),
                               decoration: InputDecoration(
-                                labelText: _ui('Variante', 'Variant'),
+                                labelText: compactLandscape
+                                    ? null
+                                    : _ui('Variante', 'Variant'),
+                                isDense: compactLandscape,
+                                contentPadding: compactLandscape
+                                    ? const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 8,
+                                      )
+                                    : null,
                               ),
                               items: buildChordVariantDropdownItems(
                                 catalog: _chordTheoryCatalog,
@@ -957,7 +1180,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: compactLandscape ? 4 : 8),
                         Expanded(
                           child: _helpAnchor(
                             'generation_inversion',
@@ -971,11 +1194,21 @@ extension _HomeScreenPages on _HomeScreenState {
                               ),
                               isExpanded: true,
                               dropdownColor: _HomeScreenState._surfaceDark,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: _HomeScreenState._text,
+                                fontSize: compactLandscape ? 11 : null,
                               ),
                               decoration: InputDecoration(
-                                labelText: _ui('Inversión', 'Inversion'),
+                                labelText: compactLandscape
+                                    ? null
+                                    : _ui('Inversión', 'Inversion'),
+                                isDense: compactLandscape,
+                                contentPadding: compactLandscape
+                                    ? const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 8,
+                                      )
+                                    : null,
                               ),
                               items: List<DropdownMenuItem<int>>.generate(
                                 _chordMaxInversion + 1,
@@ -1014,8 +1247,8 @@ extension _HomeScreenPages on _HomeScreenState {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    _buildGenerationHandRow(),
+                    SizedBox(height: compactLandscape ? 4 : 8),
+                    _buildGenerationHandRow(compact: compactLandscape),
                   ],
                 )
               else
@@ -1097,7 +1330,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                   ],
                 ),
-              const SizedBox(height: 12),
+              SizedBox(height: compactLandscape ? 4 : 12),
               if (!compactGenerationLayout) ...<Widget>[
                 Row(
                   children: <Widget>[
@@ -1188,11 +1421,16 @@ extension _HomeScreenPages on _HomeScreenState {
                 const SizedBox(height: 8),
                 _buildGenerationHandRow(),
               ],
-              const SizedBox(height: 8),
-              if (compactPhone)
-                SizedBox(height: resultHeight, child: _buildChordResultBlock())
-              else
-                Expanded(child: _buildChordResultBlock()),
+              if (!compactLandscape) ...<Widget>[
+                const SizedBox(height: 8),
+                if (compactPhone)
+                  SizedBox(
+                    height: resultHeight,
+                    child: _buildChordResultBlock(),
+                  )
+                else
+                  Expanded(child: _buildChordResultBlock()),
+              ],
             ],
           );
           if (!compactLandscape) {
@@ -1211,6 +1449,7 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildCircleOfFifthsPage() {
     return _buildModeScaffold(
+      showInstrument: false,
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compactPhone = _isCompactPhone(context);
@@ -1708,7 +1947,7 @@ extension _HomeScreenPages on _HomeScreenState {
     );
   }
 
-  Widget _buildGenerationHandRow() {
+  Widget _buildGenerationHandRow({bool compact = false}) {
     const options = <(String, String, String)>[
       ('left', 'Izquierda', 'Left'),
       ('right', 'Derecha', 'Right'),
@@ -1722,7 +1961,10 @@ extension _HomeScreenPages on _HomeScreenState {
         child: IgnorePointer(
           ignoring: !enabled,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 12,
+              vertical: compact ? 5 : 8,
+            ),
             decoration: BoxDecoration(
               color: _HomeScreenState._surfaceDark,
               borderRadius: BorderRadius.circular(8),
@@ -1732,16 +1974,18 @@ extension _HomeScreenPages on _HomeScreenState {
               children: <Widget>[
                 Text(
                   _ui('Mano:', 'Hand:'),
-                  style: const TextStyle(
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
                     color: _HomeScreenState._muted,
-                    fontSize: 12,
+                    fontSize: compact ? 9 : 12,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: compact ? 6 : 12),
                 Expanded(
                   child: Wrap(
-                    spacing: 12,
-                    runSpacing: 6,
+                    spacing: compact ? 7 : 12,
+                    runSpacing: compact ? 3 : 6,
                     children: options.map((opt) {
                       final value = opt.$1;
                       final active = _generationHand == value;
@@ -1752,8 +1996,8 @@ extension _HomeScreenPages on _HomeScreenState {
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             Container(
-                              width: 20,
-                              height: 20,
+                              width: compact ? 16 : 20,
+                              height: compact ? 16 : 20,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: active
@@ -1781,12 +2025,14 @@ extension _HomeScreenPages on _HomeScreenState {
                                     )
                                   : null,
                             ),
-                            const SizedBox(width: 6),
+                            SizedBox(width: compact ? 3 : 6),
                             Text(
                               _language == 'en' ? opt.$3 : opt.$2,
-                              style: const TextStyle(
+                              maxLines: 1,
+                              softWrap: false,
+                              style: TextStyle(
                                 color: _HomeScreenState._text,
-                                fontSize: 12,
+                                fontSize: compact ? 9 : 12,
                               ),
                             ),
                           ],
@@ -1909,23 +2155,33 @@ extension _HomeScreenPages on _HomeScreenState {
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    _ui('Detección de Intervalos', 'Interval Detection'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
+                  if (!compactLandscape) ...<Widget>[
+                    Text(
+                      _ui('Detección de Intervalos', 'Interval Detection'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ],
+                  if (compactLandscape) ...<Widget>[
+                    _buildCompactIntervalDetectionButtons(),
+                    const SizedBox(height: 6),
+                  ],
                   if (_intervalDetailsVisible)
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(compactLandscape ? 6 : 12),
                       decoration: BoxDecoration(
                         color: _HomeScreenState._surfaceDark,
                         borderRadius: BorderRadius.circular(8),
@@ -1944,9 +2200,9 @@ extension _HomeScreenPages on _HomeScreenState {
                               children: <Widget>[
                                 Text(
                                   '${_ui('Notas', 'Notes')}:',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._muted,
-                                    fontSize: 12,
+                                    fontSize: compactLandscape ? 10 : 12,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -1956,16 +2212,16 @@ extension _HomeScreenPages on _HomeScreenState {
                                       : (List<int>.from(_intervalNotes)..sort())
                                             .map(_midiNoteWithOctave)
                                             .join(' – '),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._accent,
-                                    fontSize: 14,
+                                    fontSize: compactLandscape ? 11 : 14,
                                     fontFamily: 'Courier',
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: compactLandscape ? 4 : 12),
                           // Interval name
                           _helpAnchor(
                             'interval_name_row',
@@ -1973,9 +2229,9 @@ extension _HomeScreenPages on _HomeScreenState {
                               children: <Widget>[
                                 Text(
                                   '${_ui('Intervalo', 'Interval')}:',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._muted,
-                                    fontSize: 12,
+                                    fontSize: compactLandscape ? 10 : 12,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -1984,9 +2240,13 @@ extension _HomeScreenPages on _HomeScreenState {
                                     intervalDisplayName,
                                     textAlign: TextAlign.left,
                                     softWrap: true,
-                                    style: const TextStyle(
+                                    maxLines: compactLandscape ? 2 : null,
+                                    overflow: compactLandscape
+                                        ? TextOverflow.ellipsis
+                                        : null,
+                                    style: TextStyle(
                                       color: _HomeScreenState._accent,
-                                      fontSize: 14,
+                                      fontSize: compactLandscape ? 11 : 14,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1994,7 +2254,7 @@ extension _HomeScreenPages on _HomeScreenState {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: compactLandscape ? 4 : 12),
                           // Semitones
                           _helpAnchor(
                             'interval_semitones_row',
@@ -2002,9 +2262,9 @@ extension _HomeScreenPages on _HomeScreenState {
                               children: <Widget>[
                                 Text(
                                   '${_ui('Semitonos', 'Semitones')}:',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._muted,
-                                    fontSize: 12,
+                                    fontSize: compactLandscape ? 10 : 12,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -2013,15 +2273,15 @@ extension _HomeScreenPages on _HomeScreenState {
                                       ? (_getIntervalSemitones()?.toString() ??
                                             '-')
                                       : '-',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._accent,
-                                    fontSize: 14,
+                                    fontSize: compactLandscape ? 11 : 14,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: compactLandscape ? 4 : 12),
                           // Melody name — tappable toggle
                           _helpAnchor(
                             'interval_melody_row',
@@ -2029,41 +2289,45 @@ extension _HomeScreenPages on _HomeScreenState {
                               children: <Widget>[
                                 Text(
                                   '${_ui('Ejemplo', 'Example')}:',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._muted,
-                                    fontSize: 12,
+                                    fontSize: compactLandscape ? 10 : 12,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: _intervalNotes.length >= 2
-                                      ? _toggleIntervalMelodyMode
-                                      : null,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _intervalMelodyMode
-                                          ? const Color(0x26F3BF2F)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: _intervalMelodyMode
-                                            ? _HomeScreenState._accent
-                                            : _HomeScreenState._border,
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _intervalNotes.length >= 2
+                                        ? _toggleIntervalMelodyMode
+                                        : null,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
                                       ),
-                                    ),
-                                    child: Text(
-                                      _intervalNotes.length >= 2
-                                          ? _getIntervalMelodyName()
-                                          : '-',
-                                      style: TextStyle(
+                                      decoration: BoxDecoration(
                                         color: _intervalMelodyMode
-                                            ? _HomeScreenState._accent
-                                            : const Color(0xFFE9EDF2),
-                                        fontSize: 13,
+                                            ? const Color(0x26F3BF2F)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: _intervalMelodyMode
+                                              ? _HomeScreenState._accent
+                                              : _HomeScreenState._border,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _intervalNotes.length >= 2
+                                            ? _getIntervalMelodyName()
+                                            : '-',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: _intervalMelodyMode
+                                              ? _HomeScreenState._accent
+                                              : const Color(0xFFE9EDF2),
+                                          fontSize: compactLandscape ? 10 : 13,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -2074,88 +2338,92 @@ extension _HomeScreenPages on _HomeScreenState {
                         ],
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  if (!compactLandscape) const SizedBox(height: 16),
                   // Buttons
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: <Widget>[
-                      _helpAnchor(
-                        'interval_play_btn',
-                        ElevatedButton.icon(
-                          onPressed: _intervalNotes.length >= 2
-                              ? () => _playIntervalMelody()
-                              : null,
-                          icon: const Icon(Icons.play_arrow),
-                          label: Text(_ui('Reproducir', 'Play')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _HomeScreenState._accent,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: _HomeScreenState._panelA,
+                  if (!compactLandscape)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        _helpAnchor(
+                          'interval_play_btn',
+                          ElevatedButton.icon(
+                            onPressed: _intervalNotes.length >= 2
+                                ? () => _playIntervalMelody()
+                                : null,
+                            icon: const Icon(Icons.play_arrow),
+                            label: Text(_ui('Reproducir', 'Play')),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _HomeScreenState._accent,
+                              foregroundColor: Colors.black,
+                              disabledBackgroundColor: _HomeScreenState._panelA,
+                            ),
                           ),
                         ),
-                      ),
-                      _helpAnchor(
-                        'interval_play_reverse_btn',
-                        ElevatedButton.icon(
-                          onPressed:
-                              _intervalNotes.length >= 2 && !_intervalMelodyMode
-                              ? () => _playIntervalMelody(reversed: true)
-                              : null,
-                          icon: const Icon(Icons.play_arrow),
-                          label: Text(_ui('Desc.', 'Rev.')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _HomeScreenState._accent,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: _HomeScreenState._panelA,
+                        _helpAnchor(
+                          'interval_play_reverse_btn',
+                          ElevatedButton.icon(
+                            onPressed:
+                                _intervalNotes.length >= 2 &&
+                                    !_intervalMelodyMode
+                                ? () => _playIntervalMelody(reversed: true)
+                                : null,
+                            icon: const Icon(Icons.play_arrow),
+                            label: Text(_ui('Desc.', 'Rev.')),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _HomeScreenState._accent,
+                              foregroundColor: Colors.black,
+                              disabledBackgroundColor: _HomeScreenState._panelA,
+                            ),
                           ),
                         ),
-                      ),
-                      _helpAnchor(
-                        'interval_clear_btn',
-                        OutlinedButton(
-                          onPressed: _intervalNotes.isEmpty
-                              ? null
-                              : _clearIntervalNotes,
-                          child: Text(_ui('Limpiar', 'Clear')),
-                        ),
-                      ),
-                      _helpAnchor(
-                        'interval_details_toggle',
-                        OutlinedButton.icon(
-                          onPressed: () => _updateState(
-                            () => _intervalDetailsVisible =
-                                !_intervalDetailsVisible,
-                          ),
-                          icon: const Icon(Icons.visibility),
-                          label: Text(
-                            _intervalDetailsVisible
-                                ? _ui('Ocultar', 'Hide')
-                                : _ui('Mostrar', 'Show'),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: _intervalDetailsVisible
+                        _helpAnchor(
+                          'interval_clear_btn',
+                          OutlinedButton(
+                            onPressed: _intervalNotes.isEmpty
                                 ? null
-                                : _HomeScreenState._accent,
-                            foregroundColor: _intervalDetailsVisible
-                                ? null
-                                : _HomeScreenState._surfaceDark,
+                                : _clearIntervalNotes,
+                            child: Text(_ui('Limpiar', 'Clear')),
                           ),
                         ),
+                        _helpAnchor(
+                          'interval_details_toggle',
+                          OutlinedButton.icon(
+                            onPressed: () => _updateState(
+                              () => _intervalDetailsVisible =
+                                  !_intervalDetailsVisible,
+                            ),
+                            icon: const Icon(Icons.visibility),
+                            label: Text(
+                              _intervalDetailsVisible
+                                  ? _ui('Ocultar', 'Hide')
+                                  : _ui('Mostrar', 'Show'),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: _intervalDetailsVisible
+                                  ? null
+                                  : _HomeScreenState._accent,
+                              foregroundColor: _intervalDetailsVisible
+                                  ? null
+                                  : _HomeScreenState._surfaceDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (!compactLandscape) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Text(
+                      _ui(
+                        'Pulsa dos notas en el piano para detectar el intervalo',
+                        'Press two notes on the piano to detect the interval',
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _ui(
-                      'Pulsa dos notas en el piano para detectar el intervalo',
-                      'Press two notes on the piano to detect the interval',
+                      style: const TextStyle(
+                        color: _HomeScreenState._muted,
+                        fontSize: 12,
+                      ),
                     ),
-                    style: const TextStyle(
-                      color: _HomeScreenState._muted,
-                      fontSize: 12,
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -2165,31 +2433,106 @@ extension _HomeScreenPages on _HomeScreenState {
     );
   }
 
+  Widget _buildCompactIntervalDetectionButtons() {
+    ButtonStyle style({bool filled = false}) => OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 32),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      visualDensity: VisualDensity.compact,
+      backgroundColor: filled ? _HomeScreenState._accent : null,
+      foregroundColor: filled ? Colors.black : null,
+      disabledBackgroundColor: filled ? _HomeScreenState._panelA : null,
+      textStyle: const TextStyle(fontSize: 10),
+    );
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        _helpAnchor(
+          'interval_play_btn',
+          OutlinedButton.icon(
+            onPressed: _intervalNotes.length >= 2
+                ? () => _playIntervalMelody()
+                : null,
+            icon: const Icon(Icons.play_arrow, size: 15),
+            label: Text(_ui('Reproducir', 'Play')),
+            style: style(filled: true),
+          ),
+        ),
+        _helpAnchor(
+          'interval_play_reverse_btn',
+          OutlinedButton.icon(
+            onPressed: _intervalNotes.length >= 2 && !_intervalMelodyMode
+                ? () => _playIntervalMelody(reversed: true)
+                : null,
+            icon: const Icon(Icons.play_arrow, size: 15),
+            label: Text(_ui('Desc.', 'Rev.')),
+            style: style(filled: true),
+          ),
+        ),
+        _helpAnchor(
+          'interval_clear_btn',
+          OutlinedButton(
+            onPressed: _intervalNotes.isEmpty ? null : _clearIntervalNotes,
+            style: style(),
+            child: Text(_ui('Limpiar', 'Clear')),
+          ),
+        ),
+        _helpAnchor(
+          'interval_details_toggle',
+          OutlinedButton.icon(
+            onPressed: () => _updateState(
+              () => _intervalDetailsVisible = !_intervalDetailsVisible,
+            ),
+            icon: const Icon(Icons.visibility, size: 15),
+            label: Text(
+              _intervalDetailsVisible
+                  ? _ui('Ocultar', 'Hide')
+                  : _ui('Mostrar', 'Show'),
+            ),
+            style: style(filled: !_intervalDetailsVisible),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildIntervalGenerationPage() {
     final notes = _intervalGenerationNotes();
-    final generatedIntervalName = intervalGridDisplayNames(
-      selectedCategoryKey: _intervalGenCategoryKey,
-      selectedLabel: _intervalGenLabel,
-      semitones: _intervalGenSemitones,
-      language: _language,
-    ).join(', ');
+    final generatedIntervalName = _intervalGenSelected
+        ? intervalGridDisplayNames(
+            selectedCategoryKey: _intervalGenCategoryKey,
+            selectedLabel: _intervalGenLabel,
+            semitones: _intervalGenSemitones,
+            language: _language,
+          ).join(', ')
+        : '-';
     return _buildModeScaffold(
+      showInstrument: false,
       controls: LayoutBuilder(
         builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    _ui('Generación de Intervalos', 'Interval Generation'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
+                  if (!compactLandscape) ...<Widget>[
+                    Text(
+                      _ui('Generación de Intervalos', 'Interval Generation'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
+                    const SizedBox(height: 4),
+                  ],
                   Row(
                     children: <Widget>[
                       Expanded(
@@ -2209,14 +2552,25 @@ extension _HomeScreenPages on _HomeScreenState {
                               });
                               _playGeneratedInterval();
                             },
+                            compact: compactPhone,
+                            hideLabel: compactPhone,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: compactPhone ? 4 : 8),
                       _helpAnchor(
                         'interval_generation_playback_mode',
                         OutlinedButton(
                           onPressed: _toggleIntervalGenerationPlaybackMode,
+                          style: compactPhone
+                              ? OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 40),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                )
+                              : null,
                           child: Text(
                             _intervalGenHarmonic
                                 ? _ui('Armónico', 'Harmonic')
@@ -2224,7 +2578,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: compactPhone ? 4 : 6),
                       _intervalGenerationPlayButton(
                         helpId: 'interval_generation_play_reverse',
                         tooltip: _ui(
@@ -2232,14 +2586,15 @@ extension _HomeScreenPages on _HomeScreenState {
                           'Play descending and keep that pattern',
                         ),
                         icon: Icons.arrow_left,
+                        compact: compactPhone,
                         selected: _intervalGenLastPlayReversed == true,
-                        onPressed: _intervalGenHarmonic
+                        onPressed: !_intervalGenSelected || _intervalGenHarmonic
                             ? null
                             : () => _playGeneratedIntervalFromButton(
                                 reversed: true,
                               ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: compactPhone ? 4 : 6),
                       _intervalGenerationPlayButton(
                         helpId: 'interval_generation_play',
                         tooltip: _ui(
@@ -2247,9 +2602,13 @@ extension _HomeScreenPages on _HomeScreenState {
                           'Play ascending and keep that pattern',
                         ),
                         icon: Icons.arrow_right,
+                        compact: compactPhone,
                         selected: _intervalGenLastPlayReversed == false,
-                        onPressed: () =>
-                            _playGeneratedIntervalFromButton(reversed: false),
+                        onPressed: _intervalGenSelected
+                            ? () => _playGeneratedIntervalFromButton(
+                                reversed: false,
+                              )
+                            : null,
                       ),
                     ],
                   ),
@@ -2273,7 +2632,11 @@ extension _HomeScreenPages on _HomeScreenState {
                               flex: 2,
                               child: _intervalGenerationResultRow(
                                 _ui('Notas', 'Notes'),
-                                notes.map(_midiNoteWithOctave).join(' – '),
+                                notes.isEmpty
+                                    ? '-'
+                                    : notes
+                                          .map(_midiNoteWithOctave)
+                                          .join(' – '),
                                 helpId: 'interval_generation_notes',
                               ),
                             ),
@@ -2281,7 +2644,9 @@ extension _HomeScreenPages on _HomeScreenState {
                             Expanded(
                               child: _intervalGenerationResultRow(
                                 _ui('Semitonos', 'Semitones'),
-                                '$_intervalGenSemitones',
+                                _intervalGenSelected
+                                    ? '$_intervalGenSemitones'
+                                    : '-',
                                 helpId: 'interval_generation_semitones',
                               ),
                             ),
@@ -2297,14 +2662,16 @@ extension _HomeScreenPages on _HomeScreenState {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    _ui('Selecciona un intervalo', 'Select an interval'),
-                    style: const TextStyle(
-                      color: _HomeScreenState._muted,
-                      fontWeight: FontWeight.w700,
+                  if (!_isCompactPhone(context)) ...<Widget>[
+                    Text(
+                      _ui('Selecciona un intervalo', 'Select an interval'),
+                      style: const TextStyle(
+                        color: _HomeScreenState._muted,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
+                    const SizedBox(height: 2),
+                  ],
                   _helpAnchor(
                     'interval_generation_table',
                     _buildIntervalGenerationTable(constraints.maxWidth),
@@ -2319,7 +2686,13 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   Widget _buildIntervalGenerationTable(double availableWidth) {
-    final tableWidth = math.max(650.0, availableWidth);
+    final compactPhone = _isCompactPhone(context);
+    final tableWidth = compactPhone
+        ? availableWidth
+        : math.max(650.0, availableWidth);
+    final cellHeight = compactPhone ? 28.0 : 34.0;
+    final cellHorizontalPadding = compactPhone ? 0.0 : 3.0;
+    final categoryColumnWidth = compactPhone ? 76.0 : 104.0;
     Widget tableCell(
       String text, {
       bool header = false,
@@ -2327,14 +2700,14 @@ extension _HomeScreenPages on _HomeScreenState {
       VoidCallback? onTap,
     }) {
       final content = Container(
-        height: 34,
+        height: cellHeight,
         alignment: Alignment.center,
         color: selected
             ? _HomeScreenState._accent
             : (header
                   ? const Color(0xFF17273A)
                   : _HomeScreenState._surfaceDark),
-        padding: const EdgeInsets.symmetric(horizontal: 3),
+        padding: EdgeInsets.symmetric(horizontal: cellHorizontalPadding),
         child: Text(
           text,
           maxLines: 1,
@@ -2343,7 +2716,7 @@ extension _HomeScreenPages on _HomeScreenState {
             color: selected
                 ? Colors.black
                 : (header ? _HomeScreenState._muted : _HomeScreenState._text),
-            fontSize: header ? 11 : 12,
+            fontSize: compactPhone ? (header ? 10 : 11) : (header ? 11 : 12),
             fontWeight: selected || header ? FontWeight.w700 : FontWeight.w600,
           ),
         ),
@@ -2362,7 +2735,9 @@ extension _HomeScreenPages on _HomeScreenState {
         width: tableWidth,
         child: Table(
           border: TableBorder.all(color: const Color(0xFF5A6A82), width: 1),
-          columnWidths: const <int, TableColumnWidth>{0: FixedColumnWidth(104)},
+          columnWidths: <int, TableColumnWidth>{
+            0: FixedColumnWidth(categoryColumnWidth),
+          },
           defaultColumnWidth: const FlexColumnWidth(),
           children: <TableRow>[
             TableRow(
@@ -2384,6 +2759,7 @@ extension _HomeScreenPages on _HomeScreenState {
                       if (matching.isEmpty) return tableCell('');
                       final cell = matching.first;
                       final selected =
+                          _intervalGenSelected &&
                           category.key == _intervalGenCategoryKey &&
                           cell.label == _intervalGenLabel;
                       return tableCell(
@@ -2404,6 +2780,7 @@ extension _HomeScreenPages on _HomeScreenState {
     required String helpId,
     required String tooltip,
     required IconData icon,
+    required bool compact,
     required bool selected,
     required VoidCallback? onPressed,
   }) {
@@ -2412,8 +2789,8 @@ extension _HomeScreenPages on _HomeScreenState {
       Tooltip(
         message: tooltip,
         child: SizedBox(
-          width: 46,
-          height: 48,
+          width: compact ? 38 : 46,
+          height: compact ? 40 : 48,
           child: ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
@@ -2428,7 +2805,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     : _HomeScreenState._border,
               ),
             ),
-            child: Icon(icon, size: 34),
+            child: Icon(icon, size: compact ? 28 : 34),
           ),
         ),
       ),
@@ -2477,6 +2854,10 @@ extension _HomeScreenPages on _HomeScreenState {
       controls: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
           final iphoneCompact = Platform.isIOS && _isCompactPhone(context);
           final sliderWidth = math.max(
             60.0,
@@ -2488,14 +2869,16 @@ extension _HomeScreenPages on _HomeScreenState {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    _ui('Configuración de Metrónomo', 'Metronome settings'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
+                  if (!compactLandscape) ...<Widget>[
+                    Text(
+                      _ui('Configuración de Metrónomo', 'Metronome settings'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
+                    const SizedBox(height: 6),
+                  ],
                   _helpAnchor(
                     'metronome_volume',
                     Wrap(
@@ -2870,280 +3253,293 @@ extension _HomeScreenPages on _HomeScreenState {
       showInstrument: false,
       bottomPanel: _buildTunerSpectrumPanel(),
       controls: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  _ui('Configuración de Afinador', 'Tuner settings'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_toggle',
-                  FilledButton.icon(
-                    onPressed: _toggleTuner,
-                    icon: Icon(_tunerRunning ? Icons.stop : Icons.play_arrow),
-                    label: Text(
-                      _tunerRunning
-                          ? _ui('Detener afinador', 'Stop tuner')
-                          : _ui('Iniciar afinador', 'Start tuner'),
+        builder: (context, constraints) {
+          final compactLandscape = _isCompactLandscapePhoneForConstraints(
+            context,
+            constraints,
+          );
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (!compactLandscape) ...<Widget>[
+                    Text(
+                      _ui('Configuración de Afinador', 'Tuner settings'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  _helpAnchor(
+                    'tuner_toggle',
+                    FilledButton.icon(
+                      onPressed: _toggleTuner,
+                      icon: Icon(_tunerRunning ? Icons.stop : Icons.play_arrow),
+                      label: Text(
+                        _tunerRunning
+                            ? _ui('Detener afinador', 'Stop tuner')
+                            : _ui('Iniciar afinador', 'Start tuner'),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_tuning_select',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Afinación', 'Tuning'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _HomeScreenState._muted,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey<String>('tuner_tuning_$_tunerTuning'),
-                          initialValue: _tunerTuning,
-                          dropdownColor: _HomeScreenState._surfaceDark,
-                          decoration: const InputDecoration(isDense: true),
-                          items: <DropdownMenuItem<String>>[
-                            DropdownMenuItem<String>(
-                              value: 'standard_e',
-                              child: Text(
-                                _language == 'en' ? 'Standard E' : 'E estándar',
-                              ),
-                            ),
-                            const DropdownMenuItem<String>(
-                              value: 'drop_d',
-                              child: Text('Drop D'),
-                            ),
-                            DropdownMenuItem<String>(
-                              value: 'half_step_down',
-                              child: Text(
-                                _language == 'en'
-                                    ? 'Half-step down'
-                                    : '1/2 tono abajo',
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              _updateState(() => _tunerTuning = value);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _helpAnchor(
-                  'tuner_gain',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Ganancia', 'Gain'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _HomeScreenState._muted,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _updateState(
-                          () => _tunerInputGain = (_tunerInputGain - 0.01)
-                              .clamp(0.0, 2.0),
-                        ),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          min: 0.0,
-                          max: 2.0,
-                          divisions: 200,
-                          value: _tunerInputGain,
-                          onChanged: (value) =>
-                              _updateState(() => _tunerInputGain = value),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _updateState(
-                          () => _tunerInputGain = (_tunerInputGain + 0.01)
-                              .clamp(0.0, 2.0),
-                        ),
-                        icon: const Icon(Icons.add),
-                      ),
-                      SizedBox(
-                        width: 54,
-                        child: Text('${(_tunerInputGain * 100).round()}%'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _helpAnchor(
-                  'tuner_range',
-                  Row(
-                    children: <Widget>[
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          _ui('Rango Hz', 'Hz range'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _HomeScreenState._muted,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 74,
-                        child: DropdownButton<int>(
-                          value: _tunerRangeMin,
-                          dropdownColor: _HomeScreenState._surfaceDark,
-                          items: List<DropdownMenuItem<int>>.generate(
-                            300,
-                            (i) => DropdownMenuItem<int>(
-                              value: i * 10,
-                              child: Text('${i * 10}'),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            _updateState(() {
-                              _tunerRangeMin = value.clamp(0, 2990);
-                              if (_tunerRangeMax <= _tunerRangeMin) {
-                                _tunerRangeMax = (_tunerRangeMin + 10).clamp(
-                                  10,
-                                  3000,
-                                );
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('-'),
-                      ),
-                      SizedBox(
-                        width: 74,
-                        child: DropdownButton<int>(
-                          value: _tunerRangeMax,
-                          dropdownColor: _HomeScreenState._surfaceDark,
-                          items: List<DropdownMenuItem<int>>.generate(
-                            300,
-                            (i) => DropdownMenuItem<int>(
-                              value: (i + 1) * 10,
-                              child: Text('${(i + 1) * 10}'),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            _updateState(() {
-                              _tunerRangeMax = value.clamp(
-                                _tunerRangeMin + 1,
-                                3000,
-                              );
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Hz',
-                        style: TextStyle(color: _HomeScreenState._muted),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _helpAnchor(
-                  'tuner_readout',
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _HomeScreenState._surfaceDark,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _HomeScreenState._border),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 8),
+                  _helpAnchor(
+                    'tuner_tuning_select',
+                    Row(
                       children: <Widget>[
-                        Text('Nota: $_tunerNote'),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Desviación: ${_tunerCents >= 0 ? '+' : ''}$_tunerCents cents',
+                        SizedBox(
+                          width: 96,
+                          child: Text(
+                            _ui('Afinación', 'Tuning'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _HomeScreenState._muted,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Text('Frecuencia: ${_tunerFreq.toStringAsFixed(1)} Hz'),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 20,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: const Color(0xFFCBD3DD),
-                  ),
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              final knobX = (constraints.maxWidth - 16) * meter;
-                              return Stack(
-                                children: <Widget>[
-                                  Positioned(
-                                    left: knobX,
-                                    top: 2,
-                                    child: Container(
-                                      width: 16,
-                                      height: 16,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            key: ValueKey<String>('tuner_tuning_$_tunerTuning'),
+                            initialValue: _tunerTuning,
+                            dropdownColor: _HomeScreenState._surfaceDark,
+                            decoration: const InputDecoration(isDense: true),
+                            items: <DropdownMenuItem<String>>[
+                              DropdownMenuItem<String>(
+                                value: 'standard_e',
+                                child: Text(
+                                  _language == 'en'
+                                      ? 'Standard E'
+                                      : 'E estándar',
+                                ),
+                              ),
+                              const DropdownMenuItem<String>(
+                                value: 'drop_d',
+                                child: Text('Drop D'),
+                              ),
+                              DropdownMenuItem<String>(
+                                value: 'half_step_down',
+                                child: Text(
+                                  _language == 'en'
+                                      ? 'Half-step down'
+                                      : '1/2 tono abajo',
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                _updateState(() => _tunerTuning = value);
+                              }
                             },
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_tunerError.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Error: $_tunerError',
-                      style: const TextStyle(color: Colors.red),
+                      ],
                     ),
                   ),
-              ],
+                  const SizedBox(height: 8),
+                  _helpAnchor(
+                    'tuner_gain',
+                    Row(
+                      children: <Widget>[
+                        SizedBox(
+                          width: 96,
+                          child: Text(
+                            _ui('Ganancia', 'Gain'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _HomeScreenState._muted,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _updateState(
+                            () => _tunerInputGain = (_tunerInputGain - 0.01)
+                                .clamp(0.0, 2.0),
+                          ),
+                          icon: const Icon(Icons.remove),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            min: 0.0,
+                            max: 2.0,
+                            divisions: 200,
+                            value: _tunerInputGain,
+                            onChanged: (value) =>
+                                _updateState(() => _tunerInputGain = value),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _updateState(
+                            () => _tunerInputGain = (_tunerInputGain + 0.01)
+                                .clamp(0.0, 2.0),
+                          ),
+                          icon: const Icon(Icons.add),
+                        ),
+                        SizedBox(
+                          width: 54,
+                          child: Text('${(_tunerInputGain * 100).round()}%'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _helpAnchor(
+                    'tuner_range',
+                    Row(
+                      children: <Widget>[
+                        SizedBox(
+                          width: 96,
+                          child: Text(
+                            _ui('Rango Hz', 'Hz range'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _HomeScreenState._muted,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 74,
+                          child: DropdownButton<int>(
+                            value: _tunerRangeMin,
+                            dropdownColor: _HomeScreenState._surfaceDark,
+                            items: List<DropdownMenuItem<int>>.generate(
+                              300,
+                              (i) => DropdownMenuItem<int>(
+                                value: i * 10,
+                                child: Text('${i * 10}'),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              _updateState(() {
+                                _tunerRangeMin = value.clamp(0, 2990);
+                                if (_tunerRangeMax <= _tunerRangeMin) {
+                                  _tunerRangeMax = (_tunerRangeMin + 10).clamp(
+                                    10,
+                                    3000,
+                                  );
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('-'),
+                        ),
+                        SizedBox(
+                          width: 74,
+                          child: DropdownButton<int>(
+                            value: _tunerRangeMax,
+                            dropdownColor: _HomeScreenState._surfaceDark,
+                            items: List<DropdownMenuItem<int>>.generate(
+                              300,
+                              (i) => DropdownMenuItem<int>(
+                                value: (i + 1) * 10,
+                                child: Text('${(i + 1) * 10}'),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              _updateState(() {
+                                _tunerRangeMax = value.clamp(
+                                  _tunerRangeMin + 1,
+                                  3000,
+                                );
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Hz',
+                          style: TextStyle(color: _HomeScreenState._muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _helpAnchor(
+                    'tuner_readout',
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: _HomeScreenState._surfaceDark,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _HomeScreenState._border),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('Nota: $_tunerNote'),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Desviación: ${_tunerCents >= 0 ? '+' : ''}$_tunerCents cents',
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Frecuencia: ${_tunerFreq.toStringAsFixed(1)} Hz',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 20,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFCBD3DD),
+                    ),
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final knobX =
+                                    (constraints.maxWidth - 16) * meter;
+                                return Stack(
+                                  children: <Widget>[
+                                    Positioned(
+                                      left: knobX,
+                                      top: 2,
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_tunerError.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Error: $_tunerError',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -3176,6 +3572,9 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   Widget _panel({required Widget child}) {
+    final compactLandscape =
+        _isCompactPhone(context) &&
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -3186,7 +3585,7 @@ extension _HomeScreenPages on _HomeScreenState {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _HomeScreenState._border),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(compactLandscape ? 8 : 12),
       child: child,
     );
   }
@@ -3197,6 +3596,7 @@ extension _HomeScreenPages on _HomeScreenState {
     required Future<void> Function() onDown,
     required VoidCallback onUp,
     String? label,
+    bool compact = false,
   }) {
     final hasLabel = (label != null && label.trim().isNotEmpty);
     return Listener(
@@ -3228,10 +3628,10 @@ extension _HomeScreenPages on _HomeScreenState {
             )
           : FilledButton(
               style: FilledButton.styleFrom(
-                minimumSize: const Size(46, 42),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
+                minimumSize: Size(compact ? 34 : 46, compact ? 34 : 42),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 6 : 10,
+                  vertical: compact ? 6 : 10,
                 ),
                 backgroundColor: active
                     ? _HomeScreenState._accent
@@ -3241,7 +3641,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     : _HomeScreenState._text,
               ),
               onPressed: enabled ? () {} : null,
-              child: const Icon(Icons.play_arrow),
+              child: Icon(Icons.play_arrow, size: compact ? 18 : 24),
             ),
     );
   }

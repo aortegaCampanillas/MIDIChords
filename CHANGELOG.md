@@ -4,6 +4,13 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Digitación de guitarra**: las cuerdas al aire se identifican con 0 y las silenciadas con X a la misma altura en web, escritorio y móvil.
+- **Móvil / generación de intervalos**: eliminado el panel inferior de piano para ampliar el espacio dedicado al ejercicio.
+- **Móvil / círculo de quintas**: eliminado el panel inferior del instrumento para dedicar toda la pantalla al círculo.
+- **Móvil / teléfono horizontal**: todos los modos eliminan títulos internos redundantes y compactan la barra, paneles, botones, tipografías, separaciones y teclado; Generación de acordes distribuye pentagrama, controles e información en tres columnas.
+- **Móvil / iPhone**: el diálogo de novedades distribuye correctamente su altura en horizontal y deja de provocar un desbordamiento vertical.
+- **Móvil / acordes de guitarra**: las posiciones del mástil muestran los números de la digitación, igual que la web, en lugar de los nombres de nota.
+- **Móvil / generación de intervalos**: la pantalla se abre vacía y no precarga una quinta justa antes de que el usuario seleccione un intervalo.
 - **Práctica de intervalos**: durante la corrección, las columnas correcta e incorrecta se pueden pulsar para escucharlas aunque estén excluidas por el filtro, en web, escritorio y móvil.
 - **Escritorio / práctica de intervalos**: las respuestas incorrectas marcan en rojo su columna de semitonos y muestran en verde la esperada, incluso al contestar la nota en otra octava.
 - **Web / generación de acordes**: al cambiar de acorde o inversión se selecciona automáticamente la primera variante de guitarra.
@@ -21,7 +28,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ### Versión
 
-- **1.0.7**: preparadas las compilaciones de distribución para App Store Connect: iOS build 26 y macOS build 24.
+- **1.0.7**: preparada la compilación iOS build 27 para App Store Connect; macOS permanece en build 24.
 - **1.0.7**: comienza el registro de cambios de la próxima versión.
 - **1.0.5**: preparadas las compilaciones de distribución para App Store Connect: iOS build 19 y macOS build 21.
 - **1.0.2**: versión alineada en **escritorio** (`APP_RELEASE_NAME`), **web** (`/api/meta` → `app_version`, JSON-LD) y **móvil** (`pubspec.yaml` **1.0.2+8**).

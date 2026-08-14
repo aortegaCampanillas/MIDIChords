@@ -81,6 +81,17 @@ def test_cached_voicing_recalculates_invalid_fingers() -> None:
     assert variations[0]["fingers"] == [0, 0, 1, 1, 1, 0]
 
 
+def test_cached_open_strings_always_use_finger_zero() -> None:
+    app = _CachedGuitarVariationHarness()
+    cached = [{"frets": [-1, 0, 2, 2, 2, 0], "fingers": [4, 1, 2, 3, 4, 1]}]
+
+    variations = MidiChordAnalyzerApp._postprocess_cached_guitar_variations(
+        app, cached, 9, ChordPattern("", (0, 4, 7))
+    )
+
+    assert variations[0]["fingers"] == [0, 0, 2, 3, 4, 0]
+
+
 def test_shifted_barre_voicing_does_not_keep_open_strings_behind_it() -> None:
     app = _CachedGuitarVariationHarness()
     cached = [{"frets": [0, 5, 7, 7, 5, 5], "fingers": [0, 1, 3, 4, 1, 1]}]

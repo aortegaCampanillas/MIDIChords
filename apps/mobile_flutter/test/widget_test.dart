@@ -12,6 +12,100 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:midichords/main.dart';
 
 void main() {
+  testWidgets('chord detection fits an iPhone 17 landscape viewport', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+      'tabIndex': 0,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Detección de Acordes'), findsWidgets);
+    expect(find.text('Construcción: -', findRichText: true), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('note detection fits an iPhone 17 landscape viewport', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+      'tabIndex': 8,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Detección de Notas'), findsOneWidget);
+    expect(find.text('Nota: -', findRichText: true), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('chord generation fits an iPhone 17 landscape viewport', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+      'tabIndex': 1,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Generación de Acordes'), findsOneWidget);
+    expect(find.byIcon(Icons.piano), findsWidgets);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.piano).last);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('🎸'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('changelog fits an iPhone 17 landscape viewport', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // Ignore unrelated compact-page layout before isolating the dialog.
+    tester.takeException();
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Novedades'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Novedades'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Novedades'), findsOneWidget);
+    expect(find.text('No volver a mostrar'), findsOneWidget);
+    expect(find.text('Cerrar'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('App bootstrap smoke test', (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -84,6 +178,29 @@ void main() {
     expect(find.text('Ocultar'), findsOneWidget);
   });
 
+  testWidgets('interval detection keeps actions visible on iPhone landscape', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+      'tabIndex': 5,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Reproducir'), findsOneWidget);
+    expect(find.text('Desc.'), findsOneWidget);
+    expect(find.text('Limpiar'), findsOneWidget);
+    expect(find.text('Ocultar'), findsOneWidget);
+    expect(find.text('Ejemplo:'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('interval practice renders a visible staff panel', (
     WidgetTester tester,
   ) async {
@@ -104,6 +221,32 @@ void main() {
     expect(staff, findsOneWidget);
     expect(tester.getSize(staff).height, greaterThan(100));
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('interval practice filter fits an iPhone 17 landscape viewport', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'changelogDontShow': true,
+      'tabIndex': 9,
+    });
+    await tester.binding.setSurfaceSize(const Size(932, 430));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MidiChordsMobileApp());
+    for (var attempt = 0; attempt < 10; attempt += 1) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    tester.takeException();
+
+    await tester.ensureVisible(find.text('Filtrar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Filtrar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Filtrar intervalos'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('interval generation help resolves its scrollable table', (

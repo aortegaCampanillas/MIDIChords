@@ -978,7 +978,10 @@ class MidiChordAnalyzerApp(
                 and len(cached_fingers) >= 6
                 and all(isinstance(finger, int) and 0 <= finger <= 4 for finger in cached_fingers[:6])
             ):
-                fingers = [int(finger) for finger in cached_fingers[:6]]
+                fingers = [
+                    0 if fret <= 0 else int(finger)
+                    for fret, finger in zip(frets, cached_fingers[:6])
+                ]
             else:
                 fingers = self._assign_guitar_fingers(frets)
             string_notes = [(tuning[i] + frets[i]) if frets[i] >= 0 else None for i in range(6)]

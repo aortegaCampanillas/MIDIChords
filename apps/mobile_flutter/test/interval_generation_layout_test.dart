@@ -19,12 +19,37 @@ void main() {
       expect(intervalPage, contains('generatedIntervalName'));
       expect(intervalPage, contains('intervalGridDisplayNames('));
       expect(intervalPage, contains('selectedLabel: _intervalGenLabel'));
+      expect(
+        intervalPage,
+        contains('final generatedIntervalName = _intervalGenSelected'),
+      );
+      expect(intervalPage, contains('_intervalGenSelected &&'));
       expect(intervalPage, isNot(contains('selectedCategory.name(_language)')));
       expect(pages, contains('for (var semitones = 0; semitones <= 12;'));
       expect(pages, contains('for (final category in intervalGridCategories)'));
+      expect(
+        intervalPage,
+        contains('final compactPhone = _isCompactPhone(context);'),
+      );
+      expect(intervalPage, contains('? availableWidth'));
+      expect(intervalPage, contains('compactPhone ? 0.0 : 3.0'));
+      expect(intervalPage, contains('compactPhone ? 76.0 : 104.0'));
+      expect(intervalPage, contains('height: cellHeight'));
       expect(intervalPage, isNot(contains('ChoiceChip(')));
+      expect(
+        intervalPage,
+        contains("if (!_isCompactPhone(context)) ...<Widget>["),
+      );
+      expect(
+        intervalPage,
+        contains("_ui('Selecciona un intervalo', 'Select an interval')"),
+      );
       expect(intervalPage, contains('icon: Icons.arrow_left'));
       expect(intervalPage, contains('icon: Icons.arrow_right'));
+      expect(intervalPage, contains('compact: compactPhone'));
+      expect(intervalPage, contains('hideLabel: compactPhone'));
+      expect(pages, contains('width: compact ? 38 : 46'));
+      expect(pages, contains('height: compact ? 40 : 48'));
       expect(intervalPage, isNot(contains("symbol: '▶↑'")));
       expect(intervalPage, isNot(contains("symbol: '▶↓'")));
       expect(

@@ -3815,6 +3815,17 @@ function renderGuitar() {
   tuning.forEach((openNote, i) => {
     const y = top + i * yGap;
 
+    if (generationVariationMode && Number(displayFrets[i]) < 0) {
+      const cx = fretCenterX(0);
+      ctx.fillStyle = "#ff5a5a";
+      ctx.font = "bold 13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("X", cx, y);
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
+    }
+
     for (let fret = 0; fret < frets; fret += 1) {
       if (generationVariationMode) {
         const selectedFret = Number(displayFrets[i]);
@@ -3841,7 +3852,7 @@ function renderGuitar() {
         ctx.stroke();
         ctx.fillStyle = (isRoot || isCurrentGeneration) ? "#ffffff" : "#1f1200";
         ctx.font = "bold 10px sans-serif";
-        ctx.fillText(String(finger > 0 ? finger : 1), cx - 3, y + 3);
+        ctx.fillText(String(fret === 0 ? 0 : (finger > 0 ? finger : 1)), cx - 3, y + 3);
         continue;
       }
       const note = openNote + fret;

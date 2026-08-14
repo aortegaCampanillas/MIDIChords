@@ -7,10 +7,8 @@ void main() {
   test('centers the piano when entering detection and theory modes', () {
     expect(modeUsesCenteredTheoryPiano(0), isTrue);
     expect(modeUsesCenteredTheoryPiano(1), isTrue);
-    expect(modeUsesCenteredTheoryPiano(2), isTrue);
     expect(modeUsesCenteredTheoryPiano(3), isTrue);
     expect(modeUsesCenteredTheoryPiano(5), isTrue);
-    expect(modeUsesCenteredTheoryPiano(7), isTrue);
     expect(modeUsesCenteredTheoryPiano(8), isTrue);
     expect(modeUsesCenteredTheoryPiano(9), isTrue);
   });
@@ -18,6 +16,8 @@ void main() {
   test('does not recenter unrelated modes', () {
     expect(modeUsesCenteredTheoryPiano(4), isFalse);
     expect(modeUsesCenteredTheoryPiano(6), isFalse);
+    expect(modeUsesCenteredTheoryPiano(2), isFalse);
+    expect(modeUsesCenteredTheoryPiano(7), isFalse);
   });
 
   test('remembers an independent scroll position for every theory mode', () {

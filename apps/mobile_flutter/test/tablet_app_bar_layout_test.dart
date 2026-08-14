@@ -19,9 +19,18 @@ void main() {
     expect(appBar, contains('centerTitle: tabletPortrait'));
     expect(appBar, contains('(tabletPortrait ? 14 : 24)'));
     expect(appBar, contains('(tabletPortrait ? 220.0 : 340.0)'));
-    expect(appBar, contains('fontSize: tabletPortrait ? 14 : null'));
-    expect(appBar, contains('minWidth: tabletPortrait ? 54'));
-    expect(appBar, contains('size: tabletPortrait ? 22 : null'));
+    expect(appBar, contains('tabletPortrait ? 14 : null'));
+    expect(appBar, contains('tabletPortrait ? 54'));
+    expect(appBar, contains('tabletPortrait ? 22 : null'));
+    expect(appBar, contains('(portrait ? 60 : 50)'));
+    expect(appBar, contains('(portrait ? 260.0 : 230.0)'));
+    expect(appBar, contains('minWidth: compactLandscape'));
+    expect(appBar, contains('? 44'));
+    expect(
+      'height: compactLandscape ? 34 : null'.allMatches(appBar),
+      hasLength(2),
+    );
+    expect(appBar, contains('isDense: compactLandscape'));
   });
 
   test('tablet portrait gives more width to the piano and guitar', () {
@@ -40,5 +49,14 @@ void main() {
     expect(instrumentPanel, contains('flipX: !rightHanded'));
     expect('Semantics('.allMatches(instrumentPanel), hasLength(2));
     expect('Tooltip('.allMatches(instrumentPanel), hasLength(2));
+    expect(
+      instrumentPanel,
+      contains('compactPhone && portrait && showRightControls'),
+    );
+    expect(
+      instrumentPanel,
+      contains("_instrumentView == 'guitar' ? 132.0 : 104.0"),
+    );
+    expect(source, contains('compactChordGuitar ? 15.0 : 11.0'));
   });
 }

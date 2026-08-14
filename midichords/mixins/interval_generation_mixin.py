@@ -217,12 +217,19 @@ class IntervalGenerationMixin:
             return False
         if self.interval_gen_input_clear_timer:
             self.after_cancel(self.interval_gen_input_clear_timer)
+            self.interval_gen_input_clear_timer = None
+            pending_note = getattr(self, "_interval_gen_input_sounding_note", None)
+            if pending_note is not None:
+                self.stop_note(pending_note)
+                self._interval_gen_input_sounding_note = None
         self.interval_gen_playing_note = int(matched)
         self.interval_gen_playing_idx = notes.index(int(matched))
         if guitar_input:
             self.pluck_note(note_int, velocity=100, duration_seconds=1.0)
+            self._interval_gen_input_sounding_note = None
         else:
             self.play_note(note_int, velocity=100)
+            self._interval_gen_input_sounding_note = note_int
         self.update_music_views()
         self.interval_gen_input_clear_timer = self.after(
             720, self._clear_interval_gen_input_highlight
@@ -233,6 +240,10 @@ class IntervalGenerationMixin:
         self.interval_gen_input_clear_timer = None
         self.interval_gen_playing_note = None
         self.interval_gen_playing_idx = None
+        sounding_note = getattr(self, "_interval_gen_input_sounding_note", None)
+        if sounding_note is not None:
+            self.stop_note(sounding_note)
+            self._interval_gen_input_sounding_note = None
         self.update_music_views()
 
     def _play_interval_gen_sequence(self, notes: list[int], index: int = 0) -> None:

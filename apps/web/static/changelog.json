@@ -55,6 +55,13 @@
       {
         "date": "2026-08-14",
         "publish": false,
+        "platforms": ["mobile"],
+        "es": "Los controles de Escalas y Metrónomo se adaptan al tamaño de pantalla del teléfono para aprovechar mejor el espacio.",
+        "en": "Scales and Metronome controls adapt to the phone's screen size to make better use of the available space."
+      },
+      {
+        "date": "2026-08-14",
+        "publish": false,
         "platforms": ["web", "desktop", "mobile"],
         "es": "Durante la corrección de Práctica de intervalos se pueden pulsar y escuchar las columnas correcta e incorrecta aunque estén fuera del filtro activo.",
         "en": "During Interval Practice correction, the correct and incorrect columns can be pressed and heard even when excluded by the active filter."

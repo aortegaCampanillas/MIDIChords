@@ -1602,7 +1602,7 @@ extension _HomeScreenPages on _HomeScreenState {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        SizedBox(height: compactPhone ? 1 : 4),
+                        SizedBox(height: compactPhone ? 0 : 4),
                         Row(
                           children: <Widget>[
                             Expanded(
@@ -1651,7 +1651,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             ],
                           ],
                         ),
-                        SizedBox(height: compactPhone ? 1 : 4),
+                        SizedBox(height: compactPhone ? 0 : 4),
                         // Row 2: Scale type + Básicas/Todas toggle
                         Row(
                           children: <Widget>[
@@ -1747,7 +1747,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             ),
                           ],
                         ),
-                        SizedBox(height: compactPhone ? 1 : 4),
+                        SizedBox(height: compactPhone ? 0 : 4),
                         // Row 3: Play + Metro buttons (left) + Octaves selector (right)
                         Row(
                           children: <Widget>[
@@ -1772,6 +1772,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   minimumSize: Size.square(
                                     compactPhone ? 32 : 40,
                                   ),
+                                  tapTargetSize: compactPhone
+                                      ? MaterialTapTargetSize.shrinkWrap
+                                      : null,
                                 ),
                                 onPressed: _toggleScaleLoop,
                                 child: Icon(
@@ -1804,6 +1807,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   minimumSize: Size.square(
                                     compactPhone ? 32 : 40,
                                   ),
+                                  tapTargetSize: compactPhone
+                                      ? MaterialTapTargetSize.shrinkWrap
+                                      : null,
                                 ),
                                 onPressed: () => _updateState(
                                   () => _scaleMetronomeOnly =
@@ -1898,7 +1904,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           ],
                         ),
                         if (_scaleMetronomeOnly) ...<Widget>[
-                          SizedBox(height: compactPhone ? 2 : 8),
+                          SizedBox(height: compactPhone ? 1 : 8),
                           _helpAnchor(
                             'scales_volume',
                             Row(
@@ -1996,7 +2002,7 @@ extension _HomeScreenPages on _HomeScreenState {
                             ),
                           ),
                         ],
-                        SizedBox(height: compactPhone ? 2 : 6),
+                        SizedBox(height: compactPhone ? 1 : 6),
                         ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: resultHeight),
                           child: _buildScaleResultBlock(compact: compactPhone),
@@ -2033,41 +2039,53 @@ extension _HomeScreenPages on _HomeScreenState {
   }
 
   void _showScaleSettings() {
+    final compactPhone = _isCompactPhone(context);
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(_ui('Configuración de escala', 'Scale settings')),
           content: SizedBox(
-            width: 420,
+            width: compactPhone
+                ? MediaQuery.of(context).size.shortestSide * 0.8
+                : 420,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('BPM: $_scaleBpm'),
-                  Slider(
-                    min: 1,
-                    max: 300,
-                    divisions: 299,
-                    value: _scaleBpm.toDouble(),
-                    onChanged: (value) {
-                      setDialogState(() => _scaleBpm = value.round());
-                      _updateState(() {});
-                    },
+                  Text(
+                    'BPM: $_scaleBpm',
+                    style: TextStyle(fontSize: compactPhone ? 12 : null),
                   ),
-                  const SizedBox(height: 8),
-                  Text(_ui('Octavas', 'Octaves')),
-                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: compactPhone ? 24 : null,
+                    child: Slider(
+                      min: 1,
+                      max: 300,
+                      divisions: 299,
+                      value: _scaleBpm.toDouble(),
+                      onChanged: (value) {
+                        setDialogState(() => _scaleBpm = value.round());
+                        _updateState(() {});
+                      },
+                    ),
+                  ),
+                  SizedBox(height: compactPhone ? 4 : 8),
+                  Text(
+                    _ui('Octavas', 'Octaves'),
+                    style: TextStyle(fontSize: compactPhone ? 12 : null),
+                  ),
+                  SizedBox(height: compactPhone ? 3 : 6),
                   Row(
                     children: List<Widget>.generate(3, (i) {
                       final oct = i + 1;
                       final active = _scaleOctaves == oct;
                       return Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: EdgeInsets.only(right: compactPhone ? 5 : 8),
                         child: SizedBox(
-                          width: 40,
-                          height: 36,
+                          width: compactPhone ? 28 : 40,
+                          height: compactPhone ? 26 : 36,
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               backgroundColor: active
@@ -2077,6 +2095,9 @@ extension _HomeScreenPages on _HomeScreenState {
                                   ? const Color(0xFF1A222D)
                                   : _HomeScreenState._text,
                               padding: EdgeInsets.zero,
+                              tapTargetSize: compactPhone
+                                  ? MaterialTapTargetSize.shrinkWrap
+                                  : null,
                             ),
                             onPressed: () {
                               if (_scaleOctaves == oct) return;
@@ -2097,15 +2118,21 @@ extension _HomeScreenPages on _HomeScreenState {
                                 );
                               }
                             },
-                            child: Text('$oct'),
+                            child: Text(
+                              '$oct',
+                              style: TextStyle(
+                                fontSize: compactPhone ? 12 : null,
+                              ),
+                            ),
                           ),
                         ),
                       );
                     }),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: compactPhone ? 6 : 12),
                   _buildScaleFingeringRow(
-                    compact: true,
+                    compact: false,
+                    boxed: !compactPhone,
                     onChanged: () => setDialogState(() {}),
                   ),
                 ],
@@ -2227,6 +2254,7 @@ extension _HomeScreenPages on _HomeScreenState {
 
   Widget _buildScaleFingeringRow({
     bool compact = false,
+    bool boxed = true,
     VoidCallback? onChanged,
   }) {
     const options = <(String, String, String)>[
@@ -2288,6 +2316,26 @@ extension _HomeScreenPages on _HomeScreenState {
         ),
       );
     }).toList();
+    final content = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: compact ? 8 : 12,
+      runSpacing: compact ? 4 : 6,
+      children: <Widget>[
+        Text(
+          _ui('Digitación:', 'Fingering:'),
+          style: TextStyle(
+            color: _HomeScreenState._muted,
+            fontSize: compact ? 9 : 12,
+          ),
+        ),
+        Wrap(
+          spacing: compact ? 10 : 8,
+          runSpacing: compact ? 4 : 6,
+          children: optionWidgets,
+        ),
+      ],
+    );
+    if (!boxed) return content;
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 6 : 12,
@@ -2298,26 +2346,7 @@ extension _HomeScreenPages on _HomeScreenState {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _HomeScreenState._border),
       ),
-      child: Row(
-        children: <Widget>[
-          Text(
-            compact ? _ui('Dig.:', 'Fing.:') : _ui('Digitación:', 'Fingering:'),
-            style: TextStyle(
-              color: _HomeScreenState._muted,
-              fontSize: compact ? 9 : 12,
-            ),
-          ),
-          SizedBox(width: compact ? 6 : 12),
-          Expanded(
-            child: compact
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: optionWidgets,
-                  )
-                : Wrap(spacing: 8, runSpacing: 6, children: optionWidgets),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 

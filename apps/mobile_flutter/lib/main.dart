@@ -3504,16 +3504,16 @@ class _HomeScreenState extends State<HomeScreen>
                 style: TextStyle(
                   color: _muted,
                   fontWeight: FontWeight.w800,
-                  fontSize: compact ? 12 : 16,
-                  height: compact ? 1.2 : 1.35,
+                  fontSize: compact ? 10 : 16,
+                  height: compact ? 1.15 : 1.35,
                 ),
               ),
               TextSpan(
                 text: value,
                 style: TextStyle(
                   color: _text,
-                  fontSize: compact ? 12 : 16,
-                  height: compact ? 1.2 : 1.35,
+                  fontSize: compact ? 10 : 16,
+                  height: compact ? 1.15 : 1.35,
                 ),
               ),
             ],

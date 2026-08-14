@@ -1569,11 +1569,20 @@ extension _HomeScreenPages on _HomeScreenState {
     return _buildModeScaffold(
       controls: LayoutBuilder(
         builder: (context, constraints) {
+          final compactPhone = _isCompactPhone(context);
           final compact = constraints.maxWidth < 760;
-          final metroLabelWidth = compact ? 96.0 : 110.0;
+          final metroLabelWidth = compactPhone
+              ? 70.0
+              : (compact ? 96.0 : 110.0);
           final resultHeight = _scaleMetronomeOnly
-              ? math.max(80.0, constraints.maxHeight - 310.0)
-              : math.max(80.0, constraints.maxHeight - 270.0);
+              ? math.max(
+                  80.0,
+                  constraints.maxHeight - (compactPhone ? 240.0 : 310.0),
+                )
+              : math.max(
+                  80.0,
+                  constraints.maxHeight - (compactPhone ? 200.0 : 270.0),
+                );
           final filteredPatterns = _getFilteredScalePatterns();
           // Ensure current pattern is valid for current filter
           final currentPatternValid = filteredPatterns.any(
@@ -1593,27 +1602,56 @@ extension _HomeScreenPages on _HomeScreenState {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const SizedBox(height: 4),
-                        // Row 1: Tonic selector
-                        _buildTonicLetterAccidentalDropdowns(
-                          rootPc: _scaleTonicPc,
-                          savedLetterPc: _scaleTonicLetterPc,
-                          savedAccidental: _scaleTonicAccidental,
-                          letterHelpId: 'scales_tonic',
-                          accidentalHelpId: 'scales_accidental',
-                          helpAnchorHeight: 48,
-                          onPc: (pc, letterPc, accidental) {
-                            _updateState(() {
-                              _scaleTonicPc = pc;
-                              _scaleTonicLetterPc = letterPc;
-                              _scaleTonicAccidental = accidental;
-                            });
-                            if (!_requestInFlight) {
-                              unawaited(_callGenerateScale());
-                            }
-                          },
+                        SizedBox(height: compactPhone ? 1 : 4),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _buildTonicLetterAccidentalDropdowns(
+                                rootPc: _scaleTonicPc,
+                                savedLetterPc: _scaleTonicLetterPc,
+                                savedAccidental: _scaleTonicAccidental,
+                                letterHelpId: 'scales_tonic',
+                                accidentalHelpId: 'scales_accidental',
+                                helpAnchorHeight: compactPhone ? 36 : 48,
+                                compact: compactPhone,
+                                hideLabel: compactPhone,
+                                onPc: (pc, letterPc, accidental) {
+                                  _updateState(() {
+                                    _scaleTonicPc = pc;
+                                    _scaleTonicLetterPc = letterPc;
+                                    _scaleTonicAccidental = accidental;
+                                  });
+                                  if (!_requestInFlight) {
+                                    unawaited(_callGenerateScale());
+                                  }
+                                },
+                              ),
+                            ),
+                            if (compactPhone) ...<Widget>[
+                              const SizedBox(width: 3),
+                              _helpAnchor(
+                                'scales_settings',
+                                IconButton.outlined(
+                                  key: const ValueKey<String>(
+                                    'scales-settings-button',
+                                  ),
+                                  tooltip: _ui(
+                                    'Configuración de escala',
+                                    'Scale settings',
+                                  ),
+                                  onPressed: _showScaleSettings,
+                                  style: IconButton.styleFrom(
+                                    minimumSize: const Size(36, 36),
+                                    padding: const EdgeInsets.all(6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.settings, size: 18),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: compactPhone ? 1 : 4),
                         // Row 2: Scale type + Básicas/Todas toggle
                         Row(
                           children: <Widget>[
@@ -1633,15 +1671,18 @@ extension _HomeScreenPages on _HomeScreenState {
                                             : 'Ionian'),
                                   isExpanded: true,
                                   dropdownColor: _HomeScreenState._surfaceDark,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _HomeScreenState._text,
+                                    fontSize: compactPhone ? 10 : null,
                                   ),
                                   decoration: InputDecoration(
-                                    labelText: _ui('Tipo', 'Type'),
+                                    labelText: compactPhone
+                                        ? null
+                                        : _ui('Tipo', 'Type'),
                                     isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 10,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: compactPhone ? 7 : 10,
+                                      vertical: compactPhone ? 4 : 10,
                                     ),
                                   ),
                                   items: buildScaleDropdownItems(
@@ -1658,10 +1699,10 @@ extension _HomeScreenPages on _HomeScreenState {
                                     }
                                   },
                                 ),
-                                height: 48,
+                                height: compactPhone ? 36 : 48,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: compactPhone ? 3 : 8),
                             _helpAnchor(
                               'scales_filter',
                               OutlinedButton(
@@ -1677,10 +1718,14 @@ extension _HomeScreenPages on _HomeScreenState {
                                         ? _HomeScreenState._accent
                                         : _HomeScreenState._border,
                                   ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: compactPhone ? 6 : 12,
+                                    vertical: compactPhone ? 4 : 12,
                                   ),
+                                  minimumSize: Size(0, compactPhone ? 32 : 48),
+                                  visualDensity: compactPhone
+                                      ? VisualDensity.compact
+                                      : null,
                                 ),
                                 onPressed: () {
                                   _updateState(() {
@@ -1694,12 +1739,15 @@ extension _HomeScreenPages on _HomeScreenState {
                                   _scaleFilterMode == 'basic'
                                       ? _ui('Básicas', 'Basic')
                                       : _ui('Todas', 'All'),
+                                  style: TextStyle(
+                                    fontSize: compactPhone ? 11 : null,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: compactPhone ? 1 : 4),
                         // Row 3: Play + Metro buttons (left) + Octaves selector (right)
                         Row(
                           children: <Widget>[
@@ -1718,19 +1766,23 @@ extension _HomeScreenPages on _HomeScreenState {
                                         ? _HomeScreenState._accent
                                         : _HomeScreenState._border,
                                   ),
-                                  padding: const EdgeInsets.all(10),
-                                  minimumSize: const Size(40, 40),
+                                  padding: EdgeInsets.all(
+                                    compactPhone ? 4 : 10,
+                                  ),
+                                  minimumSize: Size.square(
+                                    compactPhone ? 32 : 40,
+                                  ),
                                 ),
                                 onPressed: _toggleScaleLoop,
                                 child: Icon(
                                   _scaleLoopRunning
                                       ? Icons.stop
                                       : Icons.play_arrow,
-                                  size: 20,
+                                  size: compactPhone ? 18 : 20,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            SizedBox(width: compactPhone ? 3 : 6),
                             _helpAnchor(
                               'scales_metronome_only',
                               OutlinedButton(
@@ -1746,43 +1798,52 @@ extension _HomeScreenPages on _HomeScreenState {
                                         ? _HomeScreenState._accent
                                         : _HomeScreenState._border,
                                   ),
-                                  padding: const EdgeInsets.all(10),
-                                  minimumSize: const Size(40, 40),
+                                  padding: EdgeInsets.all(
+                                    compactPhone ? 4 : 10,
+                                  ),
+                                  minimumSize: Size.square(
+                                    compactPhone ? 32 : 40,
+                                  ),
                                 ),
                                 onPressed: () => _updateState(
                                   () => _scaleMetronomeOnly =
                                       !_scaleMetronomeOnly,
                                 ),
-                                child: const Text(
+                                child: Text(
                                   '⏱',
-                                  style: TextStyle(fontSize: 16),
+                                  style: TextStyle(
+                                    fontSize: compactPhone ? 14 : 16,
+                                  ),
                                 ),
                               ),
                             ),
                             const Spacer(),
-                            // Octaves: 1 / 2 / 3 — only for piano
-                            if (_instrumentView != 'guitar')
+                            if (!compactPhone)
                               _helpAnchor(
                                 'scales_octaves',
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: <Widget>[
                                     Text(
-                                      _ui('Octavas:', 'Octaves:'),
-                                      style: const TextStyle(
+                                      compactPhone
+                                          ? _ui('Oct.:', 'Oct.:')
+                                          : _ui('Octavas:', 'Octaves:'),
+                                      style: TextStyle(
                                         color: _HomeScreenState._muted,
-                                        fontSize: 12,
+                                        fontSize: compactPhone ? 10 : 12,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
+                                    SizedBox(width: compactPhone ? 1 : 4),
                                     ...List<Widget>.generate(3, (i) {
                                       final oct = i + 1;
                                       final active = _scaleOctaves == oct;
                                       return Padding(
-                                        padding: const EdgeInsets.only(left: 4),
+                                        padding: EdgeInsets.only(
+                                          left: compactPhone ? 1 : 4,
+                                        ),
                                         child: SizedBox(
-                                          width: 32,
-                                          height: 32,
+                                          width: compactPhone ? 24 : 32,
+                                          height: compactPhone ? 24 : 32,
                                           child: OutlinedButton(
                                             style: OutlinedButton.styleFrom(
                                               backgroundColor: active
@@ -1821,8 +1882,10 @@ extension _HomeScreenPages on _HomeScreenState {
                                             },
                                             child: Text(
                                               '$oct',
-                                              style: const TextStyle(
-                                                fontSize: 13,
+                                              style: TextStyle(
+                                                fontSize: compactPhone
+                                                    ? 10
+                                                    : 13,
                                               ),
                                             ),
                                           ),
@@ -1835,7 +1898,7 @@ extension _HomeScreenPages on _HomeScreenState {
                           ],
                         ),
                         if (_scaleMetronomeOnly) ...<Widget>[
-                          const SizedBox(height: 8),
+                          SizedBox(height: compactPhone ? 2 : 8),
                           _helpAnchor(
                             'scales_volume',
                             Row(
@@ -1846,77 +1909,99 @@ extension _HomeScreenPages on _HomeScreenState {
                                     _ui('Volumen', 'Volume'),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: _HomeScreenState._muted,
+                                      fontSize: compactPhone ? 11 : null,
                                     ),
                                   ),
                                 ),
                                 Expanded(
-                                  child: Slider(
-                                    min: 0,
-                                    max: 100,
-                                    divisions: 100,
-                                    value: _metroVolume.toDouble(),
-                                    onChanged: (value) => _updateState(
-                                      () => _metroVolume = value.round(),
+                                  child: SizedBox(
+                                    height: compactPhone ? 28 : null,
+                                    child: Slider(
+                                      min: 0,
+                                      max: 100,
+                                      divisions: 100,
+                                      value: _metroVolume.toDouble(),
+                                      onChanged: (value) => _updateState(
+                                        () => _metroVolume = value.round(),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 SizedBox(
-                                  width: compact ? 72 : 80,
+                                  width: compactPhone
+                                      ? 52
+                                      : (compact ? 72 : 80),
                                   child: Text(
                                     '$_metroVolume%',
                                     textAlign: TextAlign.right,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: compactPhone ? 11 : null,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ],
-                        const SizedBox(height: 2),
-                        _helpAnchor(
-                          'scales_bpm',
-                          Row(
-                            children: <Widget>[
-                              SizedBox(
-                                width: metroLabelWidth,
-                                child: const Text(
-                                  'BPM',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Expanded(
-                                child: Slider(
-                                  min: 1,
-                                  max: 300,
-                                  divisions: 299,
-                                  value: _scaleBpm.toDouble(),
-                                  onChanged: (value) => _updateState(
-                                    () => _scaleBpm = value.round(),
+                        if (!compactPhone) ...<Widget>[
+                          const SizedBox(height: 2),
+                          _helpAnchor(
+                            'scales_bpm',
+                            Row(
+                              children: <Widget>[
+                                SizedBox(
+                                  width: metroLabelWidth,
+                                  child: Text(
+                                    'BPM',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: compactPhone ? 11 : null,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(
-                                width: compact ? 92 : 100,
-                                child: Text(
-                                  '$_scaleBpm BPM',
-                                  textAlign: TextAlign.right,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Expanded(
+                                  child: SizedBox(
+                                    height: compactPhone ? 28 : null,
+                                    child: Slider(
+                                      min: 1,
+                                      max: 300,
+                                      divisions: 299,
+                                      value: _scaleBpm.toDouble(),
+                                      onChanged: (value) => _updateState(
+                                        () => _scaleBpm = value.round(),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                SizedBox(
+                                  width: compactPhone
+                                      ? 68
+                                      : (compact ? 92 : 100),
+                                  child: Text(
+                                    '$_scaleBpm BPM',
+                                    textAlign: TextAlign.right,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: compactPhone ? 11 : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
+                        ],
+                        SizedBox(height: compactPhone ? 2 : 6),
                         ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: resultHeight),
-                          child: _buildScaleResultBlock(),
+                          child: _buildScaleResultBlock(compact: compactPhone),
                         ),
-                        if (_instrumentView != 'guitar') ...<Widget>[
+                        if (!compactPhone) ...<Widget>[
                           const SizedBox(height: 10),
                           _helpAnchor(
                             'scales_fingering',
@@ -1943,6 +2028,97 @@ extension _HomeScreenPages on _HomeScreenState {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showScaleSettings() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_ui('Configuración de escala', 'Scale settings')),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('BPM: $_scaleBpm'),
+                  Slider(
+                    min: 1,
+                    max: 300,
+                    divisions: 299,
+                    value: _scaleBpm.toDouble(),
+                    onChanged: (value) {
+                      setDialogState(() => _scaleBpm = value.round());
+                      _updateState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(_ui('Octavas', 'Octaves')),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: List<Widget>.generate(3, (i) {
+                      final oct = i + 1;
+                      final active = _scaleOctaves == oct;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: SizedBox(
+                          width: 40,
+                          height: 36,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: active
+                                  ? _HomeScreenState._accent
+                                  : _HomeScreenState._surfaceDark,
+                              foregroundColor: active
+                                  ? const Color(0xFF1A222D)
+                                  : _HomeScreenState._text,
+                              padding: EdgeInsets.zero,
+                            ),
+                            onPressed: () {
+                              if (_scaleOctaves == oct) return;
+                              setDialogState(() {
+                                _scaleOctaves = oct;
+                                _updateScaleFingeringsMap();
+                                _needsPianoScrollSync = true;
+                              });
+                              _updateState(() {});
+                              _savePrefs();
+                              if (_scaleLoopRunning) {
+                                _stopScaleLoop();
+                                unawaited(
+                                  Future<void>.delayed(
+                                    const Duration(milliseconds: 50),
+                                    _toggleScaleLoop,
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text('$oct'),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildScaleFingeringRow(
+                    compact: true,
+                    onChanged: () => setDialogState(() {}),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(_ui('Cerrar', 'Close')),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2049,14 +2225,74 @@ extension _HomeScreenPages on _HomeScreenState {
     );
   }
 
-  Widget _buildScaleFingeringRow() {
+  Widget _buildScaleFingeringRow({
+    bool compact = false,
+    VoidCallback? onChanged,
+  }) {
     const options = <(String, String, String)>[
       ('none', 'Sin', 'None'),
       ('left', 'Izquierda', 'Left'),
       ('right', 'Derecha', 'Right'),
     ];
+    final optionWidgets = options.map(((String, String, String) opt) {
+      final value = opt.$1;
+      final label = _language == 'en' ? opt.$3 : opt.$2;
+      final active = (_scaleFingeringHand ?? 'none') == value;
+      return GestureDetector(
+        onTap: () {
+          final hand = value == 'none' ? null : value;
+          _updateState(() {
+            _scaleFingeringHand = hand;
+            _updateScaleFingeringsMap();
+            _needsPianoScrollSync = true;
+          });
+          _savePrefs();
+          onChanged?.call();
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SizedBox(
+              width: compact ? 14 : 20,
+              height: compact ? 14 : 20,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? _HomeScreenState._accent : Colors.transparent,
+                  border: Border.all(
+                    color: active
+                        ? _HomeScreenState._accent
+                        : _HomeScreenState._muted,
+                    width: active ? 2 : 1.5,
+                  ),
+                ),
+                child: active
+                    ? Center(
+                        child: SizedBox(
+                          width: compact ? 6 : 8,
+                          height: compact ? 6 : 8,
+                          child: const DecoratedBox(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF1A222D),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            SizedBox(width: compact ? 2 : 4),
+            Text(label, style: TextStyle(fontSize: compact ? 9 : 12)),
+          ],
+        ),
+      );
+    }).toList();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 12,
+        vertical: compact ? 4 : 8,
+      ),
       decoration: BoxDecoration(
         color: _HomeScreenState._surfaceDark,
         borderRadius: BorderRadius.circular(8),
@@ -2065,77 +2301,20 @@ extension _HomeScreenPages on _HomeScreenState {
       child: Row(
         children: <Widget>[
           Text(
-            _ui('Digitación:', 'Fingering:'),
-            style: const TextStyle(
+            compact ? _ui('Dig.:', 'Fing.:') : _ui('Digitación:', 'Fingering:'),
+            style: TextStyle(
               color: _HomeScreenState._muted,
-              fontSize: 12,
+              fontSize: compact ? 9 : 12,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: compact ? 6 : 12),
           Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: options.map(((String, String, String) opt) {
-                final value = opt.$1;
-                final label = _language == 'en' ? opt.$3 : opt.$2;
-                final active = (_scaleFingeringHand ?? 'none') == value;
-                return GestureDetector(
-                  onTap: () {
-                    final hand = value == 'none' ? null : value;
-                    _updateState(() {
-                      _scaleFingeringHand = hand;
-                      _updateScaleFingeringsMap();
-                      // Activar/desactivar las tiras cambia la altura
-                      // disponible del piano y por tanto el ancho de tecla;
-                      // hay que recentrar el scroll para que las tiras y
-                      // las teclas queden alineadas de nuevo.
-                      _needsPianoScrollSync = true;
-                    });
-                    _savePrefs();
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: active
-                                ? _HomeScreenState._accent
-                                : Colors.transparent,
-                            border: Border.all(
-                              color: active
-                                  ? _HomeScreenState._accent
-                                  : _HomeScreenState._muted,
-                              width: active ? 2 : 1.5,
-                            ),
-                          ),
-                          child: active
-                              ? const Center(
-                                  child: SizedBox(
-                                    width: 8,
-                                    height: 8,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFF1A222D),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(label, style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+            child: compact
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: optionWidgets,
+                  )
+                : Wrap(spacing: 8, runSpacing: 6, children: optionWidgets),
           ),
         ],
       ),

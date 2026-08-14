@@ -24,12 +24,12 @@ void main() {
     final scales = source
         .split('Widget _buildScaleGenerationPage()')
         .last
-        .split('Widget _buildScaleFingeringRow()')
+        .split('Widget _buildScaleFingeringRow')
         .first;
 
-    expect(scales, contains('helpAnchorHeight: 48'));
+    expect(scales, contains('helpAnchorHeight: compactPhone ? 36 : 48'));
     expect(scales, contains("'scales_pattern'"));
-    expect(scales, contains('height: 48'));
+    expect(scales, contains('height: compactPhone ? 36 : 48'));
   });
 
   test('wide chord generation gives tonic enough room beside variant', () {

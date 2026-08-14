@@ -683,6 +683,16 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: 2,
         ),
         _HelpStep(
+          id: 'scales_settings',
+          titleEs: 'Configuración de escala',
+          titleEn: 'Scale settings',
+          bodyEs:
+              'Abre los controles de velocidad, número de octavas y digitación.',
+          bodyEn: 'Opens speed, octave count, and fingering controls.',
+          side: _HelpCalloutSide.left,
+          highlightPadding: 2,
+        ),
+        _HelpStep(
           id: 'scales_pattern',
           titleEs: 'Tipo de escala',
           titleEn: 'Scale type',
@@ -785,41 +795,11 @@ extension _HomeScreenHelp on _HomeScreenState {
           highlightPadding: -2,
         ),
         _HelpStep(
-          id: 'scales_instrument_piano',
-          titleEs: 'Boton Piano',
-          titleEn: 'Piano button',
-          bodyEs: 'Alterna la vista de la escala entre piano y guitarra.',
-          bodyEn: 'Switches the scale view between piano and guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_instrument_guitar',
-          titleEs: 'Boton Guitarra',
-          titleEn: 'Guitar button',
-          bodyEs: 'Alterna la vista de la escala entre piano y guitarra.',
-          bodyEn: 'Switches the scale view between piano and guitar.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
-          id: 'scales_guitar_hand',
-          titleEs: 'Mano de la guitarra',
-          titleEn: 'Guitar handedness',
-          bodyEs:
-              'Ajusta la visualizacion de la guitarra para diestro o zurdo.',
-          bodyEn: 'Adjusts the guitar display for right- or left-handed view.',
-          side: _HelpCalloutSide.top,
-          highlightPadding: 2,
-        ),
-        _HelpStep(
           id: 'scales_instrument',
-          titleEs: 'Instrumento de escala',
-          titleEn: 'Scale instrument',
-          bodyEs:
-              'Permite tocar y seguir visualmente la escala en piano o guitarra.',
-          bodyEn:
-              'Lets you play and visually follow the scale on piano or guitar.',
+          titleEs: 'Piano de escala',
+          titleEn: 'Scale piano',
+          bodyEs: 'Permite tocar y seguir visualmente la escala en el piano.',
+          bodyEn: 'Lets you play and visually follow the scale on the piano.',
           side: _HelpCalloutSide.top,
         ),
         _HelpStep(

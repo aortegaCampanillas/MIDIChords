@@ -3677,10 +3677,10 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Widget _buildScaleResultBlock() {
+  Widget _buildScaleResultBlock({bool compact = false}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
         color: const Color(0xFF17273A),
         borderRadius: BorderRadius.circular(10),
@@ -3697,24 +3697,28 @@ class _HomeScreenState extends State<HomeScreen>
               labelEs: 'Escala',
               labelEn: 'Scale',
               value: _scaleResultValue('name'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'scales_result_notes',
               labelEs: 'Notas',
               labelEn: 'Notes',
               value: _scaleResultValue('notes'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'scales_result_formula',
               labelEs: 'Fórmula',
               labelEn: 'Formula',
               value: _scaleResultValue('formula'),
+              compact: compact,
             ),
             _detectionResultRow(
               helpId: 'scales_result_pattern',
               labelEs: 'Patrón',
               labelEn: 'Pattern',
               value: _scaleResultValue('pattern'),
+              compact: compact,
             ),
           ],
         ),
@@ -5111,6 +5115,7 @@ class _HomeScreenState extends State<HomeScreen>
                           _tabIndex = value;
                           _setHelpMode(false);
                           if (value == 0 ||
+                              value == 3 ||
                               value == 5 ||
                               value == 7 ||
                               value == 8 ||
@@ -5663,7 +5668,7 @@ class _HomeScreenState extends State<HomeScreen>
     final displayScaleRhNotes = _tabIndex == 3
         ? _scaleBaseNotes().map(staffMidi).toList()
         : const <int>[];
-    final displayScaleLhNotes = (_tabIndex == 3 && _instrumentView == 'piano')
+    final displayScaleLhNotes = _tabIndex == 3
         ? _scaleLhNotes(_scaleBaseNotes())
         : const <int>[];
     final displayScaleCurrentNote = _tabIndex == 3 && _scaleCurrentNote != null
@@ -5918,8 +5923,7 @@ class _HomeScreenState extends State<HomeScreen>
                           scaleCurrentIsLeft: _tabIndex == 3
                               ? _scaleCurrentIsLeft
                               : null,
-                          scaleGuitarMode:
-                              _tabIndex == 3 && _instrumentView == 'guitar',
+                          scaleGuitarMode: false,
                           keySignatureCount: staffKeySig.count,
                           keySignaturePreferFlats: staffKeySig.preferFlats,
                           notePreferFlats: notePreferFlats,
@@ -6233,9 +6237,13 @@ class _HomeScreenState extends State<HomeScreen>
     final compactLandscape = compactPhone && !portrait;
     final tabletPortrait = !compactPhone && portrait;
     final metronomeFixedPiano =
-        _tabIndex == 4 || _tabIndex == 5 || _tabIndex == 8 || _tabIndex == 9;
+        _tabIndex == 3 ||
+        _tabIndex == 4 ||
+        _tabIndex == 5 ||
+        _tabIndex == 8 ||
+        _tabIndex == 9;
     final showRightControls =
-        _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 3 || _tabIndex == 7;
+        _tabIndex == 1 || _tabIndex == 2 || _tabIndex == 7;
     final displayInstrumentView = metronomeFixedPiano
         ? 'piano'
         : _instrumentView;
@@ -6284,8 +6292,8 @@ class _HomeScreenState extends State<HomeScreen>
             : (_instrumentView == 'guitar' ? 188.0 : 148.0),
       9 => compactPhone ? (portrait ? 156.0 : 104.0) : 132.0,
       3 when _scaleMetronomeOnly =>
-        compactPhone ? (portrait ? 188.0 : 104.0) : (portrait ? 168.0 : 184.0),
-      3 => compactPhone ? (portrait ? 204.0 : 104.0) : 188.0,
+        compactPhone ? (portrait ? 188.0 : 132.0) : (portrait ? 168.0 : 184.0),
+      3 => compactPhone ? (portrait ? 204.0 : 132.0) : 188.0,
       1 || 2 =>
         compactPhone
             ? (portrait ? 204.0 : (_instrumentView == 'guitar' ? 132.0 : 104.0))

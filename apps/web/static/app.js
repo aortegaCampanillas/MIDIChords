@@ -1,8 +1,8 @@
 // Feature flag: keep tuner code but hide/disable it by default.
-const TUNER_FEATURE_ENABLED = false;
+const TUNER_FEATURE_ENABLED = true;
 
 /** Respaldo si `/api/meta` no devuelve `app_version` (debe coincidir con `APP_VERSION` en el worker). */
-const WEB_APP_VERSION_FALLBACK = "1.0.2";
+const WEB_APP_VERSION_FALLBACK = "1.0.13";
 
 const state = {
   mode: null,
@@ -125,14 +125,16 @@ const state = {
     freqData: null,
     rangeMinHz: 20,
     rangeMaxHz: 500,
-    inputGain: 100,
     currentStringIdx: null,
     currentCents: 0,
     currentFreq: 0,
     detectedMidi: null,
+    pendingStringIdx: null,
+    pendingStringStreak: 0,
     buttonActiveUntil: {},
     referenceNote: null,
     inputDeviceId: "",
+    instrumentKey: "guitar",
     tuningKey: "standard_e",
     raf: null,
   },
@@ -278,15 +280,57 @@ const generationPlaybackHighlight = createPlaybackHighlighter({
   },
 });
 const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
-const TUNER_TUNINGS = [
-  { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
-  { key: "drop_d", es: "Drop D", en: "Drop D", notes: [38, 45, 50, 55, 59, 64] },
-  { key: "drop_c", es: "Drop C", en: "Drop C", notes: [36, 43, 48, 53, 57, 62] },
-  { key: "half_step_down", es: "1/2 tono abajo", en: "Half-step down", notes: [39, 44, 49, 54, 58, 63] },
-  { key: "whole_step_down", es: "1 tono abajo", en: "Whole-step down", notes: [38, 43, 48, 53, 57, 62] },
-  { key: "open_g", es: "Open G", en: "Open G", notes: [38, 43, 50, 55, 59, 62] },
-  { key: "open_d", es: "Open D", en: "Open D", notes: [38, 45, 50, 54, 57, 62] },
-  { key: "dadgad", es: "DADGAD", en: "DADGAD", notes: [38, 45, 50, 55, 57, 62] },
+const TUNER_INSTRUMENTS = [
+  {
+    key: "guitar",
+    es: "Guitarra",
+    en: "Guitar",
+    tunings: [
+      { key: "standard_e", es: "E estándar", en: "Standard E", notes: [40, 45, 50, 55, 59, 64] },
+      { key: "drop_d", es: "Drop D", en: "Drop D", notes: [38, 45, 50, 55, 59, 64] },
+      { key: "drop_c", es: "Drop C", en: "Drop C", notes: [36, 43, 48, 53, 57, 62] },
+      { key: "half_step_down", es: "1/2 tono abajo", en: "Half-step down", notes: [39, 44, 49, 54, 58, 63] },
+      { key: "whole_step_down", es: "1 tono abajo", en: "Whole-step down", notes: [38, 43, 48, 53, 57, 62] },
+      { key: "open_g", es: "Open G", en: "Open G", notes: [38, 43, 50, 55, 59, 62] },
+      { key: "open_d", es: "Open D", en: "Open D", notes: [38, 45, 50, 54, 57, 62] },
+      { key: "dadgad", es: "DADGAD", en: "DADGAD", notes: [38, 45, 50, 55, 57, 62] },
+    ],
+  },
+  {
+    key: "bass",
+    es: "Bajo",
+    en: "Bass",
+    tunings: [
+      { key: "standard_e", es: "E estándar", en: "Standard E", notes: [28, 33, 38, 43] },
+      { key: "drop_d", es: "Drop D", en: "Drop D", notes: [26, 33, 38, 43] },
+      { key: "half_step_down", es: "1/2 tono abajo", en: "Half-step down", notes: [27, 32, 37, 42] },
+    ],
+  },
+  {
+    key: "ukulele",
+    es: "Ukelele",
+    en: "Ukulele",
+    tunings: [
+      { key: "standard_gcea", es: "GCEA estándar", en: "Standard GCEA", notes: [67, 60, 64, 69] },
+      { key: "low_g", es: "Sol grave", en: "Low G", notes: [55, 60, 64, 69] },
+    ],
+  },
+  {
+    key: "violin",
+    es: "Violín",
+    en: "Violin",
+    tunings: [
+      { key: "standard_gdae", es: "GDAE estándar", en: "Standard GDAE", notes: [55, 62, 69, 76] },
+    ],
+  },
+  {
+    key: "chromatic",
+    es: "Cromático",
+    en: "Chromatic",
+    tunings: [
+      { key: "chromatic", es: "Escala cromática", en: "Chromatic scale", notes: [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71] },
+    ],
+  },
 ];
 
 const {
@@ -952,8 +996,19 @@ async function runGenerateChordCircle(playChordAfter = false) {
   }
 }
 
+function tunerInstrumentDef() {
+  return TUNER_INSTRUMENTS.find((i) => i.key === state.tuner.instrumentKey) || TUNER_INSTRUMENTS[0];
+}
+
+function tunerInstrumentDisplayName(instrument) {
+  const i = instrument || tunerInstrumentDef();
+  return state.language === "es" ? i.es : i.en;
+}
+
 function tunerTuningDef() {
-  return TUNER_TUNINGS.find((t) => t.key === state.tuner.tuningKey) || TUNER_TUNINGS[0];
+  const instrument = tunerInstrumentDef();
+  const tunings = instrument.tunings || [];
+  return tunings.find((t) => t.key === state.tuner.tuningKey) || tunings[0];
 }
 
 function tunerTuningDisplayName(tuning) {
@@ -961,8 +1016,16 @@ function tunerTuningDisplayName(tuning) {
   return state.language === "es" ? t.es : t.en;
 }
 
-function tunerStringOrdinal(index6to1) {
-  const n = 6 - Number(index6to1 || 0);
+function tunerIsChromatic() {
+  return state.tuner.instrumentKey === "chromatic";
+}
+
+function tunerStringOrdinal(index) {
+  const tuning = tunerTuningDef();
+  const notes = tuning.notes || [];
+  const total = notes.length;
+  if (tunerIsChromatic()) return "";
+  const n = total - Number(index || 0);
   return state.language === "es" ? `${n}ª` : `${n}th`;
 }
 
@@ -1794,8 +1857,7 @@ function applyTranslations() {
   setText("labelTunerFreq", "label_freq");
   setText("labelTunerTuning", "label_tuner_tuning");
   setText("labelTunerInput", "label_tuner_input");
-  setText("labelTunerGain", "label_tuner_gain");
-  setText("labelTunerSpectrumRange", "label_tuner_spectrum_range");
+  setText("labelTunerInstrument", "label_tuner_instrument");
   setText("donationTitle", "donation_title");
   setText("donationText", "donation_text");
   setText("donateBtn", "donation_button");
@@ -1912,17 +1974,34 @@ function applyTranslations() {
   setScalePlayButtonState(!!state.scaleLoop.active);
   setMetronomeToggleButtonState(!!state.metronomeRunning);
   setTunerButtonState(!!state.tuner.running);
+  const tunerInstrumentSel = el("tunerInstrument");
+  if (tunerInstrumentSel) {
+    const prevInstrument = state.tuner.instrumentKey;
+    tunerInstrumentSel.innerHTML = "";
+    TUNER_INSTRUMENTS.forEach((i) => {
+      const opt = document.createElement("option");
+      opt.value = i.key;
+      opt.textContent = tunerInstrumentDisplayName(i);
+      tunerInstrumentSel.appendChild(opt);
+    });
+    tunerInstrumentSel.value = TUNER_INSTRUMENTS.some((i) => i.key === prevInstrument)
+      ? prevInstrument : TUNER_INSTRUMENTS[0].key;
+    state.tuner.instrumentKey = tunerInstrumentSel.value;
+  }
   const tunerSel = el("tunerTuning");
   if (tunerSel) {
     const prev = state.tuner.tuningKey;
+    const tunings = tunerInstrumentDef().tunings || [];
     tunerSel.innerHTML = "";
-    TUNER_TUNINGS.forEach((t) => {
+    tunings.forEach((t) => {
       const opt = document.createElement("option");
       opt.value = t.key;
       opt.textContent = tunerTuningDisplayName(t);
       tunerSel.appendChild(opt);
     });
-    tunerSel.value = TUNER_TUNINGS.some((t) => t.key === prev) ? prev : TUNER_TUNINGS[0].key;
+    tunerSel.value = tunings.some((t) => t.key === prev) ? prev : tunings[0].key;
+    state.tuner.tuningKey = tunerSel.value;
+    tunerSel.parentElement?.classList.toggle("hidden", tunings.length <= 1);
   }
   if (TUNER_FEATURE_ENABLED) {
     void refreshTunerInputs();
@@ -4917,7 +4996,7 @@ function renderTunerSpectrumPanel() {
   drawRoundedRect(ctx, 10, 10, width - 20, height - 20, 10, "#0b1018", "#2f3743", 1.2);
 
   const x1 = 42;
-  const y1 = 12;
+  const y1 = 22;
   const x2 = width - 14;
   const y2 = height - 30;
   const fmin = Math.max(0, Number(state.tuner.rangeMinHz) || 0);
@@ -4939,8 +5018,9 @@ function renderTunerSpectrumPanel() {
     return x1 + Math.max(0, Math.min(1, ratio)) * (x2 - x1);
   };
 
-  const tickHz = [70, 80, 90, 100, 120, 140, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1400, 1600, 2000, 2500, 3000];
+  const tickHz = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1400, 1600, 2000, 2500, 3000];
   const majorHz = new Set([100, 200, 400, 800, 1000]);
+  let lastHzLabelX = -Infinity;
   tickHz.forEach((hz) => {
     if (hz < fmin || hz > fmax) return;
     const x = fx(hz);
@@ -4951,7 +5031,8 @@ function renderTunerSpectrumPanel() {
     ctx.moveTo(x, y1);
     ctx.lineTo(x, y2);
     ctx.stroke();
-    if (isMajor) {
+    if (x - lastHzLabelX >= 22) {
+      lastHzLabelX = x;
       ctx.fillStyle = "#8f98a8";
       ctx.font = "8px Helvetica";
       ctx.textAlign = "center";
@@ -4963,39 +5044,84 @@ function renderTunerSpectrumPanel() {
   const whitePcs = new Set([0, 2, 4, 5, 7, 9, 11]);
   const minMidi = Math.max(0, Math.floor(69 + 12 * Math.log2(Math.max(1e-9, fmin) / 440)) - 1);
   const maxMidi = Math.min(127, Math.ceil(69 + 12 * Math.log2(Math.max(1e-9, fmax) / 440)) + 1);
+  let lastLabelX = -Infinity;
   for (let midi = minMidi; midi <= maxMidi; midi += 1) {
     const freq = midiToFreq(midi);
     if (freq < fmin || freq > fmax) continue;
     const x = fx(freq);
     const isNatural = whitePcs.has(midi % 12);
-    ctx.strokeStyle = isNatural ? "#ff9f2a" : "#8a5f22";
+    ctx.strokeStyle = isNatural ? "#293140" : "#1f2531";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y1);
     ctx.lineTo(x, y2);
     ctx.stroke();
-    const labelY = y1 + ((midi % 2 === 0) ? 8 : 18);
-    ctx.fillStyle = isNatural ? "#ffbf6c" : "#b58a4f";
-    ctx.font = "bold 7px Helvetica";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(noteNameFromPc(midi % 12), x, labelY);
+    if (isNatural && x - lastLabelX >= 14) {
+      lastLabelX = x;
+      ctx.fillStyle = "#ffbf6c";
+      ctx.font = "bold 8px Helvetica";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(noteNameWithOctave(midi), x, y1 - 3);
+    }
   }
 
   if (bins && audioCtx) {
-    let bar = 0;
-    const step = Math.max(1, Math.floor(bins.length / Math.max(80, Math.floor((x2 - x1) / 2))));
-    for (let i = 0; i < bins.length; i += step) {
-      const hz = (i / bins.length) * nyq;
-      if (hz < fmin || hz > fmax) continue;
-      const mag = bins[i] / 255;
-      const x = fx(hz);
-      const w = Math.max(1.3, ((x2 - x1) / 170));
-      const h = mag * (y2 - y1 - 6);
-      ctx.fillStyle = "#49b5ff";
-      ctx.fillRect(x, y2 - h, w, h);
-      bar += 1;
-      if (bar > 260) break;
+    const binHz = nyq / bins.length;
+    const iMin = Math.max(0, Math.floor(fmin / binHz));
+    const iMax = Math.min(bins.length - 1, Math.ceil(fmax / binHz));
+    let globalPeakIdx = -1;
+    let globalPeakMag = 0;
+    for (let i = iMin; i <= iMax; i += 1) {
+      if (bins[i] > globalPeakMag) {
+        globalPeakMag = bins[i];
+        globalPeakIdx = i;
+      }
+    }
+    if (globalPeakMag > 0) {
+      // Collect local maxima (fundamental + harmonics) instead of every raw
+      // bin, so each spectral peak draws as one clean bar rather than the
+      // FFT's individual ~23Hz-wide bins forming a dense "comb" pattern.
+      const magThreshold = Math.max(4, globalPeakMag * 0.08);
+      const peaks = [];
+      for (let i = iMin; i <= iMax; i += 1) {
+        const mag = bins[i];
+        if (mag < magThreshold) continue;
+        const prev = i > iMin ? bins[i - 1] : -1;
+        const next = i < iMax ? bins[i + 1] : -1;
+        if (mag >= prev && mag >= next) peaks.push({ idx: i, mag });
+      }
+      // The fundamental bar is always drawn at the pitch-tracker's detected
+      // frequency (autocorrelation), not at an FFT bin: for low instruments
+      // (e.g. bass) the loudest/nearest FFT bin is often a harmonic or noise
+      // component away from the true fundamental, which would otherwise draw
+      // the "active" bar at the wrong position — or omit it entirely if no
+      // bin near the fundamental clears the noise threshold.
+      const detectedHz = Number(state.tuner.currentFreq) || 0;
+      let fundamentalIdx = -1;
+      if (detectedHz >= fmin && detectedHz <= fmax) {
+        fundamentalIdx = Math.round(detectedHz / binHz);
+      }
+      peaks.forEach(({ idx, mag }) => {
+        if (idx === fundamentalIdx) return;
+        const hz = idx * binHz;
+        const magNorm = mag / 255;
+        const x = fx(hz);
+        const w = Math.max(2, ((x2 - x1) / 90));
+        const h = magNorm * (y2 - y1 - 6);
+        ctx.fillStyle = "#3d7ea8";
+        ctx.fillRect(x - w / 2, y2 - h, w, h);
+      });
+      if (fundamentalIdx >= 0) {
+        const fundamentalMag = (fundamentalIdx >= 0 && fundamentalIdx < bins.length)
+          ? bins[fundamentalIdx] : globalPeakMag;
+        const magNorm = Math.max(fundamentalMag, globalPeakMag * 0.5) / 255;
+        const x = fx(detectedHz);
+        const w = Math.max(2, ((x2 - x1) / 90));
+        const h = magNorm * (y2 - y1 - 6);
+        ctx.fillStyle = "#49b5ff";
+        ctx.fillRect(x - w / 2, y2 - h, w, h);
+      }
     }
   } else {
     ctx.fillStyle = "#8796ab";
@@ -5010,6 +5136,67 @@ function renderTunerSpectrumPanel() {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillText("Hz", (x1 + x2) / 2, height - 14);
+}
+
+function drawTunerChromaticKeyboard(ctx, notes, x, y, w, h, now) {
+  const whitePcs = [0, 2, 4, 5, 7, 9, 11];
+  const blackAfterWhiteIdx = new Set([0, 1, 3, 4, 5]);
+  const whiteW = w / whitePcs.length;
+  const blackW = whiteW * 0.6;
+  const blackH = h * 0.6;
+
+  const activeIdx = state.tuner.currentStringIdx;
+  const activePc = (activeIdx != null && notes[activeIdx] != null) ? notes[activeIdx] % 12 : -1;
+  const activeButtonPc = Object.entries(state.tuner.buttonActiveUntil || {})
+    .filter(([, until]) => Number(until) > now)
+    .map(([idx]) => notes[Number(idx)] % 12);
+
+  const isActivePc = (pc) => pc === activePc || activeButtonPc.includes(pc);
+
+  const detectedMidi = state.tuner.detectedMidi;
+  const octaveLabel = (pc) => {
+    if (detectedMidi == null || !isActivePc(pc)) return "";
+    const oct = Math.floor(Number(detectedMidi) / 12) - 1;
+    return String(oct);
+  };
+
+  whitePcs.forEach((pc, i) => {
+    const x1 = x + i * whiteW;
+    const active = isActivePc(pc);
+    const fill = active ? "#f39c12" : "#f4f5f7";
+    drawRoundedRect(ctx, x1 + 1, y, whiteW - 2, h, 6, fill, "#7a828e", 1);
+    ctx.fillStyle = active ? "#ffffff" : "#2b2e34";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.font = `bold ${Math.max(13, Math.min(18, Math.round(whiteW * 0.28)))}px Helvetica`;
+    const label = noteNameFromPc(pc) + octaveLabel(pc);
+    ctx.fillText(label, x1 + whiteW / 2, y + h - 10);
+    const idx = notes.findIndex((n) => n % 12 === pc);
+    if (idx >= 0) {
+      state.staff.tunerStringRegions.push({ idx, x1: x1 + 1, y1: y, x2: x1 + whiteW - 1, y2: y + h });
+    }
+  });
+
+  whitePcs.forEach((pc, i) => {
+    if (!blackAfterWhiteIdx.has(i)) return;
+    const blackPc = (pc + 1) % 12;
+    const x1 = x + (i + 1) * whiteW - (blackW / 2);
+    const active = isActivePc(blackPc);
+    const fill = active ? "#f39c12" : "#20242c";
+    drawRoundedRect(ctx, x1, y, blackW, blackH, 5, fill, "#0a0c10", 1);
+    ctx.fillStyle = "#f0f0f0";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.font = `bold ${Math.max(10, Math.min(13, Math.round(blackW * 0.32)))}px Helvetica`;
+    const label = noteNameFromPc(blackPc) + octaveLabel(blackPc);
+    ctx.fillText(label, x1 + blackW / 2, y + blackH - 8);
+    const idx = notes.findIndex((n) => n % 12 === blackPc);
+    if (idx >= 0) {
+      state.staff.tunerStringRegions.push({
+        idx, x1, y1: y, x2: x1 + blackW, y2: y + blackH, priority: true,
+      });
+    }
+  });
 }
 
 function drawTunerCanvas(ctx, width, height) {
@@ -5045,34 +5232,52 @@ function drawTunerCanvas(ctx, width, height) {
   const startY = Math.max(topMargin, (height - totalH) * 0.5);
 
   const padX = 20;
-  const cardGap = Math.max(6, Math.min(12, width * 0.012));
-  const cardW = Math.max(64, (width - (padX * 2) - (cardGap * 5)) / 6);
   const cardsY = startY;
-  for (let idx = 0; idx < notes.length; idx += 1) {
-    const note = notes[idx];
-    const x1 = padX + idx * (cardW + cardGap);
-    const x2 = x1 + cardW;
-    const y1 = cardsY;
-    const y2 = y1 + cardsH;
-    const active = state.tuner.currentStringIdx === idx || (Number(state.tuner.buttonActiveUntil[idx] || 0) > now);
-    const fill = active ? "#f39c12" : "#d2d8df";
-    const textColor = active ? "#ffffff" : "#2b2e34";
-    drawRoundedRect(ctx, x1, y1, x2 - x1, y2 - y1, Math.min((y2 - y1) / 2, Math.max(10, (x2 - x1) * 0.26)), fill);
-    ctx.fillStyle = textColor;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `bold ${Math.max(10, Math.min(13, Math.round(cardsH * 0.14)))}px Helvetica`;
-    ctx.fillText(tunerStringOrdinal(idx), (x1 + x2) / 2, y1 + (cardsH * 0.28));
-    ctx.font = `bold ${Math.max(17, Math.min(26, Math.round(cardsH * 0.29)))}px Helvetica`;
-    ctx.fillText(noteNameFromPc(note % 12), (x1 + x2) / 2, y1 + (cardsH * 0.64));
-    state.staff.tunerStringRegions.push({ idx, x1, y1, x2, y2 });
+  if (tunerIsChromatic()) {
+    drawTunerChromaticKeyboard(ctx, notes, padX, cardsY, width - (padX * 2), cardsH, now);
+  } else {
+    const cardGap = Math.max(6, Math.min(12, width * 0.012));
+    const minCardW = 60;
+    const maxCols = Math.max(1, Math.floor((width - (padX * 2) + cardGap) / (minCardW + cardGap)));
+    const cols = Math.min(notes.length, Math.max(1, maxCols));
+    const rows = Math.ceil(notes.length / cols);
+    const cardW = Math.max(minCardW, (width - (padX * 2) - (cardGap * (cols - 1))) / cols);
+    const rowCardsH = rows > 1 ? Math.max(56, (cardsH - (cardGap * (rows - 1))) / rows) : cardsH;
+    for (let idx = 0; idx < notes.length; idx += 1) {
+      const note = notes[idx];
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const x1 = padX + col * (cardW + cardGap);
+      const x2 = x1 + cardW;
+      const y1 = cardsY + row * (rowCardsH + cardGap);
+      const y2 = y1 + rowCardsH;
+      const active = state.tuner.currentStringIdx === idx || (Number(state.tuner.buttonActiveUntil[idx] || 0) > now);
+      const fill = active ? "#f39c12" : "#d2d8df";
+      const textColor = active ? "#ffffff" : "#2b2e34";
+      drawRoundedRect(ctx, x1, y1, x2 - x1, y2 - y1, Math.min((y2 - y1) / 2, Math.max(10, (x2 - x1) * 0.26)), fill);
+      ctx.fillStyle = textColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const ordinal = tunerStringOrdinal(idx);
+      if (ordinal) {
+        ctx.font = `bold ${Math.max(10, Math.min(13, Math.round(rowCardsH * 0.14)))}px Helvetica`;
+        ctx.fillText(ordinal, (x1 + x2) / 2, y1 + (rowCardsH * 0.28));
+        ctx.font = `bold ${Math.max(17, Math.min(26, Math.round(rowCardsH * 0.29)))}px Helvetica`;
+        ctx.fillText(noteNameFromPc(note % 12), (x1 + x2) / 2, y1 + (rowCardsH * 0.64));
+      } else {
+        ctx.font = `bold ${Math.max(17, Math.min(26, Math.round(rowCardsH * 0.29)))}px Helvetica`;
+        ctx.fillText(noteNameFromPc(note % 12), (x1 + x2) / 2, (y1 + y2) / 2);
+      }
+      state.staff.tunerStringRegions.push({ idx, x1, y1, x2, y2 });
+    }
+    cardsH = (rowCardsH * rows) + (cardGap * (rows - 1));
   }
 
   let liveNote = "-";
   const noteY = cardsY + cardsH + sectionGap + (noteH * 0.5);
   let liveSize = Math.max(24, Math.min(44, Math.round(noteH * 0.78)));
   if (state.tuner.detectedMidi != null) {
-    liveNote = noteNameFromPc(((Number(state.tuner.detectedMidi) % 12) + 12) % 12);
+    liveNote = noteNameWithOctave(Number(state.tuner.detectedMidi));
     if (state.tuner.currentFreq > 0) {
       liveNote = `${liveNote} (${state.tuner.currentFreq.toFixed(1)} Hz)`;
       liveSize = Math.max(18, Math.min(30, Math.round(noteH * 0.55)));
@@ -5097,15 +5302,15 @@ function drawTunerCanvas(ctx, width, height) {
   ctx.lineTo(centerX, meterY2 - 2);
   ctx.stroke();
 
-  const cents = Math.max(-50, Math.min(50, Number(state.tuner.currentCents) || 0));
-  const knobX = meterX1 + ((cents + 50) / 100) * (meterX2 - meterX1);
-  const r = Math.min(14, (meterY2 - meterY1) * 0.36);
-  ctx.beginPath();
-  ctx.arc(knobX, (meterY1 + meterY2) / 2, r, 0, Math.PI * 2);
-  ctx.fillStyle = "#ff5a2f";
-  ctx.fill();
-
   if (state.tuner.currentStringIdx != null) {
+    const cents = Math.max(-50, Math.min(50, Number(state.tuner.currentCents) || 0));
+    const knobX = meterX1 + ((cents + 50) / 100) * (meterX2 - meterX1);
+    const r = Math.min(14, (meterY2 - meterY1) * 0.36);
+    ctx.beginPath();
+    ctx.arc(knobX, (meterY1 + meterY2) / 2, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff5a2f";
+    ctx.fill();
+
     const centsY = Math.min(height - bottomMargin, meterY2 + sectionGap + (centsH * 0.45));
     ctx.fillStyle = "#9fb2c8";
     ctx.font = `bold ${Math.max(11, Math.min(15, Math.round(centsH * 0.6)))}px Helvetica`;
@@ -5278,7 +5483,9 @@ function renderStaff() {
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
       const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-      const hit = (state.staff.tunerStringRegions || []).find((r) => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
+      const regions = state.staff.tunerStringRegions || [];
+      const hits = regions.filter((r) => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
+      const hit = hits.find((r) => r.priority) || hits[0];
       if (hit) playTunerString(hit.idx);
     };
     return;
@@ -7112,11 +7319,6 @@ function setTunerButtonState(active) {
   }
 }
 
-function updateTunerGainValue() {
-  const out = el("tunerGainValue");
-  if (out) out.textContent = `${Math.round(state.tuner.inputGain)}%`;
-}
-
 async function refreshTunerInputs() {
   if (!TUNER_FEATURE_ENABLED) return;
   const select = el("tunerInput");
@@ -7166,17 +7368,18 @@ async function refreshTunerInputs() {
   }
 }
 
-function clampTunerRange(minHz, maxHz) {
-  let minVal = Math.max(0, Math.min(2990, Number(minHz) || 0));
-  let maxVal = Math.max(10, Math.min(3000, Number(maxHz) || 500));
-  if (maxVal <= minVal + 10) {
-    if (maxVal < 3000) maxVal = Math.min(3000, minVal + 10);
-    else minVal = Math.max(0, maxVal - 10);
-  }
+function updateTunerRangeForInstrument() {
+  const tuning = tunerTuningDef();
+  const notes = (tuning.notes || []).map((n) => Number(n));
+  if (!notes.length) return;
+  const minMidi = Math.min(...notes);
+  const maxMidi = Math.max(...notes);
+  // Allow a few semitones of slack below/above the instrument's extreme
+  // strings so a badly out-of-tune string still falls inside the range.
+  const minVal = Math.max(0, midiToFreq(minMidi - 5) * 0.9);
+  const maxVal = Math.min(3000, midiToFreq(maxMidi + 5) * 1.1);
   state.tuner.rangeMinHz = Math.round(minVal);
   state.tuner.rangeMaxHz = Math.round(maxVal);
-  if (el("tunerRangeMin")) el("tunerRangeMin").value = String(state.tuner.rangeMinHz);
-  if (el("tunerRangeMax")) el("tunerRangeMax").value = String(state.tuner.rangeMaxHz);
 }
 
 function playTunerString(idx) {
@@ -7190,7 +7393,7 @@ function playTunerString(idx) {
   state.tuner.detectedMidi = n;
   state.tuner.buttonActiveUntil[idx] = (performance.now() / 1000) + 0.9;
   state.tuner.referenceNote = n;
-  el("tunerNote").textContent = noteNameFromPc(n % 12);
+  el("tunerNote").textContent = noteNameWithOctave(n);
   el("tunerCents").textContent = `+0.0 ${tr("tuner_cents_suffix")}`;
   el("tunerFreq").textContent = `${state.tuner.currentFreq.toFixed(1)} Hz`;
   playSingle(n);
@@ -7208,22 +7411,95 @@ function updateTunerDetection(freq) {
   let bestIdx = 0;
   let bestAbs = Number.POSITIVE_INFINITY;
   let bestCents = 0;
-  for (let i = 0; i < notes.length; i += 1) {
-    const target = midiToFreq(notes[i]);
-    const cents = 1200 * Math.log2(Math.max(1e-9, freq) / target);
-    const abs = Math.abs(cents);
-    if (abs < bestAbs) {
-      bestAbs = abs;
-      bestIdx = i;
-      bestCents = cents;
+  if (tunerIsChromatic()) {
+    // Chromatic notes only span one reference octave (C4-B4), so a note
+    // played in any other octave must always be folded by pitch class —
+    // there's no concept of "a note between keys" like a fretted string.
+    const playedMidi = freqToMidi(freq);
+    for (let i = 0; i < notes.length; i += 1) {
+      const pc = ((notes[i] % 12) + 12) % 12;
+      const nearestOctaveMidi = Math.round((playedMidi - pc) / 12) * 12 + pc;
+      const target = midiToFreq(nearestOctaveMidi);
+      const cents = 1200 * Math.log2(Math.max(1e-9, freq) / target);
+      const abs = Math.abs(cents);
+      if (abs < bestAbs) {
+        bestAbs = abs;
+        bestIdx = i;
+        bestCents = cents;
+      }
+    }
+  } else {
+    // Pass 1: match against each string's real absolute frequency. This
+    // correctly tells apart two strings that share a pitch class (e.g. a
+    // guitar's low and high E) because each is judged against its own real
+    // octave, not folded — folding both to "the octave nearest what's
+    // playing" would make them indistinguishable.
+    for (let i = 0; i < notes.length; i += 1) {
+      const target = midiToFreq(notes[i]);
+      const cents = 1200 * Math.log2(Math.max(1e-9, freq) / target);
+      const abs = Math.abs(cents);
+      if (abs < bestAbs) {
+        bestAbs = abs;
+        bestIdx = i;
+        bestCents = cents;
+      }
+    }
+    // Pass 2: only if the absolute match is off by more than half an octave,
+    // retry with each candidate folded to the octave nearest the played
+    // frequency. This catches the pitch tracker locking onto a harmonic of a
+    // string with no close match in its real octave (e.g. a ukulele's high
+    // string's 2nd harmonic). A smaller deviation (e.g. ~200 cents) is normal
+    // for a fretted/stopped note played between open strings and must NOT
+    // trigger folding, or it would misreport which string is being played
+    // (e.g. a violin's fretted E4 getting folded onto the open E5 string).
+    if (bestAbs >= 600) {
+      const playedMidi = freqToMidi(freq);
+      let foldedIdx = bestIdx;
+      let foldedAbs = bestAbs;
+      let foldedCents = bestCents;
+      for (let i = 0; i < notes.length; i += 1) {
+        const pc = ((notes[i] % 12) + 12) % 12;
+        const nearestOctaveMidi = Math.round((playedMidi - pc) / 12) * 12 + pc;
+        const target = midiToFreq(nearestOctaveMidi);
+        const cents = 1200 * Math.log2(Math.max(1e-9, freq) / target);
+        const abs = Math.abs(cents);
+        if (abs < foldedAbs) {
+          foldedAbs = abs;
+          foldedIdx = i;
+          foldedCents = cents;
+        }
+      }
+      bestIdx = foldedIdx;
+      bestCents = foldedCents;
     }
   }
 
-  state.tuner.currentStringIdx = bestIdx;
-  state.tuner.currentCents = (state.tuner.currentCents * 0.78) + (bestCents * 0.22);
+  // Require a candidate index to win 2 consecutive reads before switching
+  // the highlighted string/note: a single stray frame locking onto a
+  // harmonic (e.g. a note's 2nd harmonic scoring as a different, higher
+  // note) would otherwise flash the wrong card for one frame every so often.
+  if (bestIdx === state.tuner.currentStringIdx) {
+    state.tuner.pendingStringIdx = null;
+    state.tuner.pendingStringStreak = 0;
+  } else if (bestIdx === state.tuner.pendingStringIdx) {
+    state.tuner.pendingStringStreak += 1;
+  } else {
+    state.tuner.pendingStringIdx = bestIdx;
+    state.tuner.pendingStringStreak = 1;
+  }
+  if (state.tuner.currentStringIdx == null || state.tuner.pendingStringStreak >= 2) {
+    state.tuner.currentStringIdx = bestIdx;
+    state.tuner.pendingStringIdx = null;
+    state.tuner.pendingStringStreak = 0;
+  }
+  // Heavier smoothing than currentFreq: instruments with pronounced vibrato
+  // (e.g. violin) oscillate the raw cents reading several times per second,
+  // which would make the on-screen needle jitter unreadably if not damped.
+  state.tuner.currentCents = (state.tuner.currentCents * 0.93) + (bestCents * 0.07);
   state.tuner.buttonActiveUntil[bestIdx] = (performance.now() / 1000) + 0.20;
   const midi = Math.round(freqToMidi(freq));
   state.tuner.detectedMidi = Math.max(0, Math.min(127, midi));
+  state.tuner.lastDetectionAt = performance.now();
 }
 
 async function toggleTuner() {
@@ -7266,6 +7542,9 @@ async function toggleTuner() {
     const src = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.6;
+    analyser.minDecibels = -65;
+    analyser.maxDecibels = -25;
     src.connect(analyser);
     state.tuner.running = true;
     state.tuner.stream = stream;
@@ -7279,19 +7558,22 @@ async function toggleTuner() {
     const loop = () => {
       if (!state.tuner.running) return;
       analyser.getFloatTimeDomainData(data);
-      const gain = Math.max(0, Number(state.tuner.inputGain) || 0) / 100;
-      if (gain !== 1) {
-        for (let i = 0; i < data.length; i += 1) data[i] *= gain;
-      }
       const freq = autoCorrelate(data, audioCtx.sampleRate);
       if (freq && freq > 40 && freq < 2000) {
-        if (freq >= state.tuner.rangeMinHz && freq <= state.tuner.rangeMaxHz) {
-          updateTunerDetection(freq);
-          const noteMidi = state.tuner.detectedMidi != null ? Number(state.tuner.detectedMidi) : Math.round(freqToMidi(freq));
-          el("tunerNote").textContent = noteNameFromPc(((noteMidi % 12) + 12) % 12);
-          el("tunerCents").textContent = `${state.tuner.currentCents >= 0 ? "+" : ""}${state.tuner.currentCents.toFixed(1)} ${tr("tuner_cents_suffix")}`;
-          el("tunerFreq").textContent = `${state.tuner.currentFreq.toFixed(1)} Hz`;
-        }
+        updateTunerDetection(freq);
+        const noteMidi = state.tuner.detectedMidi != null ? Number(state.tuner.detectedMidi) : Math.round(freqToMidi(freq));
+        el("tunerNote").textContent = noteNameWithOctave(noteMidi);
+        el("tunerCents").textContent = `${state.tuner.currentCents >= 0 ? "+" : ""}${state.tuner.currentCents.toFixed(1)} ${tr("tuner_cents_suffix")}`;
+        el("tunerFreq").textContent = `${state.tuner.currentFreq.toFixed(1)} Hz`;
+      } else if (state.tuner.currentStringIdx != null
+        && performance.now() - (state.tuner.lastDetectionAt || 0) > 600) {
+        state.tuner.currentStringIdx = null;
+        state.tuner.currentCents = 0;
+        state.tuner.currentFreq = 0;
+        state.tuner.detectedMidi = null;
+        el("tunerNote").textContent = "-";
+        el("tunerCents").textContent = "-";
+        el("tunerFreq").textContent = "-";
       }
       if (state.tuner.freqData) analyser.getByteFrequencyData(state.tuner.freqData);
       if (state.mode === "tuner") renderStaff();
@@ -8228,14 +8510,31 @@ function bindEvents() {
   syncTimerInputs();
 
   if (TUNER_FEATURE_ENABLED) {
+    const tunerInstrument = el("tunerInstrument");
+    if (tunerInstrument) {
+      listen(tunerInstrument, "change", (e) => {
+        const key = String(e.target.value || "guitar");
+        state.tuner.instrumentKey = TUNER_INSTRUMENTS.some((i) => i.key === key) ? key : "guitar";
+        const tunings = tunerInstrumentDef().tunings || [];
+        state.tuner.tuningKey = tunings[0]?.key || "standard_e";
+        state.tuner.currentStringIdx = null;
+        state.tuner.detectedMidi = null;
+        state.tuner.currentCents = 0;
+        applyTranslations();
+        updateTunerRangeForInstrument();
+        if (state.mode === "tuner") renderStaff();
+      });
+    }
     const tunerTuning = el("tunerTuning");
     if (tunerTuning) {
       listen(tunerTuning, "change", (e) => {
         const key = String(e.target.value || "standard_e");
-        state.tuner.tuningKey = TUNER_TUNINGS.some((t) => t.key === key) ? key : "standard_e";
+        const tunings = tunerInstrumentDef().tunings || [];
+        state.tuner.tuningKey = tunings.some((t) => t.key === key) ? key : (tunings[0]?.key || "standard_e");
         state.tuner.currentStringIdx = null;
         state.tuner.detectedMidi = null;
         state.tuner.currentCents = 0;
+        updateTunerRangeForInstrument();
         if (state.mode === "tuner") renderStaff();
       });
     }
@@ -8249,29 +8548,7 @@ function bindEvents() {
         }
       });
     }
-    const syncTunerGain = () => {
-      state.tuner.inputGain = Math.max(0, Math.min(200, Number(el("tunerGain").value) || 100));
-      el("tunerGain").value = String(state.tuner.inputGain);
-      updateTunerGainValue();
-    };
-    listen(el("tunerGain"), "input", syncTunerGain);
-    listen(el("tunerGainMinus"), "click", () => {
-      el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) - 1)));
-      syncTunerGain();
-    });
-    listen(el("tunerGainPlus"), "click", () => {
-      el("tunerGain").value = String(Math.max(0, Math.min(200, Number(el("tunerGain").value) + 1)));
-      syncTunerGain();
-    });
-    syncTunerGain();
-
-    const syncTunerRange = () => {
-      clampTunerRange(el("tunerRangeMin").value, el("tunerRangeMax").value);
-      if (state.mode === "tuner") renderStaff();
-    };
-    listen(el("tunerRangeMin"), "change", syncTunerRange);
-    listen(el("tunerRangeMax"), "change", syncTunerRange);
-    syncTunerRange();
+    updateTunerRangeForInstrument();
   } else {
     const panelTuner = el("panelTuner");
     if (panelTuner) panelTuner.classList.add("hidden");

@@ -47,7 +47,7 @@
         "browserRequirements": "Requires JavaScript. MIDI optional.",
         "inLanguage": ["es", "en"],
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
-        "softwareVersion": "1.0.2",
+        "softwareVersion": "1.0.13",
         "description": "Web app for piano and guitar chords, interactive circle of fifths, scales, metronome and tuner. Spanish and English UI. Free; MIDI keyboard optional."
       }
     </script>
@@ -375,25 +375,12 @@
                   <select id="tunerInput"></select>
                 </div>
                 <div class="row">
+                  <label id="labelTunerInstrument" for="tunerInstrument">Instrumento</label>
+                  <select id="tunerInstrument"></select>
+                </div>
+                <div class="row">
                   <label id="labelTunerTuning" for="tunerTuning">Afinación</label>
                   <select id="tunerTuning"></select>
-                </div>
-                <div class="row">
-                  <label id="labelTunerGain" for="tunerGain">Ganancia de entrada</label>
-                  <button id="tunerGainMinus" type="button">−</button>
-                  <input id="tunerGain" type="range" min="0" max="200" value="100" />
-                  <button id="tunerGainPlus" type="button">+</button>
-                  <span></span>
-                </div>
-                <div class="tuner-meta">
-                  <div id="tunerGainValue">100%</div>
-                </div>
-                <div class="row">
-                  <label id="labelTunerSpectrumRange" for="tunerRangeMin">Rango del espectro</label>
-                  <input id="tunerRangeMin" type="number" min="0" max="2990" step="1" value="20" />
-                  <span>-</span>
-                  <input id="tunerRangeMax" type="number" min="10" max="3000" step="1" value="500" />
-                  <span>Hz</span>
                 </div>
                 <div class="result-block">
                   <div><span id="labelTunerNote" class="label">Nota:</span> <strong id="tunerNote">-</strong></div>

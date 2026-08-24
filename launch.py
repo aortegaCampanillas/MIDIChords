@@ -16,9 +16,10 @@ from typing import Iterable
 
 def sync_shared_assets() -> None:
     """Actualiza copias requeridas por los bundles desde las fuentes canónicas."""
-    from scripts.sync_shared_assets import sync_changelog
+    from scripts.sync_shared_assets import sync_changelog, sync_version
 
     sync_changelog()
+    sync_version()
 
 
 def run_desktop() -> None:

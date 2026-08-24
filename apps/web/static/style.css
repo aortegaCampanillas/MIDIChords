@@ -1967,12 +1967,6 @@ a.btn-link:hover {
   min-height: 22px;
 }
 
-#tunerGainValue {
-  color: #ff9f1a;
-  font-size: 18px;
-  font-weight: 700;
-}
-
 @media (max-width: 1200px) {
   .mode-layout {
     grid-template-columns: 1fr;

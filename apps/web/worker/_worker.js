@@ -1,5 +1,5 @@
 /** Alineado con escritorio (`APP_RELEASE_NAME`) y móvil (`pubspec.yaml`). */
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.13";
 
 const NOTE_NAMES = {
   en: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],

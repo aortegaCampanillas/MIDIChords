@@ -17,7 +17,7 @@ PROFILE_ORDER = ("python", "web", "mobile")
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.sync_shared_assets import sync_changelog
+from scripts.sync_shared_assets import sync_changelog, sync_version
 
 
 def _display_command(command: Sequence[str]) -> str:
@@ -128,6 +128,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             + ", ".join(
                 path.relative_to(PROJECT_ROOT).as_posix()
                 for path in changed_assets
+            ),
+            flush=True,
+        )
+    changed_version = sync_version()
+    if changed_version:
+        print(
+            "Versión sincronizada desde VERSION antes de verificar: "
+            + ", ".join(
+                path.relative_to(PROJECT_ROOT).as_posix()
+                for path in changed_version
             ),
             flush=True,
         )

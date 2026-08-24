@@ -48,6 +48,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 - Rutas a assets/samples: usar `midichords.core.app_constants.PROJECT_ROOT`.
 - Python requerido: **3.12** (python-rtmidi solo tiene rueda hasta cp312 en Windows).
 - Deploy web: solo se lanza con **push de etiqueta `v*`**, no con push a `main`.
+- **Versión unificada**: `VERSION` en la raíz es la única fuente de verdad para escritorio, web y móvil. No edites `APP_RELEASE_NAME`, `APP_VERSION`, `WEB_APP_VERSION_FALLBACK`, `softwareVersion` (HTML) ni `version:` de `pubspec.yaml` a mano — cambia `VERSION` y ejecuta `python scripts/sync_shared_assets.py` (o cualquier `launch.py`/`scripts/check.py`, que ya lo invocan). El build number de Flutter (`+N`) se autoincrementa solo cuando cambia la versión base.
 
 ## Archivos grandes — leer solo lo necesario
 

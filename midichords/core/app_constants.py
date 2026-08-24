@@ -151,7 +151,7 @@ DEFAULT_CONFIG = {
 
 # Versión mostrada en Configuración si no hay MIDICHORDS_BUILD_NAME ni archivo VERSION en PROJECT_ROOT.
 # Actualizar al publicar; el empaquetado puede inyectar MIDICHORDS_BUILD_NAME.
-APP_RELEASE_NAME = "1.0.5"
+APP_RELEASE_NAME = "1.0.13"
 
 
 def desktop_build_display_name() -> str:

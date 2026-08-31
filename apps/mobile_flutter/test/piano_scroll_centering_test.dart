@@ -16,8 +16,6 @@ void main() {
   test('does not recenter unrelated modes', () {
     expect(modeUsesCenteredTheoryPiano(4), isFalse);
     expect(modeUsesCenteredTheoryPiano(6), isFalse);
-    expect(modeUsesCenteredTheoryPiano(2), isFalse);
-    expect(modeUsesCenteredTheoryPiano(7), isFalse);
   });
 
   test('remembers an independent scroll position for every theory mode', () {

@@ -21,6 +21,10 @@ void main() {
     });
     await tester.binding.setSurfaceSize(const Size(932, 430));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(932, 430);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const MidiChordsMobileApp());
     for (var attempt = 0; attempt < 10; attempt += 1) {
@@ -41,6 +45,10 @@ void main() {
     });
     await tester.binding.setSurfaceSize(const Size(932, 430));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(932, 430);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const MidiChordsMobileApp());
     for (var attempt = 0; attempt < 10; attempt += 1) {
@@ -61,6 +69,10 @@ void main() {
     });
     await tester.binding.setSurfaceSize(const Size(932, 430));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(932, 430);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const MidiChordsMobileApp());
     for (var attempt = 0; attempt < 10; attempt += 1) {
@@ -187,6 +199,10 @@ void main() {
     });
     await tester.binding.setSurfaceSize(const Size(932, 430));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(932, 430);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const MidiChordsMobileApp());
     for (var attempt = 0; attempt < 10; attempt += 1) {

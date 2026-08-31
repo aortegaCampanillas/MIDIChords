@@ -1,5 +1,5 @@
 // Feature flag: keep tuner code but hide/disable it by default.
-const TUNER_FEATURE_ENABLED = true;
+const TUNER_FEATURE_ENABLED = false;
 
 /** Respaldo si `/api/meta` no devuelve `app_version` (debe coincidir con `APP_VERSION` en el worker). */
 const WEB_APP_VERSION_FALLBACK = "1.0.13";

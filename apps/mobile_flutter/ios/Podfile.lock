@@ -14,9 +14,9 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_audio_capture/ios"
 
 SPEC CHECKSUMS:
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_audio_capture: 289b33897e98bc0865484669eda07cab90b879b7
 
 PODFILE CHECKSUM: 07f6ebec6fb5c81c57b11049b2c4b8aa96df79e3
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

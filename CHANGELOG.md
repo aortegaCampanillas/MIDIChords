@@ -4,6 +4,7 @@ Historial de versiones publicadas de MIDIChords.
 
 ## Unreleased
 
+- **Afinador**: desactivado de nuevo en web (el código se conserva, oculto tras el flag `TUNER_FEATURE_ENABLED`); en escritorio y móvil ya permanecía oculto por defecto.
 - **Digitación de guitarra**: las cuerdas al aire se identifican con 0 y las silenciadas con X a la misma altura en web, escritorio y móvil.
 - **Móvil / generación de intervalos**: eliminado el panel inferior de piano para ampliar el espacio dedicado al ejercicio.
 - **Móvil / círculo de quintas**: eliminado el panel inferior del instrumento para dedicar toda la pantalla al círculo.

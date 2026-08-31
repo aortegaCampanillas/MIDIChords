@@ -5,7 +5,7 @@
     "items": [
       {
         "date": "2026-08-24",
-        "publish": true,
+        "publish": false,
         "platforms": ["web"],
         "es": "Nuevo afinador cromático con selector de instrumento (guitarra, bajo, ukelele, violín y cromático), rango de espectro automático y detección de nota con octava.",
         "en": "New chromatic tuner with instrument selector (guitar, bass, ukulele, violin, and chromatic), automatic spectrum range, and note detection with octave."

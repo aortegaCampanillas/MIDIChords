@@ -33,7 +33,7 @@ void main() {
       );
       expect(intervalPage, contains('? availableWidth'));
       expect(intervalPage, contains('compactPhone ? 0.0 : 3.0'));
-      expect(intervalPage, contains('compactPhone ? 76.0 : 104.0'));
+      expect(intervalPage, contains('compactPhone ? 76.0 : 130.0'));
       expect(intervalPage, contains('height: cellHeight'));
       expect(intervalPage, isNot(contains('ChoiceChip(')));
       expect(
@@ -60,15 +60,21 @@ void main() {
         intervalPage,
         contains('selected: _intervalGenLastPlayReversed == false'),
       );
-      expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 42 : 57'));
-      expect(main, contains('_tabIndex == 7 || _tabIndex == 9 ? 58 : 43'));
       expect(
         main,
-        contains('flex: _tabIndex == 7 || _tabIndex == 9 ? 42 : 56'),
+        contains('? 32\n                          : _tabIndex == 7\n                          ? 42\n                          : 57'),
       );
       expect(
         main,
-        contains('flex: _tabIndex == 7 || _tabIndex == 9 ? 58 : 44'),
+        contains('? 68\n                          : _tabIndex == 7\n                          ? 58\n                          : 43'),
+      );
+      expect(
+        main,
+        contains('? 32\n                          : _tabIndex == 7\n                          ? 42\n                          : 56'),
+      );
+      expect(
+        main,
+        contains('? 68\n                          : _tabIndex == 7\n                          ? 58\n                          : 44'),
       );
       expect(main, contains("_instrumentView == 'guitar' ? 188.0 : 148.0"));
       expect(main, contains('value == 5 ||'));

@@ -28,9 +28,9 @@ void main() {
     expect(scalesPage, contains('onPressed: _showScaleSettings'));
     expect(scalesPage, contains('if (!compactPhone)'));
     expect(pages, contains('void _showScaleSettings()'));
-    expect(pages, contains("Text('BPM: \$_scaleBpm')"));
+    expect(pages, contains("'BPM: \$_scaleBpm'"));
     expect(pages, contains('_buildScaleFingeringRow('));
-    expect(pages, contains('MainAxisAlignment.spaceBetween'));
+    expect(pages, contains('WrapCrossAlignment.center'));
     expect(scalesPage, isNot(contains("if (_instrumentView != 'guitar')")));
 
     final main = File('lib/main.dart').readAsStringSync();

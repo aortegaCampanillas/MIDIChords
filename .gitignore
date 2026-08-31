@@ -61,6 +61,9 @@ apps/web/pages-dist/
 **/.packages
 **/build/
 **/android/.gradle/
+**/android/**/.gradle/
+**/android/**/local.properties
+**/android/gradle/gradle-daemon-jvm.properties
 **/ios/Pods/
 **/ios/.symlinks/
 **/ios/Flutter/ephemeral/

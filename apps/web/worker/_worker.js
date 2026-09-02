@@ -383,6 +383,35 @@ function json(data, status = 200) {
   });
 }
 
+/**
+ * Freno de peticiones por IP para POST /api/* — contador en memoria del propio isolate
+ * (se reinicia si Cloudflare recicla el Worker; no comparte estado entre colos/isolates).
+ * No es un rate limit distribuido perfecto, pero corta el patrón de abuso real visto en
+ * producción: un único IP mandando decenas de miles de POST /api/detect en una hora
+ * (incidente 2026-09-01). Un uso normal de la app no se acerca a este umbral.
+ */
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const RATE_LIMIT_MAX_TRACKED_IPS = 5000;
+const rateLimitBuckets = new Map();
+
+function isRateLimited(ip) {
+  if (!ip) return false;
+  const now = Date.now();
+  if (rateLimitBuckets.size > RATE_LIMIT_MAX_TRACKED_IPS) rateLimitBuckets.clear();
+  const bucket = rateLimitBuckets.get(ip);
+  if (!bucket || now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    rateLimitBuckets.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  bucket.count += 1;
+  return bucket.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
+function rateLimitedResponse() {
+  return json({ error: "Too many requests" }, 429);
+}
+
 /** HEAD para monitorización sin cuerpo (mismo status que GET). */
 function apiHeadOk() {
   return new Response(null, {
@@ -865,6 +894,11 @@ export default {
           "access-control-allow-headers": "content-type",
         },
       });
+    }
+
+    if (pathname.startsWith("/api/") && request.method === "POST") {
+      const clientIp = request.headers.get("cf-connecting-ip") || "";
+      if (isRateLimited(clientIp)) return rateLimitedResponse();
     }
 
     if (pathname === "/api/health" && (request.method === "GET" || request.method === "HEAD")) {

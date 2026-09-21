@@ -615,7 +615,7 @@
       <div class="support-icon">💛</div>
       <h3 data-i18n="sup_donate_title">Support the project</h3>
       <p data-i18n="sup_donate_text">PianoPilot is free and open source. If it saves you time or you find it useful, consider supporting its development.</p>
-      <a class="btn-primary" style="margin-top:8px;align-self:flex-start" href="https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000" target="_blank" rel="noopener noreferrer" data-i18n="sup_donate_btn">Donate</a>
+      <a id="supDonateBtn" class="btn-primary" style="margin-top:8px;align-self:flex-start" href="https://buy.stripe.com/7sY14ncfPbV36jS28V8g002" target="_blank" rel="noopener noreferrer" data-i18n="sup_donate_btn">Donate</a>
     </div>
     <div class="support-card">
       <div class="support-icon">💬</div>
@@ -841,8 +841,17 @@ const closeLightbox = () => MidiChordsLanding.closeLightbox();
 const openFeedback = () => MidiChordsLanding.openFeedback();
 const closeFeedback = () => MidiChordsLanding.closeFeedback();
 
+const DONATE_URLS = {
+  es: "https://buy.stripe.com/3cI3cv7Zz7EN5fObJv8g001",
+  en: "https://buy.stripe.com/7sY14ncfPbV36jS28V8g002",
+};
+
 MidiChordsLanding.init({
   translations: TRANSLATIONS,
+  onLanguageChanged: (language) => {
+    const supDonateBtn = document.getElementById("supDonateBtn");
+    if (supDonateBtn) supDonateBtn.href = DONATE_URLS[language] || DONATE_URLS.en;
+  },
   feedbackMode: "fp30x",
   metadata: {
     en: {

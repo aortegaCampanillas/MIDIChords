@@ -279,7 +279,10 @@ const generationPlaybackHighlight = createPlaybackHighlighter({
     renderStaff();
   },
 });
-const DONATE_URL = "https://buy.stripe.com/eVqdR9fs19MVcIgeVH8g000";
+const DONATE_URLS = {
+  es: "https://buy.stripe.com/3cI3cv7Zz7EN5fObJv8g001",
+  en: "https://buy.stripe.com/7sY14ncfPbV36jS28V8g002",
+};
 const TUNER_INSTRUMENTS = [
   {
     key: "guitar",
@@ -1906,7 +1909,7 @@ function applyTranslations() {
   refreshMidiStartupModalContent();
   refreshSoundOutputToggle();
   const donateBtn = el("donateBtn");
-  if (donateBtn) donateBtn.setAttribute("href", DONATE_URL);
+  if (donateBtn) donateBtn.setAttribute("href", DONATE_URLS[state.language] || DONATE_URLS.en);
 
   refreshInstrumentToggleLabels();
 

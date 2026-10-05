@@ -62,6 +62,10 @@ def run_web(
         str(port),
         "--local-protocol",
         protocol,
+        # Without this, keystrokes reaching stdin (e.g. the VS Code debugger
+        # echoing its launch command) trigger hotkeys such as [t], which opens
+        # a public tunnel and an OAuth login.
+        "--show-interactive-dev-session=false",
     ]
     if https_key_path:
         cmd.extend(["--https-key-path", https_key_path])

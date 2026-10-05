@@ -196,6 +196,7 @@ Bundle ID: `com.FPAlanTuring.FreeMIDIChords` · Team ID: `977G5A733H`
 - **PROJECT_SPEC.md**: especificación para regenerar el proyecto.
 - **`docs/architecture/AGENT_MAINTAINABILITY.md`**: resultado de la refactorización para agentes, límites actuales y siguientes candidatos seguros.
 - **`docs/ROADMAP.md`**: único backlog documental vigente; `docs/archive/` es solo contexto histórico.
+- **`docs/integrations/partykeys/`**: protocolo MIDI/SysEx de LEDs de los teclados PartyKeys 36 y PopuPiano 29 (copia de la spec upstream + resumen y notas de integración).
 
 ---
 

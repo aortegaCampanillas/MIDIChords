@@ -34,6 +34,7 @@ La lógica reutilizable está en el paquete Python `midichords/`.
 | Web: envolventes y liberación de voces | `apps/web/static/audio_voice.js` |
 | Web: autocorrelación y frecuencia/MIDI | `apps/web/static/tuner_math.js` |
 | Web: resaltado durante reproducción | `apps/web/static/playback_highlight.js` |
+| Web: LEDs del teclado PartyKeys | `apps/web/static/partykeys_leds.js` (protocolo/delta), `apps/web/static/app.js` (`partyKeysLedFrame`, permisos SysEx); spec en `docs/integrations/partykeys/` |
 | Web: textos generales ES/EN | `apps/web/static/ui_texts.js` |
 | Web: nombres, alteraciones y armaduras | `apps/web/static/music_notation.js` |
 | Web: ayuda teórica de acordes | `apps/web/static/chord_help.js` |

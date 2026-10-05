@@ -54,6 +54,8 @@ y `scripts/check.py` la actualizan antes de servir, verificar o empaquetar la we
 
 `static/playback_highlight.js` coordina las notas resaltadas durante ▶, su temporizador y el repintado inyectado. Piano compara MIDI exacto y guitarra pitch class para cubrir posturas en otras octavas; probar inicio, sustitución y limpieza en `test/playback_highlight.test.js`.
 
+`static/partykeys_leds.js` construye los SysEx de LEDs del PartyKeys 36 (CMD 0x15 por índice físico), convierte nota → tecla con la octava/transporte que avisa el teclado y envía solo las teclas que cambian. Permiso SysEx, detección del puerto, avisos de octava y qué notas se iluminan en cada modo (`partyKeysLedFrame`) permanecen en `app.js`. Protocolo y hallazgos de hardware en `docs/integrations/partykeys/`; probar con salidas falsas en `test/partykeys_leds.test.js`.
+
 `static/guitar_geometry.js` detecta cejillas, calcula layout/centros del mástil, refleja la orientación zurda, escala puntos cliente al canvas y resuelve hit-testing circular. No accede al DOM ni al estado de la SPA; `renderGuitar()` aporta dimensiones, convierte índices cubiertos a `Set` y conserva dibujo e interacción. Probar cambios de geometría en `test/guitar_geometry.test.js`.
 
 `static/guitar_canvas.js` dibuja el marco estático del mástil (fondo, tabla, cejuela, trastes y etiquetas) a partir de un layout explícito. No consulta DOM ni estado; `test/guitar_canvas.test.js` usa un contexto grabador para fijar operaciones y simetría zurda antes de extraer más dibujo.

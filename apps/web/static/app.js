@@ -2,7 +2,7 @@
 const TUNER_FEATURE_ENABLED = false;
 
 /** Respaldo si `/api/meta` no devuelve `app_version` (debe coincidir con `APP_VERSION` en el worker). */
-const WEB_APP_VERSION_FALLBACK = "1.0.13";
+const WEB_APP_VERSION_FALLBACK = "1.0.14";
 
 const state = {
   mode: null,
@@ -57,6 +57,7 @@ const state = {
   scalePatterns: [],
   appVersion: WEB_APP_VERSION_FALLBACK,
   noteDetectionNote: null,
+  noteDetectionPlaying: false,
   noteDetectionDetailsVisible: true,
   activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
@@ -116,6 +117,12 @@ const state = {
     enabled: false,
     access: null,
     onMessage: null,
+    // MIDIAccess was granted with sysex: true (needed for PartyKeys LEDs and
+    // to receive its octave notices).
+    sysex: false,
+    // Set once a SysEx request was refused, so the prompt is not repeated.
+    sysexDenied: false,
+    partyKeysConnected: false,
   },
   tuner: {
     running: false,
@@ -1259,6 +1266,170 @@ function sendMidiNoteOff(note) {
 
 function stopAllHeldMidiOutputNotes() {
   midiOutputController.stopAll();
+}
+
+const {
+  COLORS: PARTYKEYS_COLORS,
+  createPartyKeysController,
+  isPartyKeysPortName,
+  parseDeviceMessage: parsePartyKeysMessage,
+} = globalThis.MidiChordsPartyKeys;
+
+// Port names are visible without SysEx permission, so the LED toggle can be
+// offered before asking for it; sending LED commands does need SysEx.
+function findPartyKeysPort() {
+  if (!state.midi.access) return null;
+  for (const output of state.midi.access.outputs.values()) {
+    if (output.state !== "disconnected" && isPartyKeysPortName(output.name)) return output;
+  }
+  return null;
+}
+
+function getPartyKeysOutput() {
+  return state.midi.sysex ? findPartyKeysPort() : null;
+}
+
+const partyKeysLeds = createPartyKeysController({ getOutput: getPartyKeysOutput });
+
+function partyKeysLedsActive() {
+  return state.midi.enabled && state.midi.partyKeysConnected;
+}
+
+// Notes to light for the current mode, in rising priority (later entries win
+// when octave folding puts two notes on the same key). Notes coming from the
+// player's own keyboard are never folded so the pressed key itself lights up.
+function partyKeysModeFrame() {
+  const C = PARTYKEYS_COLORS;
+  const entries = [];
+  const add = (notes, color) => {
+    for (const note of notes || []) entries.push([Number(note), color]);
+  };
+  const pcOf = (note) => ((Number(note) % 12) + 12) % 12;
+  if (!activeModeSupportsInstrument()) return { entries, fold: false };
+
+  if (isChordGenerationLikeMode()) {
+    // Same hands as renderPiano(): right = chord voicing, left = one octave below.
+    const rhSet = new Set((state.generatedChord?.notes_midi || []).map(Number));
+    const lhSet = new Set(Array.from(rhSet, (n) => n - 12));
+    if (generationHandShows("left")) add(lhSet, C.leftIdle);
+    if (generationHandShows("right")) add(rhSet, C.rightIdle);
+    // Keys the player presses are left alone: the firmware paints them white
+    // while held and restores this color on release (no host override exists).
+    // Only ▶ playback brightens keys (generationCurrentNote also tracks presses).
+    for (const note of Array.from(state.generationPlayingNotes, Number)) {
+      entries.push([note, lhSet.has(note) && !rhSet.has(note) ? C.leftPlayed : C.rightPlayed]);
+    }
+    return { entries, fold: true };
+  }
+  if (state.mode === "scales") {
+    // Same marks as the piano badges, honoring the octave selector:
+    // tonic green, other degrees amber/orange, sounding note blue.
+    const notes = state.generatedScale ? getScaleNotesForOctaves() : [];
+    const tonicPc = state.generatedScale ? Number(state.generatedScale.tonic_pc) : null;
+    add(notes.filter((n) => pcOf(n) !== tonicPc), C.markNote);
+    add(notes.filter((n) => pcOf(n) === tonicPc), C.markTonic);
+    if (state.scaleCurrentNote != null) add([state.scaleCurrentNote], C.active);
+    return { entries, fold: true };
+  }
+  if (state.mode === "interval_practice") {
+    const question = intervalPracticeQuestionNotes();
+    if (!question.length) return { entries, fold: true };
+    const answer = state.intervalPracticeAnswer;
+    add([question[0]], C.markTonic);
+    if (answer) {
+      if (!answer.correct) add([answer.note], C.wrong);
+      add([question[1]], C.correct);
+    }
+    // Sounding notes (first listen or "listen again") light blue like the
+    // piano's practice-playing keys; melodic uses intervalGenPlayingNote.
+    const sounding = new Set(Array.from(state.intervalPracticePlayingNotes, Number));
+    if (state.intervalGenPlayingNote != null) sounding.add(Number(state.intervalGenPlayingNote));
+    add(sounding, C.active);
+    return { entries, fold: true };
+  }
+  if (state.mode === "interval_detection" || state.mode === "interval_generation") {
+    // Same marks as the piano badges: first note green, the other orange,
+    // brighter while sounding on ▶. Melody notes outside the interval light blue.
+    const detection = state.mode === "interval_detection";
+    const notes = (detection ? state.intervalNotes : intervalGenNotes()).map(Number);
+    const sounding = new Set(detection ? [] : Array.from(state.intervalGenPlayingNotes, Number));
+    const playing = detection ? state.intervalPlayingNote : state.intervalGenPlayingNote;
+    if (playing != null) sounding.add(Number(playing));
+    notes.forEach((note, idx) => {
+      const lit = sounding.has(note);
+      if (idx === 0) entries.push([note, lit ? C.markTonicPlayed : C.markTonic]);
+      else entries.push([note, lit ? C.markNotePlayed : C.markNote]);
+    });
+    add(Array.from(sounding).filter((note) => !notes.includes(note)), C.active);
+    return { entries, fold: true };
+  }
+  if (state.mode === "note_detection") {
+    if (state.noteDetectionNote != null) {
+      add([state.noteDetectionNote], state.noteDetectionPlaying ? C.notePlayed : C.noteIdle);
+    }
+    return { entries, fold: false };
+  }
+  // detection, metronome: mirror what the player holds.
+  add(getActiveMidiForMode(), C.active);
+  return { entries, fold: false };
+}
+
+// A key held on the on-screen piano lights blue on top of the mode's colors
+// until it is released.
+function partyKeysLedFrame() {
+  const frame = partyKeysModeFrame();
+  if (state.inputDragNote != null && activeModeSupportsInstrument()) {
+    frame.entries.push([Number(state.inputDragNote), PARTYKEYS_COLORS.active]);
+  }
+  return frame;
+}
+
+function syncPartyKeysLeds() {
+  if (!partyKeysLedsActive()) return;
+  const { entries, fold } = partyKeysLedFrame();
+  partyKeysLeds.render(entries, { fold });
+}
+
+function refreshPartyKeysConnection() {
+  if (state.midi.enabled && !state.midi.sysex && findPartyKeysPort()) {
+    void requestSysexForPartyKeys();
+    return;
+  }
+  const wasConnected = state.midi.partyKeysConnected;
+  state.midi.partyKeysConnected = state.midi.enabled && !!getPartyKeysOutput();
+  if (state.midi.partyKeysConnected && !wasConnected) partyKeysLeds.connect();
+  syncPartyKeysLeds();
+}
+
+let sysexRequestInFlight = null;
+
+// The plain MIDI permission is enough to see port names; SysEx (needed to
+// drive the LEDs) is only asked for once a PartyKeys is actually present.
+function requestSysexForPartyKeys() {
+  if (state.midi.sysexDenied) return Promise.resolve(false);
+  if (sysexRequestInFlight) return sysexRequestInFlight;
+  sysexRequestInFlight = (async () => {
+    try {
+      const access = await requestMidiAccessWithCaching({ sysex: true });
+      detachMidiInputHandlers();
+      setMidiAccess(access, { sysex: true });
+      if (state.midi.enabled) attachMidiInputHandlers();
+      refreshPartyKeysConnection();
+      return true;
+    } catch (_err) {
+      state.midi.sysexDenied = true;
+      return false;
+    } finally {
+      sysexRequestInFlight = null;
+    }
+  })();
+  return sysexRequestInFlight;
+}
+
+function handlePartyKeysSysex(data) {
+  const notice = parsePartyKeysMessage(data);
+  if (!notice || notice.type !== "octave") return;
+  if (partyKeysLeds.setDeviceShift(notice)) syncPartyKeysLeds();
 }
 
 function loadSavedSoundOutputPref() {
@@ -3513,6 +3684,7 @@ function inversionLabel(inversion) {
 }
 
 function renderInstrument() {
+  syncPartyKeysLeds();
   if (state.mode === "tuner") {
     renderTunerSpectrumPanel();
     return;
@@ -6875,6 +7047,7 @@ function beginInputDrag(note, instrumentHint) {
   }
   state.inputDragNote = midi;
   handleInstrumentNote(midi, { pressed: true, instrumentHint });
+  syncPartyKeysLeds();
 }
 
 function updateInputDrag(note, instrumentHint) {
@@ -6896,6 +7069,7 @@ function updateInputDrag(note, instrumentHint) {
   state.inputDragNote = midi;
   state.inputDragInstrument = instrumentHint || state.inputDragInstrument || null;
   handleInstrumentNote(midi, { pressed: true, instrumentHint });
+  syncPartyKeysLeds();
 }
 
 function endInputDrag() {
@@ -6913,6 +7087,7 @@ function endInputDrag() {
   state.inputDragNote = null;
   state.inputDragInstrument = null;
   state.inputDragActive = false;
+  syncPartyKeysLeds();
 }
 
 function startHeldInputNote(midi, instrument = "piano") {
@@ -7647,6 +7822,10 @@ async function bumpMidiScreenWakeLockFromMidi() {
 function handleMidiMessage(event) {
   if (!state.midi.enabled) return;
   const data = event.data || [];
+  if (data[0] === 0xF0) {
+    handlePartyKeysSysex(data);
+    return;
+  }
   const status = data[0] & 0xf0;
   const note = Number(data[1]);
   const velocity = Number(data[2] || 0);
@@ -7762,10 +7941,10 @@ function handleMidiMessage(event) {
   }
 }
 
-async function queryMidiPermissionState() {
+async function queryMidiPermissionState({ sysex = false } = {}) {
   if (!navigator.permissions || typeof navigator.permissions.query !== "function") return "unknown";
   try {
-    const permissionStatus = await navigator.permissions.query({ name: "midi" });
+    const permissionStatus = await navigator.permissions.query(sysex ? { name: "midi", sysex: true } : { name: "midi" });
     return permissionStatus?.state || "unknown";
   } catch (_err) {
     return "unknown";
@@ -7796,12 +7975,25 @@ function setMidiButtonStatus(status) {
   refreshMidiToggleButtonState();
 }
 
-async function requestMidiAccessWithCaching() {
-  const permissionState = await queryMidiPermissionState();
+async function requestMidiAccessWithCaching({ sysex = false } = {}) {
+  const permissionState = await queryMidiPermissionState({ sysex });
   if (permissionState === "denied") {
     throw new Error("MIDI permission denied");
   }
-  return navigator.requestMIDIAccess();
+  return sysex ? navigator.requestMIDIAccess({ sysex: true }) : navigator.requestMIDIAccess();
+}
+
+function setMidiAccess(access, { sysex = false } = {}) {
+  if (state.midi.access && state.midi.access !== access) state.midi.access.onstatechange = null;
+  state.midi.access = access;
+  state.midi.sysex = sysex;
+  access.onstatechange = handleMidiAccessStateChange;
+}
+
+function handleMidiAccessStateChange() {
+  // Re-attach so inputs plugged in (or reconnected) after enabling MIDI are heard.
+  if (state.midi.enabled) attachMidiInputHandlers();
+  refreshPartyKeysConnection();
 }
 
 function attachMidiInputHandlers() {
@@ -7823,6 +8015,8 @@ function disableMidiInput(options = {}) {
   state.midi.enabled = false;
   if (remember) saveMidiEnabledPref(false);
   detachMidiInputHandlers();
+  if (state.midi.partyKeysConnected) partyKeysLeds.clear();
+  state.midi.partyKeysConnected = false;
   state.activeMidiLiveNotes.clear();
   stopAllHeldMidiInputNotes();
   state.detectionMidiHeldNotes.clear();
@@ -7863,10 +8057,16 @@ async function enableMidiInput(options = {}) {
         // Audio resume may require user gesture; MIDI init should continue anyway.
       }
     }
-    if (!state.midi.access) state.midi.access = await requestMidiAccessWithCaching();
+    if (!state.midi.access) {
+      // Reuse SysEx silently when already granted; otherwise it is requested
+      // only if a PartyKeys shows up (refreshPartyKeysConnection).
+      const sysex = (await queryMidiPermissionState({ sysex: true })) === "granted";
+      setMidiAccess(await requestMidiAccessWithCaching({ sysex }), { sysex });
+    }
     state.midi.enabled = true;
     if (remember) saveMidiEnabledPref(true);
     attachMidiInputHandlers();
+    refreshPartyKeysConnection();
     setMidiButtonStatus("on");
     refreshSoundOutputToggle();
     if (state.soundOutput === "midi") sendMidiProgramChange(state.instrument);
@@ -7939,6 +8139,9 @@ function bindEvents() {
   listen(el("instrumentToggle"), "click", () => setInstrument(state.instrument === "piano" ? "guitar" : "piano"));
 
   listen(el("midiToggle"), "click", toggleMidi);
+  listen(window, "pagehide", () => {
+    if (partyKeysLedsActive()) partyKeysLeds.clear();
+  });
   const helpToggle = el("helpToggle");
   if (helpToggle) {
     listen(helpToggle, "click", () => {
@@ -8064,11 +8267,15 @@ function bindEvents() {
       if (state.noteDetectionNote == null) return;
       noteDetectionPlayHeldNote = Number(state.noteDetectionNote);
       startHeldInputNote(noteDetectionPlayHeldNote, "piano");
+      state.noteDetectionPlaying = true;
+      syncPartyKeysLeds();
     },
     onRelease: () => {
       if (noteDetectionPlayHeldNote == null) return;
       stopHeldInputNote(noteDetectionPlayHeldNote);
       noteDetectionPlayHeldNote = null;
+      state.noteDetectionPlaying = false;
+      syncPartyKeysLeds();
     },
   });
   listen(el("noteDetectClear"), "click", () => {

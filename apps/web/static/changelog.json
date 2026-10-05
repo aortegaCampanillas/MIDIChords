@@ -1,5 +1,18 @@
 [
   {
+    "version": "v1.0.14",
+    "date": "2026-10-05",
+    "items": [
+      {
+        "date": "2026-10-05",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Integración con el teclado PartyKeys 36: al conectarlo por MIDI, sus luces muestran el acorde, la escala, el intervalo o la nota de cada modo con los colores de la app y resaltan las notas mientras suenan.",
+        "en": "PartyKeys 36 keyboard integration: when connected over MIDI, its lights show each mode's chord, scale, interval, or note in the app's colors and highlight notes while they play."
+      }
+    ]
+  },
+  {
     "version": "v1.0.13",
     "date": "2026-08-24",
     "items": [

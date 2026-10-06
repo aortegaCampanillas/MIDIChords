@@ -154,6 +154,10 @@ def prepare_web_pages_dist(project_root: Path) -> Path:
     for html_file in web_dir.glob("*.html"):
         shutil.copy(html_file, pages_dist / html_file.name)
     shutil.copytree(web_dir / "static", pages_dist / "static", dirs_exist_ok=True)
+    # Versioned third-party files (Vosk + speech model), served with an
+    # immutable cache from apps/web/_headers instead of /static's no-store.
+    if (web_dir / "vendor").is_dir():
+        shutil.copytree(web_dir / "vendor", pages_dist / "vendor", dirs_exist_ok=True)
     shutil.copy(web_dir / "worker" / "_worker.js", pages_dist / "_worker.js")
     if (web_dir / "_headers").exists():
         shutil.copy(web_dir / "_headers", pages_dist / "_headers")

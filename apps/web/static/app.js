@@ -58,6 +58,32 @@ const state = {
   appVersion: WEB_APP_VERSION_FALLBACK,
   noteDetectionNote: null,
   noteDetectionPlaying: false,
+  noteReading: {
+    clef: "treble",
+    range: "staff",
+    session: null,
+    // Position flashed red after a wrong answer (cleared by a timer).
+    missPos: null,
+    // Last wrong syllable heard on the current note, drawn in red under it.
+    wrongHeard: null,
+    // "Continue automatically": a new round of notes follows each completed one.
+    auto: false,
+    round: 1,
+    // Totals of the rounds already completed in auto mode.
+    priorCorrect: 0,
+    priorWrong: 0,
+    // Last finished round, shown again if the player stops before trying the
+    // first note of the next one.
+    previousSession: null,
+    startedAt: null,
+    finishedAt: null,
+    // Recognizer phase: idle | downloading | loading | microphone | listening | error.
+    phase: "idle",
+    progress: 0,
+    error: null,
+    // Device label when the microphone delivers only silence.
+    silentDevice: null,
+  },
   noteDetectionDetailsVisible: true,
   activeDetectionNotes: new Set(),
   activeMidiLiveNotes: new Set(),
@@ -223,6 +249,7 @@ const {
 
 const SOUND_OUTPUT_STORAGE_KEY = "soundOutput";
 const MIDI_ENABLED_STORAGE_KEY = "midiEnabled";
+const NOTE_READING_AUTO_STORAGE_KEY = "noteReadingAuto";
 const MODE_STORAGE_KEY = "lastMode";
 const AVAILABLE_MODES = new Set([
   "note_detection",
@@ -233,6 +260,7 @@ const AVAILABLE_MODES = new Set([
   "generation",
   "circle_fifths",
   "scales",
+  "note_reading",
   "metronome",
   ...(TUNER_FEATURE_ENABLED ? ["tuner"] : []),
 ]);
@@ -267,6 +295,16 @@ const {
   releaseAudioVoice,
 } = globalThis.MidiChordsAudioVoice;
 const { autoCorrelate, freqToMidi, midiToFreq } = globalThis.MidiChordsTunerMath;
+const {
+  createReadingSession,
+  createUtteranceTracker,
+  generateReadingSequence,
+  labelForStep,
+  noteLabel,
+  recognizerVocabulary,
+  stepForWord,
+} = globalThis.MidiChordsNoteReading;
+const { createNoteSpeechRecognizer } = globalThis.MidiChordsNoteSpeech;
 const {
   isChordPlaybackMode,
   isPlaybackNoteActive,
@@ -1480,7 +1518,7 @@ function refreshSoundOutputToggle() {
   const isMidi = state.soundOutput === "midi";
   btn.textContent = isMidi ? tr("sound_output_midi") : tr("sound_output_audio");
   btn.classList.toggle("active", isMidi);
-  btn.classList.toggle("hidden", !state.midi.enabled);
+  btn.classList.toggle("hidden", !state.midi.enabled || state.mode === "note_reading");
 }
 
 function refreshMidiToggleButtonState() {
@@ -1906,6 +1944,7 @@ function applyTranslations() {
     opt("interval_practice", "mode_interval_practice");
     opt("circle_fifths", "mode_circle_fifths");
     opt("scales", "mode_scales");
+    opt("note_reading", "mode_note_reading");
     opt("metronome", "mode_metronome");
     opt("tuner", "mode_tuner");
     const tunerOption = modeSelect.querySelector('option[value="tuner"]');
@@ -1918,6 +1957,24 @@ function applyTranslations() {
   };
   setText("staffHeader", "staff");
   setText("headingDetection", "heading_detection");
+  setText("headingNoteReading", "heading_note_reading");
+  setText("noteReadingHint", "hint_note_reading");
+  setText("labelNoteReadingClef", "label_note_reading_clef");
+  setText("labelNoteReadingRange", "label_note_reading_range");
+  setText("noteReadingNew", "note_reading_new");
+  setText("labelNoteReadingAuto", "label_note_reading_auto");
+  setText("labelNoteReadingProgress", "label_note_reading_progress");
+  setText("labelNoteReadingAccuracy", "label_note_reading_accuracy");
+  setText("labelNoteReadingWrong", "label_note_reading_wrong");
+  const readingOption = (selectId, value, key) => {
+    const o = el(selectId)?.querySelector(`option[value="${value}"]`);
+    if (o) o.textContent = tr(key);
+  };
+  readingOption("noteReadingClef", "treble", "note_reading_clef_treble");
+  readingOption("noteReadingClef", "bass", "note_reading_clef_bass");
+  readingOption("noteReadingRange", "staff", "note_reading_range_staff");
+  readingOption("noteReadingRange", "ledger", "note_reading_range_ledger");
+  refreshNoteReadingUi();
   setText("headingNoteDetection", "heading_note_detection");
   setText("noteDetectionHint", "hint_note_detection");
   setText("noteDetectClear", "clear");
@@ -2250,6 +2307,7 @@ function activeModeSupportsStaff() {
     || state.mode === "generation"
     || state.mode === "circle_fifths"
     || state.mode === "scales"
+    || state.mode === "note_reading"
     || state.mode === "metronome"
     || (TUNER_FEATURE_ENABLED && state.mode === "tuner");
 }
@@ -2338,7 +2396,10 @@ function setMode(mode) {
   if (state.mode === "scales" && mode !== "scales") stopScaleLoop();
   if (state.mode === "metronome" && mode !== "metronome" && state.metronomeRunning) toggleMetronome();
   if (TUNER_FEATURE_ENABLED && state.mode === "tuner" && mode !== "tuner" && state.tuner.running) toggleTuner();
+  if (state.mode === "note_reading" && mode !== "note_reading") stopNoteReadingListening();
   state.mode = mode;
+  if (mode === "note_reading" && !state.noteReading.session) newNoteReadingSequence();
+  syncNoteReadingStaffState();
   saveModePref(mode);
   if (mode !== "note_detection" && mode !== "detection" && mode !== "interval_detection") {
     resetMidiScreenWakeLockFully();
@@ -2348,7 +2409,7 @@ function setMode(mode) {
   refreshHelpButtonState();
   const modeScreen = el("modeScreen");
   if (modeScreen) {
-    modeScreen.classList.remove("mode-note_detection", "mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-interval_practice", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-metronome", "mode-tuner");
+    modeScreen.classList.remove("mode-note_detection", "mode-detection", "mode-interval_detection", "mode-interval_generation", "mode-interval_practice", "mode-generation", "mode-circle_fifths", "mode-scales", "mode-note_reading", "mode-metronome", "mode-tuner");
     modeScreen.classList.add(`mode-${mode}`);
   }
   const modeSelect = el("modeSelect");
@@ -2365,6 +2426,7 @@ function setMode(mode) {
     generation: "panelGeneration",
     circle_fifths: "panelCircleFifths",
     scales: "panelScales",
+    note_reading: "panelNoteReading",
     metronome: "panelMetronome",
     tuner: "panelTuner",
   };
@@ -2377,7 +2439,11 @@ function setMode(mode) {
   const supportsStaff = activeModeSupportsStaff();
   el("instrumentArea").classList.toggle("hidden", !supportsInstrument);
   el("instrumentArea").classList.toggle("with-inst-dock", mode === "generation" || mode === "circle_fifths" || mode === "scales" || mode === "interval_generation");
-  el("instrumentSwitch").classList.toggle("hidden", !supportsInstrument);
+  // Solfège has no keyboard, but still needs the help button from this group.
+  const noteReadingMode = mode === "note_reading";
+  el("instrumentSwitch").classList.toggle("hidden", !supportsInstrument && !noteReadingMode);
+  el("midiToggle")?.classList.toggle("hidden", noteReadingMode);
+  refreshSoundOutputToggle();
   el("staffArea").classList.toggle("hidden", !supportsStaff);
   const circleStaffFooter = el("circleFifthsStaffFooter");
   const circleChordOverStaff = el("circleChordOverStaff");
@@ -5648,6 +5714,16 @@ function renderStaff() {
     return;
   }
 
+  if (state.mode === "note_reading") {
+    drawNoteReadingCanvas(ctx, width, height);
+    canvas.onclick = null;
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onmousedown = null;
+    canvas.onmouseup = null;
+    return;
+  }
+
   if (state.mode === "tuner") {
     drawTunerCanvas(ctx, width, height);
     canvas.onmousemove = null;
@@ -8121,6 +8197,327 @@ async function toggleMidi() {
   await enableMidiInput({ remember: true, rememberOnFailure: true, fromUserGesture: true });
 }
 
+// ---- Note reading (spoken solfège) ----------------------------------------
+
+let noteReadingMissTimer = null;
+let noteReadingRoundTimer = null;
+const NOTE_READING_ROUND_PAUSE_MS = 700;
+// Some systems default to a silent virtual input (e.g. BlackHole); flag it
+// instead of listening forever without feedback.
+const NOTE_READING_SILENCE_MS = 4000;
+const NOTE_READING_SILENCE_PEAK = 0.005;
+let noteReadingSilenceTimer = null;
+const noteReadingTracker = createUtteranceTracker((word) => handleNoteReadingWord(word));
+const noteReadingSpeech = createNoteSpeechRecognizer({
+  onText: (kind, text) => {
+    if (kind === "final") noteReadingTracker.final(text);
+    else noteReadingTracker.partial(text);
+  },
+  onStatus: ({ phase, progress }) => {
+    state.noteReading.phase = phase;
+    if (progress != null) state.noteReading.progress = progress;
+    state.noteReading.silentDevice = null;
+    if (noteReadingSilenceTimer != null) clearTimeout(noteReadingSilenceTimer);
+    noteReadingSilenceTimer = null;
+    if (phase === "listening") {
+      noteReadingSilenceTimer = setTimeout(() => {
+        noteReadingSilenceTimer = null;
+        const { peakLevel, device } = noteReadingSpeech.diagnostics;
+        if (state.noteReading.phase !== "listening" || peakLevel >= NOTE_READING_SILENCE_PEAK) return;
+        state.noteReading.silentDevice = device || "?";
+        refreshNoteReadingUi();
+      }, NOTE_READING_SILENCE_MS);
+    }
+    refreshNoteReadingUi();
+  },
+});
+
+function loadSavedNoteReadingAuto() {
+  try { return localStorage.getItem(NOTE_READING_AUTO_STORAGE_KEY) === "true"; } catch (_e) { return false; }
+}
+
+function saveNoteReadingAuto(enabled) {
+  try { localStorage.setItem(NOTE_READING_AUTO_STORAGE_KEY, enabled ? "true" : "false"); } catch (_e) {}
+}
+
+function startNoteReadingRound(after = null) {
+  const reading = state.noteReading;
+  reading.session = createReadingSession(generateReadingSequence({ clef: reading.clef, range: reading.range, after }));
+  reading.missPos = null;
+  reading.wrongHeard = null;
+  // The recognizer may still finish the utterance that answered the previous
+  // sequence; its final result must not count against the new first note.
+  noteReadingTracker.skipCurrent();
+  refreshNoteReadingUi();
+  if (state.mode === "note_reading") renderStaff();
+}
+
+function newNoteReadingSequence() {
+  const reading = state.noteReading;
+  if (noteReadingRoundTimer != null) clearTimeout(noteReadingRoundTimer);
+  noteReadingRoundTimer = null;
+  reading.round = 1;
+  reading.priorCorrect = 0;
+  reading.priorWrong = 0;
+  reading.previousSession = null;
+  reading.startedAt = null;
+  reading.finishedAt = null;
+  startNoteReadingRound();
+}
+
+// Auto mode: fold the finished round into the totals and show the next 8 notes.
+function nextNoteReadingRound() {
+  const reading = state.noteReading;
+  const finished = reading.session;
+  if (!finished) return;
+  const { correct, wrong } = finished.stats;
+  reading.priorCorrect += correct;
+  reading.priorWrong += wrong;
+  reading.previousSession = finished;
+  reading.round += 1;
+  startNoteReadingRound(finished.notes[finished.notes.length - 1]);
+}
+
+// Spoken note names follow the UI language (Spanish solfège or English letters).
+function noteReadingLanguage() {
+  return state.language === "en" ? "en" : "es";
+}
+
+function handleNoteReadingWord(word) {
+  const reading = state.noteReading;
+  const session = reading.session;
+  if (!session || state.mode !== "note_reading") return;
+  const step = stepForWord(word, noteReadingSpeech.language || noteReadingLanguage());
+  if (step == null) return;
+  if (reading.startedAt == null) reading.startedAt = performance.now();
+  const outcome = session.answer(step);
+  if (outcome.result === "wrong") {
+    reading.missPos = outcome.position;
+    reading.wrongHeard = { position: outcome.position, step };
+    if (noteReadingMissTimer != null) clearTimeout(noteReadingMissTimer);
+    noteReadingMissTimer = setTimeout(() => {
+      noteReadingMissTimer = null;
+      state.noteReading.missPos = null;
+      if (state.mode === "note_reading") renderStaff();
+    }, 700);
+  } else if (outcome.result === "correct") {
+    reading.missPos = null;
+    reading.wrongHeard = null;
+    if (outcome.done && !reading.auto) reading.finishedAt = performance.now();
+  }
+  refreshNoteReadingUi();
+  renderStaff();
+  if (!outcome.done) return;
+  if (reading.auto) {
+    // Keep listening; a short pause lets the last note show green first.
+    if (noteReadingRoundTimer != null) clearTimeout(noteReadingRoundTimer);
+    noteReadingRoundTimer = setTimeout(() => {
+      noteReadingRoundTimer = null;
+      nextNoteReadingRound();
+    }, NOTE_READING_ROUND_PAUSE_MS);
+    return;
+  }
+  // Nothing left to read: release the microphone (the summary stays visible).
+  stopNoteReadingListening();
+}
+
+// Start over on the same notes: progress, counters, round and time reset.
+function restartNoteReadingRound() {
+  const reading = state.noteReading;
+  const session = reading.session;
+  if (!session) return;
+  if (noteReadingRoundTimer != null) clearTimeout(noteReadingRoundTimer);
+  noteReadingRoundTimer = null;
+  reading.priorCorrect = 0;
+  reading.priorWrong = 0;
+  reading.round = 1;
+  reading.previousSession = null;
+  reading.startedAt = null;
+  reading.finishedAt = null;
+  reading.session = createReadingSession(session.notes);
+  reading.missPos = null;
+  reading.wrongHeard = null;
+  noteReadingTracker.reset();
+  refreshNoteReadingUi();
+  if (state.mode === "note_reading") renderStaff();
+}
+
+// Stopping on the untouched first note of a round goes back to the finished
+// previous round (n/n), since the new one never started. Totals stay the same.
+function settleNoteReadingAfterStop() {
+  const reading = state.noteReading;
+  const session = reading.session;
+  const previous = reading.previousSession;
+  if (noteReadingRoundTimer != null) {
+    // Stopped during the pause after finishing a round: stay on it.
+    clearTimeout(noteReadingRoundTimer);
+    noteReadingRoundTimer = null;
+    return;
+  }
+  if (!session || !previous || session.position > 0 || session.stats.missed.has(0)) return;
+  reading.priorCorrect -= previous.stats.correct;
+  reading.priorWrong -= previous.stats.wrong;
+  reading.round = Math.max(1, reading.round - 1);
+  reading.session = previous;
+  reading.previousSession = null;
+  reading.missPos = null;
+  reading.wrongHeard = null;
+  refreshNoteReadingUi();
+  if (state.mode === "note_reading") renderStaff();
+}
+
+// resume: keep the current position (used when the language change restarts
+// the microphone); otherwise a manual Start replays the round from note 1.
+async function startNoteReadingListening({ resume = false } = {}) {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    state.noteReading.phase = "error";
+    state.noteReading.error = tr("note_reading_status_unsupported");
+    refreshNoteReadingUi();
+    return;
+  }
+  state.noteReading.error = null;
+  // Starting on a finished round begins a new sequence; otherwise a manual
+  // Start replays the current notes from scratch.
+  if (state.noteReading.session?.done) {
+    if (!resume) newNoteReadingSequence();
+  } else if (!resume) {
+    restartNoteReadingRound();
+  }
+  try {
+    const language = noteReadingLanguage();
+    await noteReadingSpeech.start({ language, vocabulary: recognizerVocabulary(language) });
+  } catch (err) {
+    noteReadingSpeech.stop();
+    state.noteReading.phase = "error";
+    state.noteReading.error = trTemplate("note_reading_status_error", { error: err?.message || String(err) });
+    refreshNoteReadingUi();
+  }
+}
+
+function stopNoteReadingListening() {
+  noteReadingSpeech.stop();
+  noteReadingTracker.reset();
+}
+
+function noteReadingBusy() {
+  return state.noteReading.phase !== "idle" && state.noteReading.phase !== "error";
+}
+
+function noteReadingStatusText() {
+  const reading = state.noteReading;
+  const session = reading.session;
+  if (session?.done && reading.finishedAt != null) {
+    const correct = reading.priorCorrect + session.stats.correct;
+    const wrong = reading.priorWrong + session.stats.wrong;
+    const seconds = reading.startedAt == null ? 0 : Math.round((reading.finishedAt - reading.startedAt) / 1000);
+    return trTemplate("note_reading_status_done", { pct: noteReadingAccuracy(correct, wrong) ?? 0, wrong, seconds });
+  }
+  if (reading.phase === "error") return reading.error || "";
+  if (reading.phase === "downloading") {
+    return trTemplate("note_reading_status_downloading", { pct: Math.round((reading.progress || 0) * 100) });
+  }
+  if (reading.phase === "loading") return tr("note_reading_status_loading");
+  if (reading.phase === "microphone") return tr("note_reading_status_microphone");
+  if (reading.phase === "listening" && reading.silentDevice) {
+    return trTemplate("note_reading_status_silent", { device: reading.silentDevice });
+  }
+  if (reading.phase === "listening") return tr("note_reading_status_listening");
+  return tr("note_reading_status_idle");
+}
+
+// The staff looks disabled in solfège mode until the microphone is listening.
+function syncNoteReadingStaffState() {
+  const inactive = state.mode === "note_reading" && state.noteReading.phase !== "listening";
+  el("staffArea")?.classList.toggle("note-reading-inactive", inactive);
+}
+
+// Every note is eventually read correctly, so accuracy is right answers over
+// all attempts (right + wrong); null before the first attempt.
+function noteReadingAccuracy(correct, wrong) {
+  const attempts = correct + wrong;
+  return attempts ? Math.round((correct / attempts) * 100) : null;
+}
+
+function refreshNoteReadingUi() {
+  syncNoteReadingStaffState();
+  const reading = state.noteReading;
+  const session = reading.session;
+  const listen = el("noteReadingListen");
+  if (listen) {
+    const busy = noteReadingBusy();
+    listen.textContent = busy ? tr("note_reading_stop") : tr("note_reading_start");
+    listen.classList.toggle("active", busy);
+    listen.setAttribute("aria-pressed", busy ? "true" : "false");
+  }
+  const setValue = (id, value) => {
+    const node = el(id);
+    if (node) node.textContent = String(value);
+  };
+  const stats = session ? session.stats : { correct: 0, wrong: 0 };
+  // Progress names the note being read (1-based) while listening, or once it
+  // has been attempted; when stopped before trying it, the last completed one.
+  const total = session ? session.notes.length : 0;
+  let progress = "-";
+  if (session) {
+    const attempted = session.stats.missed.has(session.position);
+    const inProgress = reading.phase === "listening" || attempted;
+    const shown = session.done ? total : (inProgress ? session.position + 1 : Math.max(session.position, 1));
+    progress = `${shown}/${total}`;
+  }
+  if (session && reading.round > 1) progress += ` · ${trTemplate("note_reading_round", { n: reading.round })}`;
+  setValue("noteReadingProgress", progress);
+  const accuracy = noteReadingAccuracy(reading.priorCorrect + stats.correct, reading.priorWrong + stats.wrong);
+  setValue("noteReadingAccuracy", accuracy == null ? "-" : `${accuracy} %`);
+  setValue("noteReadingWrong", reading.priorWrong + stats.wrong);
+  const auto = el("noteReadingAuto");
+  if (auto) auto.checked = reading.auto;
+  setValue("noteReadingStatus", noteReadingStatusText());
+  const clef = el("noteReadingClef");
+  if (clef && clef.value !== reading.clef) clef.value = reading.clef;
+  const range = el("noteReadingRange");
+  if (range && range.value !== reading.range) range.value = reading.range;
+}
+
+function drawNoteReadingCanvas(ctx, width, height) {
+  const reading = state.noteReading;
+  const session = reading.session;
+  ctx.fillStyle = "#0f1621";
+  ctx.fillRect(0, 0, width, height);
+  const gap = Math.max(14, Math.min(24, Math.round(height / 14)));
+  const staffTop = Math.round((height - gap * 4) / 2);
+  const marginX = 40;
+  const rightX = width - 24;
+  const bass = reading.clef === "bass";
+  drawStaffLines(ctx, marginX, rightX, staffTop, gap);
+  if (bass) drawBassClef(ctx, marginX + 12, staffTop + gap * 2.25);
+  else drawTrebleClef(ctx, marginX + 12, staffTop + gap * 2.7);
+  if (!session) return;
+
+  const notes = session.notes;
+  const firstX = marginX + 120;
+  const step = notes.length > 1 ? (rightX - 40 - firstX) / (notes.length - 1) : 0;
+  notes.forEach((midi, idx) => {
+    const x = Math.round(firstX + idx * step);
+    const y = bass ? midiToBassY(midi, staffTop, gap) : midiToTrebleY(midi, staffTop, gap);
+    const done = idx < session.position;
+    const current = idx === session.position;
+    let stroke = null;
+    if (done) stroke = "#34c96b";
+    else if (current) stroke = reading.missPos === idx ? "#ff6b6b" : "#ffa94d";
+    drawNote(ctx, x, y, staffTop, gap, false, false, stroke != null, stroke, false, "w");
+    const lang = noteReadingLanguage();
+    const wrong = current && reading.wrongHeard?.position === idx ? labelForStep(reading.wrongHeard.step, lang) : null;
+    if (done || wrong) {
+      ctx.save();
+      ctx.fillStyle = done ? "#34c96b" : "#ff6b6b";
+      ctx.font = "600 15px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(done ? noteLabel(midi, lang) : wrong, x, staffTop + gap * 4 + gap * 3.2);
+      ctx.restore();
+    }
+  });
+}
+
 function bindEvents() {
   bindAudioUnlockGestures();
   const listen = (target, type, handler, options) =>
@@ -8139,8 +8536,35 @@ function bindEvents() {
   listen(el("instrumentToggle"), "click", () => setInstrument(state.instrument === "piano" ? "guitar" : "piano"));
 
   listen(el("midiToggle"), "click", toggleMidi);
+  listen(el("noteReadingListen"), "click", () => {
+    if (noteReadingBusy()) {
+      stopNoteReadingListening();
+      settleNoteReadingAfterStop();
+    } else {
+      void startNoteReadingListening();
+    }
+  });
+  listen(el("noteReadingNew"), "click", newNoteReadingSequence);
+  listen(el("noteReadingAuto"), "change", (e) => {
+    state.noteReading.auto = !!e.target.checked;
+    saveNoteReadingAuto(state.noteReading.auto);
+    // Turning it on after finishing a round continues right away.
+    if (state.noteReading.auto && state.noteReading.session?.done) {
+      state.noteReading.finishedAt = null;
+      nextNoteReadingRound();
+    }
+  });
+  listen(el("noteReadingClef"), "change", (e) => {
+    state.noteReading.clef = e.target.value === "bass" ? "bass" : "treble";
+    newNoteReadingSequence();
+  });
+  listen(el("noteReadingRange"), "change", (e) => {
+    state.noteReading.range = e.target.value === "ledger" ? "ledger" : "staff";
+    newNoteReadingSequence();
+  });
   listen(window, "pagehide", () => {
     if (partyKeysLedsActive()) partyKeysLeds.clear();
+    stopNoteReadingListening();
   });
   const helpToggle = el("helpToggle");
   if (helpToggle) {
@@ -8231,6 +8655,10 @@ function bindEvents() {
   });
   listen(el("language"), "change", async (e) => {
     state.language = e.target.value;
+    // The recognizer's model and vocabulary are per language: if it was
+    // listening, restart it below with the new language's model.
+    const restartNoteReading = noteReadingBusy();
+    if (restartNoteReading) stopNoteReadingListening();
     await loadMeta();
     applyTranslations();
     applySeoMeta();
@@ -8245,6 +8673,7 @@ function bindEvents() {
     if (state.generatedChord) await runGenerateChord();
     if (state.generatedScale) await runGenerateScale();
     renderStaff();
+    if (restartNoteReading && state.mode === "note_reading") void startNoteReadingListening({ resume: true });
   });
 
   listen(el("accidental"), "change", async (e) => {
@@ -8821,6 +9250,7 @@ async function main() {
   refreshMetronomeTempoInfo();
   if (el("metroMotionDot")) updateMetronomeMotion();
   renderMetronomeTimerDisplay();
+  state.noteReading.auto = loadSavedNoteReadingAuto();
   setMode(savedMode);
   renderMetronomeDots();
   renderStaff();

@@ -16,6 +16,19 @@ const HELP_CALLOUTS_NOTE_DETECTION = [
   { selector: "#sharedPiano", textKey: "help_note_detection_instrument", side: "top" },
 ];
 
+const HELP_CALLOUTS_NOTE_READING = [
+  { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
+  { selector: "#language", textKey: "help_language", side: "bottom" },
+  { selector: "#staffCanvas", textKey: "help_note_reading_staff", side: "top" },
+  { selector: "#panelNoteReading", textKey: "help_note_reading_panel", side: "left" },
+  { selector: "#noteReadingClef", textKey: "help_note_reading_clef", side: "left" },
+  { selector: "#noteReadingRange", textKey: "help_note_reading_range", side: "left" },
+  { selector: "#noteReadingAuto", textKey: "help_note_reading_auto", side: "left" },
+  { selector: "#noteReadingListen", textKey: "help_note_reading_listen", side: "bottom" },
+  { selector: "#noteReadingNew", textKey: "help_note_reading_new", side: "bottom" },
+  { selector: "#noteReadingResultBlock", textKey: "help_note_reading_result", side: "left" },
+];
+
 const HELP_CALLOUTS_DETECTION = [
   { selector: "#modeSelect", textKey: "help_mode_select", side: "bottom" },
   { selector: "#language", textKey: "help_language", side: "bottom" },
@@ -202,6 +215,7 @@ function helpCalloutsForMode(mode) {
   if (mode === "generation") return HELP_CALLOUTS_GENERATION;
   if (mode === "circle_fifths") return HELP_CALLOUTS_CIRCLE_FIFTHS;
   if (mode === "scales") return HELP_CALLOUTS_SCALES;
+  if (mode === "note_reading") return HELP_CALLOUTS_NOTE_READING;
   if (mode === "metronome") return HELP_CALLOUTS_METRONOME;
   return [];
 }

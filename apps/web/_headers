@@ -7,3 +7,6 @@
 /static/*
   Cache-Control: no-store
 
+
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable

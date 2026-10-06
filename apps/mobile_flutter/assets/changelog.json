@@ -4,6 +4,13 @@
     "date": "2026-10-05",
     "items": [
       {
+        "date": "2026-10-06",
+        "publish": true,
+        "platforms": ["web"],
+        "es": "Nuevo modo Solfear: lee en voz alta las notas del pentagrama (do, re, mi…) y la app comprueba cada una con el micrófono. Clave de sol o fa, notas dentro del pentagrama o con líneas adicionales, porcentaje de acierto y rondas automáticas. El reconocimiento funciona en tu equipo, sin enviar audio a ningún servidor.",
+        "en": "New Note Reading mode: say the name of each note on the staff aloud (C, D, E…) and the app checks it through the microphone. Treble or bass clef, notes on the staff or with ledger lines, accuracy percentage and automatic rounds. Recognition runs on your device; no audio is sent to any server."
+      },
+      {
         "date": "2026-10-05",
         "publish": true,
         "platforms": ["web"],

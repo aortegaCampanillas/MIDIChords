@@ -2051,3 +2051,10 @@ a.btn-link:hover {
 #appFooter p {
   margin: 2px 0;
 }
+
+/* Solfège: staff dimmed until the microphone is listening. */
+.staff-panel.note-reading-inactive #staffCanvas {
+  opacity: 0.35;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}

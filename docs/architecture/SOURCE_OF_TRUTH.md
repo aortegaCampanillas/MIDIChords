@@ -21,6 +21,7 @@ Este documento indica a humanos y agentes dónde debe comenzar un cambio y qué 
 | Voces de audio web | `apps/web/static/audio_voice.js` (envolventes y liberación) | `apps/web/static/app.js` crea bus/fuentes y conserva mapas de notas retenidas | `apps/web/test/audio_voice.test.js` |
 | Matemática del afinador web | `apps/web/static/tuner_math.js` | `apps/web/static/app.js` aporta micrófono, suavizado, cuerda objetivo y UI | `apps/web/test/tuner_math.test.js` |
 | Resaltado de reproducción web | `apps/web/static/playback_highlight.js` | `apps/web/static/app.js` aporta renderers, modo e instrumento actual | `apps/web/test/playback_highlight.test.js` |
+| Solfear (lectura de notas por voz) web | `apps/web/static/note_reading.js`, `apps/web/static/note_speech.js` | `apps/web/static/app.js` aporta estado, dibujo y botones; modelos en `apps/web/vendor/vosk/` | `apps/web/test/note_reading.test.js`, `tests/test_web_note_reading_mode.py` |
 | LEDs PartyKeys web | `apps/web/static/partykeys_leds.js` | `apps/web/static/app.js` aporta permisos SysEx, puerto y notas por modo | `apps/web/test/partykeys_leds.test.js` |
 | Geometría de guitarra web | `apps/web/static/guitar_geometry.js` | `renderGuitar()` adapta cejillas e índices cubiertos al canvas interactivo | `apps/web/test/guitar_geometry.test.js` |
 | Geometría de partitura web | `apps/web/static/staff_geometry.js` y `staff_beam_geometry.js` | `renderStaff()` aporta modo, estilos, regiones interactivas y canvas | `apps/web/test/staff_geometry.test.js` y `staff_beam_geometry.test.js` |

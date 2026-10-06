@@ -68,6 +68,7 @@
           <option value="interval_practice">Practicar Intervalos</option>
           <option value="circle_fifths">Círculo de quintas</option>
           <option value="scales">Escalas</option>
+          <option value="note_reading">Solfear</option>
           <option value="metronome">Metrónomo</option>
           <option value="tuner">Afinador</option>
         </select>
@@ -116,6 +117,36 @@
                 </div>
                 <div id="noteDetectResultBlock" class="result-block">
                   <div id="noteDetectFieldNote"><span id="labelNoteDetectNote" class="label">Nota:</span> <strong id="noteDetectName">-</strong></div>
+                </div>
+              </section>
+
+              <section id="panelNoteReading" class="mode-panel hidden">
+                <h3 id="headingNoteReading">Solfear</h3>
+                <p id="noteReadingHint" class="muted">Lee en voz alta la nota resaltada (do, re, mi…). Al acertar pasas a la siguiente.</p>
+                <div class="row">
+                  <label id="labelNoteReadingClef" for="noteReadingClef">Clave</label>
+                  <select id="noteReadingClef">
+                    <option value="treble">Sol</option>
+                    <option value="bass">Fa</option>
+                  </select>
+                </div>
+                <div class="row">
+                  <label id="labelNoteReadingRange" for="noteReadingRange">Notas</label>
+                  <select id="noteReadingRange">
+                    <option value="staff">En el pentagrama</option>
+                    <option value="ledger">Con líneas adicionales</option>
+                  </select>
+                </div>
+                <label class="row"><input id="noteReadingAuto" type="checkbox"> <span id="labelNoteReadingAuto">Continuar automáticamente</span></label>
+                <div class="controls-inline">
+                  <button id="noteReadingListen" type="button" aria-pressed="false">🎤 Empezar</button>
+                  <button id="noteReadingNew" type="button">Nueva secuencia</button>
+                </div>
+                <p id="noteReadingStatus" class="muted" aria-live="polite"></p>
+                <div id="noteReadingResultBlock" class="result-block">
+                  <div id="noteReadingFieldProgress"><span id="labelNoteReadingProgress" class="label">Progreso:</span> <strong id="noteReadingProgress">0/8</strong></div>
+                  <div id="noteReadingFieldAccuracy"><span id="labelNoteReadingAccuracy" class="label">Acierto:</span> <strong id="noteReadingAccuracy">-</strong></div>
+                  <div id="noteReadingFieldWrong"><span id="labelNoteReadingWrong" class="label">Fallos:</span> <strong id="noteReadingWrong">0</strong></div>
                 </div>
               </section>
 
@@ -516,6 +547,8 @@
     <script src="/static/scale_theory.js"></script>
     <script src="/static/midi_output.js"></script>
     <script src="/static/partykeys_leds.js"></script>
+    <script src="/static/note_reading.js"></script>
+    <script src="/static/note_speech.js"></script>
     <script src="/static/audio_samples.js"></script>
     <script src="/static/audio_sample_loader.js"></script>
     <script src="/static/audio_voice.js"></script>

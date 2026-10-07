@@ -10,8 +10,10 @@
   const CMD_RGB = 0x15;
   const KEY_COUNT = 36;
   const BASE_NOTE = 48;
-  // Sent by the keyboard on OCT± / Fn+OCT±: F0 05 30 20 00 00 3F 18 <octave> <transpose> F7.
-  const OCTAVE_NOTICE_PREFIX = Object.freeze([0xF0, 0x05, 0x30, 0x20, 0x00, 0x00, 0x3F, 0x18]);
+  // Sent by the keyboard on OCT± / Fn+OCT±: F0 05 30 20 00 <ch> 3F 18 <octave> <transpose> F7.
+  // <ch> follows the keyboard's MIDI channel (00 on channel 1, 01 on channel 2…),
+  // so it is not matched.
+  const OCTAVE_NOTICE_PREFIX = Object.freeze([0xF0, 0x05, 0x30, 0x20, 0x00, null, 0x3F, 0x18]);
 
   // Chosen on real hardware: orange/magenta are hard to tell apart and
   // channel values below ~16 are barely visible.
@@ -70,7 +72,7 @@
   function parseDeviceMessage(data) {
     const bytes = Array.from(data || []);
     if (bytes.length !== OCTAVE_NOTICE_PREFIX.length + 3) return null;
-    if (!OCTAVE_NOTICE_PREFIX.every((byte, idx) => bytes[idx] === byte)) return null;
+    if (!OCTAVE_NOTICE_PREFIX.every((byte, idx) => byte == null || bytes[idx] === byte)) return null;
     if (bytes[bytes.length - 1] !== 0xF7) return null;
     return {
       type: "octave",

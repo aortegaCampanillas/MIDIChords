@@ -110,8 +110,11 @@ teclas no pulsadas o tras soltarlas.
 Al pulsar OCT± o Fn+OCT± el teclado **envía** un SysEx con el estado actual:
 
 ```
-F0 05 30 20 00 00 3F 18 <octava> <transporte> F7
+F0 05 30 20 00 <canal> 3F 18 <octava> <transporte> F7
 ```
+
+`<canal>` es el canal MIDI configurado en el teclado (`00` en el canal 1, `01` en el
+canal 2…, visto el 2026-10-07 con el teclado en canal 2: las notas llegaban como `91`/`81`).
 
 Ambos valores son enteros con signo en 7 bits (`00` = 0, `01` = +1, `7F` = −1).
 Pulsar Fn envía además `F0 05 30 10 00 00 3F 16 F7`.

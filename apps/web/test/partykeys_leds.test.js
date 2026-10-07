@@ -59,6 +59,9 @@ test("octave notices decode signed 7-bit octave and transpose", () => {
   assert.deepEqual(parseDeviceMessage(notice(0x00, 0x00)), { type: "octave", octave: 0, transpose: 0 });
   assert.deepEqual(parseDeviceMessage(notice(0x7F, 0x00)), { type: "octave", octave: -1, transpose: 0 });
   assert.deepEqual(parseDeviceMessage(new Uint8Array(notice(0x00, 0x01))), { type: "octave", octave: 0, transpose: 1 });
+  // Byte 5 follows the keyboard's MIDI channel (seen as 01 on channel 2).
+  const onChannel2 = [0xF0, 0x05, 0x30, 0x20, 0x00, 0x01, 0x3F, 0x18, 0x7F, 0x00, 0xF7];
+  assert.deepEqual(parseDeviceMessage(onChannel2), { type: "octave", octave: -1, transpose: 0 });
   assert.equal(parseDeviceMessage([0xF0, 0x05, 0x30, 0x10, 0x00, 0x00, 0x3F, 0x16, 0xF7]), null);
   assert.equal(parseDeviceMessage([0x90, 60, 64]), null);
 });

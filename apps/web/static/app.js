@@ -4651,7 +4651,7 @@ function refreshDetectionActiveNotes() {
   }
   refreshDetectionButtonsState();
   renderInstrument();
-  runDetection();
+  scheduleDetection();
 }
 
 function detectionManualPress(note, options = {}) {
@@ -6733,17 +6733,73 @@ function chordFormulaAndConstruction(rootPc, suffix, inversion, chordMidi) {
   return { formula, construction };
 }
 
-async function runDetection() {
+// /api/detect is rate limited (Cloudflare rule + worker guard), so detection
+// coalesces near-simultaneous key changes, clears locally when no key is held,
+// drops responses that arrive after a newer request, and retries rejections.
+const DETECTION_DEBOUNCE_MS = 60;
+const DETECTION_RETRY_MS = 2000;
+const DETECTION_MAX_RETRIES = 5;
+const EMPTY_DETECTION_RESULT = Object.freeze({ name: "-", extras_midi: [], notes_midi: [], notes: [], extras: [] });
+let detectionRequestSeq = 0;
+let detectionDebounceTimer = null;
+let detectionRetryTimer = null;
+
+function cancelPendingDetection() {
+  if (detectionDebounceTimer != null) clearTimeout(detectionDebounceTimer);
+  if (detectionRetryTimer != null) clearTimeout(detectionRetryTimer);
+  detectionDebounceTimer = null;
+  detectionRetryTimer = null;
+}
+
+function scheduleDetection() {
+  cancelPendingDetection();
+  if (!state.activeDetectionNotes.size) {
+    void runDetection();
+    return;
+  }
+  detectionDebounceTimer = setTimeout(() => {
+    detectionDebounceTimer = null;
+    void runDetection();
+  }, DETECTION_DEBOUNCE_MS);
+}
+
+async function runDetection({ attempt = 0 } = {}) {
+  if (attempt === 0) cancelPendingDetection();
+  const seq = ++detectionRequestSeq;
+  const notes = Array.from(state.activeDetectionNotes).sort((a, b) => a - b);
+  if (!notes.length) {
+    applyDetectionResult({ ...EMPTY_DETECTION_RESULT });
+    return;
+  }
   const payload = {
-    notes: Array.from(state.activeDetectionNotes).sort((a, b) => a - b),
+    notes,
     language: state.language,
     accidental: currentAccidentalValue(),
   };
-  const out = await fetchJson("/api/detect", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  let out;
+  try {
+    out = await fetchJson("/api/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    if (seq !== detectionRequestSeq) return;
+    console.warn("Chord detection failed:", err);
+    if (attempt < DETECTION_MAX_RETRIES) {
+      detectionRetryTimer = setTimeout(() => {
+        detectionRetryTimer = null;
+        if (seq === detectionRequestSeq) void runDetection({ attempt: attempt + 1 });
+      }, DETECTION_RETRY_MS);
+    }
+    return;
+  }
+  // A newer key change already asked again: this answer is stale.
+  if (seq !== detectionRequestSeq) return;
+  applyDetectionResult(out);
+}
+
+function applyDetectionResult(out) {
   state.detectionResult = out;
   el("detectChord").textContent = out.name || "-";
   const descEl = el("detectChordDesc");

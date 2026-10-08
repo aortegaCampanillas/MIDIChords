@@ -112,3 +112,4 @@ assets/ui-debug-captures/**
 /assets/scale_result_*.png
 /assets/scales_full_*.png
 /assets/staff_title_*.png
+.secrets/

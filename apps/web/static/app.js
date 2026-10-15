@@ -1498,6 +1498,18 @@ function saveMidiEnabledPref(enabled) {
   try { localStorage.setItem(MIDI_ENABLED_STORAGE_KEY, enabled ? "true" : "false"); } catch (_e) {}
 }
 
+// Deep link: /app#mode=<mode> (e.g. from the landing page) opens that mode.
+// A fragment is used rather than ?mode= because it never reaches the worker.
+// It is consumed once so later reloads go back to the saved preference.
+function consumeModeFromUrl() {
+  const match = /(?:^#|&)mode=([a-z_]+)/.exec(window.location.hash || "");
+  if (!match || !AVAILABLE_MODES.has(match[1])) return null;
+  try {
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  } catch (_e) {}
+  return match[1];
+}
+
 function loadSavedModePref() {
   try {
     const saved = localStorage.getItem(MODE_STORAGE_KEY);
@@ -9282,7 +9294,7 @@ function bindEvents() {
 
 async function main() {
   const savedSoundOutput = loadSavedSoundOutputPref();
-  const savedMode = loadSavedModePref();
+  const savedMode = consumeModeFromUrl() || loadSavedModePref();
   if (savedSoundOutput) state.soundOutput = savedSoundOutput;
   initStaffAssets();
   void preloadAudioSamples();

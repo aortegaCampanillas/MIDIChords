@@ -153,6 +153,52 @@
     .award-card p { color: var(--muted); font-size: .875rem; line-height: 1.65; }
     .award-link { white-space: nowrap; }
 
+    /* ── WHAT'S NEW ── */
+    .news-wrap { padding: 0 24px 42px; }
+    .news-head { max-width: 1040px; margin: 0 auto 16px; text-align: center; }
+    .news-grid {
+      max-width: 1040px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;
+    }
+    .news-card {
+      display: flex; flex-direction: column; gap: 10px; padding: 24px 26px;
+      background: linear-gradient(135deg, rgba(91,141,238,.12), rgba(224,120,40,.06));
+      border: 1px solid rgba(123,164,245,.32); border-radius: var(--radius);
+    }
+    .news-card.news-partykeys {
+      background: linear-gradient(135deg, rgba(204,84,232,.14), rgba(40,200,240,.08));
+      border-color: rgba(204,120,240,.36);
+    }
+    .news-badge { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+    .news-icon { font-size: 2rem; line-height: 1; }
+    .news-live {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #ff8f8f; font-size: .72rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .news-live::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%; background: #ff5f5f;
+      box-shadow: 0 0 0 0 rgba(255,95,95,.6); animation: news-pulse 1.6s ease-out infinite;
+    }
+    @keyframes news-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255,95,95,.6); }
+      80%, 100% { box-shadow: 0 0 0 9px rgba(255,95,95,0); }
+    }
+    @media (prefers-reduced-motion: reduce) { .news-live::before { animation: none; } }
+    /* The official wordmark has black lettering: keep it unaltered on a light plate. */
+    .news-logo {
+      display: inline-flex; align-items: center; padding: 8px 14px;
+      background: #fff; border-radius: 10px;
+    }
+    .news-logo img { height: 28px; width: auto; display: block; }
+    .news-kicker {
+      color: var(--accent2); font-size: .72rem; font-weight: 750;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .news-card h3 { font-size: clamp(1.05rem, 2vw, 1.25rem); line-height: 1.35; }
+    .news-card p { color: var(--muted); font-size: .875rem; line-height: 1.65; }
+    .news-note { font-size: .8rem !important; }
+    .news-card .btn-ghost { align-self: flex-start; margin-top: auto; }
+
     .audience-strip {
       max-width: 1040px; margin: 0 auto; padding: 6px 24px 38px;
       display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px;
@@ -417,6 +463,9 @@
       .award-card { grid-template-columns: 82px 1fr; gap: 16px; padding: 18px; }
       .award-card img { width: 82px; height: 82px; }
       .award-link { grid-column: 1 / -1; justify-self: stretch; justify-content: center; }
+      .news-grid { grid-template-columns: 1fr; }
+      .news-card { padding: 18px; }
+      .news-card .btn-ghost { align-self: stretch; justify-content: center; text-align: center; }
     }
     @media (max-width: 900px) {
       .hero { padding-top: 58px; }
@@ -471,6 +520,36 @@
   </div>
 </section>
 
+<!-- WHAT'S NEW -->
+<section class="news-wrap" aria-labelledby="newsTitle">
+  <div class="news-head">
+    <span class="section-label" id="newsTitle" data-i18n="news_label">New in version 1.0.14</span>
+  </div>
+  <div class="news-grid">
+    <article class="news-card">
+      <div class="news-badge">
+        <span class="news-icon" aria-hidden="true">🎤</span>
+        <span class="news-live" data-i18n="news_voice_live">Real-time voice</span>
+      </div>
+      <div class="news-kicker" data-i18n="news_voice_kicker">New mode · Note Reading</div>
+      <h3 data-i18n="news_voice_title">Read music aloud — it hears you in real time</h3>
+      <p data-i18n="news_voice_text">Say the notes on the staff out loud and FreeMIDIChords recognises your voice in real time, note by note, telling you instantly whether each one is right. In English (C, D, E…) or Spanish (do, re, mi…), on treble or bass clef.</p>
+      <p class="news-note" data-i18n="news_voice_private">Speech recognition runs entirely in your browser: your voice never leaves your device.</p>
+      <a class="btn-ghost" href="/app#mode=note_reading" data-i18n="news_voice_cta">Try it now →</a>
+    </article>
+    <article class="news-card news-partykeys">
+      <div class="news-badge">
+        <span class="news-logo"><img src="/static/partners/partykeys-logo.svg" width="133" height="28" alt="PartyKeys" /></span>
+      </div>
+      <div class="news-kicker" data-i18n="news_pk_kicker">New hardware integration</div>
+      <h3 data-i18n="news_pk_title">Works with PartyKeys light-up keyboards</h3>
+      <p data-i18n="news_pk_text">Connect a PartyKeys 36 and its keys light up with what you are studying: the chord, scale, interval or note of each mode, in the same colours as the app. No setup — FreeMIDIChords detects the keyboard automatically.</p>
+      <p class="news-note" data-i18n="news_pk_note">Requires Chrome or Edge on a computer.</p>
+      <a class="btn-ghost" href="https://www.partykeys.com" target="_blank" rel="noopener noreferrer" data-i18n="news_pk_cta">Discover PartyKeys →</a>
+    </article>
+  </div>
+</section>
+
 <!-- RECOGNITION -->
 <aside class="award-wrap" aria-labelledby="awardTitle">
   <div class="award-card">
@@ -502,7 +581,9 @@
   <button class="feat-pill" data-feat="circle" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('circle')"><span>⭕</span> <span data-i18n="pill_circle">Circle of fifths</span></button>
   <button class="feat-pill" data-feat="scales" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('scales')"><span>🎼</span> <span data-i18n="pill_scales">Scales</span></button>
   <button class="feat-pill" data-feat="metro" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('metro')"><span>🥁</span> <span data-i18n="pill_metro">Metronome</span></button>
+  <button class="feat-pill" data-feat="voice" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('voice')"><span>🎤</span> <span data-i18n="pill_voice">Note reading by voice</span></button>
   <button class="feat-pill" data-feat="midi" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('midi')"><span>🎛️</span> <span data-i18n="pill_midi">MIDI input</span></button>
+  <button class="feat-pill" data-feat="partykeys" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('partykeys')"><span>💡</span> <span data-i18n="pill_partykeys">PartyKeys lights</span></button>
   <button class="feat-pill" data-feat="free" aria-expanded="false" aria-controls="featDetail" onclick="toggleFeat('free')"><span>🆓</span> <span data-i18n="pill_free">Always free</span></button>
   <div class="feat-pill"><span>🌐</span> English / Español</div>
 </div>
@@ -533,7 +614,7 @@
       <div class="card-icon">🌐</div>
       <div class="card-title" data-i18n="card_web_title">Web App</div>
       <div class="card-desc" data-i18n="card_web_desc">
-        The full tool suite in your browser — no installation required. Detect chords and intervals, generate piano and guitar chords, interactive circle of fifths, scales, and metronome. MIDI keyboard optional.
+        The full tool suite in your browser — no installation required. Detect notes, chords, and intervals, practise intervals, generate piano and guitar chords, explore scales and the circle of fifths, read music aloud with real-time voice recognition, and use the metronome. MIDI keyboard optional — PartyKeys light-up keyboards supported.
       </div>
       <div class="card-links">
         <span class="card-link" data-i18n="card_open">Open →</span>
@@ -742,6 +823,24 @@ const TRANSLATIONS = {
     pill_scales:        "Scales",
     pill_metro:         "Metronome",
     pill_midi:          "MIDI input",
+    news_label:         "New in version 1.0.14",
+    news_voice_live:    "Real-time voice",
+    news_voice_kicker:  "New mode · Note Reading",
+    news_voice_title:   "Read music aloud — it hears you in real time",
+    news_voice_text:    "Say the notes on the staff out loud and FreeMIDIChords recognises your voice in real time, note by note, telling you instantly whether each one is right. In English (C, D, E…) or Spanish (do, re, mi…), on treble or bass clef.",
+    news_voice_private: "Speech recognition runs entirely in your browser: your voice never leaves your device.",
+    news_voice_cta:     "Try it now →",
+    news_pk_kicker:     "New hardware integration",
+    news_pk_title:      "Works with PartyKeys light-up keyboards",
+    news_pk_text:       "Connect a PartyKeys 36 and its keys light up with what you are studying: the chord, scale, interval or note of each mode, in the same colours as the app. No setup — FreeMIDIChords detects the keyboard automatically.",
+    news_pk_note:       "Requires Chrome or Edge on a computer.",
+    news_pk_cta:        "Discover PartyKeys →",
+    pill_voice:         "Note reading by voice",
+    pill_partykeys:     "PartyKeys lights",
+    feat_voice_title:   "Note Reading by voice",
+    feat_voice_body:    "Read the notes on the staff aloud and the app listens in real time: each correct note turns green and you move on; a mistake shows what it heard in red. Choose treble or bass clef, notes on the staff or with ledger lines, and keep going with automatic rounds while your accuracy is tracked. Recognition runs on your device — no audio is sent anywhere.",
+    feat_partykeys_title: "PartyKeys light-up keyboard",
+    feat_partykeys_body: "Plug in a PartyKeys 36 and the keyboard mirrors the app with its own lights: generated chords in each hand's colour, scale degrees, both notes of an interval, the note you just played, and green/red feedback in interval practice. Notes light up brighter while they play, and the lights follow the keyboard's octave buttons.",
     pill_free:          "Always free",
     feat_free_title:    "Free, no ads, no profit",
     feat_free_body:     "FreeMIDIChords is a non-profit project with no ads and no paid plans. It will always be free. We only ask for optional donations to cover what running it actually costs: web hosting and the annual fees to publish on the App Store and Google Play.",
@@ -768,7 +867,7 @@ const TRANSLATIONS = {
     feat_midi_body:     "Connect any USB or Bluetooth MIDI keyboard and use it directly in the app. Notes you play are detected in real time and reflected on the piano, guitar, and staff — no drivers needed in modern browsers.",
     products_title:     "Use it wherever you practise",
     card_web_title:     "Web App",
-    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect notes, chords, and intervals, practise intervals, generate piano and guitar chords, explore scales and the circle of fifths, and use the metronome. MIDI keyboard optional.",
+    card_web_desc:      "The full tool suite in your browser \u2014 no installation required. Detect notes, chords, and intervals, practise intervals, generate piano and guitar chords, explore scales and the circle of fifths, read music aloud with real-time voice recognition, and use the metronome. MIDI keyboard optional — PartyKeys light-up keyboards supported.",
     card_open:          "Open \u2192",
     card_mobile_title:  "Mobile App",
     card_mobile_desc:   "Take FreeMIDIChords anywhere. Same chord tools and circle of fifths, optimized for touch on iPhone, iPad and Android.",
@@ -835,6 +934,24 @@ const TRANSLATIONS = {
     pill_scales:        "Escalas",
     pill_metro:         "Metr\u00f3nomo",
     pill_midi:          "Entrada MIDI",
+    news_label:         "Nuevo en la versión 1.0.14",
+    news_voice_live:    "Voz en tiempo real",
+    news_voice_kicker:  "Nuevo modo · Solfear",
+    news_voice_title:   "Solfea en voz alta: te escucha en tiempo real",
+    news_voice_text:    "Lee en voz alta las notas del pentagrama y FreeMIDIChords reconoce tu voz en tiempo real, nota a nota, y te dice al instante si cada una es correcta. En español (do, re, mi…) o en inglés (C, D, E…), en clave de sol o de fa.",
+    news_voice_private: "El reconocimiento de voz funciona por completo en tu navegador: tu voz nunca sale de tu dispositivo.",
+    news_voice_cta:     "Pruébalo ahora →",
+    news_pk_kicker:     "Nueva integración con hardware",
+    news_pk_title:      "Compatible con los teclados iluminados PartyKeys",
+    news_pk_text:       "Conecta un PartyKeys 36 y sus teclas se iluminan con lo que estás estudiando: el acorde, la escala, el intervalo o la nota de cada modo, con los mismos colores que la app. Sin configurar nada: FreeMIDIChords detecta el teclado automáticamente.",
+    news_pk_note:       "Requiere Chrome o Edge en un ordenador.",
+    news_pk_cta:        "Conocer PartyKeys →",
+    pill_voice:         "Solfeo por voz",
+    pill_partykeys:     "Luces PartyKeys",
+    feat_voice_title:   "Solfear con la voz",
+    feat_voice_body:    "Lee en voz alta las notas del pentagrama y la app te escucha en tiempo real: cada nota acertada se pone en verde y pasas a la siguiente; si fallas, verás en rojo lo que ha oído. Elige clave de sol o de fa, notas dentro del pentagrama o con líneas adicionales, y encadena rondas automáticas mientras se calcula tu porcentaje de acierto. El reconocimiento funciona en tu equipo: no se envía audio a ningún sitio.",
+    feat_partykeys_title: "Teclado iluminado PartyKeys",
+    feat_partykeys_body: "Conecta un PartyKeys 36 y el teclado refleja la app con sus propias luces: los acordes generados con el color de cada mano, los grados de la escala, las dos notas de un intervalo, la última nota tocada y la respuesta verde/roja al practicar intervalos. Las notas se iluminan con más intensidad mientras suenan y las luces siguen los botones de octava del teclado.",
     pill_free:          "Siempre gratis",
     feat_free_title:    "Gratis, sin publicidad y sin \u00e1nimo de lucro",
     feat_free_body:     "FreeMIDIChords es un proyecto sin \u00e1nimo de lucro, sin publicidad y sin planes de pago. Siempre ser\u00e1 gratuito. Solo pedimos donaciones voluntarias para cubrir lo que realmente cuesta mantenerlo: el hospedaje web y las cuotas anuales de publicaci\u00f3n en el App Store y Google Play.",
@@ -861,7 +978,7 @@ const TRANSLATIONS = {
     feat_midi_body:     "Conecta cualquier teclado MIDI por USB o Bluetooth y \u00fasalo directamente en la app. Las notas que toques se detectan en tiempo real y se reflejan en el piano, la guitarra y el pentagrama \u2014 sin instalar controladores en navegadores modernos.",
     products_title:     "\u00dasalo donde practiques",
     card_web_title:     "App Web",
-    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta notas, acordes e intervalos, practica intervalos, genera acordes de piano y guitarra, explora escalas y el c\u00edrculo de quintas, y utiliza el metr\u00f3nomo. Teclado MIDI opcional.",
+    card_web_desc:      "La suite completa en tu navegador \u2014 sin instalaci\u00f3n. Detecta notas, acordes e intervalos, practica intervalos, genera acordes de piano y guitarra, explora escalas y el c\u00edrculo de quintas, solfea en voz alta con reconocimiento de voz en tiempo real y utiliza el metr\u00f3nomo. Teclado MIDI opcional, compatible con los teclados iluminados PartyKeys.",
     card_open:          "Abrir \u2192",
     card_mobile_title:  "App M\u00f3vil",
     card_mobile_desc:   "Lleva FreeMIDIChords a todas partes. Las mismas herramientas de acordes y el c\u00edrculo de quintas, optimizadas para pantalla t\u00e1ctil en iPhone, iPad y Android.",
@@ -916,8 +1033,25 @@ function toggleFeatContent(lang, id) {
     cta.href = DONATE_URLS[lang] || DONATE_URLS.en;
   } else {
     cta.textContent = t["feat_cta"] || "Try it now →";
-    cta.href = "/app";
+    cta.href = featAppHref(id);
   }
+}
+
+// App mode opened by each feature's "Try it now" link (/app#mode=…).
+const FEAT_APP_MODES = {
+  notes: "note_detection",
+  chords: "detection",
+  intervals: "interval_detection",
+  interval_practice: "interval_practice",
+  generation: "generation",
+  circle: "circle_fifths",
+  scales: "scales",
+  metro: "metronome",
+  voice: "note_reading",
+};
+
+function featAppHref(id) {
+  return FEAT_APP_MODES[id] ? `/app#mode=${FEAT_APP_MODES[id]}` : "/app";
 }
 
 // ── FEATURE DETAIL TOGGLE ──
@@ -931,6 +1065,8 @@ const FEAT_ICONS = {
   scales:     "🎼",
   metro:      "🥁",
   midi:       "🎛️",
+  voice:      "🎤",
+  partykeys:  "💡",
   free:       "🆓",
 };
 
@@ -1030,7 +1166,7 @@ function toggleFeat(id) {
     cta.style.display = "";
   } else {
     cta.textContent = t["feat_cta"] || "Try it now →";
-    cta.href = "/app";
+    cta.href = featAppHref(id);
     cta.style.display = "";
   }
 
